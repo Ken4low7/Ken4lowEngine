@@ -19,7 +19,8 @@ function Get-RelativeProjectPath
 {
     param([string]$FullPath)
 
-    return [System.IO.Path]::GetRelativePath($projectRoot, $FullPath).Replace('\', '/')
+    # 監査結果はOSに依存しない表記へ統一する。
+    return [System.IO.Path]::GetRelativePath($projectRoot, $FullPath).Replace([char]92, [char]47)
 }
 
 function Test-IsLiteralProjectPath
@@ -85,7 +86,8 @@ function Get-MissingProjectReferences
             continue
         }
 
-        $normalized = $item.Path.Replace('/', [System.IO.Path]::DirectorySeparatorChar).Replace('\', [System.IO.Path]::DirectorySeparatorChar)
+        # PowerShellの文字列ではバックスラッシュはエスケープ文字ではないため、charコードで明示してOS区切りへ揃える。
+        $normalized = $item.Path.Replace([char]92, [System.IO.Path]::DirectorySeparatorChar).Replace([char]47, [System.IO.Path]::DirectorySeparatorChar)
         $fullPath = [System.IO.Path]::GetFullPath((Join-Path $projectRoot $normalized))
         if (-not (Test-Path -LiteralPath $fullPath))
         {
@@ -100,24 +102,25 @@ function Get-Classification
 {
     param([string]$RelativePath)
 
-    $normalized = $RelativePath.Replace('/', '\')
+    # 分類処理は常にforward slashへ揃え、Windows / PowerShellの区切り文字差を吸収する。
+    $normalized = $RelativePath.Replace([char]92, [char]47)
 
-    if ($normalized -like 'Engine\Editor\*')
+    if ($normalized -like 'Engine/Editor/*')
     {
         return 'Editor'
     }
 
-    if ($normalized -like 'Engine\Scene\Actor\Character\*')
+    if ($normalized -like 'Engine/Scene/Actor/Character/*')
     {
         return 'Gameplay移行候補'
     }
 
-    if ($normalized -like 'ApplicationLayer\*')
+    if ($normalized -like 'ApplicationLayer/*')
     {
         return 'Gameplay / Application'
     }
 
-    if ($normalized -like 'Engine\*')
+    if ($normalized -like 'Engine/*')
     {
         return 'Engine'
     }
