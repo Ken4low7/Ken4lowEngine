@@ -1,7 +1,5 @@
 #pragma once
 #include "BaseScene.h"
-#include "Validation/EnemyMigrationValidation.h"
-#include "Validation/BossMigrationValidation.h"
 #include "Validation/LevelDataValidation.h"
 #include "Validation/LevelImportValidation.h"
 #include "Validation/PerformancePhaseValidation.h"
@@ -179,6 +177,4 @@ private:
 	LevelDataValidation levelDataValidation_;
 	LevelImportValidation levelImportValidation_{ &actorWorld_, &actorPhysicsWorld_ };
 	PerformancePhaseValidation performancePhaseValidation_{ &actorWorld_, &actorPhysicsWorld_ };
-	EnemyMigrationValidation enemyMigrationValidation_;
-	BossMigrationValidation bossMigrationValidation_;
 };

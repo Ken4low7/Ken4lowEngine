@@ -7,7 +7,6 @@
 #include <GameTimer.h>
 
 #include "DebugActorRegistration.h"
-#include "TestActor.h"
 #include "TestGroundActor.h"
 
 #include <ActorJsonSerializer.h>
@@ -41,22 +40,11 @@ void DebugScene::Initialize()
 	actorWorld_.SetPhysicsWorld(&actorPhysicsWorld_);
 	actorPhysicsWorld_.SetUseFixedStep(false);
 
-	// DebugSceneではTestActorをPlayerActorの薄い入力ホストとして使い、実際の移動・物理・CameraはPlayer Componentへ任せる。
-	TestActor& validationActor = actorWorld_.SpawnActor<TestActor>();
-	validationActor.SetName(actorWorldValidation_.targetActorName);
-	validationActor.SetLayer("Player");
-	validationActor.AddTag("Player");
-	validationActor.AddTag("ActorWorldValidation");
-
 	TestGroundActor& validationGround = actorWorld_.SpawnActor<TestGroundActor>();
 	validationGround.SetName("ValidationGround");
 	validationGround.SetLayer("DebugValidation");
 
 	actorWorld_.Initialize();
-
-	// Enemy/Bossは専用Dummyではなく、現在操作しているDebugPlayerを唯一のTargetとして参照する。
-	enemyMigrationValidation_.Initialize(actorWorld_);
-	bossMigrationValidation_.Initialize(actorWorld_);
 }
 
 void DebugScene::BeginEditorPlay()
@@ -95,9 +83,7 @@ void DebugScene::Update()
 	const float deltaTime = K4E::GameTimer::GetInstance()->GetDeltaTime();
 	performancePhaseValidation_.BeginFrame(deltaTime);
 	ProcessActorWorldValidationRequests();
-	enemyMigrationValidation_.Update(deltaTime);
-	bossMigrationValidation_.Update();
-
+	
 	performancePhaseValidation_.BeginPhase(PerformancePhaseValidation::Phase::ActorWorldUpdate);
 	actorWorld_.Update(deltaTime);
 	performancePhaseValidation_.EndPhase(PerformancePhaseValidation::Phase::ActorWorldUpdate);
@@ -123,8 +109,6 @@ void DebugScene::UpdateEditor(float deltaTime)
 {
 	(void)deltaTime;
 	ProcessActorWorldValidationRequests(); // Edit/Pause中の操作要求も次のActorWorld::UpdateEditor前に処理する。
-	enemyMigrationValidation_.UpdateEditor();
-	bossMigrationValidation_.UpdateEditor();
 }
 
 /// -------------------------------------------------------------
@@ -187,9 +171,6 @@ void DebugScene::Finalize()
 		input_->SetCursorVisible(true);
 	}
 
-	// Actorの外部登録を解除し、所有メンバ自体の破棄はDebugSceneのデストラクタへ任せる。
-	enemyMigrationValidation_.Finalize();
-	bossMigrationValidation_.Finalize();
 	actorWorld_.Finalize();
 	input_ = nullptr;
 }
@@ -205,8 +186,6 @@ void DebugScene::DrawImGui()
 	levelDataValidation_.DrawImGui(); // Blender JSONからLevelDataへの読み込み結果を画面上で確認する。
 	levelImportValidation_.DrawImGui(); // BlenderSceneDataからActor/Component用Levelへの変換結果を確認する。
 	performancePhaseValidation_.DrawImGui(); // 実フレームとDebugScene各PhaseのCPU時間を比較する。
-	enemyMigrationValidation_.DrawImGui();
-	bossMigrationValidation_.DrawImGui();
 
 	actorPhysicsDebugDraw_.DrawImGui(actorPhysicsWorld_); // Debug描画はユーザー設定を尊重し、毎フレーム強制ONしない。
 #endif // USE_IMGUI
@@ -231,11 +210,6 @@ void DebugScene::ProcessActorWorldValidationRequests()
 		validation.requestSpawn = false;
 		if (!target)
 		{
-			TestActor& actor = actorWorld_.SpawnActor<TestActor>();
-			actor.SetName(validation.targetActorName);
-			actor.SetLayer("Player");
-			actor.AddTag("Player");
-			actor.AddTag("ActorWorldValidation");
 			validation.lastMessage = "DebugPlayerをActorWorld経由で生成しました。";
 			validation.lastSucceeded = true;
 		}

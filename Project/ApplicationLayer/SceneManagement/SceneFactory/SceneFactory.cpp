@@ -1,7 +1,4 @@
 #include "SceneFactory.h"
-#include "TitleScene.h"
-#include "GamePlayScene.h"
-#include "StageSelectScene.h"
 #include "DebugScene.h"
 
 #include <functional>
@@ -18,9 +15,6 @@ namespace Ken4lowEngine
 			static const std::unordered_map<std::string, SceneCreator> creators = []
 				{
 					std::unordered_map<std::string, SceneCreator> result;
-					result.emplace("TitleScene", [] { return std::make_unique<TitleScene>(); });
-					result.emplace("StageSelectScene", [] { return std::make_unique<StageSelectScene>(); });
-					result.emplace("GamePlayScene", [] { return std::make_unique<GamePlayScene>(); });
 #ifdef _DEBUG
 					result.emplace("DebugScene", [] { return std::make_unique<DebugScene>(); });
 #endif

@@ -2,7 +2,6 @@
 #include "GameApplication.h"
 #include "SceneFactory.h"
 #include "ParameterManager.h"
-#include "ParticleManager.h"
 #include <Wireframe.h>
 #include <DirectXCommon.h>
 #include "Object3DCommon.h"
@@ -217,9 +216,6 @@ namespace Ken4lowEngine
 					// シーンのImGuiの描画処理
 					sceneManager_->DrawImGui();
 
-					// ParticleManagerのImGuiの描画処理
-					ParticleManager::GetInstance()->DrawImGui();
-
 					// WindowメニューのPost Effect Settings表示フラグをPostEffectManager側の×ボタン状態と共有する
 					PostEffectManager::GetInstance()->ImGuiRender(&editorWindowState.showPostEffectSettings);
 
@@ -307,7 +303,6 @@ namespace Ken4lowEngine
 		// デバッグ表示、GPUパーティクル、CPUパーティクルをモデル描画後に重ねる。
 		Wireframe::GetInstance()->Draw();
 		GpuParticleManager::GetInstance()->Draw();
-		ParticleManager::GetInstance()->Draw();
 	}
 
 	/// -------------------------------------------------------------

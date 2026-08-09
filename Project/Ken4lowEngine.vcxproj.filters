@@ -139,14 +139,8 @@
     <FxCompile Include="Resources\Shaders\Object3D\ShadowMap.VS.hlsl">
       <Filter>Shader\VertexShader</Filter>
     </FxCompile>
-    <Filter Include="ApplicationLayer\DebugTools">
-      <UniqueIdentifier>{1dfe6894-ffe2-4b9d-8269-e0ab589e5f55}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Engine\System\JsonAssets">
       <UniqueIdentifier>{e868caf1-6af1-41cb-a34d-efa37d9bd34d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Enemy\Projectile">
-      <UniqueIdentifier>{690331fb-552d-4d8a-b6c3-ca74d0902f48}</UniqueIdentifier>
     </Filter>
     <Filter Include="Engine\Graphics\Renderer\Sprite\Core">
       <UniqueIdentifier>{b6c2e46d-dce7-462a-ba11-2cd58beb479f}</UniqueIdentifier>
@@ -168,9 +162,6 @@
     </Filter>
     <Filter Include="Engine\Physics\DebugDraw">
       <UniqueIdentifier>{c8b8472a-f2d0-4896-b930-54495aebdb87}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\UISystem\HUDManager">
-      <UniqueIdentifier>{c6e64e0a-a0d0-48e3-abd0-f830b4001a94}</UniqueIdentifier>
     </Filter>
     <Filter Include="Engine\Scene\Actor">
       <UniqueIdentifier>{9b4bc25e-9c44-43d6-913a-cce19da1ea04}</UniqueIdentifier>
@@ -217,98 +208,14 @@
     <Filter Include="Engine\Scene\Management">
       <UniqueIdentifier>{4ad4ddbd-96ec-4741-8e9b-67f02e5ea1e2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ApplicationLayer\Character\Player\Actor">
-      <UniqueIdentifier>{26355c87-0127-4d47-8263-74d4862927a2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Player\Migration">
-      <UniqueIdentifier>{4030fa19-2872-47d0-89d0-04c8373d39ae}</UniqueIdentifier>
+    <Filter Include="ApplicationLayer\Scene\SampleScene">
+      <UniqueIdentifier>{cb74d6e6-b44c-423e-b67c-a12e20cc7387}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="WinMain.cpp" />
-    <ClCompile Include="ApplicationLayer\UISystem\Crosshair\Crosshair.cpp">
-      <Filter>ApplicationLayer\UISystem\Crosshair</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Item\Item.cpp">
-      <Filter>ApplicationLayer\Item</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Item\ItemDropTable.cpp">
-      <Filter>ApplicationLayer\Item</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\UISystem\ReloadCircle\ReloadCircle.cpp">
-      <Filter>ApplicationLayer\UISystem\ReloadCircle</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\ParticleEmitter.cpp">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\GamePlayScene.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\Effects\BulletDecalManager.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\PostEffect\PlayerHealthPostEffectController.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\TitleScene\TitleScene.cpp">
-      <Filter>ApplicationLayer\Scene\TitleScene</Filter>
-    </ClCompile>
     <ClCompile Include="ApplicationLayer\SceneManagement\SceneFactory\SceneFactory.cpp">
       <Filter>ApplicationLayer\SceneManager\SceneFactory</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Item\ItemManager.cpp">
-      <Filter>ApplicationLayer\Item</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Item\ItemVisualEffect.cpp">
-      <Filter>ApplicationLayer\Item</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\StageSelectScene\GridStageSelector.cpp">
-      <Filter>ApplicationLayer\Scene\StageSelectScene</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\StageSelectScene\StageSelectScene.cpp">
-      <Filter>ApplicationLayer\Scene\StageSelectScene</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\ModelParticle.cpp">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\BlockEffectRenderer.cpp">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\DisintegrationEmitter.cpp">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\DisintegrationRenderer.cpp">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\ModelBlockEffectSequence.cpp">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\ModelDisintegrationEffect.cpp">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\ModelSurfaceSampler.cpp">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\ReconstructionEmitter.cpp">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\ReconstructionRenderer.cpp">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\ModelReconstructionEffect.cpp">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\StageSelectScene\State\StageSelectSelectingState.cpp">
-      <Filter>ApplicationLayer\Scene\StageSelectScene\State</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\StageSelectScene\State\StageSelectLoadState.cpp">
-      <Filter>ApplicationLayer\Scene\StageSelectScene\State</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\BaseGpuVfx.cpp">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\BossEnemyVfx.cpp">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
     </ClCompile>
     <ClCompile Include="ApplicationLayer\Scene\DebugScene\DebugScene.cpp">
       <Filter>ApplicationLayer\Scene\DebugScene</Filter>
@@ -316,167 +223,8 @@
     <ClCompile Include="ApplicationLayer\SceneManagement\FadeManager\FadeManager.cpp">
       <Filter>ApplicationLayer\SceneManager\FadeManager</Filter>
     </ClCompile>
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataDatabase.cpp">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataEditor.cpp">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataLoader.cpp">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataValidator.cpp">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataWriter.cpp">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Bullet\Bullet.cpp">
-      <Filter>ApplicationLayer\Character\Bullet</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Bullet\BulletManager.cpp">
-      <Filter>ApplicationLayer\Character\Bullet</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\EnemySpawnCrystal.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\EnemySpawnerManager.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\CrystalManager.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\BossIntroController.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\AimTargetDetector.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\CharacterWorld\CharacterWorld.cpp">
-      <Filter>ApplicationLayer\Character\CharacterWorld</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponInstance.cpp">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponSystem.cpp">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\UISystem\HPWidget\HPWidget.cpp">
-      <Filter>ApplicationLayer\UISystem\HPWidget</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\UISystem\HUDManager\HUDManager.cpp">
-      <Filter>ApplicationLayer\UISystem\HUDManager</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\OverlaySystem\BaseOverlay.cpp">
-      <Filter>ApplicationLayer\OverlaySystem</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\OverlaySystem\ConfirmQuitOverlay.cpp">
-      <Filter>ApplicationLayer\OverlaySystem</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\OverlaySystem\PauseOverlay.cpp">
-      <Filter>ApplicationLayer\OverlaySystem</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\TitleScene\State\TitleAttractState.cpp">
-      <Filter>ApplicationLayer\Scene\TitleScene\State</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\TitleScene\State\TitleLoadState.cpp">
-      <Filter>ApplicationLayer\Scene\TitleScene\State</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\TitleScene\State\TitleLobbyState.cpp">
-      <Filter>ApplicationLayer\Scene\TitleScene\State</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\TitleScene\State\TitleLobbyToTitleState.cpp">
-      <Filter>ApplicationLayer\Scene\TitleScene\State</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\TitleScene\State\TitleTransitionToLobby.cpp">
-      <Filter>ApplicationLayer\Scene\TitleScene\State</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\UISystem\WeaponSlot\WeaponSlot.cpp">
-      <Filter>ApplicationLayer\UISystem\WeaponSlot</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\UISystem\WaveUI\WaveUI.cpp">
-      <Filter>ApplicationLayer\UISystem\WaveUI</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\Camera\GamePlayIntroDirector.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\Core\GamePlayStageContext.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\Core</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\Core\GamePlayFlow.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\Core</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\DebugTools\GamePlayDebugTools.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\DebugTools</Filter>
-    </ClCompile>
     <ClCompile Include="Engine\DebugTools\Performance\PerformanceMonitor.cpp">
       <Filter>Engine\DebugTools\Performance</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\UI\PauseMenu.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\UI\ResultMenu.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\GamePlayWorld.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\WaveManager.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\StageObjectiveManager.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\GameplayPhysicsEventHandler.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\PhysicsTestBullet.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Boss\Components\BossPhaseComponent.cpp">
-      <Filter>ApplicationLayer\Character\Boss\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Boss\Components\BossWeakPointComponent.cpp">
-      <Filter>ApplicationLayer\Character\Boss\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Boss\Attacks\BossAttackEffects.cpp">
-      <Filter>ApplicationLayer\Character\Boss\Attacks</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Core\EnemyFactory.cpp">
-      <Filter>ApplicationLayer\Character\Enemy\Core</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Actor\EnemyActor.cpp">
-      <Filter>ApplicationLayer\Character\Enemy\Actor</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Actor\EnemyAIComponent.cpp">
-      <Filter>ApplicationLayer\Character\Enemy\Actor</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Actor\EnemyAttackComponent.cpp">
-      <Filter>ApplicationLayer\Character\Enemy\Actor</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Actor\EnemyEffectComponent.cpp">
-      <Filter>ApplicationLayer\Character\Enemy\Actor</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Core\EnemyBase.cpp">
-      <Filter>ApplicationLayer\Character\Enemy\Core</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Effects\EnemyParticleEffectSystem.cpp">
-      <Filter>ApplicationLayer\Character\Enemy\Effects</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Enemy\HPBar\EnemyHPBar.cpp">
-      <Filter>ApplicationLayer\Character\Enemy\HPBar</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Enemy\HPBar\EnemyHPBarManager.cpp">
-      <Filter>ApplicationLayer\Character\Enemy\HPBar</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Enemy\HPBar\EnemyHPBarProjector.cpp">
-      <Filter>ApplicationLayer\Character\Enemy\HPBar</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\UISystem\Indicator\DamageIndicatorManager.cpp">
-      <Filter>ApplicationLayer\UISystem\Indicator</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\UISystem\NoAmmoUI\NoAmmoUI.cpp">
-      <Filter>ApplicationLayer\UISystem\NoAmmoUI</Filter>
     </ClCompile>
     <ClCompile Include="Engine\Core\Application\Framework.cpp">
       <Filter>Engine\Core\Application</Filter>
@@ -937,12 +685,6 @@
     <ClCompile Include="Engine\Graphics\Renderer\SkyBox\SkyBoxManager.cpp">
       <Filter>Engine\Graphics\Renderer\SkyBox</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\Graphics\Renderer\Particle\Manager\ParticleManager.cpp">
-      <Filter>Engine\Graphics\Renderer\Particle\Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Graphics\Renderer\Particle\Core\ParticleFactory.cpp">
-      <Filter>Engine\Graphics\Renderer\Particle\Core</Filter>
-    </ClCompile>
     <ClCompile Include="Engine\Graphics\Renderer\SkyBox\SkyBoxPipelineSet.cpp">
       <Filter>Engine\Graphics\Renderer\SkyBox</Filter>
     </ClCompile>
@@ -958,21 +700,6 @@
     <ClCompile Include="Engine\Graphics\Renderer\Object3D\Object3DPipelineSet.cpp">
       <Filter>Engine\Graphics\Renderer\Object3D</Filter>
     </ClCompile>
-    <ClCompile Include="ApplicationLayer\UISystem\ControlGuideUI\ControlGuideUI.cpp">
-      <Filter>ApplicationLayer\UISystem\ControlGuideUI</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Navigation\EnemyAStarNavigator.cpp">
-      <Filter>ApplicationLayer\Character\Enemy\Navigation</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\DebugTools\StageChunk\StageChunkDebugController.cpp">
-      <Filter>ApplicationLayer\DebugTools</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\DebugTools\Occlusion\OcclusionDebugController.cpp">
-      <Filter>ApplicationLayer\DebugTools</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\DebugTools\FrustumCulling\FrustumCullingDebugController.cpp">
-      <Filter>ApplicationLayer\DebugTools</Filter>
-    </ClCompile>
     <ClCompile Include="Engine\System\JsonAssets\DataAssetPresets.cpp">
       <Filter>Engine\System\JsonAssets</Filter>
     </ClCompile>
@@ -987,9 +714,6 @@
     </ClCompile>
     <ClCompile Include="Engine\System\JsonAssets\JsonEditorWindow.cpp">
       <Filter>Engine\System\JsonAssets</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Projectile\MidRangeBombProjectile.cpp">
-      <Filter>ApplicationLayer\Character\Enemy\Projectile</Filter>
     </ClCompile>
     <ClCompile Include="Engine\Platform\Windows\ResolutionManager.cpp">
       <Filter>Engine\Platform\Windows</Filter>
@@ -1042,65 +766,11 @@
     <ClCompile Include="Engine\Graphics\Renderer\Wireframe\Effects\WireframeEffectShapes.cpp">
       <Filter>Engine\Graphics\Renderer\Wireframe\Effects</Filter>
     </ClCompile>
-    <ClCompile Include="ApplicationLayer\UISystem\HUDManager\Stage1ObjectiveGuideUI.cpp">
-      <Filter>ApplicationLayer\UISystem\HUDManager</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\UISystem\HUDManager\BossHudUI.cpp">
-      <Filter>ApplicationLayer\UISystem\HUDManager</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\WorldDebugView.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\Stage1TutorialController.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\GameplayPhysicsDebugController.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\CrystalParameterController.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\CrystalHpBarController.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\BossBattleController.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\AmmoRecoveryItemSpawner.cpp">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestActor.cpp">
-      <Filter>ApplicationLayer\Scene\DebugScene\ActorTest</Filter>
-    </ClCompile>
     <ClCompile Include="Engine\Physics\Collision\Legacy\CollisionManager.cpp">
       <Filter>Engine\Physics\Collision\Legacy</Filter>
     </ClCompile>
     <ClCompile Include="Engine\Physics\Collision\Legacy\CollisionPresetLibrary.cpp">
       <Filter>Engine\Physics\Collision\Legacy</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestGroundActor.cpp">
-      <Filter>ApplicationLayer\Scene\DebugScene\ActorTest</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\DebugScene\Validation\CharacterValidation.cpp">
-      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\DebugScene\Validation\EnemyMigrationValidation.cpp">
-      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\DebugScene\Validation\BossMigrationValidation.cpp">
-      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Boss\Actor\BossActor.cpp">
-      <Filter>ApplicationLayer\Character\Boss\Actor</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Boss\Actor\BossActorAttackComponent.cpp">
-      <Filter>ApplicationLayer\Character\Boss\Actor</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Boss\Actor\BossBrainComponent.cpp">
-      <Filter>ApplicationLayer\Character\Boss\Actor</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\Boss\Actor\BossPresentationComponent.cpp">
-      <Filter>ApplicationLayer\Character\Boss\Actor</Filter>
     </ClCompile>
     <ClCompile Include="Engine\Scene\Actor\Core\Actor.cpp">
       <Filter>Engine\Scene\Actor\Core</Filter>
@@ -1210,9 +880,6 @@
     <ClCompile Include="Engine\Scene\Actor\Factory\ActorFactory.cpp">
       <Filter>Engine\Scene\Actor\Factory</Filter>
     </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\DebugScene\DebugActorRegistration.cpp">
-      <Filter>ApplicationLayer\Scene\DebugScene</Filter>
-    </ClCompile>
     <ClCompile Include="Engine\Graphics\Renderer\Animation\Core\AnimationStateController.cpp">
       <Filter>Engine\Graphics\Renderer\Animation\Core</Filter>
     </ClCompile>
@@ -1233,9 +900,6 @@
     </ClCompile>
     <ClCompile Include="Engine\Physics\Collision\Specialized\BulletEnemyCollisionSoA.cpp">
       <Filter>Engine\Physics\Specialized</Filter>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Character\CharacterWorld\BulletEnemySoABridge.cpp">
-      <Filter>ApplicationLayer\Character\CharacterWorld</Filter>
     </ClCompile>
     <ClCompile Include="Engine\Scene\Management\SceneManager.cpp">
       <Filter>Engine\Scene\Management</Filter>
@@ -1258,127 +922,28 @@
     <ClCompile Include="Engine\Editor\ActorWorldEditorBridge.cpp">
       <Filter>Engine\Editor</Filter>
     </ClCompile>
+    <ClCompile Include="ApplicationLayer\Scene\DebugScene\Validation\CharacterValidation.cpp">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
+    </ClCompile>
+    <ClCompile Include="ApplicationLayer\Scene\DebugScene\DebugActorRegistration.cpp">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
+    </ClCompile>
+    <ClCompile Include="ApplicationLayer\DebugTools\FrustumCulling\FrustumCullingDebugController.cpp">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
+    </ClCompile>
+    <ClCompile Include="ApplicationLayer\DebugTools\Occlusion\OcclusionDebugController.cpp">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
+    </ClCompile>
+    <ClCompile Include="ApplicationLayer\DebugTools\StageChunk\StageChunkDebugController.cpp">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
+    </ClCompile>
+    <ClCompile Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestGroundActor.cpp">
+      <Filter>ApplicationLayer\Scene\DebugScene\ActorTest</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ApplicationLayer\UISystem\Crosshair\Crosshair.h">
-      <Filter>ApplicationLayer\UISystem\Crosshair</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Item\Item.h">
-      <Filter>ApplicationLayer\Item</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Item\ItemDropTable.h">
-      <Filter>ApplicationLayer\Item</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Item\ItemType.h">
-      <Filter>ApplicationLayer\Item</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Player\Player.h">
-      <Filter>ApplicationLayer\Character\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\UISystem\ReloadCircle\ReloadCircle.h">
-      <Filter>ApplicationLayer\UISystem\ReloadCircle</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Emitter.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\ParticleEmitter.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Particle.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\GamePlayScene.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\Effects\BulletDecalManager.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\PostEffect\PlayerHealthPostEffectController.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\TitleScene.h">
-      <Filter>ApplicationLayer\Scene\TitleScene</Filter>
-    </ClInclude>
     <ClInclude Include="ApplicationLayer\SceneManagement\SceneFactory\SceneFactory.h">
       <Filter>ApplicationLayer\SceneManager\SceneFactory</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Item\ItemManager.h">
-      <Filter>ApplicationLayer\Item</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Item\ItemVisualEffect.h">
-      <Filter>ApplicationLayer\Item</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\GridStageSelector.h">
-      <Filter>ApplicationLayer\Scene\StageSelectScene</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\IStageSelector.h">
-      <Filter>ApplicationLayer\Scene\StageSelectScene</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\StageRepository.h">
-      <Filter>ApplicationLayer\Scene\StageSelectScene</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\StageSelectScene.h">
-      <Filter>ApplicationLayer\Scene\StageSelectScene</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\BaseCharacter\BaseCharacter.h">
-      <Filter>ApplicationLayer\Character\BaseCharacter</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\ModelParticle.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\BlockEffectRenderer.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\BlockPlacementImGui.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\DisintegrationEmitter.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\DisintegrationParticle.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\DisintegrationRenderer.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ModelBlockEffectSequence.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ModelDisintegrationEffect.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ModelSurfaceSampler.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ReconstructionBlock.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ReconstructionEmitter.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ReconstructionRenderer.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ModelReconstructionEffect.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\TitleCameraUtility.h">
-      <Filter>ApplicationLayer\Scene\TitleScene\State</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\State\IStageSelectSceneState.h">
-      <Filter>ApplicationLayer\Scene\StageSelectScene\State</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\State\StageSelectSelectingState.h">
-      <Filter>ApplicationLayer\Scene\StageSelectScene\State</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\State\StageSelectLoadState.h">
-      <Filter>ApplicationLayer\Scene\StageSelectScene\State</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\BaseGpuVfx.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\BossEnemyVfx.h">
-      <Filter>ApplicationLayer\EffectLayer</Filter>
     </ClInclude>
     <ClInclude Include="ApplicationLayer\Scene\DebugScene\DebugScene.h">
       <Filter>ApplicationLayer\Scene\DebugScene</Filter>
@@ -1386,185 +951,8 @@
     <ClInclude Include="ApplicationLayer\SceneManagement\FadeManager\FadeManager.h">
       <Filter>ApplicationLayer\SceneManager\FadeManager</Filter>
     </ClInclude>
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterData.h">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataDatabase.h">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataEditor.h">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataLoader.h">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataValidator.h">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataWriter.h">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Bullet\Bullet.h">
-      <Filter>ApplicationLayer\Character\Bullet</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Bullet\BulletManager.h">
-      <Filter>ApplicationLayer\Character\Bullet</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Player\PlayerInputSnapshot.h">
-      <Filter>ApplicationLayer\Character\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\EnemySpawnCrystal.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\EnemySpawnerManager.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\CrystalManager.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\BossIntroController.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\AimTargetDetector.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\CharacterWorld\CharacterWorld.h">
-      <Filter>ApplicationLayer\Character\CharacterWorld</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponInstance.h">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponParams.h">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponSystem.h">
-      <Filter>ApplicationLayer\WeaponSystem\WeaponMasterData</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\UISystem\HPWidget\HPWidget.h">
-      <Filter>ApplicationLayer\UISystem\HPWidget</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\UISystem\HUDManager\HUDManager.h">
-      <Filter>ApplicationLayer\UISystem\HUDManager</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\OverlaySystem\BaseOverlay.h">
-      <Filter>ApplicationLayer\OverlaySystem</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\OverlaySystem\ConfirmQuitOverlay.h">
-      <Filter>ApplicationLayer\OverlaySystem</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\OverlaySystem\PauseOverlay.h">
-      <Filter>ApplicationLayer\OverlaySystem</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\TitleTransitionToLobby.h">
-      <Filter>ApplicationLayer\Scene\TitleScene\State</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\TitleAttractState.h">
-      <Filter>ApplicationLayer\Scene\TitleScene\State</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\TitleLoadState.h">
-      <Filter>ApplicationLayer\Scene\TitleScene\State</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\TitleLobbyState.h">
-      <Filter>ApplicationLayer\Scene\TitleScene\State</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\TitleLobbyToTitleState.h">
-      <Filter>ApplicationLayer\Scene\TitleScene\State</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\ITitleSceneState.h">
-      <Filter>ApplicationLayer\Scene\TitleScene\State</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\OverlaySystem\Rect.h">
-      <Filter>ApplicationLayer\Scene\TitleScene\State</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\UISystem\WeaponSlot\WeaponSlot.h">
-      <Filter>ApplicationLayer\UISystem\WeaponSlot</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\UISystem\WaveUI\WaveUI.h">
-      <Filter>ApplicationLayer\UISystem\WaveUI</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\Camera\GamePlayIntroDirector.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\Core\GamePlayStageContext.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\Core\GamePlayFlow.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\DebugTools\GamePlayDebugTools.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\DebugTools</Filter>
-    </ClInclude>
     <ClInclude Include="Engine\DebugTools\Performance\PerformanceMonitor.h">
       <Filter>Engine\DebugTools\Performance</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\UI\PauseMenu.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\UI\ResultMenu.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\GamePlayWorld.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\WaveManager.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\StageObjectiveManager.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\GameplayPhysicsEventHandler.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\PhysicsTestBullet.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Boss\Components\BossPhaseComponent.h">
-      <Filter>ApplicationLayer\Character\Boss\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Boss\Components\BossWeakPointComponent.h">
-      <Filter>ApplicationLayer\Character\Boss\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Boss\Attacks\BossAttackEffects.h">
-      <Filter>ApplicationLayer\Character\Boss\Attacks</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Core\EnemyFactory.h">
-      <Filter>ApplicationLayer\Character\Enemy\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Core\EnemyType.h">
-      <Filter>ApplicationLayer\Character\Enemy\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Actor\EnemyActor.h">
-      <Filter>ApplicationLayer\Character\Enemy\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Actor\EnemyAIComponent.h">
-      <Filter>ApplicationLayer\Character\Enemy\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Actor\EnemyAttackComponent.h">
-      <Filter>ApplicationLayer\Character\Enemy\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Actor\EnemyEffectComponent.h">
-      <Filter>ApplicationLayer\Character\Enemy\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Core\EnemyBase.h">
-      <Filter>ApplicationLayer\Character\Enemy\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Effects\EnemyParticleEffectSystem.h">
-      <Filter>ApplicationLayer\Character\Enemy\Effects</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\HPBar\EnemyHPBar.h">
-      <Filter>ApplicationLayer\Character\Enemy\HPBar</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\HPBar\EnemyHPBarManager.h">
-      <Filter>ApplicationLayer\Character\Enemy\HPBar</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\HPBar\EnemyHPBarProjector.h">
-      <Filter>ApplicationLayer\Character\Enemy\HPBar</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\UISystem\Indicator\DamageIndicatorManager.h">
-      <Filter>ApplicationLayer\UISystem\Indicator</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\UISystem\NoAmmoUI\NoAmmoUI.h">
-      <Filter>ApplicationLayer\UISystem\NoAmmoUI</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Core\Application\Framework.h">
       <Filter>Engine\Core\Application</Filter>
@@ -2163,15 +1551,6 @@
     <ClInclude Include="Engine\Graphics\Renderer\SkyBox\SkyBoxManager.h">
       <Filter>Engine\Graphics\Renderer\SkyBox</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\Graphics\Renderer\Particle\Manager\ParticleManager.h">
-      <Filter>Engine\Graphics\Renderer\Particle\Manager</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Graphics\Renderer\Particle\Core\ParticleEffectType.h">
-      <Filter>Engine\Graphics\Renderer\Particle\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Graphics\Renderer\Particle\Core\ParticleFactory.h">
-      <Filter>Engine\Graphics\Renderer\Particle\Core</Filter>
-    </ClInclude>
     <ClInclude Include="Engine\Graphics\Common\BlendModeType.h">
       <Filter>Engine\Graphics\Common</Filter>
     </ClInclude>
@@ -2196,12 +1575,6 @@
     <ClInclude Include="Engine\Graphics\Renderer\Object3D\Object3DPipelineSet.h">
       <Filter>Engine\Graphics\Renderer\Object3D</Filter>
     </ClInclude>
-    <ClInclude Include="ApplicationLayer\UISystem\ControlGuideUI\ControlGuideUI.h">
-      <Filter>ApplicationLayer\UISystem\ControlGuideUI</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Navigation\EnemyAStarNavigator.h">
-      <Filter>ApplicationLayer\Character\Enemy\Navigation</Filter>
-    </ClInclude>
     <ClInclude Include="Engine\Math\GeometryTypes.h">
       <Filter>Engine\Math</Filter>
     </ClInclude>
@@ -2210,15 +1583,6 @@
     </ClInclude>
     <ClInclude Include="Engine\Math\MathTypes.h">
       <Filter>Engine\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\DebugTools\StageChunk\StageChunkDebugController.h">
-      <Filter>ApplicationLayer\DebugTools</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\DebugTools\Occlusion\OcclusionDebugController.h">
-      <Filter>ApplicationLayer\DebugTools</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\DebugTools\FrustumCulling\FrustumCullingDebugController.h">
-      <Filter>ApplicationLayer\DebugTools</Filter>
     </ClInclude>
     <ClInclude Include="Engine\System\JsonAssets\DataAssetPresets.h">
       <Filter>Engine\System\JsonAssets</Filter>
@@ -2240,9 +1604,6 @@
     </ClInclude>
     <ClInclude Include="Engine\System\JsonAssets\JsonSerializable.h">
       <Filter>Engine\System\JsonAssets</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Projectile\MidRangeBombProjectile.h">
-      <Filter>ApplicationLayer\Character\Enemy\Projectile</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Platform\Windows\GameViewportConstants.h">
       <Filter>Engine\Platform\Windows</Filter>
@@ -2286,36 +1647,6 @@
     <ClInclude Include="Engine\Graphics\Renderer\Wireframe\Core\WireframeTypes.h">
       <Filter>Engine\Graphics\Renderer\Wireframe\Core</Filter>
     </ClInclude>
-    <ClInclude Include="ApplicationLayer\UISystem\HUDManager\Stage1ObjectiveGuideUI.h">
-      <Filter>ApplicationLayer\UISystem\HUDManager</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\UISystem\HUDManager\BossHudUI.h">
-      <Filter>ApplicationLayer\UISystem\HUDManager</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\WorldDebugView.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\Stage1TutorialController.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\GameplayPhysicsDebugController.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\CrystalParameterController.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\CrystalHpBarController.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\BossBattleController.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\AmmoRecoveryItemSpawner.h">
-      <Filter>ApplicationLayer\Scene\GamePlayScene\World</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestActor.h">
-      <Filter>ApplicationLayer\Scene\DebugScene\ActorTest</Filter>
-    </ClInclude>
     <ClInclude Include="Engine\Physics\Collision\Legacy\CollisionBroadPhase.h">
       <Filter>Engine\Physics\Collision\Legacy</Filter>
     </ClInclude>
@@ -2342,30 +1673,6 @@
     </ClInclude>
     <ClInclude Include="Engine\Physics\Collision\Legacy\TraceResponseMatrix.h">
       <Filter>Engine\Physics\Collision\Legacy</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestGroundActor.h">
-      <Filter>ApplicationLayer\Scene\DebugScene\ActorTest</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\CharacterValidation.h">
-      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\EnemyMigrationValidation.h">
-      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\BossMigrationValidation.h">
-      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Boss\Actor\BossActor.h">
-      <Filter>ApplicationLayer\Character\Boss\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Boss\Actor\BossActorAttackComponent.h">
-      <Filter>ApplicationLayer\Character\Boss\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Boss\Actor\BossBrainComponent.h">
-      <Filter>ApplicationLayer\Character\Boss\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Boss\Actor\BossPresentationComponent.h">
-      <Filter>ApplicationLayer\Character\Boss\Actor</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Physics\Collision\Core\PhysicsCollisionLayer.h">
       <Filter>Engine\Physics\Collision\Core</Filter>
@@ -2490,23 +1797,14 @@
     <ClInclude Include="Engine\Scene\Actor\Factory\ActorFactory.h">
       <Filter>Engine\Scene\Actor\Factory</Filter>
     </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\DebugActorRegistration.h">
-      <Filter>ApplicationLayer\Scene\DebugScene</Filter>
-    </ClInclude>
     <ClInclude Include="Engine\Graphics\Renderer\Animation\Core\AnimationStateController.h">
       <Filter>Engine\Graphics\Renderer\Animation\Core</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Math\MathUtil.h">
       <Filter>Engine\Math</Filter>
     </ClInclude>
-    <ClInclude Include="ApplicationLayer\UISystem\UiSpriteFactory.h">
-      <Filter>ApplicationLayer\UISystem</Filter>
-    </ClInclude>
     <ClInclude Include="Engine\Physics\Collision\Specialized\BulletEnemyCollisionSoA.h">
       <Filter>Engine\Physics\Specialized</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\CharacterWorld\BulletEnemySoABridge.h">
-      <Filter>ApplicationLayer\Character\CharacterWorld</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Scene\Management\AbstractSceneFactory.h">
       <Filter>Engine\Scene\Management</Filter>
@@ -2586,50 +1884,11 @@
     <ClInclude Include="Engine\Editor\EditorLevelService.h">
       <Filter>Engine\Editor</Filter>
     </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\InventoryComponent.h">
-      <Filter>ApplicationLayer\Character\Player\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\PlayerActor.h">
-      <Filter>ApplicationLayer\Character\Player\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\PlayerCameraComponent.h">
-      <Filter>ApplicationLayer\Character\Player\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\PlayerInputComponent.h">
-      <Filter>ApplicationLayer\Character\Player\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\PlayerMovementComponent.h">
-      <Filter>ApplicationLayer\Character\Player\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\WeaponComponent.h">
-      <Filter>ApplicationLayer\Character\Player\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\LevelDataValidation.h">
-      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\LevelImportValidation.h">
-      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\PerformancePhaseValidation.h">
-      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
-    </ClInclude>
     <ClInclude Include="Engine\Scene\Actor\Components\StageColliderComponent.h">
       <Filter>Engine\Scene\Actor\Components</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Scene\Actor\Character\HumanoidCharacterActor.h">
       <Filter>Engine\Scene\Actor\Character</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\PlayerHudPresenterComponent.h">
-      <Filter>ApplicationLayer\Character\Player\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Player\IPlayerRuntime.h">
-      <Filter>ApplicationLayer\Character\Player\Actor</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Player\Migration\GamePlayPlayerMigrationRuntime.h">
-      <Filter>ApplicationLayer\Character\Player\Migration</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Player\Migration\PlayerTutorialRestrictionBridge.h">
-      <Filter>ApplicationLayer\Character\Player\Migration</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Scene\Management\SceneDefinition.h">
       <Filter>Engine\Scene\Management</Filter>
@@ -2637,17 +1896,35 @@
     <ClInclude Include="Engine\Scene\Management\SceneDefinitionRegistry.h">
       <Filter>Engine\Scene\Management</Filter>
     </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Actor\MidRangeEnemyComponents.h">
-      <Filter>ApplicationLayer\Character\Enemy\Actor</Filter>
+    <ClInclude Include="ApplicationLayer\DebugTools\StageChunk\StageChunkDebugController.h">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
     </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\StageSelectUIActor.h">
-      <Filter>ApplicationLayer\Scene\StageSelectScene</Filter>
+    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\CharacterValidation.h">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
     </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Boss\Actor\NonHumanoidBossActor.h">
-      <Filter>ApplicationLayer\Character\Boss\Components</Filter>
+    <ClInclude Include="ApplicationLayer\Scene\DebugScene\DebugActorRegistration.h">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
     </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Boss\Actor\BossAttackTypes.h">
-      <Filter>ApplicationLayer\Character\Boss\Actor</Filter>
+    <ClInclude Include="ApplicationLayer\DebugTools\FrustumCulling\FrustumCullingDebugController.h">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
+    </ClInclude>
+    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\LevelDataValidation.h">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
+    </ClInclude>
+    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\LevelImportValidation.h">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
+    </ClInclude>
+    <ClInclude Include="ApplicationLayer\DebugTools\Occlusion\OcclusionDebugController.h">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
+    </ClInclude>
+    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\PerformancePhaseValidation.h">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
+    </ClInclude>
+    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\PlayerMigrationValidationComponent.h">
+      <Filter>ApplicationLayer\Scene\DebugScene\Validation</Filter>
+    </ClInclude>
+    <ClInclude Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestGroundActor.h">
+      <Filter>ApplicationLayer\Scene\DebugScene\ActorTest</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -2666,12 +1943,6 @@
     <Filter Include="ApplicationLayer">
       <UniqueIdentifier>{9c673502-63ce-4a0e-8cd4-12a1564cd777}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ApplicationLayer\EffectLayer">
-      <UniqueIdentifier>{ba8af9aa-94fd-4aaf-8cc7-4f030e743e2d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Item">
-      <UniqueIdentifier>{025c2654-d662-4906-b53f-75721901c9b5}</UniqueIdentifier>
-    </Filter>
     <Filter Include="ApplicationLayer\Scene">
       <UniqueIdentifier>{2c06b534-d429-48a2-9781-834affe90ebd}</UniqueIdentifier>
     </Filter>
@@ -2684,125 +1955,14 @@
     <Filter Include="Shader\GeometryShader">
       <UniqueIdentifier>{c40888df-84fa-4096-ae6a-3404250fc298}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ApplicationLayer\Scene\GamePlayScene">
-      <UniqueIdentifier>{36d2b261-8641-463f-8c40-27d619c5859b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Scene\TitleScene">
-      <UniqueIdentifier>{b62786e7-bde9-43ba-9fbf-df52f72793c1}</UniqueIdentifier>
-    </Filter>
     <Filter Include="ApplicationLayer\SceneManager\SceneFactory">
       <UniqueIdentifier>{300ebf2e-c572-4458-967c-72734b723476}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Scene\StageSelectScene">
-      <UniqueIdentifier>{a8ef6c3f-b857-47b2-ab59-763fefc17071}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character">
-      <UniqueIdentifier>{a2348789-5065-4267-9a0b-5b362471c830}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\BaseCharacter">
-      <UniqueIdentifier>{5c36780a-9bfd-4cb9-8311-ce41c2229990}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Player">
-      <UniqueIdentifier>{c109cc45-a229-47d4-948e-cab986d311a3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\WeaponSystem">
-      <UniqueIdentifier>{11e77611-2a8a-40a3-83a8-40fad2043d80}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Enemy">
-      <UniqueIdentifier>{be2d6a9f-8c22-4da6-85c8-ff7585c0a873}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Scene\TitleScene\State">
-      <UniqueIdentifier>{b9166ef1-ae9d-4c3e-9647-630ab8d4a23f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Scene\StageSelectScene\State">
-      <UniqueIdentifier>{9d2c63a5-c625-4369-909d-240c88706ac1}</UniqueIdentifier>
     </Filter>
     <Filter Include="ApplicationLayer\Scene\DebugScene">
       <UniqueIdentifier>{aca779c2-4030-4199-8102-ea3e7cd9fbc1}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ApplicationLayer\Character\Boss">
-      <UniqueIdentifier>{9f04e0f2-5d76-464a-a9c1-9bc305498abd}</UniqueIdentifier>
-    </Filter>
     <Filter Include="ApplicationLayer\SceneManager\FadeManager">
       <UniqueIdentifier>{9a668ff4-4230-45d3-9b68-31c77b30e350}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\WeaponSystem\WeaponMasterData">
-      <UniqueIdentifier>{4a404601-f1af-44a1-8471-a7f192721594}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\CharacterWorld">
-      <UniqueIdentifier>{a75a8185-2be8-480c-9967-b52e96c8864b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\UISystem">
-      <UniqueIdentifier>{34230b88-8c53-40e4-9a8b-e5d8ca64f2a5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\UISystem\Crosshair">
-      <UniqueIdentifier>{0466c132-fa3c-49c5-8f44-8f63dfbb4c16}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\UISystem\ReloadCircle">
-      <UniqueIdentifier>{28c95605-c9f2-44e5-94d0-86aca3440279}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\UISystem\HPWidget">
-      <UniqueIdentifier>{6408c9d1-410a-459b-9906-aaa87415445b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Bullet">
-      <UniqueIdentifier>{cf916607-2b99-464e-8993-67ea1777d323}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Player\Component">
-      <UniqueIdentifier>{4a04e38b-f4bf-41dd-9f13-0ded4623e95f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Player\Effect">
-      <UniqueIdentifier>{664a477b-ffd9-4ca9-b348-e5eec733b1b3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\OverlaySystem">
-      <UniqueIdentifier>{0c6c3acf-d5c3-436f-b78d-b316901a7eb2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\UISystem\WeaponSlot">
-      <UniqueIdentifier>{ec5ef303-d137-4ec3-98ac-c530db273a98}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\UISystem\WaveUI">
-      <UniqueIdentifier>{0583b643-8b56-4379-84c4-e41564c7d5b2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Scene\GamePlayScene\Camera">
-      <UniqueIdentifier>{ebdbe23f-9989-492a-a59c-42b2ff1ded96}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Scene\GamePlayScene\Core">
-      <UniqueIdentifier>{3bc827a3-17ea-4cd6-9a81-428c0a1b1d50}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Scene\GamePlayScene\UI">
-      <UniqueIdentifier>{f7cecead-d5de-4402-9b61-40dac05abf1a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Scene\GamePlayScene\World">
-      <UniqueIdentifier>{5ced5deb-051c-4b35-9697-e0d7889dfcb1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Scene\GamePlayScene\DebugTools">
-      <UniqueIdentifier>{c81dc3a8-843f-4c5f-b7c6-a2f9ddb1c6b3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Boss\Attacks">
-      <UniqueIdentifier>{0a274766-b157-4428-9898-f9ce7b378bfb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Boss\Components">
-      <UniqueIdentifier>{1583b068-e191-4518-b9a7-1aa545d90d97}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Boss\Actor">
-      <UniqueIdentifier>{4de25284-4f17-4cb4-a898-973ae6d88f09}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Enemy\Core">
-      <UniqueIdentifier>{18d937e2-c886-482e-acee-e0326534f8e2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Enemy\Actor">
-      <UniqueIdentifier>{b1c76ca8-832d-4d0f-98e7-b03af11df623}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Enemy\Effects">
-      <UniqueIdentifier>{b1c34b28-c141-4210-b1db-da47c466359f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Enemy\HPBar">
-      <UniqueIdentifier>{766ebd88-31df-49e0-ba03-34cf1d739fef}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\UISystem\Indicator">
-      <UniqueIdentifier>{322dc8ba-93cd-404c-a24f-4044201ccf09}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\UISystem\NoAmmoUI">
-      <UniqueIdentifier>{1933148b-2819-4648-8ed3-ab859bdc144e}</UniqueIdentifier>
     </Filter>
     <Filter Include="Engine">
       <UniqueIdentifier>{cb11430c-02b5-4b8f-9018-0211eb3a11ef}</UniqueIdentifier>
@@ -3109,12 +2269,6 @@
     </Filter>
     <Filter Include="Engine\Core\Time\Core">
       <UniqueIdentifier>{95af982c-ec3d-4a83-9eb2-182d3868ea17}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\UISystem\ControlGuideUI">
-      <UniqueIdentifier>{e3047797-8f02-4860-be31-91fd1bcb3eb6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ApplicationLayer\Character\Enemy\Navigation">
-      <UniqueIdentifier>{505378d6-1e02-4983-891e-b58cd07dbdae}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

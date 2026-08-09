@@ -7,7 +7,6 @@
 #include <SRVManager.h>
 #include <UAVManager.h>
 #include <TextureManager.h>
-#include <ParticleManager.h>
 #include <SpriteManager.h>
 #include <Object3DCommon.h>
 #include <ModelManager.h>
@@ -180,9 +179,6 @@ namespace Ken4lowEngine
 		// ワイヤーフレームの初期化
 		Wireframe::GetInstance()->Initialize(dxCommon_);
 
-		// ParticleManagerの初期化
-		ParticleManager::GetInstance()->Initialize(dxCommon_, defaultCamera_.get());
-
 		// スカイボックスの初期化
 		SkyBoxManager::GetInstance()->Initialize(dxCommon_);
 
@@ -207,9 +203,6 @@ namespace Ken4lowEngine
 		// ワイヤーフレームの更新処理
 		Wireframe::GetInstance()->Update();
 
-		// ParticleManagerの更新処理
-		ParticleManager::GetInstance()->Update();
-
 		// Gpuパーティクルマネージャーの更新処理
 		GpuParticleManager::GetInstance()->Update(GameTimer::GetInstance()->GetDeltaTime());
 	}
@@ -233,9 +226,6 @@ namespace Ken4lowEngine
 
 		// スカイボックスの終了処理
 		SkyBoxManager::GetInstance()->Finalize();
-
-		// ParticleManagerの終了処理
-		ParticleManager::GetInstance()->Finalize();
 
 		// ワイヤーフレームの終了処理
 		Wireframe::GetInstance()->Finalize();

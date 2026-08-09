@@ -66,7 +66,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Externals\assimp\include;$(ProjectDir)Externals\imgui;$(ProjectDir)ApplicationLayer;$(ProjectDir)ApplicationLayer\Character;$(ProjectDir)\ApplicationLayer\Character\BaseCharacter;$(ProjectDir)\ApplicationLayer\Character\Boss;$(ProjectDir)\ApplicationLayer\Character\Boss\Animations;$(ProjectDir)\ApplicationLayer\Character\Boss\Attacks;$(ProjectDir)\ApplicationLayer\Character\Boss\BaseTypes;$(ProjectDir)\ApplicationLayer\Character\Boss\BehaviorTree;$(ProjectDir)\ApplicationLayer\Character\Boss\Components;$(ProjectDir)\ApplicationLayer\Character\Boss\Core;$(ProjectDir)\ApplicationLayer\Character\Boss\Data;$(ProjectDir)\ApplicationLayer\Character\Boss\DebugTools;$(ProjectDir)\ApplicationLayer\Character\Boss\Derived;$(ProjectDir)\ApplicationLayer\Character\Boss\Derived\GuardianBoss;$(ProjectDir)\ApplicationLayer\Character\Bullet;$(ProjectDir)\ApplicationLayer\Character\CharacterWorld;$(ProjectDir)\ApplicationLayer\Character\Enemy;$(ProjectDir)\ApplicationLayer\Character\Enemy\AI;$(ProjectDir)\ApplicationLayer\Character\Enemy\Core;$(ProjectDir)\ApplicationLayer\Character\Enemy\Effects;$(ProjectDir)\ApplicationLayer\Character\Enemy\HPBar;$(ProjectDir)\ApplicationLayer\Character\Enemy\Navigation;$(ProjectDir)\ApplicationLayer\Character\Enemy\State;$(ProjectDir)\ApplicationLayer\Character\Player;$(ProjectDir)\ApplicationLayer\Character\Player\Component;$(ProjectDir)\ApplicationLayer\Character\Player\Effect;$(ProjectDir)\ApplicationLayer\Colliders;$(ProjectDir)\ApplicationLayer\DebugTools;$(ProjectDir)\ApplicationLayer\DebugTools\EnemyScalability;$(ProjectDir)\ApplicationLayer\DebugTools\FrustumCulling;$(ProjectDir)\ApplicationLayer\DebugTools\Occulusion;$(ProjectDir)\ApplicationLayer\DebugTools\StageChunk;$(ProjectDir)\ApplicationLayer\EffectLayer;$(ProjectDir)\ApplicationLayer\Item;$(ProjectDir)\ApplicationLayer\OverlaySystem;$(ProjectDir)\ApplicationLayer\ResultManager;$(ProjectDir)\ApplicationLayer\Scene;$(ProjectDir)\ApplicationLayer\Scene\DebugScene;$(ProjectDir)\ApplicationLayer\Scene\DebugScene\ActorTest;$(ProjectDir)\ApplicationLayer\Scene\GameClearScene;$(ProjectDir)\ApplicationLayer\Scene\GameOverScene;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\Camera;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\Core;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\DebugTools;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\UI;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\World;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\HUDManager;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\State;$(ProjectDir)\ApplicationLayer\Scene\StageSelectScene;$(ProjectDir)\ApplicationLayer\Scene\StageSelectScene\State;$(ProjectDir)\ApplicationLayer\Scene\TitleScene;$(ProjectDir)\ApplicationLayer\Scene\TitleScene\State;$(ProjectDir)\ApplicationLayer\SceneManagement;$(ProjectDir)\ApplicationLayer\SceneManagement\AbstractSceneFactory;$(ProjectDir)\ApplicationLayer\SceneManagement\BaseScene;$(ProjectDir)\ApplicationLayer\SceneManagement\FadeManager;$(ProjectDir)\ApplicationLayer\SceneManagement\SceneFactory;$(ProjectDir)\ApplicationLayer\SceneManagement\SceneManager;$(ProjectDir)\ApplicationLayer\ScoreManager;$(ProjectDir)\ApplicationLayer\UISystem;$(ProjectDir)\ApplicationLayer\UISystem\ControlGuideUI;$(ProjectDir)\ApplicationLayer\UISystem\Crosshair;$(ProjectDir)\ApplicationLayer\UISystem\HPWidget;$(ProjectDir)\ApplicationLayer\UISystem\HUDManager;$(ProjectDir)\ApplicationLayer\UISystem\Indicator;$(ProjectDir)\ApplicationLayer\UISystem\Indicator\HUDManager;$(ProjectDir)\ApplicationLayer\UISystem\NoAmmoUI;$(ProjectDir)\ApplicationLayer\UISystem\ReloadCircle;$(ProjectDir)\ApplicationLayer\UISystem\WaveUI;$(ProjectDir)\ApplicationLayer\UISystem\WeaponSlot;$(ProjectDir)\ApplicationLayer\WeaponSystem;$(ProjectDir)\ApplicationLayer\WeaponSystem\WeaponMasterData;$(ProjectDir)Engine;$(ProjectDir)Engine\Core;$(ProjectDir)Engine\Core\Application;$(ProjectDir)Engine\Core\Logging;$(ProjectDir)Engine\Core\Time;$(ProjectDir)Engine\Core\Time\Core;$(ProjectDir)Engine\Core\Time\LegacyFPSCounter;$(ProjectDir)Engine\Core\Transform;$(ProjectDir)Engine\DebugTools;$(ProjectDir)Engine\DebugTools\ImGui;$(ProjectDir)Engine\DebugTools\LeakCheck;$(ProjectDir)Engine\DebugTools\Performance;$(ProjectDir)Engine\Graphics;$(ProjectDir)Engine\Graphics\Camera;$(ProjectDir)Engine\Graphics\Camera\Core;$(ProjectDir)Engine\Graphics\Camera\DebugCamera;$(ProjectDir)Engine\Graphics\Camera\FPS;$(ProjectDir)Engine\Graphics\Camera\Manager;$(ProjectDir)Engine\Graphics\Common;$(ProjectDir)Engine\Graphics\Culling;$(ProjectDir)Engine\Graphics\Descriptor;$(ProjectDir)Engine\Graphics\Descriptor\DSV;$(ProjectDir)Engine\Graphics\Descriptor\RTV;$(ProjectDir)Engine\Graphics\Descriptor\SRV;$(ProjectDir)Engine\Graphics\Descriptor\UAV;$(ProjectDir)Engine\Graphics\Device;$(ProjectDir)Engine\Graphics\Device\Command;$(ProjectDir)Engine\Graphics\Device\Core;$(ProjectDir)Engine\Graphics\Device\Facade;$(ProjectDir)Engine\Graphics\Device\SwapChain;$(ProjectDir)Engine\Graphics\Device\Synchronization;$(ProjectDir)Engine\Graphics\Lighting;$(ProjectDir)Engine\Graphics\Material;$(ProjectDir)Engine\Graphics\Mesh;$(ProjectDir)Engine\Graphics\Pipeline;$(ProjectDir)Engine\Graphics\PostEffect;$(ProjectDir)Engine\Graphics\PostEffect\Core;$(ProjectDir)Engine\Graphics\PostEffect\Effects;$(ProjectDir)Engine\Graphics\PostEffect\Effects\AbsorbEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\DepthOutlineEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\DissolveEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\GaussianFilterEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\GrayScaleEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\LuminanceOutlineEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\NormalEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\PixelateEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\RadialBlurEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\RandomEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\SmoothingEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\VignetteEffect;$(ProjectDir)Engine\Graphics\PostEffect\Manager;$(ProjectDir)Engine\Graphics\PostEffect\Pipeline;$(ProjectDir)Engine\Graphics\Renderer;$(ProjectDir)Engine\Graphics\Renderer\Animation;$(ProjectDir)Engine\Graphics\Renderer\Animation\Core;$(ProjectDir)Engine\Graphics\Renderer\Animation\Collider;$(ProjectDir)Engine\Graphics\Renderer\Animation\DebugView;$(ProjectDir)Engine\Graphics\Renderer\Animation\LOD;$(ProjectDir)Engine\Graphics\Renderer\Animation\Pipeline;$(ProjectDir)Engine\Graphics\Renderer\Animation\Skeleton;$(ProjectDir)Engine\Graphics\Renderer\Animation\Skinning;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Buffers;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Data;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Emitter;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Manager;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Pipeline;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Preset;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Renderer;$(ProjectDir)Engine\Graphics\Renderer\Object3D;$(ProjectDir)Engine\Graphics\Renderer\ObjectId;$(ProjectDir)Engine\Graphics\Renderer\Particle;$(ProjectDir)Engine\Graphics\Renderer\Particle\Core;$(ProjectDir)Engine\Graphics\Renderer\Particle\Manager;$(ProjectDir)Engine\Graphics\Renderer\SkyBox;$(ProjectDir)Engine\Graphics\Renderer\Sprite;$(ProjectDir)Engine\Graphics\Renderer\Sprite\Core;$(ProjectDir)Engine\Graphics\Renderer\Sprite\Effects;$(ProjectDir)Engine\Graphics\Renderer\Sprite\Utility;$(ProjectDir)Engine\Graphics\Renderer\Wireframe;$(ProjectDir)Engine\Graphics\Renderer\Wireframe\Core;$(ProjectDir)Engine\Graphics\Renderer\Wireframe\Effects;$(ProjectDir)Engine\Graphics\Renderer\Wireframe\Shapes;$(ProjectDir)Engine\Graphics\RenderState;$(ProjectDir)Engine\Graphics\RenderState\Blend;$(ProjectDir)Engine\Graphics\RenderTarget;$(ProjectDir)Engine\Graphics\RenderTarget\Main;$(ProjectDir)Engine\Graphics\RenderTarget\Shadow;$(ProjectDir)Engine\Graphics\Resource;$(ProjectDir)Engine\Graphics\Resource\Model;$(ProjectDir)Engine\Graphics\Resource\Texture;$(ProjectDir)Engine\Graphics\Shader;$(ProjectDir)Engine\Graphics\Shader\Compiler;$(ProjectDir)Engine\Graphics\Shader\Manifest;$(ProjectDir)Engine\Math;$(ProjectDir)Engine\Math\Geometry;$(ProjectDir)Engine\Math\Matrix;$(ProjectDir)Engine\Math\Quaternion;$(ProjectDir)Engine\Math\Vector;$(ProjectDir)Engine\Misc;$(ProjectDir)Engine\Misc\Audio;$(ProjectDir)Engine\Physics;$(ProjectDir)Engine\Physics\Bridge\;$(ProjectDir)Engine\Physics\Collision;$(ProjectDir)Engine\Physics\Collision\Channels;$(ProjectDir)Engine\Physics\Collision\Core;$(ProjectDir)Engine\Physics\Collision\Legacy;$(ProjectDir)Engine\Physics\Collision\Manager;$(ProjectDir)Engine\Physics\Collision\Preset;$(ProjectDir)Engine\Physics\Collision\Query;$(ProjectDir)Engine\Physics\Collision\Specialized;$(ProjectDir)Engine\Physics\Core;$(ProjectDir)Engine\Physics\DebugDraw;$(ProjectDir)Engine\Physics\Event;$(ProjectDir)Engine\Physics\Solver;$(ProjectDir)Engine\Platform;$(ProjectDir)Engine\Platform\Windows;$(ProjectDir)Engine\Scene;$(ProjectDir)Engine\Scene\Actor;$(ProjectDir)Engine\Scene\Actor\Components;$(ProjectDir)Engine\Scene\Actor\Core;$(ProjectDir)Engine\Scene\Actor\Factory;$(ProjectDir)Engine\Scene\Actor\Serialization;$(ProjectDir)Engine\Scene\Level;$(ProjectDir)Engine\Scene\Management;$(ProjectDir)Engine\System;$(ProjectDir)Engine\System\Audio;$(ProjectDir)Engine\System\Audio\Data;$(ProjectDir)Engine\System\Audio\Manager;$(ProjectDir)Engine\System\Input;$(ProjectDir)Engine\System\JsonAssets;$(ProjectDir)Engine\System\Parameters;$(ProjectDir)Engine\System\Resource</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Externals\assimp\include;$(ProjectDir)Externals\imgui;$(ProjectDir)ApplicationLayer;$(ProjectDir)\ApplicationLayer\DebugTools;$(ProjectDir)\ApplicationLayer\DebugTools\FrustumCulling;$(ProjectDir)\ApplicationLayer\DebugTools\Occulusion;$(ProjectDir)\ApplicationLayer\DebugTools\StageChunk;$(ProjectDir)\ApplicationLayer\Scene;$(ProjectDir)\ApplicationLayer\Scene\DebugScene;$(ProjectDir)\ApplicationLayer\Scene\DebugScene\ActorTest;$(ProjectDir)\ApplicationLayer\SceneManagement;$(ProjectDir)\ApplicationLayer\SceneManagement\AbstractSceneFactory;$(ProjectDir)\ApplicationLayer\SceneManagement\BaseScene;$(ProjectDir)\ApplicationLayer\SceneManagement\FadeManager;$(ProjectDir)\ApplicationLayer\SceneManagement\SceneFactory;$(ProjectDir)\ApplicationLayer\SceneManagement\SceneManager;$(ProjectDir)Engine;$(ProjectDir)Engine\Core;$(ProjectDir)Engine\Core\Application;$(ProjectDir)Engine\Core\Logging;$(ProjectDir)Engine\Core\Time;$(ProjectDir)Engine\Core\Time\Core;$(ProjectDir)Engine\Core\Time\LegacyFPSCounter;$(ProjectDir)Engine\Core\Transform;$(ProjectDir)Engine\DebugTools;$(ProjectDir)Engine\DebugTools\ImGui;$(ProjectDir)Engine\DebugTools\LeakCheck;$(ProjectDir)Engine\DebugTools\Performance;$(ProjectDir)Engine\Graphics;$(ProjectDir)Engine\Graphics\Camera;$(ProjectDir)Engine\Graphics\Camera\Core;$(ProjectDir)Engine\Graphics\Camera\DebugCamera;$(ProjectDir)Engine\Graphics\Camera\FPS;$(ProjectDir)Engine\Graphics\Camera\Manager;$(ProjectDir)Engine\Graphics\Common;$(ProjectDir)Engine\Graphics\Culling;$(ProjectDir)Engine\Graphics\Descriptor;$(ProjectDir)Engine\Graphics\Descriptor\DSV;$(ProjectDir)Engine\Graphics\Descriptor\RTV;$(ProjectDir)Engine\Graphics\Descriptor\SRV;$(ProjectDir)Engine\Graphics\Descriptor\UAV;$(ProjectDir)Engine\Graphics\Device;$(ProjectDir)Engine\Graphics\Device\Command;$(ProjectDir)Engine\Graphics\Device\Core;$(ProjectDir)Engine\Graphics\Device\Facade;$(ProjectDir)Engine\Graphics\Device\SwapChain;$(ProjectDir)Engine\Graphics\Device\Synchronization;$(ProjectDir)Engine\Graphics\Lighting;$(ProjectDir)Engine\Graphics\Material;$(ProjectDir)Engine\Graphics\Mesh;$(ProjectDir)Engine\Graphics\Pipeline;$(ProjectDir)Engine\Graphics\PostEffect;$(ProjectDir)Engine\Graphics\PostEffect\Core;$(ProjectDir)Engine\Graphics\PostEffect\Effects;$(ProjectDir)Engine\Graphics\PostEffect\Effects\AbsorbEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\DepthOutlineEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\DissolveEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\GaussianFilterEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\GrayScaleEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\LuminanceOutlineEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\NormalEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\PixelateEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\RadialBlurEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\RandomEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\SmoothingEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\VignetteEffect;$(ProjectDir)Engine\Graphics\PostEffect\Manager;$(ProjectDir)Engine\Graphics\PostEffect\Pipeline;$(ProjectDir)Engine\Graphics\Renderer;$(ProjectDir)Engine\Graphics\Renderer\Animation;$(ProjectDir)Engine\Graphics\Renderer\Animation\Core;$(ProjectDir)Engine\Graphics\Renderer\Animation\Collider;$(ProjectDir)Engine\Graphics\Renderer\Animation\DebugView;$(ProjectDir)Engine\Graphics\Renderer\Animation\LOD;$(ProjectDir)Engine\Graphics\Renderer\Animation\Pipeline;$(ProjectDir)Engine\Graphics\Renderer\Animation\Skeleton;$(ProjectDir)Engine\Graphics\Renderer\Animation\Skinning;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Buffers;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Data;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Emitter;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Manager;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Pipeline;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Preset;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Renderer;$(ProjectDir)Engine\Graphics\Renderer\Object3D;$(ProjectDir)Engine\Graphics\Renderer\ObjectId;$(ProjectDir)Engine\Graphics\Renderer\Particle;$(ProjectDir)Engine\Graphics\Renderer\Particle\Core;$(ProjectDir)Engine\Graphics\Renderer\Particle\Manager;$(ProjectDir)Engine\Graphics\Renderer\SkyBox;$(ProjectDir)Engine\Graphics\Renderer\Sprite;$(ProjectDir)Engine\Graphics\Renderer\Sprite\Core;$(ProjectDir)Engine\Graphics\Renderer\Sprite\Effects;$(ProjectDir)Engine\Graphics\Renderer\Sprite\Utility;$(ProjectDir)Engine\Graphics\Renderer\Wireframe;$(ProjectDir)Engine\Graphics\Renderer\Wireframe\Core;$(ProjectDir)Engine\Graphics\Renderer\Wireframe\Effects;$(ProjectDir)Engine\Graphics\Renderer\Wireframe\Shapes;$(ProjectDir)Engine\Graphics\RenderState;$(ProjectDir)Engine\Graphics\RenderState\Blend;$(ProjectDir)Engine\Graphics\RenderTarget;$(ProjectDir)Engine\Graphics\RenderTarget\Main;$(ProjectDir)Engine\Graphics\RenderTarget\Shadow;$(ProjectDir)Engine\Graphics\Resource;$(ProjectDir)Engine\Graphics\Resource\Model;$(ProjectDir)Engine\Graphics\Resource\Texture;$(ProjectDir)Engine\Graphics\Shader;$(ProjectDir)Engine\Graphics\Shader\Compiler;$(ProjectDir)Engine\Graphics\Shader\Manifest;$(ProjectDir)Engine\Math;$(ProjectDir)Engine\Math\Geometry;$(ProjectDir)Engine\Math\Matrix;$(ProjectDir)Engine\Math\Quaternion;$(ProjectDir)Engine\Math\Vector;$(ProjectDir)Engine\Misc;$(ProjectDir)Engine\Misc\Audio;$(ProjectDir)Engine\Physics;$(ProjectDir)Engine\Physics\Bridge\;$(ProjectDir)Engine\Physics\Collision;$(ProjectDir)Engine\Physics\Collision\Channels;$(ProjectDir)Engine\Physics\Collision\Core;$(ProjectDir)Engine\Physics\Collision\Legacy;$(ProjectDir)Engine\Physics\Collision\Manager;$(ProjectDir)Engine\Physics\Collision\Preset;$(ProjectDir)Engine\Physics\Collision\Query;$(ProjectDir)Engine\Physics\Collision\Specialized;$(ProjectDir)Engine\Physics\Core;$(ProjectDir)Engine\Physics\DebugDraw;$(ProjectDir)Engine\Physics\Event;$(ProjectDir)Engine\Physics\Solver;$(ProjectDir)Engine\Platform;$(ProjectDir)Engine\Platform\Windows;$(ProjectDir)Engine\Scene;$(ProjectDir)Engine\Scene\Actor;$(ProjectDir)Engine\Scene\Actor\Components;$(ProjectDir)Engine\Scene\Actor\Core;$(ProjectDir)Engine\Scene\Actor\Factory;$(ProjectDir)Engine\Scene\Actor\Serialization;$(ProjectDir)Engine\Scene\Level;$(ProjectDir)Engine\Scene\Management;$(ProjectDir)Engine\System;$(ProjectDir)Engine\System\Audio;$(ProjectDir)Engine\System\Audio\Data;$(ProjectDir)Engine\System\Audio\Manager;$(ProjectDir)Engine\System\Input;$(ProjectDir)Engine\System\JsonAssets;$(ProjectDir)Engine\System\Parameters;$(ProjectDir)Engine\System\Resource</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
     </ClCompile>
     <Link>
@@ -97,7 +97,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Externals\assimp\include;$(ProjectDir)Externals\imgui;$(ProjectDir)ApplicationLayer;$(ProjectDir)ApplicationLayer\Character;$(ProjectDir)\ApplicationLayer\Character\BaseCharacter;$(ProjectDir)\ApplicationLayer\Character\Boss;$(ProjectDir)\ApplicationLayer\Character\Boss\Animations;$(ProjectDir)\ApplicationLayer\Character\Boss\Attacks;$(ProjectDir)\ApplicationLayer\Character\Boss\BaseTypes;$(ProjectDir)\ApplicationLayer\Character\Boss\BehaviorTree;$(ProjectDir)\ApplicationLayer\Character\Boss\Components;$(ProjectDir)\ApplicationLayer\Character\Boss\Core;$(ProjectDir)\ApplicationLayer\Character\Boss\Data;$(ProjectDir)\ApplicationLayer\Character\Boss\DebugTools;$(ProjectDir)\ApplicationLayer\Character\Boss\Derived;$(ProjectDir)\ApplicationLayer\Character\Boss\Derived\GuardianBoss;$(ProjectDir)\ApplicationLayer\Character\Bullet;$(ProjectDir)\ApplicationLayer\Character\CharacterWorld;$(ProjectDir)\ApplicationLayer\Character\Enemy;$(ProjectDir)\ApplicationLayer\Character\Enemy\AI;$(ProjectDir)\ApplicationLayer\Character\Enemy\Core;$(ProjectDir)\ApplicationLayer\Character\Enemy\Effects;$(ProjectDir)\ApplicationLayer\Character\Enemy\HPBar;$(ProjectDir)\ApplicationLayer\Character\Enemy\Navigation;$(ProjectDir)\ApplicationLayer\Character\Enemy\State;$(ProjectDir)\ApplicationLayer\Character\Player;$(ProjectDir)\ApplicationLayer\Character\Player\Component;$(ProjectDir)\ApplicationLayer\Character\Player\Effect;$(ProjectDir)\ApplicationLayer\Colliders;$(ProjectDir)\ApplicationLayer\DebugTools;$(ProjectDir)\ApplicationLayer\DebugTools\EnemyScalability;$(ProjectDir)\ApplicationLayer\DebugTools\FrustumCulling;$(ProjectDir)\ApplicationLayer\DebugTools\Occulusion;$(ProjectDir)\ApplicationLayer\DebugTools\StageChunk;$(ProjectDir)\ApplicationLayer\EffectLayer;$(ProjectDir)\ApplicationLayer\Item;$(ProjectDir)\ApplicationLayer\OverlaySystem;$(ProjectDir)\ApplicationLayer\ResultManager;$(ProjectDir)\ApplicationLayer\Scene;$(ProjectDir)\ApplicationLayer\Scene\DebugScene;$(ProjectDir)\ApplicationLayer\Scene\DebugScene\ActorTest;$(ProjectDir)\ApplicationLayer\Scene\GameClearScene;$(ProjectDir)\ApplicationLayer\Scene\GameOverScene;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\Camera;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\Core;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\DebugTools;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\UI;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\World;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\HUDManager;$(ProjectDir)\ApplicationLayer\Scene\GamePlayScene\State;$(ProjectDir)\ApplicationLayer\Scene\StageSelectScene;$(ProjectDir)\ApplicationLayer\Scene\StageSelectScene\State;$(ProjectDir)\ApplicationLayer\Scene\TitleScene;$(ProjectDir)\ApplicationLayer\Scene\TitleScene\State;$(ProjectDir)\ApplicationLayer\SceneManagement;$(ProjectDir)\ApplicationLayer\SceneManagement\AbstractSceneFactory;$(ProjectDir)\ApplicationLayer\SceneManagement\BaseScene;$(ProjectDir)\ApplicationLayer\SceneManagement\FadeManager;$(ProjectDir)\ApplicationLayer\SceneManagement\SceneFactory;$(ProjectDir)\ApplicationLayer\SceneManagement\SceneManager;$(ProjectDir)\ApplicationLayer\ScoreManager;$(ProjectDir)\ApplicationLayer\UISystem;$(ProjectDir)\ApplicationLayer\UISystem\ControlGuideUI;$(ProjectDir)\ApplicationLayer\UISystem\Crosshair;$(ProjectDir)\ApplicationLayer\UISystem\HPWidget;$(ProjectDir)\ApplicationLayer\UISystem\HUDManager;$(ProjectDir)\ApplicationLayer\UISystem\Indicator;$(ProjectDir)\ApplicationLayer\UISystem\Indicator\HUDManager;$(ProjectDir)\ApplicationLayer\UISystem\NoAmmoUI;$(ProjectDir)\ApplicationLayer\UISystem\ReloadCircle;$(ProjectDir)\ApplicationLayer\UISystem\WaveUI;$(ProjectDir)\ApplicationLayer\UISystem\WeaponSlot;$(ProjectDir)\ApplicationLayer\WeaponSystem;$(ProjectDir)\ApplicationLayer\WeaponSystem\WeaponMasterData;$(ProjectDir)Engine;$(ProjectDir)Engine\Core;$(ProjectDir)Engine\Core\Application;$(ProjectDir)Engine\Core\Logging;$(ProjectDir)Engine\Core\Time;$(ProjectDir)Engine\Core\Time\Core;$(ProjectDir)Engine\Core\Time\LegacyFPSCounter;$(ProjectDir)Engine\Core\Transform;$(ProjectDir)Engine\DebugTools;$(ProjectDir)Engine\DebugTools\ImGui;$(ProjectDir)Engine\DebugTools\LeakCheck;$(ProjectDir)Engine\DebugTools\Performance;$(ProjectDir)Engine\Graphics;$(ProjectDir)Engine\Graphics\Camera;$(ProjectDir)Engine\Graphics\Camera\Core;$(ProjectDir)Engine\Graphics\Camera\DebugCamera;$(ProjectDir)Engine\Graphics\Camera\FPS;$(ProjectDir)Engine\Graphics\Camera\Manager;$(ProjectDir)Engine\Graphics\Common;$(ProjectDir)Engine\Graphics\Culling;$(ProjectDir)Engine\Graphics\Descriptor;$(ProjectDir)Engine\Graphics\Descriptor\DSV;$(ProjectDir)Engine\Graphics\Descriptor\RTV;$(ProjectDir)Engine\Graphics\Descriptor\SRV;$(ProjectDir)Engine\Graphics\Descriptor\UAV;$(ProjectDir)Engine\Graphics\Device;$(ProjectDir)Engine\Graphics\Device\Command;$(ProjectDir)Engine\Graphics\Device\Core;$(ProjectDir)Engine\Graphics\Device\Facade;$(ProjectDir)Engine\Graphics\Device\SwapChain;$(ProjectDir)Engine\Graphics\Device\Synchronization;$(ProjectDir)Engine\Graphics\Lighting;$(ProjectDir)Engine\Graphics\Material;$(ProjectDir)Engine\Graphics\Mesh;$(ProjectDir)Engine\Graphics\Pipeline;$(ProjectDir)Engine\Graphics\PostEffect;$(ProjectDir)Engine\Graphics\PostEffect\Core;$(ProjectDir)Engine\Graphics\PostEffect\Effects;$(ProjectDir)Engine\Graphics\PostEffect\Effects\AbsorbEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\DepthOutlineEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\DissolveEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\GaussianFilterEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\GrayScaleEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\LuminanceOutlineEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\NormalEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\PixelateEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\RadialBlurEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\RandomEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\SmoothingEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\VignetteEffect;$(ProjectDir)Engine\Graphics\PostEffect\Manager;$(ProjectDir)Engine\Graphics\PostEffect\Pipeline;$(ProjectDir)Engine\Graphics\Renderer;$(ProjectDir)Engine\Graphics\Renderer\Animation;$(ProjectDir)Engine\Graphics\Renderer\Animation\Core;$(ProjectDir)Engine\Graphics\Renderer\Animation\Collider;$(ProjectDir)Engine\Graphics\Renderer\Animation\DebugView;$(ProjectDir)Engine\Graphics\Renderer\Animation\LOD;$(ProjectDir)Engine\Graphics\Renderer\Animation\Pipeline;$(ProjectDir)Engine\Graphics\Renderer\Animation\Skeleton;$(ProjectDir)Engine\Graphics\Renderer\Animation\Skinning;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Buffers;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Data;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Emitter;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Manager;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Pipeline;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Preset;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Renderer;$(ProjectDir)Engine\Graphics\Renderer\Object3D;$(ProjectDir)Engine\Graphics\Renderer\ObjectId;$(ProjectDir)Engine\Graphics\Renderer\Particle;$(ProjectDir)Engine\Graphics\Renderer\Particle\Core;$(ProjectDir)Engine\Graphics\Renderer\Particle\Manager;$(ProjectDir)Engine\Graphics\Renderer\SkyBox;$(ProjectDir)Engine\Graphics\Renderer\Sprite;$(ProjectDir)Engine\Graphics\Renderer\Sprite\Core;$(ProjectDir)Engine\Graphics\Renderer\Sprite\Effects;$(ProjectDir)Engine\Graphics\Renderer\Sprite\Utility;$(ProjectDir)Engine\Graphics\Renderer\Wireframe;$(ProjectDir)Engine\Graphics\Renderer\Wireframe\Core;$(ProjectDir)Engine\Graphics\Renderer\Wireframe\Effects;$(ProjectDir)Engine\Graphics\Renderer\Wireframe\Shapes;$(ProjectDir)Engine\Graphics\RenderState;$(ProjectDir)Engine\Graphics\RenderState\Blend;$(ProjectDir)Engine\Graphics\RenderTarget;$(ProjectDir)Engine\Graphics\RenderTarget\Main;$(ProjectDir)Engine\Graphics\RenderTarget\Shadow;$(ProjectDir)Engine\Graphics\Resource;$(ProjectDir)Engine\Graphics\Resource\Model;$(ProjectDir)Engine\Graphics\Resource\Texture;$(ProjectDir)Engine\Graphics\Shader;$(ProjectDir)Engine\Graphics\Shader\Compiler;$(ProjectDir)Engine\Graphics\Shader\Manifest;$(ProjectDir)Engine\Math;$(ProjectDir)Engine\Math\Geometry;$(ProjectDir)Engine\Math\Matrix;$(ProjectDir)Engine\Math\Quaternion;$(ProjectDir)Engine\Math\Vector;$(ProjectDir)Engine\Misc;$(ProjectDir)Engine\Misc\Audio;$(ProjectDir)Engine\Physics;$(ProjectDir)Engine\Physics\Bridge\;$(ProjectDir)Engine\Physics\Collision;$(ProjectDir)Engine\Physics\Collision\Channels;$(ProjectDir)Engine\Physics\Collision\Core;$(ProjectDir)Engine\Physics\Collision\Legacy;$(ProjectDir)Engine\Physics\Collision\Manager;$(ProjectDir)Engine\Physics\Collision\Preset;$(ProjectDir)Engine\Physics\Collision\Query;$(ProjectDir)Engine\Physics\Collision\Specialized;$(ProjectDir)Engine\Physics\Core;$(ProjectDir)Engine\Physics\DebugDraw;$(ProjectDir)Engine\Physics\Event;$(ProjectDir)Engine\Physics\Solver;$(ProjectDir)Engine\Platform;$(ProjectDir)Engine\Platform\Windows;$(ProjectDir)Engine\Scene;$(ProjectDir)Engine\Scene\Actor;$(ProjectDir)Engine\Scene\Actor\Components;$(ProjectDir)Engine\Scene\Actor\Core;$(ProjectDir)Engine\Scene\Actor\Factory;$(ProjectDir)Engine\Scene\Actor\Serialization;$(ProjectDir)Engine\Scene\Level;$(ProjectDir)Engine\Scene\Management;$(ProjectDir)Engine\System;$(ProjectDir)Engine\System\Audio;$(ProjectDir)Engine\System\Audio\Data;$(ProjectDir)Engine\System\Audio\Manager;$(ProjectDir)Engine\System\Input;$(ProjectDir)Engine\System\JsonAssets;$(ProjectDir)Engine\System\Parameters;$(ProjectDir)Engine\System\Resource</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Externals\assimp\include;$(ProjectDir)Externals\imgui;$(ProjectDir)ApplicationLayer;$(ProjectDir)\ApplicationLayer\DebugTools;$(ProjectDir)\ApplicationLayer\DebugTools\FrustumCulling;$(ProjectDir)\ApplicationLayer\DebugTools\Occulusion;$(ProjectDir)\ApplicationLayer\DebugTools\StageChunk;$(ProjectDir)\ApplicationLayer\Scene;$(ProjectDir)\ApplicationLayer\Scene\DebugScene;$(ProjectDir)\ApplicationLayer\Scene\DebugScene\ActorTest;$(ProjectDir)\ApplicationLayer\SceneManagement;$(ProjectDir)\ApplicationLayer\SceneManagement\AbstractSceneFactory;$(ProjectDir)\ApplicationLayer\SceneManagement\BaseScene;$(ProjectDir)\ApplicationLayer\SceneManagement\FadeManager;$(ProjectDir)\ApplicationLayer\SceneManagement\SceneFactory;$(ProjectDir)\ApplicationLayer\SceneManagement\SceneManager;$(ProjectDir)Engine;$(ProjectDir)Engine\Core;$(ProjectDir)Engine\Core\Application;$(ProjectDir)Engine\Core\Logging;$(ProjectDir)Engine\Core\Time;$(ProjectDir)Engine\Core\Time\Core;$(ProjectDir)Engine\Core\Time\LegacyFPSCounter;$(ProjectDir)Engine\Core\Transform;$(ProjectDir)Engine\DebugTools;$(ProjectDir)Engine\DebugTools\ImGui;$(ProjectDir)Engine\DebugTools\LeakCheck;$(ProjectDir)Engine\DebugTools\Performance;$(ProjectDir)Engine\Graphics;$(ProjectDir)Engine\Graphics\Camera;$(ProjectDir)Engine\Graphics\Camera\Core;$(ProjectDir)Engine\Graphics\Camera\DebugCamera;$(ProjectDir)Engine\Graphics\Camera\FPS;$(ProjectDir)Engine\Graphics\Camera\Manager;$(ProjectDir)Engine\Graphics\Common;$(ProjectDir)Engine\Graphics\Culling;$(ProjectDir)Engine\Graphics\Descriptor;$(ProjectDir)Engine\Graphics\Descriptor\DSV;$(ProjectDir)Engine\Graphics\Descriptor\RTV;$(ProjectDir)Engine\Graphics\Descriptor\SRV;$(ProjectDir)Engine\Graphics\Descriptor\UAV;$(ProjectDir)Engine\Graphics\Device;$(ProjectDir)Engine\Graphics\Device\Command;$(ProjectDir)Engine\Graphics\Device\Core;$(ProjectDir)Engine\Graphics\Device\Facade;$(ProjectDir)Engine\Graphics\Device\SwapChain;$(ProjectDir)Engine\Graphics\Device\Synchronization;$(ProjectDir)Engine\Graphics\Lighting;$(ProjectDir)Engine\Graphics\Material;$(ProjectDir)Engine\Graphics\Mesh;$(ProjectDir)Engine\Graphics\Pipeline;$(ProjectDir)Engine\Graphics\PostEffect;$(ProjectDir)Engine\Graphics\PostEffect\Core;$(ProjectDir)Engine\Graphics\PostEffect\Effects;$(ProjectDir)Engine\Graphics\PostEffect\Effects\AbsorbEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\DepthOutlineEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\DissolveEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\GaussianFilterEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\GrayScaleEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\LuminanceOutlineEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\NormalEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\PixelateEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\RadialBlurEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\RandomEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\SmoothingEffect;$(ProjectDir)Engine\Graphics\PostEffect\Effects\VignetteEffect;$(ProjectDir)Engine\Graphics\PostEffect\Manager;$(ProjectDir)Engine\Graphics\PostEffect\Pipeline;$(ProjectDir)Engine\Graphics\Renderer;$(ProjectDir)Engine\Graphics\Renderer\Animation;$(ProjectDir)Engine\Graphics\Renderer\Animation\Core;$(ProjectDir)Engine\Graphics\Renderer\Animation\Collider;$(ProjectDir)Engine\Graphics\Renderer\Animation\DebugView;$(ProjectDir)Engine\Graphics\Renderer\Animation\LOD;$(ProjectDir)Engine\Graphics\Renderer\Animation\Pipeline;$(ProjectDir)Engine\Graphics\Renderer\Animation\Skeleton;$(ProjectDir)Engine\Graphics\Renderer\Animation\Skinning;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Buffers;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Data;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Emitter;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Manager;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Pipeline;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Preset;$(ProjectDir)Engine\Graphics\Renderer\GpuParticle\Renderer;$(ProjectDir)Engine\Graphics\Renderer\Object3D;$(ProjectDir)Engine\Graphics\Renderer\ObjectId;$(ProjectDir)Engine\Graphics\Renderer\Particle;$(ProjectDir)Engine\Graphics\Renderer\Particle\Core;$(ProjectDir)Engine\Graphics\Renderer\Particle\Manager;$(ProjectDir)Engine\Graphics\Renderer\SkyBox;$(ProjectDir)Engine\Graphics\Renderer\Sprite;$(ProjectDir)Engine\Graphics\Renderer\Sprite\Core;$(ProjectDir)Engine\Graphics\Renderer\Sprite\Effects;$(ProjectDir)Engine\Graphics\Renderer\Sprite\Utility;$(ProjectDir)Engine\Graphics\Renderer\Wireframe;$(ProjectDir)Engine\Graphics\Renderer\Wireframe\Core;$(ProjectDir)Engine\Graphics\Renderer\Wireframe\Effects;$(ProjectDir)Engine\Graphics\Renderer\Wireframe\Shapes;$(ProjectDir)Engine\Graphics\RenderState;$(ProjectDir)Engine\Graphics\RenderState\Blend;$(ProjectDir)Engine\Graphics\RenderTarget;$(ProjectDir)Engine\Graphics\RenderTarget\Main;$(ProjectDir)Engine\Graphics\RenderTarget\Shadow;$(ProjectDir)Engine\Graphics\Resource;$(ProjectDir)Engine\Graphics\Resource\Model;$(ProjectDir)Engine\Graphics\Resource\Texture;$(ProjectDir)Engine\Graphics\Shader;$(ProjectDir)Engine\Graphics\Shader\Compiler;$(ProjectDir)Engine\Graphics\Shader\Manifest;$(ProjectDir)Engine\Math;$(ProjectDir)Engine\Math\Geometry;$(ProjectDir)Engine\Math\Matrix;$(ProjectDir)Engine\Math\Quaternion;$(ProjectDir)Engine\Math\Vector;$(ProjectDir)Engine\Misc;$(ProjectDir)Engine\Misc\Audio;$(ProjectDir)Engine\Physics;$(ProjectDir)Engine\Physics\Bridge\;$(ProjectDir)Engine\Physics\Collision;$(ProjectDir)Engine\Physics\Collision\Channels;$(ProjectDir)Engine\Physics\Collision\Core;$(ProjectDir)Engine\Physics\Collision\Legacy;$(ProjectDir)Engine\Physics\Collision\Manager;$(ProjectDir)Engine\Physics\Collision\Preset;$(ProjectDir)Engine\Physics\Collision\Query;$(ProjectDir)Engine\Physics\Collision\Specialized;$(ProjectDir)Engine\Physics\Core;$(ProjectDir)Engine\Physics\DebugDraw;$(ProjectDir)Engine\Physics\Event;$(ProjectDir)Engine\Physics\Solver;$(ProjectDir)Engine\Platform;$(ProjectDir)Engine\Platform\Windows;$(ProjectDir)Engine\Scene;$(ProjectDir)Engine\Scene\Actor;$(ProjectDir)Engine\Scene\Actor\Components;$(ProjectDir)Engine\Scene\Actor\Core;$(ProjectDir)Engine\Scene\Actor\Factory;$(ProjectDir)Engine\Scene\Actor\Serialization;$(ProjectDir)Engine\Scene\Level;$(ProjectDir)Engine\Scene\Management;$(ProjectDir)Engine\System;$(ProjectDir)Engine\System\Audio;$(ProjectDir)Engine\System\Audio\Data;$(ProjectDir)Engine\System\Audio\Manager;$(ProjectDir)Engine\System\Input;$(ProjectDir)Engine\System\JsonAssets;$(ProjectDir)Engine\System\Parameters;$(ProjectDir)Engine\System\Resource</AdditionalIncludeDirectories>
       <Optimization>MinSpace</Optimization>
     </ClCompile>
     <Link>
@@ -118,19 +118,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="ApplicationLayer\Character\CharacterWorld\BulletEnemySoABridge.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Actor\EnemyActor.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Actor\EnemyAIComponent.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Actor\EnemyAttackComponent.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Actor\EnemyEffectComponent.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Boss\Actor\BossActor.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Boss\Actor\BossActorAttackComponent.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Boss\Actor\BossBrainComponent.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Boss\Actor\BossPresentationComponent.cpp" />
+    <ClCompile Include="ApplicationLayer\DebugTools\FrustumCulling\FrustumCullingDebugController.cpp" />
+    <ClCompile Include="ApplicationLayer\DebugTools\Occlusion\OcclusionDebugController.cpp" />
+    <ClCompile Include="ApplicationLayer\DebugTools\StageChunk\StageChunkDebugController.cpp" />
+    <ClCompile Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestGroundActor.cpp" />
     <ClCompile Include="ApplicationLayer\Scene\DebugScene\DebugActorRegistration.cpp" />
     <ClCompile Include="ApplicationLayer\Scene\DebugScene\Validation\CharacterValidation.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\DebugScene\Validation\EnemyMigrationValidation.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\DebugScene\Validation\BossMigrationValidation.cpp" />
     <ClCompile Include="Engine\Editor\ActorWorldEditorBridge.cpp" />
     <ClCompile Include="Engine\Editor\EditorContentBrowserPanel.cpp" />
     <ClCompile Include="Engine\Editor\EditorGpuPickingManager.cpp" />
@@ -172,12 +165,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\Scene\Actor\Components\WorldTextComponent.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Core\ActorWorld.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Core\Actor.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Effects\EnemyParticleEffectSystem.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Boss\Core\BossFactory.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Boss\Components\BossStatusComponent.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Boss\Components\BossWeakPointComponent.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Boss\Core\BossStateMachine.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Boss\Components\BossPhaseComponent.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Boss\Core\BossBrain.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Boss\Components\BossAnimationComponent.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Boss\Components\BossAttackComponent.cpp" />
@@ -188,78 +178,17 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="ApplicationLayer\Character\Boss\Attacks\BossPunchAttack.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Boss\Attacks\BossHeavyPunchAttack.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Boss\Attacks\GuardianShockwaveAttack.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Boss\Attacks\BossAttackEffects.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Boss\Animations\BossPunchAttackAnimation.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Enemy\HPBar\EnemyHPBar.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Enemy\HPBar\EnemyHPBarManager.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Enemy\HPBar\EnemyHPBarProjector.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\AmmoRecoveryItemSpawner.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\BossBattleController.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\CrystalHpBarController.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\CrystalParameterController.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\GameplayPhysicsDebugController.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\Stage1TutorialController.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\WorldDebugView.cpp" />
-    <ClCompile Include="ApplicationLayer\UISystem\Indicator\DamageIndicatorManager.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Bullet\Bullet.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Bullet\BulletManager.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Core\EnemyFactory.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Enemy\Core\MeleeEnemy.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Enemy\Core\MidRangeEnemy.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Projectile\MidRangeBombProjectile.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Enemy\AI\MeleeAttackController.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Core\EnemyBase.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\CharacterWorld\CharacterWorld.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\EnemySpawnCrystal.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\EnemySpawnerManager.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\CrystalManager.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\BossIntroController.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\AimTargetDetector.cpp" />
-    <ClCompile Include="ApplicationLayer\OverlaySystem\BaseOverlay.cpp" />
-    <ClCompile Include="ApplicationLayer\OverlaySystem\ConfirmQuitOverlay.cpp" />
-    <ClCompile Include="ApplicationLayer\OverlaySystem\PauseOverlay.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\TitleScene\State\TitleAttractState.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\TitleScene\State\TitleLoadState.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\TitleScene\State\TitleLobbyState.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\TitleScene\State\TitleLobbyToTitleState.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\TitleScene\State\TitleTransitionToLobby.cpp" />
-    <ClCompile Include="ApplicationLayer\UISystem\Crosshair\Crosshair.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="ApplicationLayer\DebugTools\EnemyScalability\EnemyScalabilitySystem.cpp" />
     <ClCompile Include="ApplicationLayer\Scene\DebugScene\DebugScene.cpp" />
-    <ClCompile Include="ApplicationLayer\EffectLayer\BaseGpuVfx.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\BossEnemyVfx.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="Engine\Physics\Collision\Legacy\CollisionManager.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="Engine\Physics\Collision\Legacy\CollisionPresetLibrary.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\GamePlayScene.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\Effects\BulletDecalManager.cpp" />
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\BlockEffectRenderer.cpp" />
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\DisintegrationEmitter.cpp" />
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\DisintegrationRenderer.cpp" />
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\ModelBlockEffectSequence.cpp" />
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\ModelDisintegrationEffect.cpp" />
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\ModelReconstructionEffect.cpp" />
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\ReconstructionRenderer.cpp" />
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\ReconstructionEmitter.cpp" />
-    <ClCompile Include="ApplicationLayer\EffectLayer\Disintegration\ModelSurfaceSampler.cpp" />
-    <ClCompile Include="ApplicationLayer\EffectLayer\ParticleEmitter.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="ApplicationLayer\SceneManagement\SceneFactory\SceneFactory.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
@@ -268,87 +197,18 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\TitleScene\TitleScene.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="ApplicationLayer\Character\Player\Player.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="ApplicationLayer\UISystem\HUDManager\BossHudUI.cpp" />
-    <ClCompile Include="ApplicationLayer\UISystem\HUDManager\Stage1ObjectiveGuideUI.cpp" />
-    <ClCompile Include="ApplicationLayer\UISystem\ReloadCircle\ReloadCircle.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Item\Item.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Item\ItemDropTable.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Item\ItemManager.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Item\ItemVisualEffect.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\StageSelectScene\GridStageSelector.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\StageSelectScene\StageSelectScene.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\EffectLayer\ModelParticle.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\StageSelectScene\State\StageSelectSelectingState.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="ApplicationLayer\Scene\StageSelectScene\State\StageSelectLoadState.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="ApplicationLayer\SceneManagement\FadeManager\FadeManager.cpp" />
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataDatabase.cpp" />
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataEditor.cpp" />
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataLoader.cpp" />
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataValidator.cpp" />
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataWriter.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Player\PlayerDamageCollider.cpp" />
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponInstance.cpp" />
-    <ClCompile Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponSystem.cpp" />
-    <ClCompile Include="ApplicationLayer\UISystem\HPWidget\HPWidget.cpp" />
-    <ClCompile Include="ApplicationLayer\UISystem\HUDManager\HUDManager.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Player\Effect\PlayerVfx.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Player\Component\PlayerWeaponComponent.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Player\Component\PlayerMotorComponent.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Player\Component\PlayerViewComponent.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\UI\PauseMenu.cpp" />
-    <ClCompile Include="ApplicationLayer\UISystem\WeaponSlot\WeaponSlot.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\UI\ResultMenu.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\WaveManager.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\StageObjectiveManager.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\GameplayPhysicsEventHandler.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\PhysicsTestBullet.cpp" />
-    <ClCompile Include="ApplicationLayer\UISystem\WaveUI\WaveUI.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Player\Component\PlayerWeaponVisualComponent.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\DebugTools\GamePlayDebugTools.cpp" />
     <ClCompile Include="Engine\DebugTools\Performance\PerformanceMonitor.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\Core\GamePlayFlow.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\Camera\GamePlayIntroDirector.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\Core\GamePlayStageContext.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\World\GamePlayWorld.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\GamePlayScene\PostEffect\PlayerHealthPostEffectController.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Boss\Derived\GuardianBoss\GuardianBoss.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Boss\BaseTypes\HumanoidBossBase.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Player\Component\PlayerBrainComponent.cpp" />
@@ -357,9 +217,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="ApplicationLayer\Character\Player\Component\PlayerDamageComponent.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Player\PlayerWeaponController.cpp" />
     <ClCompile Include="ApplicationLayer\Character\Player\PlayerFsmApi.cpp" />
-    <ClCompile Include="ApplicationLayer\UISystem\NoAmmoUI\NoAmmoUI.cpp" />
-    <ClCompile Include="ApplicationLayer\UISystem\ControlGuideUI\ControlGuideUI.cpp" />
-    <ClCompile Include="ApplicationLayer\Character\Enemy\Navigation\EnemyAStarNavigator.cpp" />
     <ClCompile Include="Engine\Graphics\Camera\Manager\CameraManager.cpp" />
     <ClCompile Include="Engine\Core\Application\Framework.cpp" />
     <ClCompile Include="Engine\Core\Application\GameApplication.cpp" />
@@ -383,9 +240,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\Graphics\Camera\DebugCamera\DebugCamera.cpp" />
     <ClCompile Include="Engine\Graphics\Camera\FPS\FpsCamera.cpp" />
     <ClCompile Include="Engine\Graphics\Culling\Frustum.cpp" />
-    <ClCompile Include="ApplicationLayer\DebugTools\FrustumCulling\FrustumCullingDebugController.cpp" />
-    <ClCompile Include="ApplicationLayer\DebugTools\StageChunk\StageChunkDebugController.cpp" />
-    <ClCompile Include="ApplicationLayer\DebugTools\Occlusion\OcclusionDebugController.cpp" />
     <ClCompile Include="Engine\Graphics\Culling\FrustumDebugRenderer.cpp" />
     <ClCompile Include="Engine\Graphics\Culling\FrustumCullingSystem.cpp" />
     <ClCompile Include="Engine\Graphics\Culling\OcclusionCullingSystem.cpp" />
@@ -469,8 +323,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\Graphics\Renderer\Object3D\Object3DCommon.cpp" />
     <ClCompile Include="Engine\Graphics\Renderer\Object3D\InstancedObject3DRenderer.cpp" />
     <ClCompile Include="Engine\Graphics\Renderer\Object3D\InstancedObject3DPipelineSet.cpp" />
-    <ClCompile Include="Engine\Graphics\Renderer\Particle\Core\ParticleFactory.cpp" />
-    <ClCompile Include="Engine\Graphics\Renderer\Particle\Manager\ParticleManager.cpp" />
     <ClCompile Include="Engine\Graphics\Renderer\SkyBox\CloudLayer.cpp" />
     <ClCompile Include="Engine\Graphics\Renderer\SkyBox\SkyBox.cpp" />
     <ClCompile Include="Engine\Graphics\Renderer\SkyBox\SkyBoxManager.cpp" />
@@ -544,14 +396,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="ApplicationLayer\Character\Player\Component\PlayerMeleeComponent.cpp" />
     <ClCompile Include="Engine\Platform\Windows\ResolutionManager.cpp" />
     <ClCompile Include="Engine\Graphics\Renderer\Sprite\Utility\SpriteFactory.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestActor.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Components\AnimatedModelComponent.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Components\ModelComponent.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Components\SceneComponent.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Components\RigidbodyComponent.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Components\SkeletalMeshComponent.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Components\InstancedModelComponent.cpp" />
-    <ClCompile Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestGroundActor.cpp" />
     <ClCompile Include="WinMain.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
@@ -854,43 +704,22 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ApplicationLayer\Character\Boss\Actor\BossAttackTypes.h" />
-    <ClInclude Include="ApplicationLayer\Character\Boss\Actor\NonHumanoidBossActor.h" />
-    <ClInclude Include="ApplicationLayer\Character\CharacterWorld\BulletEnemySoABridge.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Actor\EnemyActor.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Actor\EnemyAIComponent.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Actor\EnemyAttackComponent.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Actor\EnemyEffectComponent.h" />
-    <ClInclude Include="ApplicationLayer\Character\Boss\Actor\BossActor.h" />
-    <ClInclude Include="ApplicationLayer\Character\Boss\Actor\BossActorAttackComponent.h" />
-    <ClInclude Include="ApplicationLayer\Character\Boss\Actor\BossBrainComponent.h" />
-    <ClInclude Include="ApplicationLayer\Character\Boss\Actor\BossPresentationComponent.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Actor\MidRangeEnemyComponents.h" />
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\InventoryComponent.h" />
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\PlayerActor.h" />
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\PlayerCameraComponent.h" />
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\PlayerHudPresenterComponent.h" />
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\PlayerInputComponent.h" />
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\PlayerMovementComponent.h" />
-    <ClInclude Include="ApplicationLayer\Character\Player\Actor\WeaponComponent.h" />
-    <ClInclude Include="ApplicationLayer\Character\Player\IPlayerRuntime.h" />
-    <ClInclude Include="ApplicationLayer\Character\Player\Migration\GamePlayPlayerMigrationRuntime.h" />
-    <ClInclude Include="ApplicationLayer\Character\Player\Migration\PlayerTutorialRestrictionBridge.h" />
+    <ClInclude Include="ApplicationLayer\DebugTools\FrustumCulling\FrustumCullingDebugController.h" />
+    <ClInclude Include="ApplicationLayer\DebugTools\Occlusion\OcclusionDebugController.h" />
+    <ClInclude Include="ApplicationLayer\DebugTools\StageChunk\StageChunkDebugController.h" />
+    <ClInclude Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestGroundActor.h" />
     <ClInclude Include="ApplicationLayer\Scene\DebugScene\DebugActorRegistration.h" />
+    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\CharacterValidation.h" />
     <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\LevelDataValidation.h" />
     <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\LevelImportValidation.h" />
     <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\PerformancePhaseValidation.h" />
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\StageSelectUIActor.h" />
-    <ClInclude Include="ApplicationLayer\UISystem\UiSpriteFactory.h" />
+    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\PlayerMigrationValidationComponent.h" />
     <ClInclude Include="Engine\Editor\ActorWorldEditorBridge.h" />
     <ClInclude Include="Engine\Editor\EditorActorStateRegistry.h" />
     <ClInclude Include="Engine\Editor\EditorAssetDragDrop.h" />
     <ClInclude Include="Engine\Editor\EditorAssetPlacementService.h" />
     <ClInclude Include="Engine\Editor\EditorAssetRegistryV2.h" />
     <ClInclude Include="Engine\Editor\EditorCommandHistory.h" />
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\CharacterValidation.h" />
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\EnemyMigrationValidation.h" />
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\BossMigrationValidation.h" />
     <ClInclude Include="Engine\Editor\EditorContentBrowserPanel.h" />
     <ClInclude Include="Engine\Editor\EditorContext.h" />
     <ClInclude Include="Engine\Editor\EditorGpuPickingManager.h" />
@@ -944,12 +773,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\Scene\Actor\Components\WorldTextComponent.h" />
     <ClInclude Include="Engine\Scene\Actor\Core\ActorWorld.h" />
     <ClInclude Include="Engine\Scene\Actor\Core\Actor.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Effects\EnemyParticleEffectSystem.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\Core\BossFactory.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\Components\BossStatusComponent.h" />
-    <ClInclude Include="ApplicationLayer\Character\Boss\Components\BossWeakPointComponent.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\Core\BossStateMachine.h" />
-    <ClInclude Include="ApplicationLayer\Character\Boss\Components\BossPhaseComponent.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\Core\BossBrain.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\Components\BossAnimationComponent.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\Components\BossAttackComponent.h" />
@@ -964,64 +790,14 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="ApplicationLayer\Character\Boss\Attacks\BossHeavyPunchAttack.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\Attacks\GuardianShockwaveAttack.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\Attacks\BossChargeAttack.h" />
-    <ClInclude Include="ApplicationLayer\Character\Boss\Attacks\BossAttackEffects.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\Animations\BossPunchAttackAnimation.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\HPBar\EnemyHPBar.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\HPBar\EnemyHPBarManager.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\HPBar\EnemyHPBarProjector.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\AmmoRecoveryItemSpawner.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\BossBattleController.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\CrystalHpBarController.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\CrystalParameterController.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\GameplayPhysicsDebugController.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\Stage1TutorialController.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\WorldDebugView.h" />
-    <ClInclude Include="ApplicationLayer\UISystem\Indicator\DamageIndicatorManager.h" />
-    <ClInclude Include="ApplicationLayer\Character\Bullet\Bullet.h" />
-    <ClInclude Include="ApplicationLayer\Character\Bullet\BulletManager.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Core\EnemyFactory.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Core\EnemyType.h" />
     <ClInclude Include="ApplicationLayer\Character\Enemy\Core\MeleeEnemy.h" />
     <ClInclude Include="ApplicationLayer\Character\Enemy\Core\MidRangeEnemy.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Projectile\MidRangeBombProjectile.h" />
     <ClInclude Include="ApplicationLayer\Character\Enemy\AI\MeleeAttackController.h" />
     <ClInclude Include="ApplicationLayer\Character\Enemy\AI\MeleeAttackPattern.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Core\EnemyBase.h" />
-    <ClInclude Include="ApplicationLayer\Character\CharacterWorld\CharacterWorld.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\EnemySpawnCrystal.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\EnemySpawnerManager.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\CrystalManager.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\BossIntroController.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\AimTargetDetector.h" />
-    <ClInclude Include="ApplicationLayer\OverlaySystem\BaseOverlay.h" />
-    <ClInclude Include="ApplicationLayer\OverlaySystem\ConfirmQuitOverlay.h" />
-    <ClInclude Include="ApplicationLayer\OverlaySystem\PauseOverlay.h" />
-    <ClInclude Include="ApplicationLayer\OverlaySystem\Rect.h" />
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\ITitleSceneState.h" />
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\TitleAttractState.h" />
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\TitleLoadState.h" />
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\TitleLobbyState.h" />
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\TitleLobbyToTitleState.h" />
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\TitleTransitionToLobby.h" />
-    <ClInclude Include="ApplicationLayer\UISystem\Crosshair\Crosshair.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
     <ClInclude Include="ApplicationLayer\DebugTools\EnemyScalability\EnemyScalabilitySystem.h" />
     <ClInclude Include="ApplicationLayer\Scene\DebugScene\DebugScene.h" />
-    <ClInclude Include="ApplicationLayer\Character\BaseCharacter\BaseCharacter.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
     <ClInclude Include="ApplicationLayer\Character\Boss\BehaviorTree\BehaviorStatus.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\BaseGpuVfx.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\BossEnemyVfx.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
@@ -1066,19 +842,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Emitter.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\ParticleEmitter.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\GamePlayScene.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\Effects\BulletDecalManager.h" />
     <ClInclude Include="ApplicationLayer\SceneManagement\SceneFactory\SceneFactory.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
@@ -1090,127 +853,18 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\TitleScene.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Particle.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Character\Player\Player.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\UISystem\HUDManager\BossHudUI.h" />
-    <ClInclude Include="ApplicationLayer\UISystem\HUDManager\Stage1ObjectiveGuideUI.h" />
-    <ClInclude Include="ApplicationLayer\UISystem\ReloadCircle\ReloadCircle.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Item\Item.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Item\ItemDropTable.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Item\ItemManager.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Item\ItemVisualEffect.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Item\ItemType.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\GridStageSelector.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\IStageSelector.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\StageRepository.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\StageSelectScene.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\BlockEffectRenderer.h" />
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\BlockPlacementImGui.h" />
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\DisintegrationEmitter.h" />
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\DisintegrationParticle.h" />
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\DisintegrationRenderer.h" />
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ModelBlockEffectSequence.h" />
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ModelDisintegrationEffect.h" />
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ModelReconstructionEffect.h" />
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ReconstructionRenderer.h" />
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ReconstructionEmitter.h" />
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ReconstructionBlock.h" />
-    <ClInclude Include="ApplicationLayer\EffectLayer\Disintegration\ModelSurfaceSampler.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\Attacks\BossMeleeAttackUtility.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\Attacks\BossMeleePhaseAttackBase.h" />
-    <ClInclude Include="ApplicationLayer\Scene\TitleScene\State\TitleCameraUtility.h" />
-    <ClInclude Include="ApplicationLayer\EffectLayer\ModelParticle.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\State\IStageSelectSceneState.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\State\StageSelectSelectingState.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\Scene\StageSelectScene\State\StageSelectLoadState.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
     <ClInclude Include="ApplicationLayer\SceneManagement\FadeManager\FadeManager.h" />
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterData.h" />
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataDatabase.h" />
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataEditor.h" />
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataLoader.h" />
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataValidator.h" />
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponMasterDataWriter.h" />
-    <ClInclude Include="ApplicationLayer\Character\Player\PlayerInputSnapshot.h" />
     <ClInclude Include="ApplicationLayer\Character\Player\PlayerStateMachines.h" />
     <ClInclude Include="ApplicationLayer\Character\Player\PlayerDamageCollider.h" />
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponInstance.h" />
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponParams.h" />
-    <ClInclude Include="ApplicationLayer\WeaponSystem\WeaponMasterData\WeaponSystem.h" />
-    <ClInclude Include="ApplicationLayer\UISystem\HPWidget\HPWidget.h" />
-    <ClInclude Include="ApplicationLayer\UISystem\HUDManager\HUDManager.h" />
     <ClInclude Include="ApplicationLayer\Character\Player\Effect\PlayerVfx.h" />
     <ClInclude Include="ApplicationLayer\Character\Player\Component\PlayerWeaponComponent.h" />
     <ClInclude Include="ApplicationLayer\Character\Player\Component\PlayerMotorComponent.h" />
     <ClInclude Include="ApplicationLayer\Character\Player\Component\PlayerViewComponent.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\UI\PauseMenu.h" />
-    <ClInclude Include="ApplicationLayer\UISystem\WeaponSlot\WeaponSlot.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\UI\ResultMenu.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\WaveManager.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\StageObjectiveManager.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\GameplayPhysicsEventHandler.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\PhysicsTestBullet.h" />
-    <ClInclude Include="ApplicationLayer\UISystem\WaveUI\WaveUI.h" />
     <ClInclude Include="ApplicationLayer\Character\Player\Component\PlayerWeaponVisualComponent.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\DebugTools\GamePlayDebugTools.h" />
     <ClInclude Include="Engine\Scene\Actor\Core\ActorComponent.h" />
     <ClInclude Include="Engine\DebugTools\Performance\PerformanceMonitor.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\Core\GamePlayFlow.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\Camera\GamePlayIntroDirector.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\Core\GamePlayStageContext.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\World\GamePlayWorld.h" />
-    <ClInclude Include="ApplicationLayer\Scene\GamePlayScene\PostEffect\PlayerHealthPostEffectController.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\Attacks\IBossAttack.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\BehaviorTree\IBTNode.h" />
     <ClInclude Include="ApplicationLayer\Character\Boss\Derived\GuardianBoss\GuardianBoss.h" />
@@ -1222,9 +876,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="ApplicationLayer\Character\Player\Component\PlayerDamageComponent.h" />
     <ClInclude Include="ApplicationLayer\Character\Player\PlayerWeaponController.h" />
     <ClInclude Include="ApplicationLayer\Character\Player\PlayerFsmApi.h" />
-    <ClInclude Include="ApplicationLayer\UISystem\NoAmmoUI\NoAmmoUI.h" />
-    <ClInclude Include="ApplicationLayer\UISystem\ControlGuideUI\ControlGuideUI.h" />
-    <ClInclude Include="ApplicationLayer\Character\Enemy\Navigation\EnemyAStarNavigator.h" />
     <ClInclude Include="Engine\Graphics\Camera\Manager\CameraManager.h" />
     <ClInclude Include="Engine\Platform\Windows\GameViewportConstants.h" />
     <ClInclude Include="Engine\Core\Application\Framework.h" />
@@ -1251,9 +902,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\Graphics\Camera\DebugCamera\DebugCamera.h" />
     <ClInclude Include="Engine\Graphics\Camera\FPS\FpsCamera.h" />
     <ClInclude Include="Engine\Graphics\Culling\Frustum.h" />
-    <ClInclude Include="ApplicationLayer\DebugTools\FrustumCulling\FrustumCullingDebugController.h" />
-    <ClInclude Include="ApplicationLayer\DebugTools\StageChunk\StageChunkDebugController.h" />
-    <ClInclude Include="ApplicationLayer\DebugTools\Occlusion\OcclusionDebugController.h" />
     <ClInclude Include="Engine\Graphics\Culling\FrustumDebugRenderer.h" />
     <ClInclude Include="Engine\Graphics\Culling\FrustumCullingSystem.h" />
     <ClInclude Include="Engine\Graphics\Culling\OcclusionCullingSystem.h" />
@@ -1354,9 +1002,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\Graphics\Renderer\Object3D\Object3DCommon.h" />
     <ClInclude Include="Engine\Graphics\Renderer\Object3D\InstancedObject3DRenderer.h" />
     <ClInclude Include="Engine\Graphics\Renderer\Object3D\InstancedObject3DPipelineSet.h" />
-    <ClInclude Include="Engine\Graphics\Renderer\Particle\Core\ParticleEffectType.h" />
-    <ClInclude Include="Engine\Graphics\Renderer\Particle\Core\ParticleFactory.h" />
-    <ClInclude Include="Engine\Graphics\Renderer\Particle\Manager\ParticleManager.h" />
     <ClInclude Include="Engine\Graphics\Renderer\SkyBox\CloudLayer.h" />
     <ClInclude Include="Engine\Graphics\Renderer\SkyBox\SkyBox.h" />
     <ClInclude Include="Engine\Graphics\Renderer\SkyBox\SkyBoxManager.h" />
@@ -1459,14 +1104,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\Math\MathTypes.h" />
     <ClInclude Include="Engine\Platform\Windows\ResolutionManager.h" />
     <ClInclude Include="Engine\Graphics\Renderer\Sprite\Utility\SpriteFactory.h" />
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestActor.h" />
     <ClInclude Include="Engine\Scene\Actor\Components\AnimatedModelComponent.h" />
     <ClInclude Include="Engine\Scene\Actor\Components\ModelComponent.h" />
     <ClInclude Include="Engine\Scene\Actor\Components\SceneComponent.h" />
     <ClInclude Include="Engine\Scene\Actor\Components\RigidbodyComponent.h" />
     <ClInclude Include="Engine\Scene\Actor\Components\SkeletalMeshComponent.h" />
     <ClInclude Include="Engine\Scene\Actor\Components\InstancedModelComponent.h" />
-    <ClInclude Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestGroundActor.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
