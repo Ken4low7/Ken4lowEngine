@@ -23,6 +23,13 @@ function Get-RelativeProjectPath
     return [System.IO.Path]::GetRelativePath($projectRoot, $FullPath).Replace([char]92, [char]47)
 }
 
+function Convert-ToLocalPath
+{
+    param([string]$Value)
+
+    return $Value.Replace([char]92, [System.IO.Path]::DirectorySeparatorChar).Replace([char]47, [System.IO.Path]::DirectorySeparatorChar)
+}
+
 function Test-IsLiteralProjectPath
 {
     param([string]$Value)
@@ -74,6 +81,31 @@ function Get-ProjectItems
     return $items
 }
 
+function Get-AdditionalIncludeDirectories
+{
+    param([string]$XmlPath)
+
+    [xml]$xml = Get-Content -LiteralPath $XmlPath -Raw -Encoding UTF8
+    $nodes = $xml.SelectNodes("//*[local-name()='AdditionalIncludeDirectories']")
+    $directories = @()
+
+    foreach ($node in $nodes)
+    {
+        foreach ($value in ($node.InnerText -split ';'))
+        {
+            $trimmed = $value.Trim()
+            if ([string]::IsNullOrWhiteSpace($trimmed))
+            {
+                continue
+            }
+
+            $directories += $trimmed
+        }
+    }
+
+    return @($directories | Sort-Object -Unique)
+}
+
 function Get-MissingProjectReferences
 {
     param([object[]]$Items)
@@ -86,8 +118,7 @@ function Get-MissingProjectReferences
             continue
         }
 
-        # PowerShellの文字列ではバックスラッシュはエスケープ文字ではないため、charコードで明示してOS区切りへ揃える。
-        $normalized = $item.Path.Replace([char]92, [System.IO.Path]::DirectorySeparatorChar).Replace([char]47, [System.IO.Path]::DirectorySeparatorChar)
+        $normalized = Convert-ToLocalPath $item.Path
         $fullPath = [System.IO.Path]::GetFullPath((Join-Path $projectRoot $normalized))
         if (-not (Test-Path -LiteralPath $fullPath))
         {
@@ -96,6 +127,29 @@ function Get-MissingProjectReferences
     }
 
     return $missing
+}
+
+function Get-MissingIncludeDirectories
+{
+    param([string[]]$Directories)
+
+    $missing = @()
+    foreach ($directory in $Directories)
+    {
+        if (-not (Test-IsLiteralProjectPath $directory))
+        {
+            continue
+        }
+
+        $normalized = Convert-ToLocalPath $directory
+        $fullPath = [System.IO.Path]::GetFullPath((Join-Path $projectRoot $normalized))
+        if (-not (Test-Path -LiteralPath $fullPath -PathType Container))
+        {
+            $missing += $directory
+        }
+    }
+
+    return @($missing | Sort-Object -Unique)
 }
 
 function Get-Classification
@@ -131,9 +185,12 @@ function Get-Classification
 $projectItems = Get-ProjectItems -XmlPath $projectPath -AttributeName "Include"
 $missingReferences = Get-MissingProjectReferences -Items $projectItems
 $removedItems = Get-ProjectItems -XmlPath $targetsPath -AttributeName "Remove"
+$includeDirectories = Get-AdditionalIncludeDirectories -XmlPath $projectPath
+$missingIncludeDirectories = Get-MissingIncludeDirectories -Directories $includeDirectories
 
 $legacyPattern = '(?i)(FpsCamera|FPS|Player|Enemy|Boss|Bullet|Weapon|Crosshair|Reload|NoAmmo)'
 $legacyProjectItems = @($projectItems | Where-Object { $_.Path -match $legacyPattern })
+$legacyIncludeDirectories = @($includeDirectories | Where-Object { $_ -match $legacyPattern })
 
 $sourceRoots = @(
     (Join-Path $projectRoot "Engine"),
@@ -192,6 +249,36 @@ else
     foreach ($item in $missingReferences | Sort-Object Path -Unique)
     {
         $lines.Add("- [$($item.Kind)] ``$($item.Path)``")
+    }
+}
+
+$lines.Add('')
+$lines.Add('## 存在しない AdditionalIncludeDirectories')
+$lines.Add('')
+if ($missingIncludeDirectories.Count -eq 0)
+{
+    $lines.Add('- なし')
+}
+else
+{
+    foreach ($directory in $missingIncludeDirectories)
+    {
+        $lines.Add("- ``$directory``")
+    }
+}
+
+$lines.Add('')
+$lines.Add('## FPS / 旧ゲーム固有名称を含む AdditionalIncludeDirectories')
+$lines.Add('')
+if ($legacyIncludeDirectories.Count -eq 0)
+{
+    $lines.Add('- なし')
+}
+else
+{
+    foreach ($directory in $legacyIncludeDirectories | Sort-Object -Unique)
+    {
+        $lines.Add("- ``$directory``")
     }
 }
 
