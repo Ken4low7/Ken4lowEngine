@@ -1,22 +1,57 @@
 # Phase 1 Cleanup Audit
 
-このドキュメントは、FPS削除後の残骸整理と Engine / Gameplay / Editor の責務分類、Legacy候補の棚卸し、プロファイリング導入の結果を記録するものです。
+このドキュメントは、FPS削除後の残骸整理、Engine / Gameplay / Editor の責務分類、Legacy候補の棚卸し、メモリ / Allocation計測、およびPhase 2へ進む前の構造的な健全性確認を記録するものです。
 
-## Phase 1 進捗
+## Phase 1の扱い
+
+Phase 1は「残骸を見つけて計測できるようにする」だけでは完了としません。
+
+現在までに完了しているのは **Phase 1-A: 現状把握と計測基盤** です。
+
+Phase 1全体の完了には、実際のbuild設定整理、依存方向の確認、Legacy移行可否の確定、Resource寿命監査、Debug / Release検証まで必要とします。
+
+## Phase 1-A: 現状把握と計測基盤
 
 - [x] FPS削除後の残骸を洗う
-- [x] Engine / Gameplay / Editor を分類する
-- [x] Legacyコード一覧を作る
-- [x] Assetメモリ使用量を計測できるようにする
+- [x] Engine / Gameplay / Editor を一次分類する
+- [x] Legacyコード候補一覧を作る
+- [x] Assetメモリ使用量を概算できるようにする
 - [x] 毎フレームAllocationを計測できるようにする
+- [x] 再実行可能な監査スクリプトを追加する
+
+## Phase 1-B: 構造・build設定の実整理
+
+- [ ] `.vcxproj` の削除済みPlayer / Enemy / Boss / FpsCamera登録を実際に削除する
+- [ ] `.vcxproj.filters` に同様の残骸がないか確認し整理する
+- [ ] `AdditionalIncludeDirectories` の存在しない / 不要なディレクトリを削除する
+- [ ] `.vcxproj` 整理後に `Directory.Build.targets` の互換 `Remove=` を縮小または削除する
+- [ ] Engine Runtime -> ApplicationLayer の逆依存がないか確認する
+- [ ] Runtime -> `Engine/Editor` の直接依存を確認し、Editor-only境界を確定する
+- [ ] `Engine/Scene/Actor/Character` の依存関係を追い、汎用Character基盤 / Gameplay Framework / Game固有の3段階に分類する
+- [ ] `Engine/Physics/Collision/Legacy` の参照元を洗い、新Physics APIへ移行済み / 未移行を確定する
+- [ ] `Engine/Misc/Audio` と `Engine/System/Audio` の責務重複を整理し、Decoderの移動先を確定する
+- [ ] `LegacyFPSCounter`、旧OBJ Loader、重複Model APIの利用箇所を確認する
+- [ ] Resource Managerの所有権、キャッシュ寿命、Unload / Finalize順序を監査する
+- [ ] `shared_ptr` / raw pointer / Singletonについて、所有権が不明瞭な箇所や循環参照リスクを棚卸しする
+
+## Phase 1-C: 計測の実用化と完了判定
+
+- [ ] Allocationの回数 / bytesを表示するだけでなく、増加する処理を特定できる計測手順を決める
+- [ ] Texture / Model / Audioメモリ計測の「含むもの / 含まないもの」を固定する
+- [ ] ModelのCPU geometry二重保持を実測し、維持するか解消するか判断材料を作る
+- [ ] Asset cacheが増え続けるケースを確認し、Unload / Eviction方針の要否を判断する
+- [ ] Debugビルドを通す
+- [ ] Releaseビルドを通す
+- [ ] `AuditPhase1Cleanup.ps1` を実行し、未解決項目を「許容済み」または「修正済み」に分類する
+- [ ] Phase 2で大規模なファイル移動 / World・Scene再設計へ入ってもよい状態であることを確認する
+
+---
 
 ## 1. FPS削除後の残骸
 
-### 確認できたもの
-
 `Ken4lowEngine.vcxproj` には、既に削除された旧FPSゲーム由来のファイル登録が残っています。
 
-主な対象は以下です。
+主な対象:
 
 - `ApplicationLayer/Character/Player/...`
 - `ApplicationLayer/Character/Enemy/...`
@@ -24,17 +59,15 @@
 - `ApplicationLayer/DebugTools/EnemyScalability/...`
 - `Engine/Graphics/Camera/FPS/FpsCamera.*`
 
-現在は `Directory.Build.targets` の `ClCompile Remove` / `ClInclude Remove` が、これらの削除済みファイルをVisual Studio projectのビルド対象から外す互換ガードとして機能しています。
+現在は `Directory.Build.targets` の `ClCompile Remove` / `ClInclude Remove` が、これらの削除済みファイルをbuild対象から外す互換ガードとして機能しています。
 
-そのため、`Directory.Build.targets` だけを先に削除すると、`.vcxproj` に残る存在しないファイル参照が再び有効になり、ビルドを壊す可能性があります。Phase 1では無理に削除せず、残骸として検出・記録し、`.vcxproj` と同時に整理できる状態まで監査しました。
+この状態は「壊れてはいない」が「整理済み」ではありません。Phase 1-Bで `.vcxproj` 側の旧登録を削除してから、互換 `Remove=` を縮小します。
 
-`Project/Tools/Scripts/AuditPhase1Cleanup.ps1` で、今後も存在しないproject参照と旧ゲーム固有名称を再検出できます。
+また `AdditionalIncludeDirectories` にも旧ディレクトリが残る可能性があるため、監査スクリプトでファイル登録だけでなくinclude pathも確認します。
 
-## 2. Engine / Gameplay / Editor の分類
+## 2. Engine / Gameplay / Editor の一次分類
 
-### Engineとして維持する領域
-
-以下はエンジン基盤として扱います。
+### Engine Runtimeとして維持する候補
 
 - `Engine/Core`
 - `Engine/Math`
@@ -46,9 +79,9 @@
 - 汎用Actor / Component基盤
 - 汎用Scene / Level基盤
 
-### Gameplay / Gameplay Framework 移行候補
+### Character周辺
 
-`Engine/Scene/Actor/Character` には、汎用Character基盤とGameplay寄りの機能が混在しています。
+`Engine/Scene/Actor/Character` には汎用Character基盤とGameplay寄り処理が混在しています。
 
 汎用基盤として残す候補:
 
@@ -57,13 +90,13 @@
 - `CharacterColliderComponent`
 - `CharacterAnimationComponent`
 
-Gameplay Frameworkとして整理する候補:
+Gameplay Framework候補:
 
 - `CharacterHealthComponent`
 - `CharacterDamage`
 - `CharacterTargetComponent`
 
-Gameplay側へ移す候補:
+Game / Combat側へ寄せる候補:
 
 - `AttackComponent`
 - `AttackBehaviors`
@@ -71,11 +104,11 @@ Gameplay側へ移す候補:
 - `HumanoidDefinition`
 - `HumanoidVisualComponent`
 
-Phase 1では物理的なファイル移動を行いません。依存関係を整理した上でPhase 2で移行します。
+これは名前だけによる一次分類です。Phase 1-Bではinclude / factory登録 / serialization依存まで追って最終分類します。
 
 ### Editor
 
-Editor固有の責務は `Engine/Editor` を中心に扱います。
+Editor固有責務は `Engine/Editor` を中心に扱います。
 
 代表例:
 
@@ -87,13 +120,11 @@ Editor固有の責務は `Engine/Editor` を中心に扱います。
 - Diagnostics
 - PIE / Editor固有UI
 
-Runtime側からEditor固有状態を参照している箇所があれば、Phase 2以降でサービス分離の対象にします。
+Phase 1-BではRuntime側がEditorクラスを直接要求していないか確認し、Release境界を明確にします。
 
-## 3. Legacyコード一覧
+## 3. Legacy候補
 
-### 移行を確認してから整理する候補
-
-#### `Engine/Physics/Collision/Legacy`
+### `Engine/Physics/Collision/Legacy`
 
 Legacyディレクトリが現存しています。
 
@@ -109,42 +140,33 @@ Legacyディレクトリが現存しています。
 - `ObjectCollisionResponseMatrix.h`
 - `TraceResponseMatrix.h`
 
-名前だけを理由に削除せず、新しいCollision / Physics APIへの移行状況を確認してから整理します。
+名前だけで一括削除せず、参照元と新Physics APIへの移行状況を確認してから整理します。
 
-#### `Engine/Misc/Audio`
+### `Engine/Misc/Audio`
 
-`Engine/Misc/Audio/MFAudioDecoder.cpp/.h` が残っていますが、現在の `Engine/System/Audio/Manager/AudioManager.h` が `MFAudioDecoder.h` を利用しています。
+`Engine/Misc/Audio/MFAudioDecoder.cpp/.h` は現在の `Engine/System/Audio/Manager/AudioManager.h` から利用されています。
 
-したがって、これは現時点では削除不可です。将来的にはDecoderを `Engine/System/Audio` 配下へ移し、Audio責務を一か所へ集約する候補です。
+現時点では削除不可です。責務としては `Engine/System/Audio` 側へ集約する候補です。
 
-#### Visual Studio projectの旧登録
-
-旧Player / Enemy / Boss / FpsCamera等の明示登録は、`.vcxproj` 側のLegacy構成として整理対象です。現在は `Directory.Build.targets` が互換ガードになっています。
-
-### 要調査候補
-
-以下は名前や構成だけでは削除可否を断定しません。
+### その他の要調査候補
 
 - `Engine/Core/Time/LegacyFPSCounter`
 - `ModelManager::LoadObjFile`
 - `ModelManager::FindModel`
 - 旧Collision APIと新Physics APIの重複箇所
-
-利用箇所を確認してからPhase 2以降で判断します。
+- Visual Studio projectの旧Player / Enemy / Boss / FpsCamera登録
 
 ## 4. Assetメモリ計測
 
-主要Asset payloadの概算値を取得できるようにしました。
-
 ### Texture
 
-`TextureManager::GetMemoryStats()` で以下を取得します。
+`TextureManager::GetMemoryStats()`:
 
 - ロード済みTexture数
 - Texture用Descriptor数
 - 推定GPU payload bytes
 
-`DirectX::TexMetadata` と `DirectX::ComputePitch` を使い、Mip / Array / Depthを考慮した論理payloadを合計します。
+Mip / Array / Depthを考慮した論理payloadの概算です。
 
 含まないもの:
 
@@ -155,50 +177,46 @@ Legacyディレクトリが現存しています。
 
 ### Model
 
-`ModelManager::GetMemoryStats()` で以下を取得します。
+`ModelManager::GetMemoryStats()`:
 
 - ロード済みModel数
 - 推定CPU geometry bytes
 - 推定GPU geometry bytes
 
-現行 `Model::Initialize()` は `ModelData::subMeshes` の頂点・Indexから `Mesh` へGeometryをコピーしており、CPU側にGeometryが二重保持されます。
+現行 `Model::Initialize()` は `ModelData::subMeshes` から `Mesh` へgeometryをコピーするため、CPU geometryが二重保持される構造です。現在のCPU概算は両方の保持量を含めます。
 
-CPU概算は、この現行設計で実際に保持される `ModelData` 側と `Mesh` 側の両方を含む値として扱います。GPU側はVertex / Indexの論理payloadです。
-
-Material、文字列、map/node/animationの内部オーバーヘッドやD3D12 Heap alignment等は含みません。
+Phase 1-Cで、この二重保持が実際にどの程度効いているか確認します。
 
 ### Audio
 
-`AudioManager::GetMemoryStats()` で以下を取得します。
+`AudioManager::GetMemoryStats()`:
 
 - 生存中のキャッシュ済みAudio Clip数
 - Active Voice数
 - デコード済みPCM保持量
 
-AudioManagerのmutexを取得して統計を読み、PCMは `std::vector<BYTE>::capacity()` を基準に保持量を概算します。
+PCMは `std::vector<BYTE>::capacity()` を基準に概算します。
 
 ### PerformanceMonitor
 
 `PerformanceStats` にTexture / Model / Audio統計を統合しています。
 
-Asset統計は毎フレームではなく約0.5秒間隔で更新し、プロファイリング自体による負荷を抑えます。
+Asset統計は約0.5秒間隔で更新します。
 
-`trackedAssetMemoryMB` はTexture GPU + Model CPU + Model GPU + Audio PCMの主要payload概算の合計であり、プロセス全体のWorking Setや総VRAM使用量ではありません。
+`trackedAssetMemoryMB` は主要payloadの概算であり、process Working Setや総VRAM使用量ではありません。
 
 ## 5. 毎フレームAllocation計測
 
-`Engine/DebugTools/Performance/FrameAllocationTracker.h` を追加しました。
+`Engine/DebugTools/Performance/FrameAllocationTracker.h` を追加しています。
 
-DebugビルドではDebug CRTの `_CrtSetAllocHook` を使って、Frameworkの1フレーム単位で以下を記録します。
+DebugビルドではDebug CRTの `_CrtSetAllocHook` を使い、Frameworkの1フレーム単位で以下を記録します。
 
 - Allocation回数
-- Allocation要求バイト数
+- Allocation要求bytes
 - Peak Allocation回数
-- Peak Allocation要求バイト数
+- Peak Allocation要求bytes
 
-`_CRT_BLOCK` は除外し、既存CRT Hookが存在する場合は呼び出しをチェーンし、終了時に元のHookへ戻します。
-
-Frameworkのフレーム境界は以下です。
+Frameworkの境界:
 
 1. `BeginFrame()`
 2. Window / Resize処理
@@ -206,55 +224,40 @@ Frameworkのフレーム境界は以下です。
 4. `Draw()`
 5. `EndFrame()`
 
-Worker Thread上でフレーム中に発生したDebug CRT Allocationもprocess-wideで計測対象になります。
+Releaseでは無効化されます。
 
-Releaseビルドでは安全に無効化されます。
-
-`PerformanceMonitor` は直前に完了したフレームの結果を参照するため、表示値は1フレーム遅れます。
-
-注意: `realloc` は新たに要求されたサイズをAllocation trafficとして加算します。これは「そのフレームで増加したLive Memory量」ではなく、「そのフレームで要求されたAllocation量」を見るための指標です。
-
-`PerformanceMonitor::Reset()` ではAllocationのPeakもリセットします。
+現在は「フレーム全体のAllocation trafficを観測する」段階です。Phase 1-Cでは、どのSubsystem / 処理で増えているかを切り分ける運用または計測ポイントを追加します。
 
 ## 再監査方法
 
-Projectディレクトリを基準に、以下で監査結果を再生成できます。
+Projectディレクトリを基準に実行します。
 
 ```powershell
 pwsh ./Tools/Scripts/AuditPhase1Cleanup.ps1 -OutputPath "Generated/Phase1Audit.md"
 ```
 
-監査スクリプトは以下を確認します。
+監査対象:
 
 - `.vcxproj` の `ClCompile` / `ClInclude`
 - 存在しないファイル参照
 - `Directory.Build.targets` のRemove項目
+- `AdditionalIncludeDirectories`
 - FPS / Player / Enemy / Boss / Bullet / Weapon等の名称残存
-- Engine / Gameplay / Editorのおおまかな分類
+- Engine / Gameplay / Editorの一次分類
 - `Engine/Scene/Actor/Character` の現存ファイル
 
-`$(...)` のMSBuild macro、`%(...)` のItem metadata、wildcardは通常ファイルとして存在チェックしないため、誤検出を避けます。
+`$(...)` のMSBuild macro、`%(...)` のItem metadata、wildcardは通常ファイルとして存在チェックしません。
 
-## Phase 1で意図的に行わないこと
+## Phase 2へ進む条件
 
-- Character系ファイルの大規模移動
-- `Engine/Physics/Collision/Legacy` の一括削除
-- `Engine/Misc/Audio` の削除
-- `.vcxproj` の残骸だけを無理に削除して `Directory.Build.targets` の互換ガードを壊すこと
-- Custom Allocator / Memory Poolの導入
-- World / Scene / Rendererの大規模再設計
+Phase 2ではCharacterの物理移動、Gameplay Framework分離、Audio / Collision Legacy統合、World / Scene責務分割など、より大きな構造変更を行います。
 
-## Phase 2へ持ち越す項目
-
-1. `Engine/Scene/Actor/Character` の依存関係を精査し、Engine / Gameplay Framework / Gameplayへ物理的に分離する。
-2. `.vcxproj` の旧Player / Enemy / Boss / FpsCamera登録を削除し、その後 `Directory.Build.targets` の互換ガードを縮小または削除する。
-3. `Engine/Misc/Audio/MFAudioDecoder` を `Engine/System/Audio` 配下へ統合するか判断する。
-4. `Engine/Physics/Collision/Legacy` の利用箇所を洗い、新Physics APIへの移行順序を決める。
-5. `LegacyFPSCounter`、旧OBJ Loader、重複Model API等の利用箇所を確認する。
+その前にPhase 1-B / 1-Cを完了し、build設定・依存方向・Resource寿命・計測基準が把握できている状態にします。
 
 ## 検証状況
 
-- GitHub上の現行featureブランチを基準に静的確認を実施。
-- 新規Allocation trackerはheader-onlyのため、新しい `.cpp` のVisual Studio project登録を必要としない構成にした。
-- Debug / Release双方で呼び出しコードを共有し、ReleaseではCRT Hook処理をコンパイル対象外にした。
-- この作業環境ではVisual Studioによる実ビルドは実行していないため、ビルド成功は未確認。
+- GitHub上の `feature/phase1-cleanup-profiling` を基準に静的確認を実施。
+- Allocation trackerはheader-onlyで追加し、新規 `.cpp` 登録を不要にしている。
+- Debug / Releaseで呼び出しコードを共有し、ReleaseではCRT Hook処理をコンパイル対象外にしている。
+- Visual StudioによるDebug / Release実buildはまだ未確認。
+- Phase 1は未完了。Phase 1-A完了、Phase 1-B / 1-C継続中。
