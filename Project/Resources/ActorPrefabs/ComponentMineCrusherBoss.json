@@ -1,0 +1,192 @@
+{
+  "Active": true,
+  "Class": "BossActor",
+  "Components": [
+    {
+      "Active": true,
+      "Class": "SceneComponent",
+      "DrawOrder": 0,
+      "LocalPosition": [0.0, 0.0, 0.0],
+      "LocalRotation": [0.0, 0.0, 0.0],
+      "LocalScale": [1.0, 1.0, 1.0],
+      "Name": "Mine Crusher Root",
+      "Parent": "",
+      "Type": "SceneComponent",
+      "UpdateOrder": -100
+    },
+    {
+      "Active": true,
+      "Class": "BossPhaseComponent",
+      "ConfiguredMaxHealth": 3200.0,
+      "CurrentPhase": 1,
+      "DrawOrder": 0,
+      "Name": "Mine Crusher Phase",
+      "Phase2HealthRatio": 0.68,
+      "Phase3HealthRatio": 0.32,
+      "PhaseInvulnerabilityDuration": 1.0,
+      "Type": "ActorComponent",
+      "UpdateOrder": -98
+    },
+    {
+      "Active": true,
+      "Class": "BossPresentationComponent",
+      "DeathPresentationDuration": 1.5,
+      "DrawOrder": -10,
+      "Name": "Mine Crusher Presentation",
+      "PhaseAuraInterval": 0.14,
+      "PhaseTransitionDuration": 0.65,
+      "TelegraphParticleInterval": 0.08,
+      "Type": "ActorComponent",
+      "UpdateOrder": -97
+    },
+    {
+      "Active": true,
+      "ApproachDistance": 4.2,
+      "Class": "BossBrainComponent",
+      "DrawOrder": 0,
+      "MoveSpeed": 2.05,
+      "Name": "Mine Crusher Brain",
+      "RotateSpeed": 4.2,
+      "Type": "ActorComponent",
+      "UpdateOrder": -95
+    },
+    {
+      "Active": true,
+      "AttackProfile": "MineCrusher",
+      "Class": "BossAttackComponent",
+      "DrawOrder": 0,
+      "Name": "Mine Crusher Attack",
+      "Type": "ActorComponent",
+      "UpdateOrder": -92
+    },
+    {
+      "Active": true,
+      "CastShadow": true,
+      "Class": "HumanoidVisualComponent",
+      "Definition": {
+        "Parts": [
+          {
+            "Id": "Body",
+            "Model": "Sample/cube.gltf",
+            "Scale": [2.4, 1.65, 1.75]
+          },
+          {
+            "Id": "Head",
+            "Model": "Sample/cube.gltf",
+            "Parent": "Body",
+            "Position": [0.0, 1.25, 0.25],
+            "Scale": [1.05, 0.62, 0.92]
+          },
+          {
+            "Id": "LeftArm",
+            "Model": "Sample/cube.gltf",
+            "Parent": "Body",
+            "Position": [-1.62, 0.10, 0.0],
+            "Rotation": [0.0, 0.0, -0.16],
+            "Scale": [0.72, 1.75, 0.78]
+          },
+          {
+            "Id": "RightArm",
+            "Model": "Sample/cube.gltf",
+            "Parent": "Body",
+            "Position": [1.72, 0.0, 0.12],
+            "Rotation": [0.0, 0.0, 0.20],
+            "Scale": [0.88, 2.05, 0.88]
+          },
+          {
+            "Id": "LeftLeg",
+            "Model": "Sample/cube.gltf",
+            "Parent": "Body",
+            "Position": [-0.72, -1.48, 0.0],
+            "Scale": [0.82, 1.25, 0.98]
+          },
+          {
+            "Id": "RightLeg",
+            "Model": "Sample/cube.gltf",
+            "Parent": "Body",
+            "Position": [0.72, -1.48, 0.0],
+            "Scale": [0.82, 1.25, 0.98]
+          }
+        ]
+      },
+      "DefinitionPath": "",
+      "DrawOrder": 0,
+      "LocalPosition": [0.0, 0.0, 0.0],
+      "LocalRotation": [0.0, 0.0, 0.0],
+      "LocalScale": [1.0, 1.0, 1.0],
+      "Name": "Mine Crusher Visual",
+      "Parent": "Mine Crusher Root",
+      "PartVisibility": {
+        "Body": true,
+        "Head": true,
+        "LeftArm": true,
+        "LeftLeg": true,
+        "RightArm": true,
+        "RightLeg": true
+      },
+      "SkinTexturePath": "Characters/enemy.dds",
+      "Type": "SceneComponent",
+      "UpdateOrder": 0
+    },
+    {
+      "Active": true,
+      "Class": "BossWeakPointComponent",
+      "DrawOrder": 0,
+      "Name": "Mine Crusher Weak Point",
+      "Type": "ActorComponent",
+      "UpdateOrder": -40,
+      "WeakPoints": [
+        {
+          "DamageMultiplier": 1.75,
+          "Enabled": true,
+          "PartId": "Head"
+        },
+        {
+          "DamageMultiplier": 1.35,
+          "Enabled": true,
+          "PartId": "RightArm"
+        },
+        {
+          "DamageMultiplier": 1.15,
+          "Enabled": true,
+          "PartId": "LeftArm"
+        }
+      ]
+    },
+    {
+      "Active": true,
+      "Class": "CharacterHealthComponent",
+      "CurrentHealth": 3200.0,
+      "DrawOrder": 0,
+      "Invulnerable": false,
+      "MaxHealth": 3200.0,
+      "Name": "Mine Crusher Health",
+      "Type": "ActorComponent",
+      "UpdateOrder": -50
+    },
+    {
+      "Active": true,
+      "Class": "CharacterColliderComponent",
+      "CollisionLayer": 1,
+      "DrawOrder": 0,
+      "HalfSize": [2.4, 2.35, 2.15],
+      "IsTrigger": false,
+      "LocalPosition": [0.0, 0.0, 0.0],
+      "LocalRotation": [0.0, 0.0, 0.0],
+      "LocalScale": [1.0, 1.0, 1.0],
+      "Name": "Mine Crusher Collider",
+      "Parent": "Mine Crusher Root",
+      "Radius": 1.0,
+      "ShapeType": "OBB",
+      "Type": "SceneComponent",
+      "UpdateOrder": -60
+    }
+  ],
+  "Layer": "Boss",
+  "Name": "ComponentMineCrusherBoss",
+  "Tags": [
+    "Boss",
+    "MineCrusher",
+    "Stage2Boss"
+  ]
+}

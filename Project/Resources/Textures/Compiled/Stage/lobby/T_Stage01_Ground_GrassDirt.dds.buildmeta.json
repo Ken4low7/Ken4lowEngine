@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/T_Stage01_Ground_GrassDirt.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/T_Stage01_Ground_GrassDirt.dds",
+    "SourceSizeBytes":  48575,
+    "SourceSha256":  "0b3680eaeec110501b31e3805e8b179aba240b405531d94684e6df811bea505e",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

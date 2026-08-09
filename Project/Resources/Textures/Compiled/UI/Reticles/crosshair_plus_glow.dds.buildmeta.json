@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Reticles/crosshair_plus_glow.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/crosshair_plus_glow.dds",
+    "SourceSizeBytes":  12177,
+    "SourceSha256":  "379b3af5b15fe4c45551909650518789f6be5060c5c87cefa52c7f8917b6a6eb",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

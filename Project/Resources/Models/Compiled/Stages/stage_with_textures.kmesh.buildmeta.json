@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Stages/stage_with_textures.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Stages/stage_with_textures.kmesh",
+    "DependencyFingerprint":  "0eaaa74f7be408de19851380cd61e6b7a5408730c0d3cdd6aceaf28750cadb8a",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/stage_with_textures.bin",
+                             "SizeBytes":  31220,
+                             "Sha256":  "0f0386184639fa19cad528b2cba62e6474cd435a1cb65beed920566ba3bcff98"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/stage_with_textures.gltf",
+                             "SizeBytes":  32447,
+                             "Sha256":  "c1f539fa2c0c731c8508c5fa5b0fb1b5b26ea24c226c2e69e2908e6c2262606a"
+                         }
+                     ]
+}

@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage2/iron_ore.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/iron_ore.dds",
+    "SourceSizeBytes":  892,
+    "SourceSha256":  "c141770ec9c1f60b40a3d3080af8bc847611c44700ac3d32287fe0b81d81b46c",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Reticles/kill_center_flash_core_no_logo.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/kill_center_flash_core_no_logo.dds",
+    "SourceSizeBytes":  108212,
+    "SourceSha256":  "8e91951f4d2d7d2e9bb945b60dd3320055e0b6a8a8b0c7db538318ca9b9cfda8",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

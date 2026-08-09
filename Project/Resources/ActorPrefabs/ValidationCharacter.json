@@ -1,0 +1,224 @@
+{
+    "Active": true,
+    "Class": "CharacterActor",
+    "Components": [
+        {
+            "Active": true,
+            "Class": "SceneComponent",
+            "DrawOrder": 0,
+            "LocalPosition": [
+                4.0,
+                0.0,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Character Root",
+            "Parent": "",
+            "Type": "SceneComponent",
+            "UpdateOrder": -100
+        },
+        {
+            "Active": true,
+            "Class": "CharacterHealthComponent",
+            "CurrentHealth": 100.0,
+            "DrawOrder": 0,
+            "Invulnerable": false,
+            "MaxHealth": 100.0,
+            "Name": "Character Health",
+            "Type": "ActorComponent",
+            "UpdateOrder": -50
+        },
+        {
+            "Active": true,
+            "Class": "CharacterMovementComponent",
+            "DrawOrder": 0,
+            "MovementEnabled": true,
+            "Name": "Character Movement",
+            "Type": "ActorComponent",
+            "UpdateOrder": -90,
+            "Velocity": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "Active": true,
+            "Class": "CharacterTargetComponent",
+            "DrawOrder": 0,
+            "LocalPosition": [
+                0.0,
+                1.0,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Character Target",
+            "Parent": "Character Root",
+            "Type": "SceneComponent",
+            "UpdateOrder": -80
+        },
+        {
+            "Active": true,
+            "AnimationName": "Idle",
+            "Class": "CharacterAnimationComponent",
+            "DrawOrder": 0,
+            "Duration": 1.0,
+            "Loop": true,
+            "Name": "Character Animation",
+            "PlaybackSpeed": 1.0,
+            "PlaybackTime": 0.0,
+            "Playing": true,
+            "Type": "ActorComponent",
+            "UpdateOrder": -70
+        },
+        {
+            "Active": true,
+            "Class": "CharacterColliderComponent",
+            "CollisionLayer": 0,
+            "DrawOrder": 0,
+            "HalfSize": [
+                0.699999988079071,
+                1.7999999523162842,
+                0.699999988079071
+            ],
+            "IsTrigger": false,
+            "LocalPosition": [
+                -0.00024199485778808594,
+                -0.20000000298023224,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                -0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Character Collider",
+            "Parent": "Character Root",
+            "Radius": 1.0,
+            "ShapeType": "OBB",
+            "Type": "SceneComponent",
+            "UpdateOrder": -60
+        },
+        {
+            "Active": true,
+            "CastShadow": true,
+            "Class": "HumanoidVisualComponent",
+            "Definition": {
+                "Parts": [
+                    {
+                        "Id": "Body",
+                        "Model": "Characters/body.gltf"
+                    },
+                    {
+                        "Id": "Head",
+                        "Model": "Characters/head.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            0.0,
+                            0.75,
+                            0.0
+                        ]
+                    },
+                    {
+                        "Id": "LeftArm",
+                        "Model": "Characters/left_arm.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            -0.75,
+                            0.75,
+                            0.0
+                        ]
+                    },
+                    {
+                        "Id": "RightArm",
+                        "Model": "Characters/right_arm.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            0.75,
+                            0.75,
+                            0.0
+                        ]
+                    },
+                    {
+                        "Id": "LeftLeg",
+                        "Model": "Characters/left_leg.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            -0.25,
+                            -0.75,
+                            0.0
+                        ]
+                    },
+                    {
+                        "Id": "RightLeg",
+                        "Model": "Characters/right_leg.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            0.25,
+                            -0.75,
+                            0.0
+                        ]
+                    }
+                ]
+            },
+            "DefinitionPath": "Resources/JSON/Characters/DefaultHumanoid.json",
+            "DrawOrder": 0,
+            "LocalPosition": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Humanoid Visual",
+            "Parent": "Character Root",
+            "PartVisibility": {
+                "Body": true,
+                "Head": true,
+                "LeftArm": true,
+                "LeftLeg": true,
+                "RightArm": true,
+                "RightLeg": true
+            },
+            "SkinTexturePath": "",
+            "Type": "SceneComponent",
+            "UpdateOrder": -40
+        }
+    ],
+    "Layer": "DebugValidation",
+    "Name": "ValidationCharacter",
+    "Tags": [
+        "CharacterValidation"
+    ]
+}

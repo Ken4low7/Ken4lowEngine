@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Icons/mouse_rightClick.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Icons/mouse_rightClick.dds",
+    "SourceSizeBytes":  1236,
+    "SourceSha256":  "b7447c7ab291275733f6f19bbaf21c2ac31fc718e81f7c99bdba298fabd84ef1",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

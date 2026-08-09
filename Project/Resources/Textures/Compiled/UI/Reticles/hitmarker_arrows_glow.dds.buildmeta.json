@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Reticles/hitmarker_arrows_glow.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/hitmarker_arrows_glow.dds",
+    "SourceSizeBytes":  23287,
+    "SourceSha256":  "d3d7ffb2828ae77d178306eb3deddfa28851ff7e46699545dcfa6f2960b6840a",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

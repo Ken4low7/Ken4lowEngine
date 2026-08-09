@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Stages/lobby.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Stages/lobby.kmesh",
+    "DependencyFingerprint":  "cb9041e7b415c175682fd36deba0f3ec09343f98a428fb137dd227fb513db459",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/lobby.bin",
+                             "SizeBytes":  29256,
+                             "Sha256":  "86092d1002f8afb7b4756f019a81105ee940ae5ecd6777ca7086ffc7653877ef"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/lobby.gltf",
+                             "SizeBytes":  38774,
+                             "Sha256":  "8b977f47344d4abaf9edce1c911e409e7fa2107988bcaa16167c53d6b7e86b95"
+                         }
+                     ]
+}

@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Weapons/special_launcher.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Weapons/special_launcher.kmesh",
+    "DependencyFingerprint":  "0639cf03c1a41ccc654613a21cdea0a5cbc6cd516503b91aecd6694713fa0099",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/special_launcher.bin",
+                             "SizeBytes":  10424,
+                             "Sha256":  "fdcc5aedf0f699bdc13c41dc22136749edd6203c1bd059f2f13aabe92ecc87b7"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/special_launcher.gltf",
+                             "SizeBytes":  1911,
+                             "Sha256":  "6da39d2893d0435d104351c4b4e950006d1ddf3e6a0d442dee04e5ee38ba7316"
+                         }
+                     ]
+}

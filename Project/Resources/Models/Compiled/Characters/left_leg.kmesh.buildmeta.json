@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Characters/left_leg.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Characters/left_leg.kmesh",
+    "DependencyFingerprint":  "5fd033969e27abdf1ab966be3ade4401097a18d627e0be51e29d08e976320a2b",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Characters/left_leg.bin",
+                             "SizeBytes":  840,
+                             "Sha256":  "25e0d6423b4da3f87eda4eb7f248464ad322b32131ac5c490ef037e84e03af41"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Characters/left_leg.gltf",
+                             "SizeBytes":  1892,
+                             "Sha256":  "4fe14de456fd8d69da8d80f566c918130d65e73d327591411d70ecfede29b8c0"
+                         }
+                     ]
+}

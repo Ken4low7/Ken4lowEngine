@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Reticles/hitmarker_x_glow.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/hitmarker_x_glow.dds",
+    "SourceSizeBytes":  17975,
+    "SourceSha256":  "e5e052768cf3067415487969ff21ae76277ee52c4cf0381c610cbe92c3c90152",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

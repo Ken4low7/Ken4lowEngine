@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Copy",
+    "SourcePath":  "Resources/Textures/Sources/SkyBox/skybox.dds",
+    "OutputPath":  "Resources/Textures/Compiled/SkyBox/skybox.dds",
+    "SourceSizeBytes":  6291584,
+    "SourceSha256":  "32d5ac7cb0801f16b27f49592c3773b49f9946bc628afab5a8642acdb3589e51",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

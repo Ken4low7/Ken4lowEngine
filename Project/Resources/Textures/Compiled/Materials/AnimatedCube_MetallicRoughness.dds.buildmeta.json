@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Materials/AnimatedCube_MetallicRoughness.png",
+    "OutputPath":  "Resources/Textures/Compiled/Materials/AnimatedCube_MetallicRoughness.dds",
+    "SourceSizeBytes":  319,
+    "SourceSha256":  "953698e36cdbf6a7823fc3489f3f93c927d7699f4adb772f5f4c3c230a851b6b",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

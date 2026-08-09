@@ -1,0 +1,17 @@
+{
+    "billboardFlags": "Camera",
+    "drawType": 0,
+    "kind": "Sprite",
+    "loopCount": 10,
+    "loopFrequency": 0.10000000149011612,
+    "name": "Emitter_0",
+    "position": [
+        0.0,
+        0.0,
+        0.0
+    ],
+    "radius": 0.07999999821186066,
+    "ribbonType": "BulletTracer",
+    "spriteType": "Impact_Wood",
+    "textureFilePath": "white.png"
+}

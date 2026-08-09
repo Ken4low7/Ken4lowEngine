@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/DebrisAtlas.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/DebrisAtlas.dds",
+    "SourceSizeBytes":  1763,
+    "SourceSha256":  "e02d58f60d9d64319e072de220dc8c234006824d1e35c973a5a31b249896d120",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

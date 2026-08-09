@@ -1,0 +1,61 @@
+{
+  "data": {
+    "ambientColor": [
+      0.10000000149011612,
+      0.10999999940395355,
+      0.12999999523162842,
+      0.18000000715255737
+    ],
+    "color": [
+      1.0,
+      0.9700000286102295,
+      0.9200000166893005,
+      1.0
+    ],
+    "contrast": 1.0,
+    "diffuseStrength": 0.949999988079071,
+    "directionalDirection": [
+      0.39056673645973206,
+      -0.8679261207580566,
+      0.3037741184234619
+    ],
+    "enableFog": 1,
+    "enableHalfLambert": 0,
+    "enableRimLight": 0,
+    "enableShadow": true,
+    "exposure": 1.0,
+    "fogColor": [
+      0.5799999833106995,
+      0.6399999856948853,
+      0.699999988079071,
+      1.0
+    ],
+    "fogEnd": 140.0,
+    "fogStart": 45.0,
+    "intensity": 0.8999999761581421,
+    "normalBias": 0.02500000037252903,
+    "rimLightColor": [
+      0.8500000238418579,
+      0.9200000166893005,
+      1.0,
+      1.0
+    ],
+    "rimLightPower": 2.0,
+    "rimLightStrength": 0.550000011920929,
+    "shadingMode": 0,
+    "shadowBias": 0.0,
+    "shadowFarZ": 180.0,
+    "shadowFocusMode": 2,
+    "shadowHeight": 120.0,
+    "shadowMapSize": 2048,
+    "shadowNearZ": 0.10000000149011612,
+    "shadowStrength": 0.6000000238418579,
+    "shadowWidth": 120.0,
+    "specularPowerScale": 1.0,
+    "specularStrength": 0.10000000149011612
+  },
+  "displayName": "default_light",
+  "id": "default_light",
+  "type": "LightPreset",
+  "version": 1
+}

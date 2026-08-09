@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Characters/head.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Characters/head.kmesh",
+    "DependencyFingerprint":  "496c74851b07bcf957d417981c0e17b0ecccd6a8244d9f72de82dbe5deaed36f",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Characters/head.bin",
+                             "SizeBytes":  840,
+                             "Sha256":  "e90f52280ca332c0e64dffa72613472b20fe29b7185b4090d560d9f1b171ac5b"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Characters/head.gltf",
+                             "SizeBytes":  1878,
+                             "Sha256":  "295c1c416248cb3cd94865221713a7ab622b062c25cdf9ccdc11f92c2e838734"
+                         }
+                     ]
+}

@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage01/stone_pixel.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/stone_pixel.dds",
+    "SourceSizeBytes":  1215,
+    "SourceSha256":  "edd7aadbb747f61b369fc5d92b0cd573ace7041f6d01367604babd9e2703345c",
+    "MipLevel":  0,
+    "DisableMipMap":  true
+}

@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Icons/mouse_leftClick.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Icons/mouse_leftClick.dds",
+    "SourceSizeBytes":  1265,
+    "SourceSha256":  "0cf860a9e454c1c1f3d3dd25d310a4217b7fc59a0be3563de0f3bf86a53814de",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

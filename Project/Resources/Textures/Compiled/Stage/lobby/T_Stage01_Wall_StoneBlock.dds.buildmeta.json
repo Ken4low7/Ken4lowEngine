@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/T_Stage01_Wall_StoneBlock.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/T_Stage01_Wall_StoneBlock.dds",
+    "SourceSizeBytes":  12442,
+    "SourceSha256":  "11f301ce3161e673453776e843a25ebaaaa984690703ce471064f68f1f0f7c45",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

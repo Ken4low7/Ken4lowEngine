@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/gradationLine.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/gradationLine.dds",
+    "SourceSizeBytes":  314004,
+    "SourceSha256":  "5f6126e5e67e4b8bb7d774f10b493489e3aec431a244adffd8c6e7f97ca7e331",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

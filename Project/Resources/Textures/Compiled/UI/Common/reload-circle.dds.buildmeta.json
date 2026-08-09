@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Common/reload-circle.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Common/reload-circle.dds",
+    "SourceSizeBytes":  26282,
+    "SourceSha256":  "8a6d1bf2ceafc100956d796faef883ccafb108bdc1a8c870ebdbc3f3fe542597",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

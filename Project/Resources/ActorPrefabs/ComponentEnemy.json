@@ -1,0 +1,378 @@
+{
+    "Active": true,
+    "Class": "EnemyActor",
+    "Components": [
+        {
+            "Active": true,
+            "CastShadow": true,
+            "Class": "HumanoidVisualComponent",
+            "Definition": {
+                "Parts": [
+                    {
+                        "Id": "Body",
+                        "Model": "Characters/body.gltf"
+                    },
+                    {
+                        "Id": "Head",
+                        "Model": "Characters/head.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            0.0,
+                            0.75,
+                            0.0
+                        ]
+                    },
+                    {
+                        "Id": "LeftArm",
+                        "Model": "Characters/left_arm.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            -0.75,
+                            0.75,
+                            0.0
+                        ]
+                    },
+                    {
+                        "Id": "RightArm",
+                        "Model": "Characters/right_arm.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            0.75,
+                            0.75,
+                            0.0
+                        ]
+                    },
+                    {
+                        "Id": "LeftLeg",
+                        "Model": "Characters/left_leg.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            -0.25,
+                            -0.75,
+                            0.0
+                        ]
+                    },
+                    {
+                        "Id": "RightLeg",
+                        "Model": "Characters/right_leg.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            0.25,
+                            -0.75,
+                            0.0
+                        ]
+                    }
+                ]
+            },
+            "DefinitionPath": "Resources/JSON/Characters/DefaultHumanoid.json",
+            "DrawOrder": 0,
+            "LocalPosition": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Humanoid Visual",
+            "Parent": "Enemy Root",
+            "PartVisibility": {
+                "Body": true,
+                "Head": true,
+                "LeftArm": true,
+                "LeftLeg": true,
+                "RightArm": true,
+                "RightLeg": true
+            },
+            "SkinTexturePath": "Characters/enemy.dds",
+            "Type": "SceneComponent",
+            "UpdateOrder": -40
+        },
+        {
+            "Active": true,
+            "Class": "SceneComponent",
+            "DrawOrder": 0,
+            "LocalPosition": [
+                0.0,
+                0.0,
+                3.0725297927856445
+            ],
+            "LocalRotation": [
+                0.0,
+                -0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Enemy Root",
+            "Parent": "",
+            "Type": "SceneComponent",
+            "UpdateOrder": -100
+        },
+        {
+            "Active": true,
+            "AttackStartRange": 2.4000000953674316,
+            "ChaseSpeedMultiplier": 1.399999976158142,
+            "Class": "EnemyAIComponent",
+            "DetectRange": 18.0,
+            "DrawOrder": 0,
+            "MoveSpeed": 4.0,
+            "Name": "Enemy AI",
+            "RotateSpeed": 9.0,
+            "StopDistance": 1.7999999523162842,
+            "Type": "ActorComponent",
+            "UpdateOrder": -95,
+            "WanderEnabled": true,
+            "WanderInterval": 7.0,
+            "WanderRadius": 18.0,
+            "WanderRetryDelay": 0.3499999940395355,
+            "WanderSpeedScale": 0.6499999761581421
+        },
+        {
+            "Active": true,
+            "AttackActiveTime": 0.10000000149011612,
+            "AttackCooldown": 0.550000011920929,
+            "AttackDamage": 8.0,
+            "AttackMaxHeightDifference": 2.0,
+            "AttackRecoveryTime": 0.3499999940395355,
+            "AttackStartDelay": 0.11999999731779099,
+            "Attacks": [
+                {
+                    "Active": 0.10000000149011612,
+                    "Animation": "Attack.Scratch",
+                    "Behavior": "Melee",
+                    "Cooldown": 0.550000011920929,
+                    "Damage": 8.0,
+                    "Id": "Melee",
+                    "MaxHeightDifference": 2.0,
+                    "MaxRange": 2.4000000953674316,
+                    "MinRange": 0.0,
+                    "MovementSpeed": 0.0,
+                    "Recovery": 0.3499999940395355,
+                    "Windup": 0.11999999731779099
+                },
+                {
+                    "Active": 0.2199999988079071,
+                    "Animation": "Attack.LungeScratch",
+                    "Behavior": "Charge",
+                    "Cooldown": 1.399999976158142,
+                    "Damage": 12.0,
+                    "Id": "LungeScratch",
+                    "MaxHeightDifference": 2.0,
+                    "MaxRange": 3.5999999046325684,
+                    "MinRange": 1.600000023841858,
+                    "MovementSpeed": 7.0,
+                    "Recovery": 0.41999998688697815,
+                    "Windup": 0.18000000715255737
+                }
+            ],
+            "Class": "EnemyAttackComponent",
+            "DrawOrder": 0,
+            "LungeChance": 0.3499999940395355,
+            "LungeDecisionCooldown": 2.0,
+            "Name": "Enemy Attack",
+            "Type": "ActorComponent",
+            "UpdateOrder": -92
+        },
+        {
+            "Active": true,
+            "Class": "EnemyEffectComponent",
+            "DeathPresentationDuration": 1.7999999523162842,
+            "DrawOrder": 0,
+            "Name": "Enemy Effect",
+            "Type": "ActorComponent",
+            "UpdateOrder": 20
+        },
+        {
+            "Active": true,
+            "BackgroundColor": [
+                0.05000000074505806,
+                0.05000000074505806,
+                0.05000000074505806,
+                0.8600000143051147
+            ],
+            "BorderColor": [
+                1.0,
+                1.0,
+                1.0,
+                0.8999999761581421
+            ],
+            "BorderThickness": 2.0,
+            "Class": "WorldGaugeComponent",
+            "DrawOrder": 120,
+            "FillColor": [
+                0.8999999761581421,
+                0.5799999833106995,
+                0.1599999964237213,
+                1.0
+            ],
+            "FillDirection": "LeftToRight",
+            "HideWhenBehindCamera": true,
+            "LocalPosition": [
+                0.0,
+                2.6500000953674316,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "MaxValue": 160.0,
+            "Name": "Enemy HP Gauge",
+            "Parent": "Enemy Root",
+            "ScreenOffset": [
+                0.0,
+                -8.0
+            ],
+            "Size": [
+                190.0,
+                16.0
+            ],
+            "Type": "SceneComponent",
+            "UpdateOrder": 0,
+            "Value": 160.0,
+            "Visible": false
+        },
+        {
+            "Active": true,
+            "Class": "CharacterHealthComponent",
+            "CurrentHealth": 160.0,
+            "DrawOrder": 0,
+            "Invulnerable": false,
+            "MaxHealth": 160.0,
+            "Name": "Character Health",
+            "Type": "ActorComponent",
+            "UpdateOrder": -50
+        },
+        {
+            "Active": true,
+            "Class": "CharacterMovementComponent",
+            "DrawOrder": 0,
+            "MaxBrakingForce": 360.0,
+            "MaxDriveForce": 280.0,
+            "MovementEnabled": false,
+            "Name": "Character Movement",
+            "Type": "ActorComponent",
+            "UpdateOrder": -90,
+            "Velocity": [
+                -1.8384777307510376,
+                0.0,
+                1.8384777307510376
+            ]
+        },
+        {
+            "Active": true,
+            "BodyType": "Dynamic",
+            "Class": "RigidbodyComponent",
+            "DrawOrder": 0,
+            "DynamicFriction": 0.3499999940395355,
+            "Mass": 4.0,
+            "Name": "Enemy Rigidbody",
+            "Restitution": 0.0,
+            "SleepEnabled": false,
+            "StaticFriction": 0.800000011920929,
+            "Type": "ActorComponent",
+            "UpdateOrder": -65,
+            "UseGravity": true,
+            "Velocity": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "Active": true,
+            "Class": "CharacterTargetComponent",
+            "DrawOrder": 0,
+            "LocalPosition": [
+                0.0,
+                1.0,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Character Target",
+            "Parent": "Enemy Root",
+            "Type": "SceneComponent",
+            "UpdateOrder": -80
+        },
+        {
+            "Active": true,
+            "AnimationName": "Idle",
+            "Class": "CharacterAnimationComponent",
+            "DrawOrder": 0,
+            "Duration": 1.0,
+            "Loop": true,
+            "Name": "Character Animation",
+            "PlaybackSpeed": 1.0,
+            "PlaybackTime": 0.0,
+            "Playing": true,
+            "Type": "ActorComponent",
+            "UpdateOrder": -70
+        },
+        {
+            "Active": true,
+            "Class": "CharacterColliderComponent",
+            "CollisionLayer": 1,
+            "DrawOrder": 0,
+            "HalfSize": [
+                0.699999988079071,
+                1.899999976158142,
+                0.699999988079071
+            ],
+            "IsTrigger": false,
+            "LocalPosition": [
+                0.0,
+                -0.30000001192092896,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Character Collider",
+            "Parent": "Enemy Root",
+            "Radius": 1.0,
+            "ShapeType": "OBB",
+            "Type": "SceneComponent",
+            "UpdateOrder": -60
+        }
+    ],
+    "EnemyType": "Melee",
+    "Layer": "EnemyValidation",
+    "Name": "ComponentEnemy",
+    "Tags": [
+        "NormalEnemy",
+        "MeleeEnemy"
+    ]
+}

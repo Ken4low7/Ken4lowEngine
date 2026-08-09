@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Common/numbers02.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Common/numbers02.dds",
+    "SourceSizeBytes":  9382,
+    "SourceSha256":  "59cb4e618542426f1929e0317f84d8565b9794ea6814c3445cf60fba8697551b",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

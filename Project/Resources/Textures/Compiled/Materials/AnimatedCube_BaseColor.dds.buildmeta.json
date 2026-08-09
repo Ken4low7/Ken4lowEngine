@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Materials/AnimatedCube_BaseColor.png",
+    "OutputPath":  "Resources/Textures/Compiled/Materials/AnimatedCube_BaseColor.dds",
+    "SourceSizeBytes":  891995,
+    "SourceSha256":  "27e8575345bd1d368371ad5e8b6ef25dc5e01ac2d6f2c438205c8e45573a2480",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

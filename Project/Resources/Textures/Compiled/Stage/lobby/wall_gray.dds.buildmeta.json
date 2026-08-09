@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/wall_gray.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/wall_gray.dds",
+    "SourceSizeBytes":  70,
+    "SourceSha256":  "eee8a9318948e7b9fea4930b4c37b80b9843688d60a3dbd79a95271294fb4712",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

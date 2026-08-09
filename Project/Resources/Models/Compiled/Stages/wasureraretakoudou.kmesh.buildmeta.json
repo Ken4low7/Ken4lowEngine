@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Stages/wasureraretakoudou.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Stages/wasureraretakoudou.kmesh",
+    "DependencyFingerprint":  "1f824531c5393af55456410d89fdaeba3dc1c5fa015d5f9a736ce65ced93d5c4",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/wasureraretakoudou.bin",
+                             "SizeBytes":  1222600,
+                             "Sha256":  "d01538083bdce98fc88e49cd4be8d964570692f78da8b6b0bc51f37a5215d0cc"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/wasureraretakoudou.gltf",
+                             "SizeBytes":  1646025,
+                             "Sha256":  "1892e26f954876a7290d213f1766bd58a2dd0c5f7ea93668713f7adb29b1f7d1"
+                         }
+                     ]
+}

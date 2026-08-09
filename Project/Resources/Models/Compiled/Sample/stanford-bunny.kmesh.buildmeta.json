@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Sample/stanford-bunny.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Sample/stanford-bunny.kmesh",
+    "DependencyFingerprint":  "e00f92ad4f9bea7784b48e3784ee42b5d3ad5c5e10abd653308a133b8c0534eb",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Sample/stanford-bunny.bin",
+                             "SizeBytes":  5816268,
+                             "Sha256":  "9570c367d592ccf431b59832d227558a42c1f16c9074ac0340fad5e84c05a89e"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Sample/stanford-bunny.gltf",
+                             "SizeBytes":  1916,
+                             "Sha256":  "023df1261d72b0617c6b3afd75b145c32a1f748c0353da70862dca53aad387e4"
+                         }
+                     ]
+}

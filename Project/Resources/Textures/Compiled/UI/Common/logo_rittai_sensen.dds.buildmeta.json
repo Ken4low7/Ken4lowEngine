@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Common/logo_rittai_sensen.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Common/logo_rittai_sensen.dds",
+    "SourceSizeBytes":  1508370,
+    "SourceSha256":  "85f37ca41eb4b5a778729eb535220bc2102406ed24f95112981d2e5d5639a7ae",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

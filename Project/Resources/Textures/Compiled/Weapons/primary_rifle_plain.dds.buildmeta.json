@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Weapons/primary_rifle_plain.png",
+    "OutputPath":  "Resources/Textures/Compiled/Weapons/primary_rifle_plain.dds",
+    "SourceSizeBytes":  78,
+    "SourceSha256":  "d563807c99b0007c11cbcdb4dae2cfdcd0ee40d5a1943eae35633a8dba5d0b32",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

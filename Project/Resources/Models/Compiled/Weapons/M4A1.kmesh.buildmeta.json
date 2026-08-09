@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Weapons/M4A1.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Weapons/M4A1.kmesh",
+    "DependencyFingerprint":  "06e3ece7c67f498d49396fc719e1e24a86fe8cd160fc3c6fea6e79ef78b090c6",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/M4A1.bin",
+                             "SizeBytes":  840,
+                             "Sha256":  "008f12d729efb5891db2751c8d470c28a463799b3d236119a54fd668f97ccaf2"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/M4A1.gltf",
+                             "SizeBytes":  1552,
+                             "Sha256":  "57825b50fb77fea850b402189019acb635942f54c0fbd4e05bd4498e659d00d1"
+                         }
+                     ]
+}

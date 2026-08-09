@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage01/Block_RedCloth.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/Block_RedCloth.dds",
+    "SourceSizeBytes":  532,
+    "SourceSha256":  "de98fe1f85a845c2f385564e37129c056960175f85124f1f26f12139eb709b67",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

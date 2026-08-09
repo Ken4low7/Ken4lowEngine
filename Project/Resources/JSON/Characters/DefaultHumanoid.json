@@ -1,0 +1,38 @@
+{
+  "Parts": [
+    {
+      "Id": "Body",
+      "Model": "Characters/body.gltf"
+    },
+    {
+      "Id": "Head",
+      "Parent": "Body",
+      "Model": "Characters/head.gltf",
+      "Position": [0.0, 0.75, 0.0]
+    },
+    {
+      "Id": "LeftArm",
+      "Parent": "Body",
+      "Model": "Characters/left_arm.gltf",
+      "Position": [-0.75, 0.75, 0.0]
+    },
+    {
+      "Id": "RightArm",
+      "Parent": "Body",
+      "Model": "Characters/right_arm.gltf",
+      "Position": [0.75, 0.75, 0.0]
+    },
+    {
+      "Id": "LeftLeg",
+      "Parent": "Body",
+      "Model": "Characters/left_leg.gltf",
+      "Position": [-0.25, -0.75, 0.0]
+    },
+    {
+      "Id": "RightLeg",
+      "Parent": "Body",
+      "Model": "Characters/right_leg.gltf",
+      "Position": [0.25, -0.75, 0.0]
+    }
+  ]
+}

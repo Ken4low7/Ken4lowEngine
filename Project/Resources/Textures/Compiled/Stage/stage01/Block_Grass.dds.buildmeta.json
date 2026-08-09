@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage01/Block_Grass.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/Block_Grass.dds",
+    "SourceSizeBytes":  557,
+    "SourceSha256":  "453517d2669b95b38a83a6d3fd48d1966e93b0a54de8b9007115f152b702f827",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

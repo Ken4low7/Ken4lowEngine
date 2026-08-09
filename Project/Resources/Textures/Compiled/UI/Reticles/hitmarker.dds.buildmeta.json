@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Reticles/hitmarker.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/hitmarker.dds",
+    "SourceSizeBytes":  1414144,
+    "SourceSha256":  "54f060407eb23afd16af349932509e66e6fb85b98cdf14b3c084bb2f92443361",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

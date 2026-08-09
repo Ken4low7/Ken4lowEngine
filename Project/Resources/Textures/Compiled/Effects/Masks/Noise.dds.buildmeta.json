@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Masks/Noise.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Masks/Noise.dds",
+    "SourceSizeBytes":  125154,
+    "SourceSha256":  "bb54b3d2d8b57f757a03a6b726950daa3eb6c368800073d0e51cbe2b86282312",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

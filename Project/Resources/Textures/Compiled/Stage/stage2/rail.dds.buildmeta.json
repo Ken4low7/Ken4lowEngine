@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage2/rail.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/rail.dds",
+    "SourceSizeBytes":  898,
+    "SourceSha256":  "161c89dcd7236fc321baa28ffd27a0104927fd0b999e3cc9fef1c90bc1c31c88",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

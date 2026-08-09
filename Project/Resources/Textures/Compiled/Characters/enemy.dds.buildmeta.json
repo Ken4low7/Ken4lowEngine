@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Characters/enemy.png",
+    "OutputPath":  "Resources/Textures/Compiled/Characters/enemy.dds",
+    "SourceSizeBytes":  930,
+    "SourceSha256":  "9c9001da7b5d1faee6e26abf247cd54832ffb048121e7c197b9f84c76b07e453",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

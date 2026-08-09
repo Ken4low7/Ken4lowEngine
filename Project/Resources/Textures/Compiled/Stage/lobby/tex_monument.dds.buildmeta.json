@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/tex_monument.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/tex_monument.dds",
+    "SourceSizeBytes":  9210,
+    "SourceSha256":  "4e41b3c3bd438bcfbbb4dcc430a75173ab9d7ddf2828f578d87f88da917162c7",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

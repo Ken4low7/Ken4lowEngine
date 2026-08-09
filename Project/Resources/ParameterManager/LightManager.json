@@ -1,0 +1,85 @@
+{
+    "LightManager": {
+        "ambientColor": [
+            0.10000000149011612,
+            0.10999999940395355,
+            0.12999999523162842,
+            0.18000000715255737
+        ],
+        "contrast": 1.0,
+        "diffuseStrength": 0.949999988079071,
+        "directionalShadowDistance": 60.0,
+        "directionalShadowFarZ": 180.0,
+        "directionalShadowFocusOffset": 0.0,
+        "directionalShadowHeight": 120.0,
+        "directionalShadowNearZ": 0.10000000149011612,
+        "directionalShadowWidth": 120.0,
+        "enableFog": true,
+        "enableHalfLambert": false,
+        "enableRimLight": false,
+        "enableShadow": true,
+        "exposure": 1.0,
+        "fogColor": [
+            0.5799999833106995,
+            0.6399999856948853,
+            0.699999988079071,
+            1.0
+        ],
+        "fogEnd": 140.0,
+        "fogStart": 45.0,
+        "light0.areaSize": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "light0.color": [
+            1.0,
+            0.9700000286102295,
+            0.9200000166893005,
+            1.0
+        ],
+        "light0.cosAngle": 0.0,
+        "light0.cosFalloffStart": 0.0,
+        "light0.decay": 0.0,
+        "light0.direction": [
+            0.3909350335597992,
+            -0.8687445521354675,
+            0.30406054854393005
+        ],
+        "light0.distance": 0.0,
+        "light0.enabled": true,
+        "light0.intensity": 0.8999999761581421,
+        "light0.lightType": 1,
+        "light0.position": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "light0.radius": 0.0,
+        "manualShadowFocusPosition": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "normalBias": 0.02500000037252903,
+        "rimLightColor": [
+            0.8500000238418579,
+            0.9200000166893005,
+            1.0,
+            1.0
+        ],
+        "rimLightPower": 2.0,
+        "rimLightStrength": 0.550000011920929,
+        "shadingMode": 0,
+        "shadowBias": 0.0,
+        "shadowCasterLightIndex": -1,
+        "shadowFocusMode": 2,
+        "shadowMapSize": 2048,
+        "shadowStrength": 0.6000000238418579,
+        "showShadowFactorDebug": false,
+        "showShadowMapDebug": false,
+        "specularPowerScale": 1.0,
+        "specularStrength": 0.10000000149011612,
+        "spotShadowNearZ": 0.10000000149011612
+    }
+}

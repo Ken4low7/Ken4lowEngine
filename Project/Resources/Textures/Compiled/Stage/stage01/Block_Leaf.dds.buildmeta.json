@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage01/Block_Leaf.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/Block_Leaf.dds",
+    "SourceSizeBytes":  571,
+    "SourceSha256":  "04107520c4c922d3514dcc008a5a0a2dae702a36698c5c37c8ee68cae1707c26",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

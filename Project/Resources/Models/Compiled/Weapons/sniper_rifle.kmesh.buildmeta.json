@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Weapons/sniper_rifle.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Weapons/sniper_rifle.kmesh",
+    "DependencyFingerprint":  "f3da4ae5ad9e577ac90e1216887a81a5fdbe0b1068f96a6d195c51486f164ffa",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/sniper_rifle.bin",
+                             "SizeBytes":  11240,
+                             "Sha256":  "46c90a3dfeeebf8de91596855cff25a5c792420df7907c555791cde929d90be0"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/sniper_rifle.gltf",
+                             "SizeBytes":  1884,
+                             "Sha256":  "a02d29b3f92e8aef54b9696e17ef03a77d9382311b0afe9c54e8f1e3183167d8"
+                         }
+                     ]
+}

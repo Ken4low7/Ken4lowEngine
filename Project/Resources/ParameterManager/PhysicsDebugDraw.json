@@ -1,0 +1,13 @@
+{
+    "PhysicsDebugDraw": {
+        "DrawColliders": true,
+        "DrawContactNormals": true,
+        "DrawContacts": true,
+        "DrawEvents": true,
+        "DrawPhysicsDebug": false,
+        "DrawSleeping": true,
+        "DrawVelocity": true,
+        "NormalLength": 1.5,
+        "VelocityScale": 0.25
+    }
+}

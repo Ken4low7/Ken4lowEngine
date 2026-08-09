@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Weapons/melee_knife.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Weapons/melee_knife.kmesh",
+    "DependencyFingerprint":  "d5eba469ceaf8f3f5c0607c3e91ba6bb2c0cca348ce94c0465020b855c27e327",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/melee_knife.bin",
+                             "SizeBytes":  3360,
+                             "Sha256":  "25b8388d7290db2d6c42c9c1a0632054f52c351fec084558b574324bccfea6dd"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/melee_knife.gltf",
+                             "SizeBytes":  1883,
+                             "Sha256":  "9e2a73ed145efe13f9b6f27d0dd6c17b8eecd7bafedfbb9a070c08c6d854df3f"
+                         }
+                     ]
+}

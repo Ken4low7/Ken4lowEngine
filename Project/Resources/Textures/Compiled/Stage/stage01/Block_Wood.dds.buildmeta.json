@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage01/Block_Wood.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/Block_Wood.dds",
+    "SourceSizeBytes":  564,
+    "SourceSha256":  "dfcc9525535a51d7b4f58c1eca9c445bd12581a41bf8ffda68698105df528fdf",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

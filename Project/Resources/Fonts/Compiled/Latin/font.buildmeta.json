@@ -1,0 +1,20 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Font",
+    "Variant":  "Latin",
+    "FontPath":  "Resources/Fonts/Sources/DotGothic16-Regular.ttf",
+    "CharsetPath":  "Resources/Fonts/Charsets/LatinCharset.txt",
+    "FontSha256":  "ff706ab702fd4446207c70af564f68b62205c9972f1917f68ba739c61bb6aa18",
+    "CharsetSha256":  "c172a64a0f6cde57673f03f47a8e0144a5c32a38f773a15e202ddb7b34787fa1",
+    "FontSize":  48,
+    "AtlasWidth":  1024,
+    "AtlasHeight":  1024,
+    "OutputPaths":  [
+                        "Resources/Textures/Sources/UI/Font/Latin/DotGothic16-Regular_A.png",
+                        "Resources/Textures/Sources/UI/Font/Latin/DotGothic16-Regular_atlas.png",
+                        "Resources/Fonts/Compiled/Latin/DotGothic16-Regular.json",
+                        "Resources/Fonts/Compiled/Latin/DotGothic16-Regular_A.pgm",
+                        "Resources/Fonts/Compiled/Latin/DotGothic16-Regular_atlas.pgm",
+                        "Resources/Fonts/Compiled/Latin/DotGothic16-Regular_dummy.txt"
+                    ]
+}

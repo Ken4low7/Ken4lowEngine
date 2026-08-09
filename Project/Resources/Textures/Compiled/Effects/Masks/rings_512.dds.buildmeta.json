@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Masks/rings_512.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Masks/rings_512.dds",
+    "SourceSizeBytes":  76851,
+    "SourceSha256":  "fdb2e1799647d084220559918b6cd90c621a63c490c81e879ded62e34752710a",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

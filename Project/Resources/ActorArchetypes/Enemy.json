@@ -1,0 +1,18 @@
+{
+  "Id": "Enemy",
+  "DisplayName": "通常敵",
+  "Description": "Character共通機能と人型表示に、通常敵AI・攻撃・Effect・物理挙動を組み合わせた構成です。",
+  "Type": "EnemyActor",
+  "Components": [
+    "CharacterHealthComponent",
+    "CharacterMovementComponent",
+    "CharacterTargetComponent",
+    "CharacterColliderComponent",
+    "RigidbodyComponent",
+    "CharacterAnimationComponent",
+    "HumanoidVisualComponent",
+    "EnemyAIComponent",
+    "EnemyAttackComponent",
+    "EnemyEffectComponent"
+  ]
+}

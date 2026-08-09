@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Weapons/backup_pistol.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Weapons/backup_pistol.kmesh",
+    "DependencyFingerprint":  "d83b997c70b6b075926161452ece245eaf679c784a05f8d3e6c14abe1d317c89",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/backup_pistol.bin",
+                             "SizeBytes":  6016,
+                             "Sha256":  "e963122988a93ce9a81b055dcb7efcb087ffb55b39f8921b9313c36c2397acce"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/backup_pistol.gltf",
+                             "SizeBytes":  1893,
+                             "Sha256":  "85ff03ef3c346f7f6eafda950eca83104aa856ede7dfa2224eb20985e2d46ca7"
+                         }
+                     ]
+}

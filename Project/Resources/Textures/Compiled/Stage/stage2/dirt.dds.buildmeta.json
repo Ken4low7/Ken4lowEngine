@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage2/dirt.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/dirt.dds",
+    "SourceSizeBytes":  907,
+    "SourceSha256":  "7e3c57d5326ddce239e463241af339b4abc8924177472a014a7fd7997c35ad2a",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Animation/sneakWalk.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Animation/sneakWalk.kmesh",
+    "DependencyFingerprint":  "72ab597209fe12c41aabf22e1fd5dddcbad4ceef15fa59b2baa2690775943b13",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Animation/sneakWalk.bin",
+                             "SizeBytes":  894248,
+                             "Sha256":  "f6bbe5e3a5587dfbca0a3ea1622b651c3ce82f2d00fcf05652519946f2bff85b"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Animation/sneakWalk.gltf",
+                             "SizeBytes":  96197,
+                             "Sha256":  "535b97f124769cd2ffe2183c76fad5667f776c817a21a440cd0450740834c48f"
+                         }
+                     ]
+}

@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Sample/plane.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Sample/plane.kmesh",
+    "DependencyFingerprint":  "d2cc30b76a4a0865ee4b7252318d23afc596b142ddefebd91de9ab5a654c12da",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Sample/plane.bin",
+                             "SizeBytes":  140,
+                             "Sha256":  "e01e1b0fca487a6187cb446580d54704946b4797434dce3428dcf40a0601907f"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Sample/plane.gltf",
+                             "SizeBytes":  1897,
+                             "Sha256":  "bc18e40a5e2694e4f4a08a2006e29296ec0dbb7375090738a1564b707b918dfc"
+                         }
+                     ]
+}

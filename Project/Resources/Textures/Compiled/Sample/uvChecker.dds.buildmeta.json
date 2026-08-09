@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Sample/uvChecker.png",
+    "OutputPath":  "Resources/Textures/Compiled/Sample/uvChecker.dds",
+    "SourceSizeBytes":  106081,
+    "SourceSha256":  "44b31be24cd50c0344a28733dc8a1a6e8ece28f174ace6dea9e41aeb12701bda",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

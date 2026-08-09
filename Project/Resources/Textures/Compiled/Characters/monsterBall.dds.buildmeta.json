@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Characters/monsterBall.png",
+    "OutputPath":  "Resources/Textures/Compiled/Characters/monsterBall.dds",
+    "SourceSizeBytes":  18232,
+    "SourceSha256":  "adc7015fcbeb0cd4cb4e07613ff517b71b06ab875afc5e552a8afe2fabe7e0d9",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

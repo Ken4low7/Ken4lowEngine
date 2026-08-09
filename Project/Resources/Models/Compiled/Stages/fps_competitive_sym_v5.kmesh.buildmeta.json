@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Stages/fps_competitive_sym_v5.obj",
+    "OutputPath":  "Resources/Models/Compiled/Stages/fps_competitive_sym_v5.kmesh",
+    "DependencyFingerprint":  "ed15bb0c6765c47309b07d05fd9ca8bdaa5942ea870a3b7588c965c4f1e32e79",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/fps_competitive_sym_v5.mtl",
+                             "SizeBytes":  106,
+                             "Sha256":  "f6f4e14ac9d6cb7555146e76d553582000a59ffa0222257424b30a349bb4387d"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/fps_competitive_sym_v5.obj",
+                             "SizeBytes":  11593,
+                             "Sha256":  "48fedc7df89c10be550b80af91f38c856b19383fe6e74bece9f457b4a8eb7a01"
+                         }
+                     ]
+}

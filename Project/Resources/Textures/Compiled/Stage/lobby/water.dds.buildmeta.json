@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/water.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/water.dds",
+    "SourceSizeBytes":  981,
+    "SourceSha256":  "eae82fc1ffd3349400bb6d8ff25ab9e8ee4673cc3b5885e84380853afd1e63ca",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

@@ -1,0 +1,19 @@
+{
+  "Id": "TitleScene",
+  "Class": "TitleScene",
+  "Level": "",
+  "GameMode": "TitleGameMode",
+  "PlayerActor": "",
+  "UILayout": "TitleUI",
+  "BGM": "",
+  "NextScene": "StageSelectScene",
+  "RetryScene": "TitleScene",
+  "EditorOnly": false,
+  "Transition": {
+    "Type": "RockFade",
+    "Duration": 1.0
+  },
+  "Parameters": {
+    "AllowContinue": true
+  }
+}

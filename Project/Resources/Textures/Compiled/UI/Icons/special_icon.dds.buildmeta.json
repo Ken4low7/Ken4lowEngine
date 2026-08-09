@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Icons/special_icon.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Icons/special_icon.dds",
+    "SourceSizeBytes":  29371,
+    "SourceSha256":  "e0a09244093b365eff53405ccad5d36a5e4ea09bdc98e692322577ef56ed3c6a",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

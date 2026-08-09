@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/SkyBox/Cloud.png",
+    "OutputPath":  "Resources/Textures/Compiled/SkyBox/Cloud.dds",
+    "SourceSizeBytes":  91203,
+    "SourceSha256":  "79999baeadeb8f6051224e85b83a6498da414342726bbc0c0230c11f7e8ae858",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

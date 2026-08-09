@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Animation/simpleSkin.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Animation/simpleSkin.kmesh",
+    "DependencyFingerprint":  "db55442363a9ca8ccb81f313f01cd822b9d900e59da1ec2a38b84736394bb0c0",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Animation/simpleSkin.bin",
+                             "SizeBytes":  3492,
+                             "Sha256":  "5bf4d0c225968a52b207f67aa31093d1fe4d76f0e9f60b3a2eb1dc28f71aecdf"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Animation/simpleSkin.gltf",
+                             "SizeBytes":  5593,
+                             "Sha256":  "767f020b55110827b5d4898ef0040ae82038b864844e0d972848fb981cb8c98e"
+                         }
+                     ]
+}

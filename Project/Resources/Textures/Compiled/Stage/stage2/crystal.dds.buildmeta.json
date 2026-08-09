@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage2/crystal.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/crystal.dds",
+    "SourceSizeBytes":  840,
+    "SourceSha256":  "3f8a36e8c191b40999ec8327a6347dcf1eba744fd573f9c7137863a939c67176",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

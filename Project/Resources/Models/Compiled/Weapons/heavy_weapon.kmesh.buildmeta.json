@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Weapons/heavy_weapon.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Weapons/heavy_weapon.kmesh",
+    "DependencyFingerprint":  "621fab8d38b582a4e4ccbd114e8ab9bde8150e0eabed8a5de02685368553ef54",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/heavy_weapon.bin",
+                             "SizeBytes":  11328,
+                             "Sha256":  "2e90349561bb080fb5b2bc3e2ec2ed1b5e776a9a838fb47b9ae67dae1168074e"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/heavy_weapon.gltf",
+                             "SizeBytes":  1888,
+                             "Sha256":  "5279970bddad181d9f3697dfbc7674592a85d6b376614ab1fdf78b137cc5a11b"
+                         }
+                     ]
+}

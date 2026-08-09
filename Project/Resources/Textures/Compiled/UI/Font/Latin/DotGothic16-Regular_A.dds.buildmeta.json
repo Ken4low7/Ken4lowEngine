@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Font/Latin/DotGothic16-Regular_A.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Font/Latin/DotGothic16-Regular_A.dds",
+    "SourceSizeBytes":  196,
+    "SourceSha256":  "9484144c792f2c50a54250848826253591dc00c1d422d3f35f56634e44182551",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

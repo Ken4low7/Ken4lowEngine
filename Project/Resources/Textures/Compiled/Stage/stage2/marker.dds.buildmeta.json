@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage2/marker.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/marker.dds",
+    "SourceSizeBytes":  928,
+    "SourceSha256":  "687a40bd3f4e1191b4fc55fd5e35f15ffb347c8b51482cba1d7cceaab933cab1",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

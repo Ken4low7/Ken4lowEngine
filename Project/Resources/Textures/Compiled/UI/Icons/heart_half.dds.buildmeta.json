@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Icons/heart_half.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Icons/heart_half.dds",
+    "SourceSizeBytes":  212,
+    "SourceSha256":  "4eb7b22b1dd7f9e3854c159b10305a26e52b18b70caaf279733c7a9eb8b8fa3f",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

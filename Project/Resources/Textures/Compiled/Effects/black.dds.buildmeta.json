@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/black.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/black.dds",
+    "SourceSizeBytes":  83,
+    "SourceSha256":  "a09e276301de73e84a35169799afebc9b0dee6ec73db827bf97d604e76395433",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

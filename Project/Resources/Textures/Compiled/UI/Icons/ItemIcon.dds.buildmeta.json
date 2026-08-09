@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Icons/ItemIcon.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Icons/ItemIcon.dds",
+    "SourceSizeBytes":  359,
+    "SourceSha256":  "45d8b419009b497e226e4b006a54b176330f1d6e73e35a6e77ace45845986d0a",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

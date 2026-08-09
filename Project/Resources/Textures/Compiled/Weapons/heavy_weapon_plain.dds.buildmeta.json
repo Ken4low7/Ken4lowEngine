@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Weapons/heavy_weapon_plain.png",
+    "OutputPath":  "Resources/Textures/Compiled/Weapons/heavy_weapon_plain.dds",
+    "SourceSizeBytes":  78,
+    "SourceSha256":  "999e98219226916384ea3a952829567cb464765c07fd42b2c1e56c1d60bffae2",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Common/slot_frame.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Common/slot_frame.dds",
+    "SourceSizeBytes":  2479,
+    "SourceSha256":  "7f79e41b6d21153b286195ba570f3a5b03964304ddcd374e71b76239e2d7ea10",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

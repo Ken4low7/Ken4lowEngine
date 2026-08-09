@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/center_white.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/center_white.dds",
+    "SourceSizeBytes":  70,
+    "SourceSha256":  "4d2bdcc6b0139fff91a868d8785f600b7fae629ee3267347454475684f4b737f",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

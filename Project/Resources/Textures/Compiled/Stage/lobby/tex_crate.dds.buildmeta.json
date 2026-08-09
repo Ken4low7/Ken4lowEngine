@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/tex_crate.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/tex_crate.dds",
+    "SourceSizeBytes":  3016,
+    "SourceSha256":  "75536f2ff201bd43fe9425ec4c61b599eca4517bd44c288974a0d6829bdee1af",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

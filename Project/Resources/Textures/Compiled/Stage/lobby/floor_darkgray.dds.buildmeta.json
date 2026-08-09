@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/floor_darkgray.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/floor_darkgray.dds",
+    "SourceSizeBytes":  70,
+    "SourceSha256":  "6a8c770c2a4f4bfdee623c5f8fa78d03ad57be8801ebe97b8953c0e3bb28e0e9",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

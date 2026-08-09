@@ -1,0 +1,14 @@
+{
+  "Id": "HumanoidCharacter",
+  "DisplayName": "人型キャラクター",
+  "Description": "Character共通機能にHumanoidVisualComponentを追加した汎用人型構成です。",
+  "Type": "CharacterActor",
+  "Components": [
+    "CharacterHealthComponent",
+    "CharacterMovementComponent",
+    "CharacterTargetComponent",
+    "CharacterColliderComponent",
+    "CharacterAnimationComponent",
+    "HumanoidVisualComponent"
+  ]
+}

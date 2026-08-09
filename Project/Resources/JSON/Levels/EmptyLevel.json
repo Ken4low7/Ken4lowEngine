@@ -1,0 +1,12 @@
+{
+  "Format": "Ken4lowLevel",
+  "Version": 1,
+  "Name": "EmptyLevel",
+  "LevelSettings": {
+    "TargetScene": "DebugScene"
+  },
+  "Actors": [],
+  "Lighting": {},
+  "Camera": {},
+  "Environment": {}
+}

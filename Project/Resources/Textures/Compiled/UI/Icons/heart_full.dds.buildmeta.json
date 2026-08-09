@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Icons/heart_full.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Icons/heart_full.dds",
+    "SourceSizeBytes":  201,
+    "SourceSha256":  "d74087b92feb6cffb729d978bab60cd2adfd6387fe0fb43b101cd9df344e30f5",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

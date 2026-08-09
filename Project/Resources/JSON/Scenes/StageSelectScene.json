@@ -1,0 +1,19 @@
+{
+  "Id": "StageSelectScene",
+  "Class": "StageSelectScene",
+  "Level": "",
+  "GameMode": "StageSelectGameMode",
+  "PlayerActor": "",
+  "UILayout": "StageSelectUI",
+  "BGM": "",
+  "NextScene": "GamePlayScene",
+  "RetryScene": "StageSelectScene",
+  "EditorOnly": false,
+  "Transition": {
+    "Type": "RockFade",
+    "Duration": 1.0
+  },
+  "Parameters": {
+    "DefaultStageIndex": 0
+  }
+}

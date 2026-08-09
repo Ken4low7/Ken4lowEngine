@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/yellow.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/yellow.dds",
+    "SourceSizeBytes":  70,
+    "SourceSha256":  "c6c15e262ea5ddfa13a2ff93d9fde69e0d64d7f0132de1ef36c5a8fe117a51df",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

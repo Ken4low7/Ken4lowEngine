@@ -1,0 +1,19 @@
+{
+  "Id": "DebugScene",
+  "Class": "DebugScene",
+  "Level": "",
+  "GameMode": "DebugGameMode",
+  "PlayerActor": "",
+  "UILayout": "EditorDebugUI",
+  "BGM": "",
+  "NextScene": "TitleScene",
+  "RetryScene": "DebugScene",
+  "EditorOnly": true,
+  "Transition": {
+    "Type": "RockFade",
+    "Duration": 0.5
+  },
+  "Parameters": {
+    "EnableEditorTools": true
+  }
+}

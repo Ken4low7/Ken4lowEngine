@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Stages/Stage1.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Stages/Stage1.kmesh",
+    "DependencyFingerprint":  "c3da089de72496a0d194d372abf74c8f26b99dd1996c013f0b3a9285607c0fa8",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/Stage1.bin",
+                             "SizeBytes":  28628,
+                             "Sha256":  "ca72fc0a633aad091a0fee65477d311056909610730c77bd1803469fa4ca0fcc"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/Stage1.gltf",
+                             "SizeBytes":  38814,
+                             "Sha256":  "f1037c66c2abe098a4105fe16dd090fa8bc959d157e166405e7fda39a4b2c96d"
+                         }
+                     ]
+}

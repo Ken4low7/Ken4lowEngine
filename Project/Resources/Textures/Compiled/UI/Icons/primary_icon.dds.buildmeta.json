@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Icons/primary_icon.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Icons/primary_icon.dds",
+    "SourceSizeBytes":  1598956,
+    "SourceSha256":  "d2a24cb16c96dcf7a8ccc3251065ae31fc0a768d563a22157b344a91fd046da4",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

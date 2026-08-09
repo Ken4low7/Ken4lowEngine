@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Weapons/primary_rifle.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Weapons/primary_rifle.kmesh",
+    "DependencyFingerprint":  "68c4b7d0f7e940fbcad4639f7776aa2bd88aec273bae968e7fe074ff34f24120",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/primary_rifle.bin",
+                             "SizeBytes":  7720,
+                             "Sha256":  "c9f9eba9bba7477738439f89a7e2cfb0a71750b32235be2e9b4ce66f5df94bbf"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/primary_rifle.gltf",
+                             "SizeBytes":  1892,
+                             "Sha256":  "7c9d7e18ca8277e7f176ec70198dca2d273b1341ce70fc8a9acaf8a4f621b86d"
+                         }
+                     ]
+}

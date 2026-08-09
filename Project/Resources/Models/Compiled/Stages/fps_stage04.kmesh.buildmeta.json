@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Stages/fps_stage04.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Stages/fps_stage04.kmesh",
+    "DependencyFingerprint":  "9efe083f722ae2647a7fb0807a1868d637e6592044ab0042ed63928e16b659fb",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/fps_stage04.bin",
+                             "SizeBytes":  25416,
+                             "Sha256":  "aa0314db15478a7a7f0dfcb8fd47d9fcc5960ae54b6a97792656d92742bcc229"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/fps_stage04.gltf",
+                             "SizeBytes":  31982,
+                             "Sha256":  "6eada7e05362a8c06c74af8e932f9931977c185b28c3726a5dd106bbb63a5e1a"
+                         }
+                     ]
+}

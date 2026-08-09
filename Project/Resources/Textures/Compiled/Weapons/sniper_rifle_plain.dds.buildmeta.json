@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Weapons/sniper_rifle_plain.png",
+    "OutputPath":  "Resources/Textures/Compiled/Weapons/sniper_rifle_plain.dds",
+    "SourceSizeBytes":  78,
+    "SourceSha256":  "575e92e91f779552ca259ebd2278e6e4b91e6667c1479ba652e3f44572832973",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

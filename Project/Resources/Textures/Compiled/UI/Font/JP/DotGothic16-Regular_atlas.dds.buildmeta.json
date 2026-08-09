@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Font/JP/DotGothic16-Regular_atlas.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Font/JP/DotGothic16-Regular_atlas.dds",
+    "SourceSizeBytes":  429728,
+    "SourceSha256":  "a58d6e1da3f47ea499ff3ec6f7c160e14cfd9c0ade7098520c7c25b1223a48b0",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

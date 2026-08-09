@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Reticles/reticle_m4a1_hit_headshot_gold_thin.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/reticle_m4a1_hit_headshot_gold_thin.dds",
+    "SourceSizeBytes":  5041,
+    "SourceSha256":  "d0f3e10a013ca24d1d0f2e5e740deeeadcbcd030906f8937e42dd8e6d9b49ee5",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

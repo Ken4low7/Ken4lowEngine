@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/accent_blue.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/accent_blue.dds",
+    "SourceSizeBytes":  70,
+    "SourceSha256":  "b62a515bfe9598a671d1b4ea7c24d748c89d4b56a29ab2999301c23007074b10",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

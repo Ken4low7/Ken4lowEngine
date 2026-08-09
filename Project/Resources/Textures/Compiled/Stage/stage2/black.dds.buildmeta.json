@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage2/black.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/black.dds",
+    "SourceSizeBytes":  967,
+    "SourceSha256":  "688704f82cf2d011615c5a4905c04f99437c144c6360b9be7936622f4d346a72",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

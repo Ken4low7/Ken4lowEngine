@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Sample/Image_0.png",
+    "OutputPath":  "Resources/Textures/Compiled/Sample/Image_0.dds",
+    "SourceSizeBytes":  2984,
+    "SourceSha256":  "d1101fa165e80fa046ecf4e4e7056312c32a981ce349aec5314c965569e028d0",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

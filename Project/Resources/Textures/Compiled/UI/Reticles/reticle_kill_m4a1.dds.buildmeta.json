@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Reticles/reticle_kill_m4a1.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/reticle_kill_m4a1.dds",
+    "SourceSizeBytes":  11659,
+    "SourceSha256":  "b951daf7218be9f1d866198066803aed16d90389836c0bdf642441dab28e7bab",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

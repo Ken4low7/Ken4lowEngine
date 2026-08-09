@@ -1,0 +1,648 @@
+{
+    "Active": true,
+    "Class": "TestActor",
+    "Components": [
+        {
+            "Active": true,
+            "Class": "SceneComponent",
+            "DrawOrder": 0,
+            "LocalPosition": [
+                0.0,
+                1.5,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Player Root",
+            "Parent": "",
+            "Type": "SceneComponent",
+            "UpdateOrder": -100
+        },
+        {
+            "Active": true,
+            "AdsLookSensitivityMultiplier": 0.550000011920929,
+            "Class": "PlayerInputComponent",
+            "DrawOrder": 0,
+            "InputEnabled": true,
+            "Name": "Player Input",
+            "Type": "ActorComponent",
+            "UpdateOrder": -95
+        },
+        {
+            "Active": true,
+            "BlinkCooldown": 0.75,
+            "BlinkDuration": 0.15000000596046448,
+            "BlinkSpeed": 18.0,
+            "Class": "PlayerMovementComponent",
+            "DrawOrder": 0,
+            "FallDamagePerUnit": 12.0,
+            "FallKillY": -30.0,
+            "JumpSpeed": 7.0,
+            "KnockbackDecay": 8.0,
+            "KnockbackDuration": 0.2800000011920929,
+            "LadderClimbSpeed": 3.0,
+            "MaxBrakingForce": 120.0,
+            "MaxDriveForce": 80.0,
+            "MoveSpeed": 6.0,
+            "MovementEnabled": true,
+            "Name": "Player Movement",
+            "ReloadSpeedMultiplier": 0.6499999761581421,
+            "SafeFallDistance": 5.0,
+            "SprintSpeedMultiplier": 1.5499999523162842,
+            "Type": "ActorComponent",
+            "UpdateOrder": -90,
+            "Velocity": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "Active": true,
+            "AutomaticFireMode": true,
+            "Class": "WeaponComponent",
+            "DrawOrder": 0,
+            "MagazineAmmo": 30,
+            "Name": "Player Weapon",
+            "ReserveAmmo": 90,
+            "Type": "ActorComponent",
+            "UpdateOrder": -80,
+            "WeaponEnabled": true,
+            "WeaponId": 0
+        },
+        {
+            "Active": true,
+            "Class": "InventoryComponent",
+            "DrawOrder": 0,
+            "Name": "Player Inventory",
+            "SelectedSlot": 0,
+            "Slots": [
+                0,
+                1,
+                -1,
+                -1,
+                4,
+                5
+            ],
+            "Type": "ActorComponent",
+            "UpdateOrder": -75
+        },
+        {
+            "Active": true,
+            "CastShadow": true,
+            "Class": "HumanoidVisualComponent",
+            "Definition": {
+                "Parts": [
+                    {
+                        "Id": "Body",
+                        "Model": "Characters/body.gltf",
+                        "Visible": false
+                    },
+                    {
+                        "Id": "Head",
+                        "Model": "Characters/head.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            0.0,
+                            0.75,
+                            0.0
+                        ],
+                        "Visible": false
+                    },
+                    {
+                        "Id": "LeftArm",
+                        "Model": "Characters/left_arm.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            -0.75,
+                            0.75,
+                            0.0
+                        ]
+                    },
+                    {
+                        "Id": "RightArm",
+                        "Model": "Characters/right_arm.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            0.75,
+                            0.75,
+                            0.0
+                        ]
+                    },
+                    {
+                        "Id": "LeftLeg",
+                        "Model": "Characters/left_leg.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            -0.25,
+                            -0.75,
+                            0.0
+                        ],
+                        "Visible": false
+                    },
+                    {
+                        "Id": "RightLeg",
+                        "Model": "Characters/right_leg.gltf",
+                        "Parent": "Body",
+                        "Position": [
+                            0.25,
+                            -0.75,
+                            0.0
+                        ],
+                        "Visible": false
+                    }
+                ]
+            },
+            "DefinitionPath": "Resources/JSON/Characters/DefaultHumanoid.json",
+            "DrawOrder": 0,
+            "LocalPosition": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Player Humanoid Visual",
+            "Parent": "Player Root",
+            "PartVisibility": {
+                "Body": false,
+                "Head": false,
+                "LeftArm": true,
+                "LeftLeg": false,
+                "RightArm": true,
+                "RightLeg": false
+            },
+            "SkinTexturePath": "Characters/steve.dds",
+            "Type": "SceneComponent",
+            "UpdateOrder": 0
+        },
+        {
+            "Active": true,
+            "AimFovMultiplier": 0.7200000286102295,
+            "AutoRegisterMainCamera": true,
+            "Class": "PlayerCameraComponent",
+            "DeathPitchOffset": 0.3499999940395355,
+            "DeathRollOffset": 1.100000023841858,
+            "DeathTiltDuration": 0.2800000011920929,
+            "DrawOrder": 0,
+            "FovTransitionSpeed": 12.0,
+            "InheritParentRotation": false,
+            "LocalPosition": [
+                0.0,
+                1.2000000476837158,
+                0.20000000298023224
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Player Camera",
+            "Parent": "Player Root",
+            "Pitch": 0.0,
+            "SprintFovMultiplier": 1.100000023841858,
+            "Type": "SceneComponent",
+            "UpdateOrder": 10,
+            "Yaw": 0.0
+        },
+        {
+            "Active": true,
+            "BodyType": "Dynamic",
+            "Class": "RigidbodyComponent",
+            "DrawOrder": 0,
+            "DynamicFriction": 0.0,
+            "Mass": 1.0,
+            "Name": "Player Rigidbody",
+            "Restitution": 0.0,
+            "SleepEnabled": false,
+            "StaticFriction": 0.0,
+            "Type": "ActorComponent",
+            "UpdateOrder": -85,
+            "UseGravity": true,
+            "Velocity": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "Active": true,
+            "Class": "CharacterHealthComponent",
+            "CurrentHealth": 100.0,
+            "DrawOrder": 0,
+            "Invulnerable": false,
+            "MaxHealth": 100.0,
+            "Name": "Character Health",
+            "Type": "ActorComponent",
+            "UpdateOrder": -50
+        },
+        {
+            "Active": true,
+            "Class": "CharacterTargetComponent",
+            "DrawOrder": 0,
+            "LocalPosition": [
+                0.0,
+                1.0,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Character Target",
+            "Parent": "Player Root",
+            "Type": "SceneComponent",
+            "UpdateOrder": -80
+        },
+        {
+            "Active": true,
+            "AnimationName": "Idle",
+            "Class": "CharacterAnimationComponent",
+            "DrawOrder": 0,
+            "Duration": 1.0,
+            "Loop": true,
+            "Name": "Character Animation",
+            "PlaybackSpeed": 1.0,
+            "PlaybackTime": 0.0,
+            "Playing": true,
+            "Type": "ActorComponent",
+            "UpdateOrder": -70
+        },
+        {
+            "Active": true,
+            "Class": "CharacterColliderComponent",
+            "CollisionLayer": 1,
+            "DrawOrder": 0,
+            "HalfSize": [
+                0.699999988079071,
+                1.899999976158142,
+                0.699999988079071
+            ],
+            "IsTrigger": false,
+            "LocalPosition": [
+                0.0,
+                -0.30000001192092896,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Character Collider",
+            "Parent": "Player Root",
+            "Radius": 1.0,
+            "ShapeType": "AABB",
+            "Type": "SceneComponent",
+            "UpdateOrder": -60
+        },
+        {
+            "Active": true,
+            "Class": "PlayerHudPresenterComponent",
+            "DrawOrder": 0,
+            "Name": "Player HUD Presenter",
+            "Type": "ActorComponent",
+            "UpdateOrder": 50
+        },
+        {
+            "Active": true,
+            "CastShadow": false,
+            "Class": "ModelComponent",
+            "DrawOrder": 5,
+            "LocalPosition": [
+                0.2800000011920929,
+                -0.30000001192092896,
+                0.550000011920929
+            ],
+            "LocalRotation": [
+                1.5707999467849731,
+                1.5707999467849731,
+                0.0
+            ],
+            "LocalScale": [
+                0.550000011920929,
+                0.550000011920929,
+                0.550000011920929
+            ],
+            "ModelPath": "Sources/Weapons/primary_rifle.gltf",
+            "Name": "Player Weapon View",
+            "Parent": "Player Camera",
+            "Type": "SceneComponent",
+            "UpdateOrder": 15,
+            "Visible": true
+        },
+        {
+            "Active": true,
+            "BackgroundColor": [
+                0.05000000074505806,
+                0.05000000074505806,
+                0.05000000074505806,
+                0.8199999928474426
+            ],
+            "BorderColor": [
+                1.0,
+                1.0,
+                1.0,
+                0.8999999761581421
+            ],
+            "BorderThickness": 2.0,
+            "Class": "GaugeComponent",
+            "DrawOrder": 100,
+            "FillColor": [
+                0.20000000298023224,
+                0.8199999928474426,
+                0.3199999928474426,
+                1.0
+            ],
+            "FillDirection": "LeftToRight",
+            "MaxValue": 100.0,
+            "Name": "Player HP Gauge",
+            "Position": [
+                36.0,
+                1026.0
+            ],
+            "Size": [
+                300.0,
+                24.0
+            ],
+            "Type": "ActorComponent",
+            "UpdateOrder": 0,
+            "Value": 100.0,
+            "Visible": true
+        },
+        {
+            "Active": true,
+            "Anchor": [
+                0.0,
+                0.0
+            ],
+            "Class": "TextComponent",
+            "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "DrawOrder": 101,
+            "FontName": "DotGothic16",
+            "FontSize": 22.0,
+            "Name": "Player HP Label",
+            "Position": [
+                36.0,
+                998.0
+            ],
+            "Text": "PLAYER HP 100 / 100",
+            "Type": "ActorComponent",
+            "UpdateOrder": 0,
+            "Visible": true
+        },
+        {
+            "Active": true,
+            "Anchor": [
+                1.0,
+                0.0
+            ],
+            "Class": "TextComponent",
+            "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "DrawOrder": 101,
+            "FontName": "DotGothic16",
+            "FontSize": 22.0,
+            "Name": "Player Ammo Text",
+            "Position": [
+                1884.0,
+                1022.0
+            ],
+            "Text": "AMMO 30 / 30   RESERVE 90   AUTO",
+            "Type": "ActorComponent",
+            "UpdateOrder": 0,
+            "Visible": true
+        },
+        {
+            "Active": true,
+            "Anchor": [
+                0.5,
+                0.5
+            ],
+            "Class": "SpriteComponent",
+            "Color": [
+                1.0,
+                1.0,
+                1.0,
+                0.9200000166893005
+            ],
+            "DrawOrder": 110,
+            "Name": "Player Crosshair Left",
+            "Position": [
+                944.3599853515625,
+                540.0
+            ],
+            "Rotation": 0.0,
+            "Size": [
+                8.0,
+                2.0
+            ],
+            "TexturePath": "Effects/white.dds",
+            "Type": "ActorComponent",
+            "UpdateOrder": 0,
+            "Visible": true
+        },
+        {
+            "Active": true,
+            "Anchor": [
+                0.5,
+                0.5
+            ],
+            "Class": "SpriteComponent",
+            "Color": [
+                1.0,
+                1.0,
+                1.0,
+                0.9200000166893005
+            ],
+            "DrawOrder": 110,
+            "Name": "Player Crosshair Right",
+            "Position": [
+                975.6400146484375,
+                540.0
+            ],
+            "Rotation": 0.0,
+            "Size": [
+                8.0,
+                2.0
+            ],
+            "TexturePath": "Effects/white.dds",
+            "Type": "ActorComponent",
+            "UpdateOrder": 0,
+            "Visible": true
+        },
+        {
+            "Active": true,
+            "Anchor": [
+                0.5,
+                0.5
+            ],
+            "Class": "SpriteComponent",
+            "Color": [
+                1.0,
+                1.0,
+                1.0,
+                0.9200000166893005
+            ],
+            "DrawOrder": 110,
+            "Name": "Player Crosshair Top",
+            "Position": [
+                960.0,
+                524.3599853515625
+            ],
+            "Rotation": 0.0,
+            "Size": [
+                2.0,
+                8.0
+            ],
+            "TexturePath": "Effects/white.dds",
+            "Type": "ActorComponent",
+            "UpdateOrder": 0,
+            "Visible": true
+        },
+        {
+            "Active": true,
+            "Anchor": [
+                0.5,
+                0.5
+            ],
+            "Class": "SpriteComponent",
+            "Color": [
+                1.0,
+                1.0,
+                1.0,
+                0.9200000166893005
+            ],
+            "DrawOrder": 110,
+            "Name": "Player Crosshair Bottom",
+            "Position": [
+                960.0,
+                555.6400146484375
+            ],
+            "Rotation": 0.0,
+            "Size": [
+                2.0,
+                8.0
+            ],
+            "TexturePath": "Effects/white.dds",
+            "Type": "ActorComponent",
+            "UpdateOrder": 0,
+            "Visible": true
+        },
+        {
+            "Active": true,
+            "Class": "PlayerMeleeAttackComponent",
+            "DrawOrder": 0,
+            "Name": "Player Melee Attack",
+            "Type": "ActorComponent",
+            "UpdateOrder": -70
+        },
+        {
+            "Active": true,
+            "Anchor": [
+                0.5,
+                0.5
+            ],
+            "Class": "TextComponent",
+            "Color": [
+                1.0,
+                0.25,
+                0.15000000596046448,
+                1.0
+            ],
+            "DrawOrder": 115,
+            "FontName": "DotGothic16",
+            "FontSize": 25.0,
+            "Name": "Player No Ammo Text",
+            "Position": [
+                960.0,
+                598.0
+            ],
+            "Text": "NO AMMO",
+            "Type": "ActorComponent",
+            "UpdateOrder": 0,
+            "Visible": false
+        },
+        {
+            "Active": true,
+            "Anchor": [
+                0.5,
+                0.5
+            ],
+            "Class": "TextComponent",
+            "Color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "DrawOrder": 116,
+            "FontName": "DotGothic16",
+            "FontSize": 20.0,
+            "Name": "Player Hit Marker",
+            "Position": [
+                960.0,
+                502.0
+            ],
+            "Text": "HIT",
+            "Type": "ActorComponent",
+            "UpdateOrder": 0,
+            "Visible": false
+        },
+        {
+            "Active": true,
+            "Class": "PlayerMigrationValidationComponent",
+            "DrawOrder": 0,
+            "Name": "Player P9 Validation",
+            "Type": "ActorComponent",
+            "UpdateOrder": 200
+        }
+    ],
+    "Layer": "Player",
+    "Name": "DebugPlayer",
+    "Tags": [
+        "Player",
+        "ActorWorldValidation"
+    ]
+}

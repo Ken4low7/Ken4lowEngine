@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Weapons/PlasmaCaster.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Weapons/PlasmaCaster.kmesh",
+    "DependencyFingerprint":  "e21cd453257cc9b953b5660bf7a59d0a932fae31eda9cc35f8badba4195c8fb9",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/PlasmaCaster.bin",
+                             "SizeBytes":  4468,
+                             "Sha256":  "aa9fc5c8bf961daa92b6f7fcea02c1f6f80a7236c7d74a1913a24a213b3ddff6"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/PlasmaCaster.gltf",
+                             "SizeBytes":  1395,
+                             "Sha256":  "e05671b299b2c40267fd59fe6262b9f4ce83800b9bf2098ed0cd058d96e0a3d5"
+                         }
+                     ]
+}

@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/tex_wall.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/tex_wall.dds",
+    "SourceSizeBytes":  9008,
+    "SourceSha256":  "7fbf2fabc467f3c5d19baf4cff2b6b7dc754a4a299757708c3f7d9f6ba8e3bfc",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

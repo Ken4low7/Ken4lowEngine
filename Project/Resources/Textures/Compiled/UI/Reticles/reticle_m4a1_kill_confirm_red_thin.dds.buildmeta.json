@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Reticles/reticle_m4a1_kill_confirm_red_thin.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/reticle_m4a1_kill_confirm_red_thin.dds",
+    "SourceSizeBytes":  4838,
+    "SourceSha256":  "eefb137a0fda7dbeb7aad9ea907381ea3d7f8e5443c5ae28dd81386484518b47",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

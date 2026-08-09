@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Reticles/reticle_ads_m4a1.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/reticle_ads_m4a1.dds",
+    "SourceSizeBytes":  5838,
+    "SourceSha256":  "d482c1d5a8a4e0b9d1015d3dee2b800927ce6d2df073c2504cf8432e0e261e47",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

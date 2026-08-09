@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Weapons/special_launcher_plain.png",
+    "OutputPath":  "Resources/Textures/Compiled/Weapons/special_launcher_plain.dds",
+    "SourceSizeBytes":  78,
+    "SourceSha256":  "8267a80234568a1a8d2b3628bbe9e5511afa230cad35db20b3146fe994eb9c76",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

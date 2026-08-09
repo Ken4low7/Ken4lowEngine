@@ -1,0 +1,13 @@
+{
+  "Format": "Ken4lowSceneRegistry",
+  "Version": 1,
+  "StartupScene": "TitleScene",
+  "DebugStartupScene": "DebugScene",
+  "Scenes": [
+    "TitleScene.json",
+    "StageSelectScene.json",
+    "GamePlayScene.json",
+    "DebugScene.json",
+    "LevelBindingTestScene.json"
+  ]
+}

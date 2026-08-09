@@ -1,0 +1,17 @@
+{
+  "Id": "LevelBindingTestScene",
+  "Class": "DebugScene",
+  "Level": "Resources/JSON/Levels/DebugSceneLevel.json",
+  "GameMode": "",
+  "PlayerActor": "",
+  "UILayout": "",
+  "BGM": "",
+  "NextScene": "DebugScene",
+  "RetryScene": "LevelBindingTestScene",
+  "EditorOnly": true,
+  "Transition": {
+    "Type": "RockFade",
+    "Duration": 1.0
+  },
+  "Parameters": {}
+}

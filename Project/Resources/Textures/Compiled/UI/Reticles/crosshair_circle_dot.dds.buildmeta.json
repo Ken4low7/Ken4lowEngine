@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Reticles/crosshair_circle_dot.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/crosshair_circle_dot.dds",
+    "SourceSizeBytes":  21315,
+    "SourceSha256":  "ffd97c2137dfce757ecc42483a5adc7854467e38b9d9ae66c84061a66701f487",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

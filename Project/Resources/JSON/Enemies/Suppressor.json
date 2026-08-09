@@ -1,0 +1,20 @@
+{
+    "aimMoveMul": 0.6000000238418579,
+    "attackRange": 15.0,
+    "bulletDamage": 1,
+    "bulletLifeSec": 2.0,
+    "bulletSpeed": 80.0,
+    "burstMax": 4,
+    "burstMin": 2,
+    "burstMoveMul": 0.20000000298023224,
+    "fireInterval": 0.10000000149011612,
+    "maxHp": 300,
+    "moveSpeed": 3.0,
+    "preferredMaxRatio": 0.6499999761581421,
+    "preferredMinRatio": 0.3499999940395355,
+    "reactionDelaySec": 0.25,
+    "spreadFarDeg": 2.799999952316284,
+    "spreadNearDeg": 0.5,
+    "strafeSpeedMul": 0.75,
+    "viewRange": 25.0
+}

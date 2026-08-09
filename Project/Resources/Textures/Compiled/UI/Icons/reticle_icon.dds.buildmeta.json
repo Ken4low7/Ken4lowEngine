@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Icons/reticle_icon.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Icons/reticle_icon.dds",
+    "SourceSizeBytes":  1846,
+    "SourceSha256":  "4b1af213bfd658bed786d9a17b94e7ab7a7fc6c72430641e1e0038f0c2620d7d",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

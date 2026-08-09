@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/cyan.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/cyan.dds",
+    "SourceSizeBytes":  83,
+    "SourceSha256":  "8f4c96c82f2ee979ebb51bbfccdbf4f799fdefd6a11fed37722e3c8006f6b436",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

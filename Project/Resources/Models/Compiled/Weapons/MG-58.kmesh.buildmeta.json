@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Weapons/MG-58.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Weapons/MG-58.kmesh",
+    "DependencyFingerprint":  "073c4235a4c4caf77d74a19e7aac3dd762daf46b96aefbfd8417d761e479d64e",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/MG-58.bin",
+                             "SizeBytes":  69248,
+                             "Sha256":  "70dadc3a1b255690db13b573e65f4d2e4f2bab96cc94c6e101ce33c2d448f148"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/MG-58.gltf",
+                             "SizeBytes":  1439,
+                             "Sha256":  "681917285c8287410ce7086d07d36f8a49548e2712fbf67d5d6ee0222da9f171"
+                         }
+                     ]
+}

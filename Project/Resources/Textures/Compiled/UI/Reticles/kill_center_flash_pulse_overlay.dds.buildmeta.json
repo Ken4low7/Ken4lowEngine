@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Reticles/kill_center_flash_pulse_overlay.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/kill_center_flash_pulse_overlay.dds",
+    "SourceSizeBytes":  101424,
+    "SourceSha256":  "9019e0ea8cc22cd9e17fc877936d1c2d1c2fa2eded6ef0e623deb08c5eac5822",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/leaves.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/leaves.dds",
+    "SourceSizeBytes":  27776,
+    "SourceSha256":  "2b9a6336f2792965c845c7cd5efe9a4f367a0c5b2625c7bf79bc8219185f4c1e",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

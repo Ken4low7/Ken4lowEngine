@@ -1,0 +1,13 @@
+{
+  "Id": "BasicCharacter",
+  "DisplayName": "基本キャラクター",
+  "Description": "Character共通機能だけを持つ最小構成です。表示方式や専用AIは後から追加できます。",
+  "Type": "CharacterActor",
+  "Components": [
+    "CharacterHealthComponent",
+    "CharacterMovementComponent",
+    "CharacterTargetComponent",
+    "CharacterColliderComponent",
+    "CharacterAnimationComponent"
+  ]
+}

@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Animation/walk.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Animation/walk.kmesh",
+    "DependencyFingerprint":  "a48274c88bccae61924b868508bd627250758a62a00de243c84ba28bcd007884",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Animation/walk.bin",
+                             "SizeBytes":  914472,
+                             "Sha256":  "ce0df565dd6498a01dc4a41b1671f50929796ce8f2d4e916684db61166df940f"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Animation/walk.gltf",
+                             "SizeBytes":  96256,
+                             "Sha256":  "7f68cc46739ae9d5241453a0bd72439ed5b070a97db4970488f6e0e1db5ec62c"
+                         }
+                     ]
+}

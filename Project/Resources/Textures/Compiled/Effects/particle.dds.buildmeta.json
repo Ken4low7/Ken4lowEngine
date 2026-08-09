@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/particle.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/particle.dds",
+    "SourceSizeBytes":  48548,
+    "SourceSha256":  "6bc031cca4c1b72b8bda1db4880243480ab1c71b0148614f39d012a3eb8912f6",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

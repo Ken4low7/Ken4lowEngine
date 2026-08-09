@@ -1,0 +1,17 @@
+{
+  "Id": "NonHumanoidBoss",
+  "DisplayName": "非人型ボス",
+  "Description": "人型表示を前提にせず、Character共通機能とBossの判断・攻撃・フェーズ・物理挙動を持つ構成です。",
+  "Type": "NonHumanoidBossActor",
+  "Components": [
+    "CharacterHealthComponent",
+    "CharacterMovementComponent",
+    "CharacterTargetComponent",
+    "CharacterColliderComponent",
+    "RigidbodyComponent",
+    "CharacterAnimationComponent",
+    "BossBrainComponent",
+    "BossAttackComponent",
+    "BossPhaseComponent"
+  ]
+}

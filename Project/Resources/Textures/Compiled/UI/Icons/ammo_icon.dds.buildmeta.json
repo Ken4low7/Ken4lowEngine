@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Icons/ammo_icon.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Icons/ammo_icon.dds",
+    "SourceSizeBytes":  3921,
+    "SourceSha256":  "24f27bed1dc91db75cec1a71193f099d4ca78212172236350ea94e81e773c57f",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

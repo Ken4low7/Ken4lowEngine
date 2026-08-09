@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Weapons/SR-01.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Weapons/SR-01.kmesh",
+    "DependencyFingerprint":  "3f86df47e386da18f2c5444e59637d70ceb1c1961937b69d9a0c59d4bfbefb97",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/SR-01.bin",
+                             "SizeBytes":  6888,
+                             "Sha256":  "fa21cd9e0f643f22c08e8b2791fda78c6efde28d53ce837239b5a9d8df8cf25e"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Weapons/SR-01.gltf",
+                             "SizeBytes":  1663,
+                             "Sha256":  "ebf7feaf1cd69965f97da9db62f42c91f039913e44e47cf50e387fbd532cec43"
+                         }
+                     ]
+}

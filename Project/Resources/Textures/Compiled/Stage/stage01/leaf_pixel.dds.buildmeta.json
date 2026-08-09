@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage01/leaf_pixel.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/leaf_pixel.dds",
+    "SourceSizeBytes":  1203,
+    "SourceSha256":  "fd02ca42b98208095cdd6806c8fb800f11b24cb03d0426c56453c0d7ed17fd1f",
+    "MipLevel":  0,
+    "DisableMipMap":  true
+}

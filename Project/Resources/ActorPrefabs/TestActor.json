@@ -1,0 +1,139 @@
+{
+    "Active": true,
+    "Class": "TestActor",
+    "Components": [
+        {
+            "Active": true,
+            "Class": "ColliderComponent",
+            "CollisionLayer": 1,
+            "DrawOrder": 0,
+            "HalfSize": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "IsTrigger": false,
+            "LocalPosition": [
+                0.0,
+                -0.9999998807907104,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Root Collider Component",
+            "Parent": "",
+            "ShapeType": "AABB",
+            "Type": "SceneComponent",
+            "UpdateOrder": 0
+        },
+        {
+            "Active": true,
+            "Class": "ModelComponent",
+            "DrawOrder": 0,
+            "LocalPosition": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "ModelPath": "Sample/cube.gltf",
+            "Name": "Model Component",
+            "Parent": "Root Collider Component",
+            "Type": "SceneComponent",
+            "UpdateOrder": 0
+        },
+        {
+            "Active": true,
+            "AutoRegisterMainCamera": true,
+            "Class": "CameraComponent",
+            "DrawOrder": 0,
+            "LocalPosition": [
+                0.0,
+                2.0,
+                -8.0
+            ],
+            "LocalRotation": [
+                0.20000000298023224,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "Camera Component",
+            "Parent": "Root Collider Component",
+            "Type": "SceneComponent",
+            "UpdateOrder": 0
+        },
+        {
+            "Active": true,
+            "BodyType": "Dynamic",
+            "Class": "RigidbodyComponent",
+            "DrawOrder": 0,
+            "Mass": 1.0,
+            "Name": "Rigidbody Component",
+            "Type": "ActorComponent",
+            "UpdateOrder": 0,
+            "UseGravity": true,
+            "Velocity": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        {
+            "Active": true,
+            "Class": "LightComponent",
+            "Color": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "DrawOrder": 0,
+            "Enabled": true,
+            "Intensity": 1.0,
+            "LocalPosition": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "LightComponent_001",
+            "Parent": "Root Collider Component",
+            "Range": 10.0,
+            "Type": "SceneComponent",
+            "UpdateOrder": 0
+        }
+    ],
+    "Layer": "Default",
+    "Name": "TestActor",
+    "Tags": []
+}

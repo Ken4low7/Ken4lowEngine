@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage01/Block_Dirt.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/Block_Dirt.dds",
+    "SourceSizeBytes":  571,
+    "SourceSha256":  "ade35efe1401b3b24d667e79d88ba20703a7da91f100607c0c65d34eb917a006",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

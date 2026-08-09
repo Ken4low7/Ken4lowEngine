@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Icons/R_key_icon.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Icons/R_key_icon.dds",
+    "SourceSizeBytes":  1958,
+    "SourceSha256":  "75939c12c6a0eb609ba7cb21e16bbd2a80ced2ab01793ba88abc15c7543e627d",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

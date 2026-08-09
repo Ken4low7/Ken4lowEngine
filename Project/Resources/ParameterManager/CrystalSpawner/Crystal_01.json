@@ -1,0 +1,29 @@
+{
+    "CrystalSpawner/Crystal_01": {
+        "enemyType": "Melee",
+        "hp": 1000,
+        "initialDelay": 5.0,
+        "isActive": true,
+        "maxAliveCount": 5,
+        "maxHp": 1000,
+        "maxSpawnCount": 0,
+        "position": [
+            0.0,
+            0.0,
+            30.0
+        ],
+        "rotation": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "scale": [
+            1.5,
+            2.5,
+            1.7000000476837158
+        ],
+        "spawnInterval": 5.0,
+        "spawnPattern": "Interval",
+        "spawnRadius": 4.0
+    }
+}

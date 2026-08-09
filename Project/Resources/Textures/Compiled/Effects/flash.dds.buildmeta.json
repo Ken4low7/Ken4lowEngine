@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/flash.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/flash.dds",
+    "SourceSizeBytes":  1369712,
+    "SourceSha256":  "cbc2151d0ea9d090545c0993c4dcd268dc0e7b1be0b9cb1471b1212a03804afe",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

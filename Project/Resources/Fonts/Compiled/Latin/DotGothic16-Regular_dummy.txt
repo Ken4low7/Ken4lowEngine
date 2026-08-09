@@ -1,0 +1,6 @@
+FontConverter output test
+InputFile    : C:\Users\k023g\Downloads\Ken4lowEngine\Project\Resources\Fonts\Sources\DotGothic16-Regular.ttf
+FontSize     : 48
+AtlasSize    : 1024 x 1024
+OutputDir    : C:\Users\k023g\Downloads\Ken4lowEngine\Generated\Fonts\Latin
+CharsetLength: 98

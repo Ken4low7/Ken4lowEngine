@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Reticles/crosshair.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/crosshair.dds",
+    "SourceSizeBytes":  1346070,
+    "SourceSha256":  "2e717abf20faa313a2555aecc9aeef583124793f39e31fd8d0beaf9bfd5266d5",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

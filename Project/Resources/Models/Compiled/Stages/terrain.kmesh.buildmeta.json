@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Stages/terrain.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Stages/terrain.kmesh",
+    "DependencyFingerprint":  "30a3ee3145ab1bbefebbaa683996e6a8c46dd43b5120b89398907ce93981d165",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/terrain.bin",
+                             "SizeBytes":  53612,
+                             "Sha256":  "7e3a90c95ab897868852fb996ec798b533e8a1ebed209bacf4db41ae8658467c"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Stages/terrain.gltf",
+                             "SizeBytes":  1966,
+                             "Sha256":  "fdf782751c26d39760a32d47b5a9a01b2339c685f9d7c5e2f2dd04261ea893cd"
+                         }
+                     ]
+}

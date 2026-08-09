@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Font/font_ascii.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Font/font_ascii.dds",
+    "SourceSizeBytes":  2276900,
+    "SourceSha256":  "aed37057ddd87714e3655d68a5e5ee64492252631086f1d4f29da144a8bdddcb",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

@@ -1,0 +1,10 @@
+{
+    "HumanoidBossModels": {
+        "bodyModelPath": "Characters/body.gltf",
+        "headModelPath": "Characters/head.gltf",
+        "leftArmModelPath": "Characters/left_arm.gltf",
+        "rightArmModelPath": "Characters/right_arm.gltf",
+        "leftLegModelPath": "Characters/left_leg.gltf",
+        "rightLegModelPath": "Characters/right_leg.gltf"
+    }
+}

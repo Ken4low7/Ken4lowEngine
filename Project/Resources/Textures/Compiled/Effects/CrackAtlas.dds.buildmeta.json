@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/CrackAtlas.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/CrackAtlas.dds",
+    "SourceSizeBytes":  60424,
+    "SourceSha256":  "609bf61df5417d5c2fb1057406af5beb79bc8d37c6d6ea8fcf6f8aa3112f5269",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

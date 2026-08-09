@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/tex_ground.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/tex_ground.dds",
+    "SourceSizeBytes":  3318,
+    "SourceSha256":  "84343f7ac24a34bea61f802b7b8b6d1603ee0ce6080458f65aa4ff516a6ca0a6",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

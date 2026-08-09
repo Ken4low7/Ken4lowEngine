@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/wood.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/wood.dds",
+    "SourceSizeBytes":  1642,
+    "SourceSha256":  "fdaddaa6f54aface12ceb7025be068c9994fdebaf4df208108f669050f428652",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

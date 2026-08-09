@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/lobby/grass_top.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/grass_top.dds",
+    "SourceSizeBytes":  119465,
+    "SourceSha256":  "eb2c6a9f8fce9b71286775a95bd88ce3ac1a199259d5e8a71cb878e14e9c2d04",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

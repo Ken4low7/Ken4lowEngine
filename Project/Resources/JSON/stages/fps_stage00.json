@@ -1,0 +1,1904 @@
+{
+    "schema_version": 1,
+    "meta": {
+        "units": "m",
+        "rotation_unit": "deg",
+        "source_forward": "+Y",
+        "source_up": "+Z",
+        "game_forward": "+Z",
+        "game_up": "+Y"
+    },
+    "name": "scene",
+    "objects": [
+        {
+            "type": "PlayerSpawnPoint",
+            "name": "PlayerSpawn_001",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    0.0,
+                    -40.0,
+                    2.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            }
+        },
+        {
+            "type": "EMPTY",
+            "name": "Stair_Fwd_01",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "children": [
+                {
+                    "type": "MESH",
+                    "name": "Stair_Right_01.001",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            9.5367431640625e-07,
+                            11.5,
+                            0.8064516186714172
+                        ],
+                        "size": [
+                            12.903226852416992,
+                            3.2258071899414062,
+                            1.6129032373428345
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "type": "EMPTY",
+            "name": "Stair_Back_01",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "children": [
+                {
+                    "type": "MESH",
+                    "name": "Stair_Right_01.002",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            9.5367431640625e-07,
+                            -11.5,
+                            0.8064516186714172
+                        ],
+                        "size": [
+                            12.903226852416992,
+                            3.2258071899414062,
+                            1.6129032373428345
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "type": "EMPTY",
+            "name": "Stair_Fwd_01.001",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "children": [
+                {
+                    "type": "MESH",
+                    "name": "Stair_RightSide_01",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            11.499998092651367,
+                            1.430511474609375e-06,
+                            0.8064516186714172
+                        ],
+                        "size": [
+                            3.2258081436157227,
+                            12.903225898742676,
+                            1.6129032373428345
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "type": "EMPTY",
+            "name": "Stair_Fwd_01.002",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "children": [
+                {
+                    "type": "MESH",
+                    "name": "Stair_LeftSide_01",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            -11.499998092651367,
+                            3.337860107421875e-06,
+                            0.8064516186714172
+                        ],
+                        "size": [
+                            3.2258081436157227,
+                            12.903225898742676,
+                            1.6129032373428345
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "type": "EMPTY",
+            "name": "Stage01_Root_100x100",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "children": [
+                {
+                    "type": "MESH",
+                    "name": "Barrier_Left",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            -16.129032135009766,
+                            -29.032257080078125,
+                            3.225806474685669
+                        ],
+                        "size": [
+                            12.90322494506836,
+                            3.8709678649902344,
+                            6.451612949371338
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Barrier_Right",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            16.129032135009766,
+                            -29.032257080078125,
+                            3.225806474685669
+                        ],
+                        "size": [
+                            12.90322494506836,
+                            3.8709678649902344,
+                            6.451612949371338
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Barrier_SouthLeft",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            -16.129032135009766,
+                            29.032258987426758,
+                            3.225806474685669
+                        ],
+                        "size": [
+                            12.90322494506836,
+                            3.8709678649902344,
+                            6.451612949371338
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Barrier_SouthRight",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            16.129032135009766,
+                            29.032258987426758,
+                            3.225806474685669
+                        ],
+                        "size": [
+                            12.90322494506836,
+                            3.8709678649902344,
+                            6.451612949371338
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Cover_Crate_01",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            -25.80645179748535,
+                            16.1290340423584,
+                            3.225806474685669
+                        ],
+                        "size": [
+                            6.4516143798828125,
+                            6.451613426208496,
+                            6.451612949371338
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Cover_Crate_02",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            25.80645179748535,
+                            16.1290340423584,
+                            3.225806474685669
+                        ],
+                        "size": [
+                            6.4516143798828125,
+                            6.451613426208496,
+                            6.451612949371338
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Cover_Crate_03",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            -25.80645179748535,
+                            -16.1290340423584,
+                            3.225806474685669
+                        ],
+                        "size": [
+                            6.4516143798828125,
+                            6.451613426208496,
+                            6.451612949371338
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Cover_Crate_04",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            25.80645179748535,
+                            -16.1290340423584,
+                            3.225806474685669
+                        ],
+                        "size": [
+                            6.4516143798828125,
+                            6.451613426208496,
+                            6.451612949371338
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Ground_Main",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            9.5367431640625e-07,
+                            0.0,
+                            -1.6129032373428345
+                        ],
+                        "size": [
+                            96.7741928100586,
+                            96.7741928100586,
+                            3.225806474685669
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Pillar_Center_01",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            -6.451613426208496,
+                            6.45161247253418,
+                            8.064516067504883
+                        ],
+                        "size": [
+                            3.22580623626709,
+                            3.22580623626709,
+                            9.677419662475586
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Pillar_Center_02",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            6.45161247253418,
+                            6.45161247253418,
+                            8.064516067504883
+                        ],
+                        "size": [
+                            3.22580623626709,
+                            3.22580623626709,
+                            9.677419662475586
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Pillar_Center_03",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            -6.451613426208496,
+                            -6.451613426208496,
+                            8.064516067504883
+                        ],
+                        "size": [
+                            3.22580623626709,
+                            3.22580623626709,
+                            9.677419662475586
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Pillar_Center_04",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            6.45161247253418,
+                            -6.451613426208496,
+                            8.064516067504883
+                        ],
+                        "size": [
+                            3.22580623626709,
+                            3.22580623626709,
+                            9.677419662475586
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Platform_Center",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            0.0,
+                            0.0,
+                            1.6129032373428345
+                        ],
+                        "size": [
+                            19.354839324951172,
+                            19.354839324951172,
+                            3.225806474685669
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "SideDeck_Left",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            -35.48387145996094,
+                            0.0,
+                            1.6129032373428345
+                        ],
+                        "size": [
+                            12.903226852416992,
+                            19.354839324951172,
+                            3.225806474685669
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "SideDeck_Right",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            35.48387145996094,
+                            0.0,
+                            1.6129032373428345
+                        ],
+                        "size": [
+                            12.903226852416992,
+                            19.354839324951172,
+                            3.225806474685669
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Stair_Left_01",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            -21.000001907348633,
+                            0.0,
+                            0.8064516186714172
+                        ],
+                        "size": [
+                            3.2258071899414062,
+                            6.451612949371338,
+                            1.6129032373428345
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Stair_Left_02",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            -26.000003814697266,
+                            0.0,
+                            1.6129032373428345
+                        ],
+                        "size": [
+                            6.4516143798828125,
+                            6.451612949371338,
+                            3.225806474685669
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Stair_Right_01",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            20.999998092651367,
+                            0.0,
+                            0.8064516186714172
+                        ],
+                        "size": [
+                            3.2258071899414062,
+                            6.451612949371338,
+                            1.6129032373428345
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Stair_Right_02",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            26.0,
+                            0.0,
+                            1.6129032373428345
+                        ],
+                        "size": [
+                            6.4516143798828125,
+                            6.451612949371338,
+                            3.225806474685669
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Wall_East",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            48.3870964050293,
+                            0.0,
+                            6.451612949371338
+                        ],
+                        "size": [
+                            3.2258071899414062,
+                            96.7741928100586,
+                            12.903225898742676
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Wall_North",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            9.5367431640625e-07,
+                            -48.38710021972656,
+                            6.451612949371338
+                        ],
+                        "size": [
+                            96.7741928100586,
+                            3.2258071899414062,
+                            12.903225898742676
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Wall_South",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            9.5367431640625e-07,
+                            48.3870964050293,
+                            6.451612949371338
+                        ],
+                        "size": [
+                            96.7741928100586,
+                            3.2258071899414062,
+                            12.903225898742676
+                        ]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "Wall_West",
+                    "collection": "Collection",
+                    "collections": [
+                        "Collection"
+                    ],
+                    "transform": {
+                        "translation": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            0.0,
+                            -0.0,
+                            0.0
+                        ],
+                        "scaling": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "collider": {
+                        "type": "BOX",
+                        "center": [
+                            -48.38710021972656,
+                            0.0,
+                            6.451612949371338
+                        ],
+                        "size": [
+                            3.2258071899414062,
+                            96.7741928100586,
+                            12.903225898742676
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "type": "IntroLookAtPoint",
+            "name": "IntroLook_Center_001",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    0.0,
+                    0.0,
+                    4.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            }
+        },
+        {
+            "type": "IntroCameraPoint",
+            "name": "IntroCam_001",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    0.0,
+                    -60.0,
+                    20.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "order": 0,
+                "duration": 1.399999976158142,
+                "fov": 56.0,
+                "interp_mode": "CatmullRom",
+                "aim_mode": "Target",
+                "target_name": "IntroLook_Center_001"
+            }
+        },
+        {
+            "type": "IntroCameraPoint",
+            "name": "IntroCam_002",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    -34.0,
+                    -52.0,
+                    20.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "order": 1,
+                "duration": 1.100000023841858,
+                "fov": 55.0,
+                "interp_mode": "CatmullRom",
+                "aim_mode": "Target",
+                "target_name": "IntroLook_Center_001"
+            }
+        },
+        {
+            "type": "IntroCameraPoint",
+            "name": "IntroCam_003",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    -58.0,
+                    -18.0,
+                    20.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "order": 2,
+                "duration": 1.2000000476837158,
+                "fov": 54.0,
+                "interp_mode": "CatmullRom",
+                "aim_mode": "Target",
+                "target_name": "IntroLook_Center_001"
+            }
+        },
+        {
+            "type": "IntroCameraPoint",
+            "name": "IntroCam_004",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    -52.0,
+                    28.0,
+                    20.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "order": 3,
+                "duration": 1.2000000476837158,
+                "fov": 55.0,
+                "interp_mode": "CatmullRom",
+                "aim_mode": "Target",
+                "target_name": "IntroLook_Center_001"
+            }
+        },
+        {
+            "type": "IntroCameraPoint",
+            "name": "IntroCam_005",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    0.0,
+                    62.0,
+                    20.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "order": 4,
+                "duration": 1.5,
+                "fov": 45.0,
+                "interp_mode": "CatmullRom",
+                "aim_mode": "Target",
+                "target_name": "IntroLook_Center_001"
+            }
+        },
+        {
+            "type": "IntroCameraPoint",
+            "name": "IntroCam_006",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    52.0,
+                    28.0,
+                    20.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "order": 5,
+                "duration": 1.2000000476837158,
+                "fov": 55.0,
+                "interp_mode": "CatmullRom",
+                "aim_mode": "Target",
+                "target_name": "IntroLook_Center_001"
+            }
+        },
+        {
+            "type": "IntroCameraPoint",
+            "name": "IntroCam_008",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    0.0,
+                    -40.0,
+                    2.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "order": 7,
+                "duration": 1.2999999523162842,
+                "fov": 57.0,
+                "interp_mode": "CatmullRom",
+                "aim_mode": "Target",
+                "target_name": "IntroLook_Center_001"
+            }
+        },
+        {
+            "type": "IntroCameraPoint",
+            "name": "IntroCam_007",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    58.0,
+                    -18.0,
+                    20.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "order": 6,
+                "duration": 1.2999999523162842,
+                "fov": 54.0,
+                "interp_mode": "CatmullRom",
+                "aim_mode": "Target",
+                "target_name": "IntroLook_Center_001"
+            }
+        },
+        {
+            "type": "EnemySpawnPoint",
+            "name": "EnemySpawn_001",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    0.0,
+                    0.0,
+                    10.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "wave": 1,
+                "group": 0,
+                "count": 1,
+                "archetype": "RifleGrunt",
+                "enemyType": "Melee"
+            }
+        },
+        {
+            "type": "EnemySpawnPoint",
+            "name": "EnemySpawn_002",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    -35.0,
+                    0.0,
+                    10.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "wave": 1,
+                "group": 0,
+                "count": 1,
+                "archetype": "RifleGrunt",
+                "enemyType": "Melee"
+            }
+        },
+        {
+            "type": "EnemySpawnPoint",
+            "name": "EnemySpawn_003",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    35.0,
+                    0.0,
+                    10.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "wave": 1,
+                "group": 0,
+                "count": 1,
+                "archetype": "RifleGrunt",
+                "enemyType": "Melee"
+            }
+        },
+        {
+            "type": "EnemySpawnPoint",
+            "name": "EnemySpawn_004",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    15.0,
+                    20.0,
+                    6.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "wave": 1,
+                "group": 0,
+                "count": 1,
+                "archetype": "Scout",
+                "enemyType": "MidRange"
+            }
+        },
+        {
+            "type": "EnemySpawnPoint",
+            "name": "EnemySpawn_005",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    -15.0,
+                    20.0,
+                    6.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "wave": 1,
+                "group": 0,
+                "count": 1,
+                "archetype": "Scout",
+                "enemyType": "MidRange"
+            }
+        },
+        {
+            "type": "EnemySpawnPoint",
+            "name": "EnemySpawn_006",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    0.0,
+                    -20.0,
+                    6.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "wave": 2,
+                "group": 0,
+                "count": 1,
+                "archetype": "RifleGrunt"
+            }
+        },
+        {
+            "type": "EnemySpawnPoint",
+            "name": "EnemySpawn_007",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    16.0,
+                    0.0,
+                    6.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "wave": 2,
+                "group": 0,
+                "count": 1,
+                "archetype": "RifleGrunt"
+            }
+        },
+        {
+            "type": "EnemySpawnPoint",
+            "name": "EnemySpawn_008",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    -16.0,
+                    0.0,
+                    6.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "wave": 2,
+                "group": 0,
+                "count": 1,
+                "archetype": "RifleGrunt"
+            }
+        },
+        {
+            "type": "EnemySpawnPoint",
+            "name": "EnemySpawn_009",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    -35.0,
+                    0.0,
+                    10.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "wave": 2,
+                "group": 0,
+                "count": 1,
+                "archetype": "Scout"
+            }
+        },
+        {
+            "type": "EnemySpawnPoint",
+            "name": "EnemySpawn_010",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    35.0,
+                    0.0,
+                    10.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "wave": 2,
+                "group": 0,
+                "count": 1,
+                "archetype": "Scout"
+            }
+        },
+        {
+            "type": "EnemySpawnPoint",
+            "name": "EnemySpawn_012",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    15.0,
+                    38.0,
+                    6.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "wave": 2,
+                "group": 0,
+                "count": 1,
+                "archetype": "BurstTrooper"
+            }
+        },
+        {
+            "type": "EnemySpawnPoint",
+            "name": "EnemySpawn_011",
+            "collection": "Collection",
+            "collections": [
+                "Collection"
+            ],
+            "transform": {
+                "translation": [
+                    -15.0,
+                    38.0,
+                    6.0
+                ],
+                "rotation": [
+                    0.0,
+                    -0.0,
+                    0.0
+                ],
+                "scaling": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "props": {
+                "wave": 2,
+                "group": 0,
+                "count": 1,
+                "archetype": "BurstTrooper"
+            }
+        }
+    ]
+}

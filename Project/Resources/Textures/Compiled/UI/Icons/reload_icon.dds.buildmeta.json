@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/Icons/reload_icon.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/Icons/reload_icon.dds",
+    "SourceSizeBytes":  24275,
+    "SourceSha256":  "82fd73bc7d66be33acd9c298325ee8af2f01a6f16ef4e3fc6f81022b50f3609f",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

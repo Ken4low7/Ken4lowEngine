@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Stage/stage2/coal_ore.png",
+    "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/coal_ore.dds",
+    "SourceSizeBytes":  845,
+    "SourceSha256":  "9be88faac72aec364a947ba28f3e7f33e87722f3c67d634b419fb4ae096f55ea",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

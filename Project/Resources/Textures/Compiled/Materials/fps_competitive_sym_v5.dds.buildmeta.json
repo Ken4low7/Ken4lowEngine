@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Materials/fps_competitive_sym_v5.png",
+    "OutputPath":  "Resources/Textures/Compiled/Materials/fps_competitive_sym_v5.dds",
+    "SourceSizeBytes":  1907,
+    "SourceSha256":  "1fae3c639616a1062df00ae5d6c7969e51ba2df70ee8e01ef059e1839b8ed27e",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

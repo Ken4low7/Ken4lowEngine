@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Animation/AnimatedCube.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Animation/AnimatedCube.kmesh",
+    "DependencyFingerprint":  "b798fb278178309e7df3767b899fea584a2cb8187ba6cdb147b3b9bde47fabd1",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Animation/AnimatedCube.bin",
+                             "SizeBytes":  1860,
+                             "Sha256":  "82de770fc82b48a77a33bb26abd4d7e75620491b36ddf98e8dca69fa73dd798c"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Animation/AnimatedCube.gltf",
+                             "SizeBytes":  5400,
+                             "Sha256":  "52c95e4ab13912d382c5aeb7bad35b8a24140f6eb7f8c388f0eefaf36f4265c8"
+                         }
+                     ]
+}

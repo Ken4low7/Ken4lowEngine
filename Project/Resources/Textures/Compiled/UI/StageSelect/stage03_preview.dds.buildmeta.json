@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/UI/StageSelect/stage03_preview.png",
+    "OutputPath":  "Resources/Textures/Compiled/UI/StageSelect/stage03_preview.dds",
+    "SourceSizeBytes":  180021,
+    "SourceSha256":  "1aa241f6bdc315ca92bbc5e74b9e9fb9b8bdf5ce4ff5a48e0e0b9cfaa53b2332",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

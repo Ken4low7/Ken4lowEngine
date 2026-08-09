@@ -1,0 +1,11 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Weapons/melee_knife_plain.png",
+    "OutputPath":  "Resources/Textures/Compiled/Weapons/melee_knife_plain.dds",
+    "SourceSizeBytes":  78,
+    "SourceSha256":  "10c3e7f3d4356e28c8c575719eb7d2497002fba4497025654d96ff80f232f949",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

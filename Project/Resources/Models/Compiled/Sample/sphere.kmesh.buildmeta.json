@@ -1,0 +1,19 @@
+﻿{
+    "BuildVersion":  1,
+    "AssetType":  "Mesh",
+    "SourcePath":  "Resources/Models/Sources/Sample/sphere.gltf",
+    "OutputPath":  "Resources/Models/Compiled/Sample/sphere.kmesh",
+    "DependencyFingerprint":  "e31ed19130e4caab1b6eb100ec6b022c3c818e5285e8b0d4572da74eb1f2e9aa",
+    "Dependencies":  [
+                         {
+                             "Path":  "Resources/Models/Sources/Sample/sphere.bin",
+                             "SizeBytes":  23648,
+                             "Sha256":  "0d64d5a07eef41b37d91cefa580c1668eae2cd21dacfc725c0a0d14ff7046bd1"
+                         },
+                         {
+                             "Path":  "Resources/Models/Sources/Sample/sphere.gltf",
+                             "SizeBytes":  1939,
+                             "Sha256":  "20eb97ce035faa1065f6548254f4d87930dde9d8bb35ced59087ca879a9b69a9"
+                         }
+                     ]
+}
