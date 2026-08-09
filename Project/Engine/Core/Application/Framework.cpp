@@ -20,6 +20,7 @@
 #include "GpuParticleManager.h"
 #include <GameTimer.h>
 #include <ResolutionManager.h>
+#include <FrameAllocationTracker.h>
 
 #ifdef USE_IMGUI
 #include <Editor/EditorWindowManager.h>
@@ -44,6 +45,9 @@ namespace Ken4lowEngine
 		// ゲームループ
 		while (!winApp_->ProcessMessage())// 終了リクエストが来たら抜ける
 		{
+			// ウィンドウ処理・Update・Drawを含むEngine側の1フレーム全体を計測する。
+			FrameAllocationTracker::GetInstance()->BeginFrame();
+
 			// Alt+Enter の入力要求を検知し、現在の表示モードに応じて次の表示設定を組み立てる。
 			if (winApp_->ConsumeToggleFullscreen())
 			{
@@ -96,6 +100,8 @@ namespace Ken4lowEngine
 
 			// 更新済みの状態をもとに、3D / 2D / UI を描画する。
 			Draw();
+
+			FrameAllocationTracker::GetInstance()->EndFrame();
 		}
 
 		// ゲームの終了
@@ -188,6 +194,9 @@ namespace Ken4lowEngine
 		// GPUパーティクルマネージャーの初期化
 		GpuParticleManager::GetInstance()->Initialize(defaultCamera_.get());
 
+		// DebugビルドではCRT Hookを登録し、次フレームからAllocationを観測する。
+		FrameAllocationTracker::GetInstance()->Initialize();
+
 #pragma endregion -------------------------------------------
 	}
 
@@ -213,6 +222,9 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	void Framework::Finalize()
 	{
+		// 以降はフレーム計測対象外なので、先にCRT Hookを元へ戻す。
+		FrameAllocationTracker::GetInstance()->Finalize();
+
 #ifdef USE_IMGUI
 		// TextureManager/SRVManager/DirectXCommonより先にエディタ用プレビューキャッシュを解放する。
 		EditorWindowManager::GetInstance()->FinalizeEditorServices();
