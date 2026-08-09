@@ -1,11 +1,15 @@
 #pragma once
 #include "VertexData.h"
 #include "ModelData.h"
+#include "Model.h"
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <unordered_map>
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 
 // Assimp
 #include <assimp/Importer.hpp>
@@ -15,8 +19,12 @@
 namespace Ken4lowEngine
 {
 
-	/// ---------- 前方宣言 ---------- ///
-	class Model;
+	struct ModelMemoryStats
+	{
+		size_t modelCount = 0;
+		uint64_t estimatedCpuBytes = 0;
+		uint64_t estimatedGpuBytes = 0;
+	};
 
 	/// -------------------------------------------------------------
 	///					モデルマネージャークラス
@@ -63,6 +71,44 @@ namespace Ken4lowEngine
 		/// 終了処理を実行します。
 		/// </summary>
 		void Finalize();
+
+		/// <summary>
+		/// Modelが保持している主要Geometry payloadのCPU/GPU概算を取得します。
+		/// 現行ModelはModelDataとMeshの双方に頂点・Indexを保持するため、
+		/// CPU側はその実際の二重保持を概算へ含めます。
+		/// </summary>
+		ModelMemoryStats GetMemoryStats() const
+		{
+			ModelMemoryStats stats{};
+
+			for (const auto& [path, model] : models_)
+			{
+				(void)path;
+				if (!model)
+				{
+					continue;
+				}
+
+				++stats.modelCount;
+				const ModelData& modelData = model->GetModelData();
+				for (const SubMesh& subMesh : modelData.subMeshes)
+				{
+					const uint64_t retainedModelDataBytes =
+						static_cast<uint64_t>(subMesh.vertices.capacity()) * sizeof(VertexData) +
+						static_cast<uint64_t>(subMesh.indices.capacity()) * sizeof(uint32_t);
+
+					// Mesh::InitializeはModelDataからGeometryをコピーするため、Mesh側の論理payloadも加算する。
+					const uint64_t meshGeometryBytes =
+						static_cast<uint64_t>(subMesh.vertices.size()) * sizeof(VertexData) +
+						static_cast<uint64_t>(subMesh.indices.size()) * sizeof(uint32_t);
+
+					stats.estimatedCpuBytes += retainedModelDataBytes + meshGeometryBytes;
+					stats.estimatedGpuBytes += meshGeometryBytes;
+				}
+			}
+
+			return stats;
+		}
 
 	private: /// ---------- 静的メンバ関数 ---------- ///
 
