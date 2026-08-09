@@ -4,6 +4,7 @@
 
 #include <xaudio2.h>
 #include <wrl/client.h>
+#include <cstddef>
 #include <cstdint>
 #include <unordered_map>
 #include <vector>
@@ -13,6 +14,13 @@
 
 namespace Ken4lowEngine
 {
+	struct AudioMemoryStats
+	{
+		size_t cachedClipCount = 0;
+		size_t activeVoiceCount = 0;
+		uint64_t decodedPcmBytes = 0;
+	};
+
 	/// -------------------------------------------------------------
 	///						音声再生全体を管理するクラス
 	/// -------------------------------------------------------------
@@ -155,6 +163,37 @@ namespace Ken4lowEngine
 		/// カテゴリごとの音量を取得する。
 		/// </summary>
 		float GetCategoryVolume(AudioCategory category) const;
+
+		/// <summary>
+		/// 現在生存しているデコード済みClip、SourceVoice、PCM payloadの概算を取得する。
+		/// PCMはvectorのcapacityを使い、実際に確保されている保持量へ近い値として扱う。
+		/// </summary>
+		AudioMemoryStats GetMemoryStats() const
+		{
+			std::lock_guard<std::mutex> lock(mutex_);
+			AudioMemoryStats stats{};
+
+			for (const auto& [path, weakClip] : cache_)
+			{
+				(void)path;
+				const std::shared_ptr<CachedClip> clip = weakClip.lock();
+				if (!clip)
+				{
+					continue;
+				}
+
+				++stats.cachedClipCount;
+				stats.decodedPcmBytes += static_cast<uint64_t>(clip->data.pcmData.capacity()) * sizeof(BYTE);
+			}
+
+			stats.activeVoiceCount = activeVoices_.size();
+			if (bgmVoice_ != nullptr)
+			{
+				++stats.activeVoiceCount;
+			}
+
+			return stats;
+		}
 
 	private: /// ---------- メンバ関数 ---------- ///
 
