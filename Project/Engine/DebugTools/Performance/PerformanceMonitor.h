@@ -23,6 +23,26 @@ namespace Ken4lowEngine
 		float memoryUsageMB = 0.0f;
 		uint64_t frameCount = 0;
 		uint64_t frameSpikeCount = 0;
+
+		bool allocationTrackingSupported = false;
+		uint64_t frameAllocationCount = 0;
+		uint64_t frameAllocatedBytes = 0;
+		uint64_t peakFrameAllocationCount = 0;
+		uint64_t peakFrameAllocatedBytes = 0;
+
+		size_t loadedTextureCount = 0;
+		size_t textureDescriptorCount = 0;
+		float textureGpuMemoryMB = 0.0f;
+
+		size_t loadedModelCount = 0;
+		float modelCpuMemoryMB = 0.0f;
+		float modelGpuMemoryMB = 0.0f;
+
+		size_t cachedAudioClipCount = 0;
+		size_t activeAudioVoiceCount = 0;
+		float audioCpuMemoryMB = 0.0f;
+
+		float trackedAssetMemoryMB = 0.0f;
 	};
 
 	class PerformanceMonitor
@@ -54,6 +74,7 @@ namespace Ken4lowEngine
 
 	private:
 		void UpdateSystemStats();
+		void UpdateAssetStats();
 		void RecalculateFrameAggregates();
 		float ComputeCpuUsagePercent();
 		float ComputeProcessCpuUsagePercent();
