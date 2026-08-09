@@ -694,7 +694,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\Editor\EditorSelectionOutlineManager.h" />
     <ClInclude Include="Engine\Editor\EditorTransformGizmo.h" />
     <ClInclude Include="Engine\Editor\EditorViewportController.h" />
-    <ClInclude Include="Engine\Editor\EditorViewportPicking.h" />
     <ClInclude Include="Engine\Graphics\Renderer\Animation\Core\AnimationModelObjectIdRenderer.h" />
     <ClInclude Include="Engine\Graphics\Renderer\Object3D\ObjectIdPipeline.h" />
     <ClInclude Include="Engine\Graphics\Renderer\Object3D\ShadowCasterPipelineSet.h" />

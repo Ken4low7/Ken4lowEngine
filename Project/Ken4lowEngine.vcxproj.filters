@@ -1860,9 +1860,6 @@
     <ClInclude Include="Engine\Editor\EditorTransformGizmo.h">
       <Filter>Engine\Editor</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\Editor\EditorViewportPicking.h">
-      <Filter>Engine\Editor</Filter>
-    </ClInclude>
     <ClInclude Include="Engine\Graphics\Renderer\Object3D\ShadowCasterPipelineSet.h">
       <Filter>Engine\Graphics\Renderer\Object3D</Filter>
     </ClInclude>
