@@ -3,6 +3,8 @@
 #include "LogString.h"
 
 #include <DirectXTex.h>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <vector>
 #include <unordered_map>
@@ -10,6 +12,13 @@
 
 namespace Ken4lowEngine
 {
+
+	struct TextureMemoryStats
+	{
+		size_t textureCount = 0;
+		size_t descriptorCount = 0;
+		uint64_t estimatedGpuBytes = 0;
+	};
 
 	/// ---------- 前方宣言 ---------- ///
 	class DirectXCommon;
@@ -80,6 +89,46 @@ namespace Ken4lowEngine
 
 		// テクスチャリソースを取得
 		ID3D12Resource* GetResource(const std::string& filePath);
+
+		// 主要なTexture payloadの概算値を取得する。Heap alignmentやDriver Residencyは含めない。
+		TextureMemoryStats GetMemoryStats() const
+		{
+			TextureMemoryStats stats{};
+			stats.textureCount = textureDatas.size();
+
+			for (const auto& [path, textureData] : textureDatas)
+			{
+				(void)path;
+				if (textureData.srvIndex != UINT32_MAX)
+				{
+					++stats.descriptorCount;
+				}
+
+				const DirectX::TexMetadata& metadata = textureData.metaData;
+				size_t width = metadata.width > 0 ? metadata.width : 1;
+				size_t height = metadata.height > 0 ? metadata.height : 1;
+				size_t depth = metadata.depth > 0 ? metadata.depth : 1;
+				const size_t arraySize = metadata.arraySize > 0 ? metadata.arraySize : 1;
+				const size_t mipLevels = metadata.mipLevels > 0 ? metadata.mipLevels : 1;
+
+				for (size_t mip = 0; mip < mipLevels; ++mip)
+				{
+					size_t rowPitch = 0;
+					size_t slicePitch = 0;
+					if (SUCCEEDED(DirectX::ComputePitch(metadata.format, width, height, rowPitch, slicePitch)))
+					{
+						stats.estimatedGpuBytes += static_cast<uint64_t>(slicePitch) *
+							static_cast<uint64_t>(depth) * static_cast<uint64_t>(arraySize);
+					}
+
+					width = width > 1 ? width >> 1 : 1;
+					height = height > 1 ? height >> 1 : 1;
+					depth = depth > 1 ? depth >> 1 : 1;
+				}
+			}
+
+			return stats;
+		}
 
 		// テクスチャパスのインデックスを構築
 		void BuildTexturePathIndex();
