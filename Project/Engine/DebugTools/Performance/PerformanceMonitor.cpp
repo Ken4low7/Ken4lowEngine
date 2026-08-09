@@ -1,4 +1,8 @@
 #include "PerformanceMonitor.h"
+#include "FrameAllocationTracker.h"
+#include "TextureManager.h"
+#include "ModelManager.h"
+#include "AudioManager.h"
 
 #define NOMINMAX
 #include <Windows.h>
@@ -16,6 +20,11 @@ namespace
 		value.LowPart = fileTime.dwLowDateTime;
 		value.HighPart = fileTime.dwHighDateTime;
 		return value.QuadPart;
+	}
+
+	float BytesToMegabytes(uint64_t bytes)
+	{
+		return static_cast<float>(bytes) / (1024.0f * 1024.0f);
 	}
 }
 
@@ -39,6 +48,15 @@ void PerformanceMonitor::Update(
 	++stats_.frameCount;
 	if (stats_.totalFrameMs > spikeThresholdMs_) ++stats_.frameSpikeCount;
 
+	// Framework::EndFrameで確定した直前フレームのAllocation値を表示する。
+	FrameAllocationTracker* allocationTracker = FrameAllocationTracker::GetInstance();
+	const FrameAllocationStats allocationStats = allocationTracker->GetLastFrameStats();
+	stats_.allocationTrackingSupported = allocationTracker->IsSupported();
+	stats_.frameAllocationCount = allocationStats.allocationCount;
+	stats_.frameAllocatedBytes = allocationStats.allocatedBytes;
+	stats_.peakFrameAllocationCount = allocationStats.peakAllocationCount;
+	stats_.peakFrameAllocatedBytes = allocationStats.peakAllocatedBytes;
+
 	fpsHistory_[historyWriteIndex_] = stats_.instantFps;
 	frameTimeHistory_[historyWriteIndex_] = stats_.totalFrameMs;
 	updateHistory_[historyWriteIndex_] = stats_.updateMs;
@@ -52,14 +70,17 @@ void PerformanceMonitor::Update(
 	statsRefreshAccumulator_ += static_cast<double>(deltaSeconds);
 	if (statsRefreshAccumulator_ >= 0.5)
 	{
-		// CPU使用率は毎フレームではなく一定間隔で更新して計測負荷を抑える。
+		// CPU/Asset統計は毎フレームではなく一定間隔で更新して計測負荷を抑える。
 		UpdateSystemStats();
+		UpdateAssetStats();
 		statsRefreshAccumulator_ = 0.0;
 	}
 }
 
 void PerformanceMonitor::Reset()
 {
+	FrameAllocationTracker::GetInstance()->ResetPeaks();
+
 	stats_ = {};
 	fpsHistory_.fill(0.0f);
 	frameTimeHistory_.fill(0.0f);
@@ -103,6 +124,28 @@ void PerformanceMonitor::UpdateSystemStats()
 	{
 		stats_.memoryUsageMB = static_cast<float>(memoryCounter.WorkingSetSize) / (1024.0f * 1024.0f);
 	}
+}
+
+void PerformanceMonitor::UpdateAssetStats()
+{
+	const TextureMemoryStats textureStats = TextureManager::GetInstance()->GetMemoryStats();
+	const ModelMemoryStats modelStats = ModelManager::GetInstance()->GetMemoryStats();
+	const AudioMemoryStats audioStats = AudioManager::GetInstance()->GetMemoryStats();
+
+	stats_.loadedTextureCount = textureStats.textureCount;
+	stats_.textureDescriptorCount = textureStats.descriptorCount;
+	stats_.textureGpuMemoryMB = BytesToMegabytes(textureStats.estimatedGpuBytes);
+
+	stats_.loadedModelCount = modelStats.modelCount;
+	stats_.modelCpuMemoryMB = BytesToMegabytes(modelStats.estimatedCpuBytes);
+	stats_.modelGpuMemoryMB = BytesToMegabytes(modelStats.estimatedGpuBytes);
+
+	stats_.cachedAudioClipCount = audioStats.cachedClipCount;
+	stats_.activeAudioVoiceCount = audioStats.activeVoiceCount;
+	stats_.audioCpuMemoryMB = BytesToMegabytes(audioStats.decodedPcmBytes);
+
+	stats_.trackedAssetMemoryMB = stats_.textureGpuMemoryMB + stats_.modelCpuMemoryMB +
+		stats_.modelGpuMemoryMB + stats_.audioCpuMemoryMB;
 }
 
 float PerformanceMonitor::ComputeCpuUsagePercent()
