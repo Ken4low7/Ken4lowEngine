@@ -294,6 +294,8 @@ namespace Ken4lowEngine
 				ImGui::EndTable();
 			}
 
+			DrawMemoryAllocationStats(stats);
+
 			ImGui::TextDisabled("目標フレーム予算: %.2f ms / 完了済み直前フレームを表示", targetBudgetMs);
 			const float graphMaximum = (std::max)({ 40.0f, stats.maxFrameTimeMs * 1.15f, frameSpikeThresholdMs_ * 1.15f });
 			const int historyOffset = static_cast<int>(profiler_.GetHistoryWriteIndex());
@@ -303,11 +305,58 @@ namespace Ken4lowEngine
 			ImGui::PlotLines("Present", profiler_.GetPresentHistory().data(), static_cast<int>(PerformanceMonitor::kHistorySize), historyOffset, nullptr, 0.0f, graphMaximum, ImVec2(0.0f, 65.0f));
 		}
 
+		void DrawMemoryAllocationStats(const PerformanceStats& stats)
+		{
+			ImGui::SeparatorText("Memory / Allocation");
+			if (ImGui::BeginTable("##ProfilerMemoryAllocation", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame))
+			{
+				DrawProfilerMetric("Tracked Asset", stats.trackedAssetMemoryMB, "%.2f MB");
+				DrawProfilerMetric("Texture GPU", stats.textureGpuMemoryMB, "%.2f MB");
+				DrawProfilerMetric("Model CPU", stats.modelCpuMemoryMB, "%.2f MB");
+				DrawProfilerMetric("Model GPU", stats.modelGpuMemoryMB, "%.2f MB");
+				DrawProfilerMetric("Audio PCM", stats.audioCpuMemoryMB, "%.2f MB");
+				DrawProfilerMetricSize("Textures", stats.loadedTextureCount);
+				DrawProfilerMetricSize("Models", stats.loadedModelCount);
+				DrawProfilerMetricSize("Audio Clips", stats.cachedAudioClipCount);
+				DrawProfilerMetricSize("Texture SRV", stats.textureDescriptorCount);
+				DrawProfilerMetricSize("Audio Voices", stats.activeAudioVoiceCount);
+
+				if (stats.allocationTrackingSupported)
+				{
+					DrawProfilerMetricU64("Alloc / Frame", stats.frameAllocationCount);
+					DrawProfilerMetric("Alloc MB / Frame", static_cast<float>(stats.frameAllocatedBytes) / (1024.0f * 1024.0f), "%.3f MB");
+					DrawProfilerMetricU64("Peak Alloc", stats.peakFrameAllocationCount);
+					DrawProfilerMetric("Peak Alloc MB", static_cast<float>(stats.peakFrameAllocatedBytes) / (1024.0f * 1024.0f), "%.3f MB");
+				}
+				ImGui::EndTable();
+			}
+
+			if (!stats.allocationTrackingSupported)
+			{
+				ImGui::TextDisabled("メモリアロケーション計測はDebug CRTビルドで有効です。");
+			}
+			ImGui::TextDisabled("Asset値は主要payloadの概算です。D3D12 Heap alignment / Driver residency / Transient buffer等は未集計です。");
+		}
+
 		static void DrawProfilerMetric(const char* label, float value, const char* format)
 		{
 			ImGui::TableNextColumn();
 			ImGui::TextDisabled("%s", label);
 			ImGui::Text(format, value);
+		}
+
+		static void DrawProfilerMetricU64(const char* label, uint64_t value)
+		{
+			ImGui::TableNextColumn();
+			ImGui::TextDisabled("%s", label);
+			ImGui::Text("%llu", static_cast<unsigned long long>(value));
+		}
+
+		static void DrawProfilerMetricSize(const char* label, std::size_t value)
+		{
+			ImGui::TableNextColumn();
+			ImGui::TextDisabled("%s", label);
+			ImGui::Text("%zu", value);
 		}
 
 		void DrawErrorTab()
