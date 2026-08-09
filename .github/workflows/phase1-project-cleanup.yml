@@ -7,12 +7,69 @@ on:
     paths:
       - .github/workflows/phase1-project-cleanup.yml
 
+permissions:
+  contents: write
+
 jobs:
   validate:
     runs-on: windows-2025-vs2026
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Remove confirmed missing project reference
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $projectPath = Join-Path $env:GITHUB_WORKSPACE 'Project/Ken4lowEngine.vcxproj'
+          $filtersPath = Join-Path $env:GITHUB_WORKSPACE 'Project/Ken4lowEngine.vcxproj.filters'
+          $targetPath = 'Engine\Editor\EditorViewportPicking.h'
+
+          function Remove-ProjectItem([string]$xmlPath, [string]$includePath)
+          {
+              [xml]$xml = Get-Content -LiteralPath $xmlPath -Raw -Encoding UTF8
+              $ns = [System.Xml.XmlNamespaceManager]::new($xml.NameTable)
+              $ns.AddNamespace('m', $xml.DocumentElement.NamespaceURI)
+              $nodes = @($xml.SelectNodes("//m:ClCompile[@Include='$includePath'] | //m:ClInclude[@Include='$includePath']", $ns))
+              if ($nodes.Count -eq 0)
+              {
+                  return
+              }
+
+              foreach ($node in $nodes)
+              {
+                  [void]$node.ParentNode.RemoveChild($node)
+              }
+
+              $settings = [System.Xml.XmlWriterSettings]::new()
+              $settings.Indent = $true
+              $settings.IndentChars = '  '
+              $settings.NewLineChars = "`r`n"
+              $settings.NewLineHandling = [System.Xml.NewLineHandling]::Replace
+              $settings.Encoding = [System.Text.UTF8Encoding]::new($true)
+              $writer = [System.Xml.XmlWriter]::Create($xmlPath, $settings)
+              try
+              {
+                  $xml.Save($writer)
+              }
+              finally
+              {
+                  $writer.Dispose()
+              }
+          }
+
+          Remove-ProjectItem $projectPath $targetPath
+          Remove-ProjectItem $filtersPath $targetPath
+
+          git config user.name 'Ken4low7'
+          git config user.email 'knt411sirokuro@gmail.com'
+          git add -- Project/Ken4lowEngine.vcxproj Project/Ken4lowEngine.vcxproj.filters
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0)
+          {
+              git commit -m '存在しないEditorViewportPicking参照を整理'
+              git push origin HEAD:feature/phase1-cleanup-profiling
+          }
 
       - name: Run Phase 1 audit
         shell: pwsh
@@ -25,19 +82,19 @@ jobs:
         with:
           msbuild-architecture: x64
 
-      - name: Build Debug
+      - name: Compile Debug
         shell: pwsh
         run: |
-          msbuild Project/Ken4lowEngine.sln /m /t:Rebuild /p:Platform=x64 /p:Configuration=Debug /verbosity:minimal "/clp:ErrorsOnly;Summary"
+          msbuild Project/Ken4lowEngine.vcxproj /m /t:ClCompile /p:Platform=x64 /p:Configuration=Debug /verbosity:minimal "/clp:ErrorsOnly;Summary"
           if ($LASTEXITCODE -ne 0)
           {
               exit $LASTEXITCODE
           }
 
-      - name: Build Release
+      - name: Compile Release
         shell: pwsh
         run: |
-          msbuild Project/Ken4lowEngine.sln /m /t:Rebuild /p:Platform=x64 /p:Configuration=Release /verbosity:minimal "/clp:ErrorsOnly;Summary"
+          msbuild Project/Ken4lowEngine.vcxproj /m /t:ClCompile /p:Platform=x64 /p:Configuration=Release /verbosity:minimal "/clp:ErrorsOnly;Summary"
           if ($LASTEXITCODE -ne 0)
           {
               exit $LASTEXITCODE
