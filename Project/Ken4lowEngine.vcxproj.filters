@@ -954,6 +954,9 @@
     <ClInclude Include="Engine\DebugTools\Performance\PerformanceMonitor.h">
       <Filter>Engine\DebugTools\Performance</Filter>
     </ClInclude>
+    <ClInclude Include="Engine\DebugTools\Performance\FrameAllocationTracker.h">
+      <Filter>Engine\DebugTools\Performance</Filter>
+    </ClInclude>
     <ClInclude Include="Engine\Core\Application\Framework.h">
       <Filter>Engine\Core\Application</Filter>
     </ClInclude>
@@ -2131,9 +2134,6 @@
     </Filter>
     <Filter Include="Engine\Graphics\Camera\DebugCamera">
       <UniqueIdentifier>{3ab59e44-0df1-426d-a4f3-d7028e1dce96}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\Graphics\Camera\FPS">
-      <UniqueIdentifier>{efbeb7de-1739-48e5-8dad-caae92974f8f}</UniqueIdentifier>
     </Filter>
     <Filter Include="Engine\Graphics\Descriptor\DSV">
       <UniqueIdentifier>{fc94ed9b-2fe9-4534-b129-00152094fe17}</UniqueIdentifier>
