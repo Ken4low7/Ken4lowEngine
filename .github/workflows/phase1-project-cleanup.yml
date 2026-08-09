@@ -1,0 +1,183 @@
+name: Phase1ProjectCleanup
+
+on:
+  push:
+    branches:
+      - feature/phase1-cleanup-profiling
+    paths:
+      - .github/workflows/phase1-project-cleanup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: windows-2025
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Clean Visual Studio project metadata
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $projectRoot = Join-Path $env:GITHUB_WORKSPACE 'Project'
+          $projectPath = Join-Path $projectRoot 'Ken4lowEngine.vcxproj'
+          $filtersPath = Join-Path $projectRoot 'Ken4lowEngine.vcxproj.filters'
+          $targetsPath = Join-Path $projectRoot 'Directory.Build.targets'
+          $stalePatterns = @(
+              '^ApplicationLayer\\Character\\',
+              '^ApplicationLayer\\DebugTools\\EnemyScalability\\',
+              '^Engine\\Graphics\\Camera\\FPS\\'
+          )
+
+          function Test-StalePath([string]$value)
+          {
+              foreach ($pattern in $stalePatterns)
+              {
+                  if ($value -match $pattern)
+                  {
+                      return $true
+                  }
+              }
+              return $false
+          }
+
+          function Save-Xml([xml]$xml, [string]$path)
+          {
+              $settings = [System.Xml.XmlWriterSettings]::new()
+              $settings.Indent = $true
+              $settings.IndentChars = '  '
+              $settings.NewLineChars = "`r`n"
+              $settings.NewLineHandling = [System.Xml.NewLineHandling]::Replace
+              $settings.Encoding = [System.Text.UTF8Encoding]::new($true)
+              $writer = [System.Xml.XmlWriter]::Create($path, $settings)
+              try
+              {
+                  $xml.Save($writer)
+              }
+              finally
+              {
+                  $writer.Dispose()
+              }
+          }
+
+          [xml]$projectXml = Get-Content -LiteralPath $projectPath -Raw -Encoding UTF8
+          $projectNs = [System.Xml.XmlNamespaceManager]::new($projectXml.NameTable)
+          $projectNs.AddNamespace('m', $projectXml.DocumentElement.NamespaceURI)
+
+          $projectItems = @($projectXml.SelectNodes('//m:ClCompile | //m:ClInclude', $projectNs))
+          foreach ($node in $projectItems)
+          {
+              $include = [string]$node.GetAttribute('Include')
+              if ([string]::IsNullOrWhiteSpace($include) -or -not (Test-StalePath $include))
+              {
+                  continue
+              }
+
+              $candidate = Join-Path $projectRoot $include
+              if (-not (Test-Path -LiteralPath $candidate))
+              {
+                  [void]$node.ParentNode.RemoveChild($node)
+              }
+          }
+
+          $includeDirectoryNodes = @($projectXml.SelectNodes('//m:AdditionalIncludeDirectories', $projectNs))
+          foreach ($node in $includeDirectoryNodes)
+          {
+              $cleaned = [System.Collections.Generic.List[string]]::new()
+              foreach ($entry in ([string]$node.InnerText -split ';'))
+              {
+                  if ([string]::IsNullOrWhiteSpace($entry))
+                  {
+                      continue
+                  }
+
+                  $normalizedEntry = $entry.Replace('ApplicationLayer\\DebugTools\\Occulusion', 'ApplicationLayer\\DebugTools\\Occlusion')
+                  if ($normalizedEntry.StartsWith('$(ProjectDir)', [System.StringComparison]::OrdinalIgnoreCase))
+                  {
+                      $relative = $normalizedEntry.Substring('$(ProjectDir)'.Length).TrimStart([char]92, [char]47)
+                      if (-not [string]::IsNullOrWhiteSpace($relative))
+                      {
+                          $candidate = Join-Path $projectRoot $relative
+                          if (-not (Test-Path -LiteralPath $candidate))
+                          {
+                              continue
+                          }
+                      }
+                  }
+
+                  $cleaned.Add($normalizedEntry)
+              }
+              $node.InnerText = ($cleaned -join ';')
+          }
+
+          $trackerPath = 'Engine\DebugTools\Performance\FrameAllocationTracker.h'
+          if ($null -eq $projectXml.SelectSingleNode("//m:ClInclude[@Include='$trackerPath']", $projectNs))
+          {
+              $performanceHeader = $projectXml.SelectSingleNode("//m:ClInclude[@Include='Engine\DebugTools\Performance\PerformanceMonitor.h']", $projectNs)
+              if ($null -ne $performanceHeader)
+              {
+                  $trackerNode = $projectXml.CreateElement('ClInclude', $projectXml.DocumentElement.NamespaceURI)
+                  $trackerNode.SetAttribute('Include', $trackerPath)
+                  [void]$performanceHeader.ParentNode.InsertAfter($trackerNode, $performanceHeader)
+              }
+          }
+
+          Save-Xml $projectXml $projectPath
+
+          [xml]$filtersXml = Get-Content -LiteralPath $filtersPath -Raw -Encoding UTF8
+          $filtersNs = [System.Xml.XmlNamespaceManager]::new($filtersXml.NameTable)
+          $filtersNs.AddNamespace('m', $filtersXml.DocumentElement.NamespaceURI)
+
+          $filterItems = @($filtersXml.SelectNodes('//m:ClCompile | //m:ClInclude', $filtersNs))
+          foreach ($node in $filterItems)
+          {
+              $include = [string]$node.GetAttribute('Include')
+              if ([string]::IsNullOrWhiteSpace($include) -or -not (Test-StalePath $include))
+              {
+                  continue
+              }
+
+              $candidate = Join-Path $projectRoot $include
+              if (-not (Test-Path -LiteralPath $candidate))
+              {
+                  [void]$node.ParentNode.RemoveChild($node)
+              }
+          }
+
+          $fpsFilter = $filtersXml.SelectSingleNode("//m:Filter[@Include='Engine\Graphics\Camera\FPS']", $filtersNs)
+          if ($null -ne $fpsFilter)
+          {
+              [void]$fpsFilter.ParentNode.RemoveChild($fpsFilter)
+          }
+
+          if ($null -eq $filtersXml.SelectSingleNode("//m:ClInclude[@Include='$trackerPath']", $filtersNs))
+          {
+              $performanceHeader = $filtersXml.SelectSingleNode("//m:ClInclude[@Include='Engine\DebugTools\Performance\PerformanceMonitor.h']", $filtersNs)
+              if ($null -ne $performanceHeader)
+              {
+                  $trackerNode = $filtersXml.CreateElement('ClInclude', $filtersXml.DocumentElement.NamespaceURI)
+                  $trackerNode.SetAttribute('Include', $trackerPath)
+                  $filterNode = $filtersXml.CreateElement('Filter', $filtersXml.DocumentElement.NamespaceURI)
+                  $filterNode.InnerText = 'Engine\DebugTools\Performance'
+                  [void]$trackerNode.AppendChild($filterNode)
+                  [void]$performanceHeader.ParentNode.InsertAfter($trackerNode, $performanceHeader)
+              }
+          }
+
+          Save-Xml $filtersXml $filtersPath
+
+          if (Test-Path -LiteralPath $targetsPath)
+          {
+              Remove-Item -LiteralPath $targetsPath -Force
+          }
+
+          git config user.name 'Ken4low7'
+          git config user.email 'knt411sirokuro@gmail.com'
+          git add -A -- Project/Ken4lowEngine.vcxproj Project/Ken4lowEngine.vcxproj.filters Project/Directory.Build.targets
+          if (-not (git diff --cached --quiet))
+          {
+              git commit -m 'FPS削除後のVisual Studioプロジェクト残骸を整理'
+              git push origin HEAD:feature/phase1-cleanup-profiling
+          }
