@@ -3,7 +3,6 @@
 #include "Object3DCommon.h"
 #include "ImGuiManager.h"
 #include "DirectXCommon.h"
-#include "ResourceManager.h"
 
 #include <Model.h>
 #include "ModelManager.h"
@@ -69,43 +68,43 @@ namespace Ken4lowEngine
 		material_.Update();
 		worldTransform_.Update();
 
-		cameraData->worldPosition = CameraManager::GetInstance()->GetActiveCameraPosition();
+		cameraData_.worldPosition = CameraManager::GetInstance()->GetActiveCameraPosition();
 
 		const auto* lightMgr = LightManager::GetInstance();
-		const Vector3 focusPos = cameraData->worldPosition;
+		const Vector3 focusPos = cameraData_.worldPosition;
 		const Matrix4x4 lightViewProjection = lightMgr->BuildShadowLightViewProjection(focusPos);
 		UpdateShadowMatrix(lightViewProjection);
-		shadowParameterData_->shadowBias = lightMgr->GetShadowBias();
-		shadowParameterData_->normalBias = lightMgr->GetNormalBias();
-		shadowParameterData_->shadowStrength = lightMgr->GetShadowStrength();
-		shadowParameterData_->shadowMode = lightMgr->GetShadowReceiverMode();
-		shadowParameterData_->shadowDebugMode = lightMgr->IsShadowMapDebugEnabled() ? 1u : (lightMgr->IsShadowFactorDebugEnabled() ? 2u : 0u);
+		shadowParameterData_.shadowBias = lightMgr->GetShadowBias();
+		shadowParameterData_.normalBias = lightMgr->GetNormalBias();
+		shadowParameterData_.shadowStrength = lightMgr->GetShadowStrength();
+		shadowParameterData_.shadowMode = lightMgr->GetShadowReceiverMode();
+		shadowParameterData_.shadowDebugMode = lightMgr->IsShadowMapDebugEnabled() ? 1u : (lightMgr->IsShadowFactorDebugEnabled() ? 2u : 0u);
 	}
 
 	void Object3D::UpdateWithWorldMatrix(const Matrix4x4& worldMatrix)
 	{
 		material_.Update();
 		worldTransform_.UpdateWithWorldMatrix(worldMatrix);
-		cameraData->worldPosition = CameraManager::GetInstance()->GetActiveCameraPosition();
+		cameraData_.worldPosition = CameraManager::GetInstance()->GetActiveCameraPosition();
 
 		const auto* lightMgr = LightManager::GetInstance();
-		const Vector3 focusPos = cameraData->worldPosition;
+		const Vector3 focusPos = cameraData_.worldPosition;
 		const Matrix4x4 lightViewProjection = lightMgr->BuildShadowLightViewProjection(focusPos);
 		UpdateShadowMatrix(lightViewProjection);
-		shadowParameterData_->shadowBias = lightMgr->GetShadowBias();
-		shadowParameterData_->normalBias = lightMgr->GetNormalBias();
-		shadowParameterData_->shadowStrength = lightMgr->GetShadowStrength();
-		shadowParameterData_->shadowMode = lightMgr->GetShadowReceiverMode();
-		shadowParameterData_->shadowDebugMode = lightMgr->IsShadowMapDebugEnabled() ? 1u : (lightMgr->IsShadowFactorDebugEnabled() ? 2u : 0u);
+		shadowParameterData_.shadowBias = lightMgr->GetShadowBias();
+		shadowParameterData_.normalBias = lightMgr->GetNormalBias();
+		shadowParameterData_.shadowStrength = lightMgr->GetShadowStrength();
+		shadowParameterData_.shadowMode = lightMgr->GetShadowReceiverMode();
+		shadowParameterData_.shadowDebugMode = lightMgr->IsShadowMapDebugEnabled() ? 1u : (lightMgr->IsShadowFactorDebugEnabled() ? 2u : 0u);
 	}
 
 	void Object3D::UpdateShadowMatrix(const Matrix4x4& lightViewProjection)
 	{
 		const Matrix4x4& worldMatrix = worldTransform_.matWorld_;
-		shadowTransformData_->World = worldMatrix;
-		shadowTransformData_->WVP = Matrix4x4::Multiply(worldMatrix, lightViewProjection);
-		shadowTransformData_->WorldInversedTranspose = Matrix4x4::Transpose(Matrix4x4::Inverse(worldMatrix));
-		shadowParameterData_->lightViewProjection = lightViewProjection;
+		shadowTransformData_.World = worldMatrix;
+		shadowTransformData_.WVP = Matrix4x4::Multiply(worldMatrix, lightViewProjection);
+		shadowTransformData_.WorldInversedTranspose = Matrix4x4::Transpose(Matrix4x4::Inverse(worldMatrix));
+		shadowParameterData_.lightViewProjection = lightViewProjection;
 	}
 
 	/// -------------------------------------------------------------
@@ -158,6 +157,14 @@ namespace Ken4lowEngine
 		}
 
 		ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
+		FrameUploadArena& frameUploadArena = dxCommon_->GetFrameUploadArena();
+		const FrameUploadArena::Allocation cameraAllocation = frameUploadArena.AllocateConstant(cameraData_);
+		const FrameUploadArena::Allocation dissolveAllocation = frameUploadArena.AllocateConstant(dissolveSetting_);
+		const FrameUploadArena::Allocation shadowParameterAllocation = frameUploadArena.AllocateConstant(shadowParameterData_);
+		if (!cameraAllocation.IsValid() || !dissolveAllocation.IsValid() || !shadowParameterAllocation.IsValid())
+		{
+			return;
+		}
 
 		if (alphaBlendEnabled_) object3DCommon->SetAlphaRenderSetting();
 		else object3DCommon->SetRenderSetting(); // 残像だけAlpha Pipelineへ切り替え、通常Object3Dの描画契約は維持する。
@@ -165,13 +172,13 @@ namespace Ken4lowEngine
 		material_.SetPipeline();
 		worldTransform_.SetPipeline();
 
-		commandList->SetGraphicsRootConstantBufferView(3, cameraResource->GetGPUVirtualAddress());
+		commandList->SetGraphicsRootConstantBufferView(3, cameraAllocation.gpuAddress);
 		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 4, environmentMapHandle_);
 
-		commandList->SetGraphicsRootConstantBufferView(7, constantBuffer_->GetGPUVirtualAddress());
+		commandList->SetGraphicsRootConstantBufferView(7, dissolveAllocation.gpuAddress);
 		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 8, dissolveMaskHandle_);
 
-		commandList->SetGraphicsRootConstantBufferView(9, shadowParameterResource_->GetGPUVirtualAddress());
+		commandList->SetGraphicsRootConstantBufferView(9, shadowParameterAllocation.gpuAddress);
 		commandList->SetGraphicsRootDescriptorTable(10, shadowMapHandle_);
 		materialTextureSlots_.BindAdditionalSlots(commandList, 12, 13, 14, 15);
 
@@ -208,8 +215,15 @@ namespace Ken4lowEngine
 		UpdateShadowMatrix(LightManager::GetInstance()->GetActiveShadowPassLightViewProjection());
 
 		ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
+		const FrameUploadArena::Allocation shadowTransformAllocation =
+			dxCommon_->GetFrameUploadArena().AllocateConstant(shadowTransformData_);
+		if (!shadowTransformAllocation.IsValid())
+		{
+			return;
+		}
+
 		Object3DCommon::GetInstance()->SetShadowMapRenderSetting();
-		commandList->SetGraphicsRootConstantBufferView(0, shadowTransformResource_->GetGPUVirtualAddress());
+		commandList->SetGraphicsRootConstantBufferView(0, shadowTransformAllocation.gpuAddress);
 
 		auto& meshes = model_->GetMeshes();
 		for (auto& mesh : meshes) mesh.Draw();
@@ -300,9 +314,7 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	void Object3D::InitializeCameraResource()
 	{
-		cameraResource = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(CameraForGPU));
-		cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
-		cameraData->worldPosition = camera_->GetTranslate();
+		cameraData_.worldPosition = camera_ ? camera_->GetTranslate() : CameraManager::GetInstance()->GetActiveCameraPosition();
 	}
 
 	/// -------------------------------------------------------------
@@ -310,32 +322,26 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	void Object3D::InitializeDissolveResource()
 	{
-		constantBuffer_ = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(DissolveSetting));
-		constantBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&dissolveSetting_));
-		dissolveSetting_->threshold = 1.0f;
-		dissolveSetting_->edgeThickness = 0.0f;
-		dissolveSetting_->edgeColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+		dissolveSetting_.threshold = 1.0f;
+		dissolveSetting_.edgeThickness = 0.0f;
+		dissolveSetting_.edgeColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 	}
 
 	void Object3D::InitializeShadowResource()
 	{
-		shadowTransformResource_ = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(TransformationMatrix));
-		shadowTransformResource_->Map(0, nullptr, reinterpret_cast<void**>(&shadowTransformData_));
-		shadowTransformData_->World = Matrix4x4::MakeIdentity();
-		shadowTransformData_->WVP = Matrix4x4::MakeIdentity();
-		shadowTransformData_->WorldInversedTranspose = Matrix4x4::MakeIdentity();
+		shadowTransformData_.World = Matrix4x4::MakeIdentity();
+		shadowTransformData_.WVP = Matrix4x4::MakeIdentity();
+		shadowTransformData_.WorldInversedTranspose = Matrix4x4::MakeIdentity();
 	}
 
 	void Object3D::InitializeShadowParameterResource()
 	{
-		shadowParameterResource_ = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(ShadowParameterForGPU));
-		shadowParameterResource_->Map(0, nullptr, reinterpret_cast<void**>(&shadowParameterData_));
-		shadowParameterData_->lightViewProjection = Matrix4x4::MakeIdentity();
-		shadowParameterData_->shadowBias = 0.015f;
-		shadowParameterData_->normalBias = 0.02f;
-		shadowParameterData_->shadowStrength = 0.6f;
-		shadowParameterData_->shadowMode = 0u;
-		shadowParameterData_->shadowDebugMode = 0u;
+		shadowParameterData_.lightViewProjection = Matrix4x4::MakeIdentity();
+		shadowParameterData_.shadowBias = 0.015f;
+		shadowParameterData_.normalBias = 0.02f;
+		shadowParameterData_.shadowStrength = 0.6f;
+		shadowParameterData_.shadowMode = 0u;
+		shadowParameterData_.shadowDebugMode = 0u;
 	}
 
 	BoundingSphere Object3D::GetWorldBounds() const
