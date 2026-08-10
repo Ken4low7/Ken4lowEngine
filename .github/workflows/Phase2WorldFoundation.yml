@@ -1,0 +1,98 @@
+name: Phase2WorldFoundation
+
+on:
+  push:
+    branches:
+      - feature/phase2-world-foundation
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: windows-2025-vs2026
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/phase2-world-foundation
+          fetch-depth: 0
+
+      - name: Configure Git
+        shell: pwsh
+        run: |
+          git config user.name "Ken4low7"
+          git config user.email "knt411sirokuro@gmail.com"
+
+      - name: ActorId ComponentId Handle
+        shell: pwsh
+        run: |
+          python Project/Tools/Scripts/ApplyPhase2WorldFoundation.py ids
+          git add -A
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "ActorとComponentの実行時IDとHandle基盤を追加"
+          }
+
+      - name: Component ordered cache
+        shell: pwsh
+        run: |
+          python Project/Tools/Scripts/ApplyPhase2WorldFoundation.py cache
+          git add -A
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "Componentの更新描画順キャッシュを追加"
+          }
+
+      - name: Event driven physics registration
+        shell: pwsh
+        run: |
+          python Project/Tools/Scripts/ApplyPhase2WorldFoundation.py physics
+          git add -A
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "Physics登録をイベント駆動へ変更"
+          }
+
+      - name: Separate ActorWorld editor code
+        shell: pwsh
+        run: |
+          python Project/Tools/Scripts/ApplyPhase2WorldFoundation.py editor
+          git add -A
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "ActorWorldから旧Editor実装を分離"
+          }
+
+      - name: Add Phase 2 documentation
+        shell: pwsh
+        run: |
+          python Project/Tools/Scripts/ApplyPhase2WorldFoundation.py docs
+          git add -A
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "Phase 2のWorld基盤設計を文書化"
+          }
+
+      - name: Source audit
+        shell: pwsh
+        run: python Project/Tools/Scripts/ApplyPhase2WorldFoundation.py validate
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v3
+        with:
+          msbuild-architecture: x64
+
+      - name: Compile Debug C++
+        shell: pwsh
+        run: msbuild Project/Ken4lowEngine.vcxproj /m /t:ClCompile /p:Platform=x64 /p:Configuration=Debug /verbosity:minimal "/clp:ErrorsOnly;Summary"
+
+      - name: Compile Release C++
+        shell: pwsh
+        run: msbuild Project/Ken4lowEngine.vcxproj /m /t:ClCompile /p:Platform=x64 /p:Configuration=Release /verbosity:minimal "/clp:ErrorsOnly;Summary"
+
+      - name: Remove temporary Phase 2 applicator
+        shell: pwsh
+        run: |
+          git rm .github/workflows/Phase2WorldFoundation.yml
+          git rm Project/Tools/Scripts/ApplyPhase2WorldFoundation.py
+          git commit -m "Phase 2用の一時適用Workflowを削除"
+
+      - name: Push Phase 2 commits
+        shell: pwsh
+        run: git push origin HEAD:feature/phase2-world-foundation
