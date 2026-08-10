@@ -40,7 +40,7 @@ namespace Ken4lowEngine
 		cloudLayer_ = std::make_unique<CloudLayer>();
 		cloudLayer_->Initialize();
 
-		// Material 定数バッファを初期化する
+		// Material のCPUステージングデータを初期化する
 		InitializeMaterial();
 
 		// 頂点バッファを初期化する
@@ -49,15 +49,8 @@ namespace Ken4lowEngine
 		// インデックスバッファを初期化する
 		InitializeIndexData();
 
-		// WVP 用定数バッファを生成する
-		wvpResource = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(TransformationMatrix));
-
-		// CPU から書き込めるようにマップする
-		wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&wvpData));
-
-		// 初期状態は単位行列を書いておく
-		wvpData->World = Matrix4x4::MakeIdentity();
-		wvpData->WVP = Matrix4x4::MakeIdentity();
+		wvpData_.World = Matrix4x4::MakeIdentity();
+		wvpData_.WVP = Matrix4x4::MakeIdentity();
 	}
 
 	/// -------------------------------------------------------------
@@ -74,8 +67,8 @@ namespace Ken4lowEngine
 
 		worldViewProjectionMatrix = Matrix4x4::Multiply(worldMatrix, viewProjection);
 
-		wvpData->WVP = worldViewProjectionMatrix;
-		wvpData->World = worldMatrix;
+		wvpData_.WVP = worldViewProjectionMatrix;
+		wvpData_.World = worldMatrix;
 		cloudLayer_->Update();
 	}
 
@@ -86,20 +79,29 @@ namespace Ken4lowEngine
 	{
 		ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		SkyBoxManager::GetInstance()->SetRenderSetting();
-		materialData_->color = baseColor_;
-		materialData_->topColor = topColor_;
-		materialData_->bottomColor = bottomColor_;
-		materialData_->horizonColor = horizonColor_;
-		materialData_->textureIndex = textureIndex_;
-		materialData_->skyType = skyType_;
-		materialData_->uvOffset = {};
-		materialData_->cloudHeight = 0.0f;
-		materialData_->cloudScale = 1.0f;
-		materialData_->textureAvailable = textureAvailable_ ? 1u : 0u;
+		materialData_.color = baseColor_;
+		materialData_.topColor = topColor_;
+		materialData_.bottomColor = bottomColor_;
+		materialData_.horizonColor = horizonColor_;
+		materialData_.textureIndex = textureIndex_;
+		materialData_.skyType = skyType_;
+		materialData_.uvOffset = {};
+		materialData_.cloudHeight = 0.0f;
+		materialData_.cloudScale = 1.0f;
+		materialData_.textureAvailable = textureAvailable_ ? 1u : 0u;
+
+		auto& frameUploadArena = dxCommon_->GetFrameUploadArena();
+		const FrameUploadArena::Allocation materialAllocation = frameUploadArena.AllocateConstant(materialData_);
+		const FrameUploadArena::Allocation wvpAllocation = frameUploadArena.AllocateConstant(wvpData_);
+		if (!materialAllocation.IsValid() || !wvpAllocation.IsValid())
+		{
+			return;
+		}
+
 		commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 		commandList->IASetIndexBuffer(&indexBufferView);
-		commandList->SetGraphicsRootConstantBufferView(0, materialResource.Get()->GetGPUVirtualAddress());
-		commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
+		commandList->SetGraphicsRootConstantBufferView(0, materialAllocation.gpuAddress);
+		commandList->SetGraphicsRootConstantBufferView(1, wvpAllocation.gpuAddress); // SkyBoxの動的CBVを現在Frame専用領域へコピーしてGPU読み取り中の上書きを防ぐ。
 		commandList->DrawIndexedInstanced(kNumIndex, 1, 0, 0, 0);
 	}
 
@@ -125,7 +127,7 @@ namespace Ken4lowEngine
 	void SkyBox::SetColor(const Vector4& color)
 	{
 		baseColor_ = color;
-		if (materialData_) materialData_->color = color;
+		materialData_.color = color;
 	}
 
 	void SkyBox::SetSkyType(const std::string& skyType)
@@ -135,8 +137,12 @@ namespace Ken4lowEngine
 
 	void SkyBox::SetGradientColors(const Vector4& topColor, const Vector4& bottomColor, const Vector4& horizonColor)
 	{
-		topColor_ = topColor; bottomColor_ = bottomColor; horizonColor_ = horizonColor;
-		if (materialData_) { materialData_->topColor = topColor_; materialData_->bottomColor = bottomColor_; materialData_->horizonColor = horizonColor_; }
+		topColor_ = topColor;
+		bottomColor_ = bottomColor;
+		horizonColor_ = horizonColor;
+		materialData_.topColor = topColor_;
+		materialData_.bottomColor = bottomColor_;
+		materialData_.horizonColor = horizonColor_;
 	}
 
 	void SkyBox::SetCloudLayer(bool enabled, const std::string& texturePath, float height, float scale,
@@ -155,24 +161,18 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	void SkyBox::InitializeMaterial()
 	{
-		// Material 用定数バッファを生成する
-		materialResource = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(Material));
-
-		// CPU から書き込めるようにマップする
-		materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
-
-		// 初期値を設定する
-		materialData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
-		materialData_->uvTransform = Matrix4x4::MakeIdentity();
-		materialData_->topColor = topColor_;
-		materialData_->bottomColor = bottomColor_;
-		materialData_->horizonColor = horizonColor_;
-		materialData_->textureIndex = textureIndex_;
-		materialData_->skyType = skyType_;
-		materialData_->uvOffset = {};
-		materialData_->cloudHeight = 0.0f;
-		materialData_->cloudScale = 1.0f;
-		materialData_->textureAvailable = textureAvailable_ ? 1u : 0u;
+		materialData_.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		materialData_.uvTransform = Matrix4x4::MakeIdentity();
+		materialData_.topColor = topColor_;
+		materialData_.bottomColor = bottomColor_;
+		materialData_.horizonColor = horizonColor_;
+		materialData_.textureIndex = textureIndex_;
+		materialData_.skyType = skyType_;
+		materialData_.uvOffset = {};
+		materialData_.cloudHeight = 0.0f;
+		materialData_.cloudScale = 1.0f;
+		materialData_.textureAvailable = textureAvailable_ ? 1u : 0u;
+		materialData_.padding = 0.0f;
 	}
 
 	/// -------------------------------------------------------------
