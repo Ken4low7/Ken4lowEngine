@@ -3,6 +3,7 @@
 #include <Vector3.h>
 #include <Vector4.h>
 #include <Matrix4x4.h>
+#include <Engine/Graphics/Device/Buffer/PerFrameUploadBuffer.h>
 
 #include "BillboardMode.h"
 #include "GpuParticleEmitterData.h"
@@ -64,35 +65,30 @@ class GpuParticleBuffers
 	// ビュー行列と射影行列
 	struct PerView
 	{
-		Matrix4x4 viewProjectionMatrix{}; // ビュー射影行列
-		Matrix4x4 billboardMatrix{}; // ビルボード用行列
-		uint32_t billboardMode{}; // ビルボードモード
-		float padding[3]{}; // パディング
+		Matrix4x4 viewProjectionMatrix{};
+		Matrix4x4 billboardMatrix{};
+		uint32_t billboardMode{};
+		float padding[3]{};
 	};
 
 	// 時間計測用
 	struct PerFrame
 	{
-		float time = 0.0f; // 経過時間
-		float deltaTime = 1.0f / 60.0f; // 前フレームからの経過時間
+		float time = 0.0f;
+		float deltaTime = 1.0f / 60.0f;
 	};
 
 public: /// ---------- メンバ関数 ---------- ///
 
-	/// <summary>
-	/// GPU パーティクル用バッファの初期化処理。
-	/// </summary>
 	void Initialize(Camera* camera);
-
-	/// <summary>
-	/// 毎フレームのカメラ・時間データをCPUステージングへ更新します。
-	/// </summary>
 	void Update(float deltaTime);
 
 public: /// ---------- ゲッター ---------- ///
 
 	ID3D12Resource* GetParticleBuffer() const { return particleBuffer_.Get(); }
 	ID3D12Resource* GetFreeCounterBuffer() const { return freeListIndexBuffer_.Get(); }
+	ID3D12Resource* GetPerFrameBuffer();
+	ID3D12Resource* GetEmitterBuffer();
 
 	static uint32_t GetMaxParticles() { return kMaxParticles; }
 	uint32_t GetParticleSrvIndex() const { return particleSrvIndex_; }
@@ -145,12 +141,12 @@ private: /// ---------- メンバ変数 ---------- ///
 	PerFrame perFrameData_{};
 	std::array<GpuEmitterCBData, kEmitterCBSlotCount> emitterData_{};
 
+	PerFrameUploadBuffer<PerFrame> perFrameBuffers_;
+	PerFrameUploadBuffer<GpuEmitterCBData> emitterBootstrapBuffers_; // 旧初期化Dispatch用CBもFrame別に保持して同期契約を崩さない。
+
 	D3D12_GPU_VIRTUAL_ADDRESS perViewGpuAddress_ = 0;
-	D3D12_GPU_VIRTUAL_ADDRESS perFrameGpuAddress_ = 0;
 	uint32_t perViewUploadedFrameIndex_ = UINT32_MAX;
-	uint32_t perFrameUploadedFrameIndex_ = UINT32_MAX;
 	bool perViewDirty_ = true;
-	bool perFrameDirty_ = true; // 動的CBは現在FrameのUpload Arenaへ転送し、GPU参照中の前Frame領域を上書きしない。
 
 	Matrix4x4 worldViewProjectionMatrix;
 	Matrix4x4 debugViewProjectionMatrix_;
