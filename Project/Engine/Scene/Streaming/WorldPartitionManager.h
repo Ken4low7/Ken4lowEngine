@@ -1,11 +1,10 @@
 #pragma once
 
 #include <Engine/Scene/Level/LevelDocument.h>
+#include <Vector3.h>
 
 #include <cstddef>
 #include <vector>
-
-class Vector3;
 
 namespace Ken4lowEngine
 {
