@@ -107,9 +107,9 @@ namespace Ken4lowEngine
 		void SetAlphaBlendEnabled(bool enabled) { alphaBlendEnabled_ = enabled; }
 		bool IsAlphaBlendEnabled() const { return alphaBlendEnabled_; }
 
-		void SetDissolveThreshold(float threshold) { dissolveSetting_->threshold = threshold; }
-		void SetDissolveEdgeThickness(float thickness) { dissolveSetting_->edgeThickness = thickness; }
-		void SetDissolveEdgeColor(const Vector4& color) { dissolveSetting_->edgeColor = color; }
+		void SetDissolveThreshold(float threshold) { dissolveSetting_.threshold = threshold; }
+		void SetDissolveEdgeThickness(float thickness) { dissolveSetting_.edgeThickness = thickness; }
+		void SetDissolveEdgeColor(const Vector4& color) { dissolveSetting_.edgeColor = color; }
 
 	private:
 		void InitializeCameraResource();
@@ -134,19 +134,15 @@ namespace Ken4lowEngine
 		MaterialTextureSlots materialTextureSlots_{};
 		WorldTransform worldTransform_;
 		WorldTransform shadowWorldTransform_;
-		ComPtr<ID3D12Resource> cameraResource;
-		CameraForGPU* cameraData = nullptr;
-		ComPtr<ID3D12Resource> shadowTransformResource_;
-		TransformationMatrix* shadowTransformData_ = nullptr;
+		CameraForGPU cameraData_{};
+		TransformationMatrix shadowTransformData_{};
 		float alpha = 1.0f;
 		std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> materialSRVs_;
 		std::vector<bool> materialUsePointSampling_;
 		D3D12_GPU_DESCRIPTOR_HANDLE environmentMapHandle_{};
 		D3D12_GPU_DESCRIPTOR_HANDLE dissolveMaskHandle_{};
-		Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
-		DissolveSetting* dissolveSetting_ = nullptr;
-		ComPtr<ID3D12Resource> shadowParameterResource_;
-		ShadowParameterForGPU* shadowParameterData_ = nullptr;
+		DissolveSetting dissolveSetting_{};
+		ShadowParameterForGPU shadowParameterData_{}; // GPUへ渡す直前までCPU stagingに保持し、Frame Upload Arenaへコピーする。
 		D3D12_GPU_DESCRIPTOR_HANDLE shadowMapHandle_{};
 		bool frustumCullingEnabled_ = true;
 		bool isStageObjectCullingUnit_ = false;
