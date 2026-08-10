@@ -11,6 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace Ken4lowEngine
@@ -35,6 +36,7 @@ namespace Ken4lowEngine
 	class JobHandle
 	{
 	public:
+		JobHandle() = default; // 空Jobや投入失敗を表す無効Handleとして使用する。
 		[[nodiscard]] bool IsValid() const { return state_ != nullptr; }
 		[[nodiscard]] bool IsComplete() const { return !state_ || state_->remaining.load(std::memory_order_acquire) == 0; }
 		[[nodiscard]] bool HasFailed() const;
