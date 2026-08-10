@@ -8,6 +8,7 @@
 #include "MainRenderTarget.h"
 #include "ShadowMapRenderTarget.h"
 #include "PipelineFactory.h"
+#include <Engine/Graphics/Device/Buffer/FrameUploadArena.h>
 
 #include <dxcapi.h>
 #include <memory>
@@ -68,6 +69,8 @@ namespace Ken4lowEngine
 		DXCCompilerManager* GetDXCCompilerManager() { return dxcCompilerManager_.get(); }
 		DX12CommandManager* GetCommandManager() { return commandManager_.get(); }
 		DX12FenceManager* GetFenceManager() { return fenceManager_.get(); }
+		FrameUploadArena& GetFrameUploadArena() { return frameUploadArena_; }
+		const FrameUploadArena& GetFrameUploadArena() const { return frameUploadArena_; }
 		DXGI_SWAP_CHAIN_DESC1& GetSwapChainDesc() const { return swapChain_->GetSwapChainDesc(); }
 		const EndDrawPerformanceTiming& GetEndDrawPerformanceTiming() const { return endDrawPerformanceTiming_; }
 
@@ -120,6 +123,7 @@ namespace Ken4lowEngine
 		std::unique_ptr<DXCCompilerManager> dxcCompilerManager_;
 		std::unique_ptr<DX12CommandManager> commandManager_;
 		std::unique_ptr<DX12FenceManager> fenceManager_;
+		FrameUploadArena frameUploadArena_;
 
 		PipelineFactory pipelineFactory_;
 		std::unique_ptr<MainRenderTarget> mainRenderTarget_;
