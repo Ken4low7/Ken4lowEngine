@@ -55,7 +55,7 @@ namespace Ken4lowEngine
 		void Bind(uint32_t extendedShadowCbvRootIndex, uint32_t csmSrvRootIndex, uint32_t pointSrvRootIndex) const;
 
 		const Matrix4x4& GetActivePassLightViewProjection() const { return activePassLightViewProjection_; }
-		const ExtendedShadowParameterGPU& GetGpuData() const { return *gpuData_; }
+		const ExtendedShadowParameterGPU& GetGpuData() const { return gpuData_; }
 
 	private:
 		void ExecuteLegacyPass(LightManager& lightManager, const std::function<void()>& drawShadowObjects);
@@ -68,8 +68,10 @@ namespace Ken4lowEngine
 		DirectXCommon* dxCommon_ = nullptr;
 		std::unique_ptr<ShadowMapArrayRenderTarget> csmRenderTarget_;
 		std::unique_ptr<ShadowMapArrayRenderTarget> pointRenderTarget_;
-		ComPtr<ID3D12Resource> extendedShadowResource_;
-		ExtendedShadowParameterGPU* gpuData_ = nullptr;
+		ExtendedShadowParameterGPU gpuData_{};
+		mutable D3D12_GPU_VIRTUAL_ADDRESS uploadedGpuAddress_ = 0;
+		mutable uint32_t uploadedFrameIndex_ = UINT32_MAX;
+		mutable bool gpuDataDirty_ = true;
 		Matrix4x4 activePassLightViewProjection_ = Matrix4x4::MakeIdentity();
 		uint32_t desiredMapSize_ = 2048;
 	};
