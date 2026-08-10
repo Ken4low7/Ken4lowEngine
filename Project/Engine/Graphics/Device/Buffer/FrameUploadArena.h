@@ -58,7 +58,7 @@ namespace Ken4lowEngine
 			capacityBytesPerFrame_ = (std::max)(capacityBytesPerFrame, std::size_t{ 64u * 1024u });
 			frames_.resize((std::max)(1u, frameCount));
 
-			for (uint32_t frameIndex = 0; frameIndex < frames_.size(); ++frameIndex)
+			for (std::size_t frameIndex = 0; frameIndex < frames_.size(); ++frameIndex)
 			{
 				FrameData& frame = frames_[frameIndex];
 				frame.resource = ResourceManager::CreateBufferResource(device_, capacityBytesPerFrame_);
@@ -72,7 +72,7 @@ namespace Ken4lowEngine
 				assert(SUCCEEDED(hr));
 
 				wchar_t resourceName[64]{};
-				swprintf_s(resourceName, L"Frame Upload Arena %u", frameIndex);
+				swprintf_s(resourceName, L"Frame Upload Arena %u", static_cast<unsigned int>(frameIndex));
 				frame.resource->SetName(resourceName);
 			}
 
