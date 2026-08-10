@@ -12,6 +12,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace Ken4lowEngine
@@ -32,6 +33,7 @@ namespace Ken4lowEngine
 	class StreamingRequestHandle
 	{
 	public:
+		StreamingRequestHandle() = default; // Request拒否や未設定状態を表す無効Handleとして使用する。
 		[[nodiscard]] bool IsValid() const { return id_ != 0 && state_ != nullptr; }
 		[[nodiscard]] uint64_t GetId() const { return id_; }
 		[[nodiscard]] bool IsCanceled() const { return !state_ || state_->canceled.load(std::memory_order_acquire); }
