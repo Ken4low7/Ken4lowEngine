@@ -2303,4 +2303,19 @@
       <Filter>Engine\Graphics\Renderer\Animation\Core</Filter>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Engine\Scene\Actor\Serialization\PrefabInstanceRegistry.cpp"><Filter>Engine\Scene\Actor\Serialization</Filter></ClCompile>
+    <ClCompile Include="Engine\Scene\Level\LevelSerializer.cpp"><Filter>Engine\Scene\Level</Filter></ClCompile>
+    <ClCompile Include="Engine\Scene\Level\LevelVersionMigration.cpp"><Filter>Engine\Scene\Level</Filter></ClCompile>
+    <ClCompile Include="Engine\Scene\Level\PrefabReferenceResolver.cpp"><Filter>Engine\Scene\Level</Filter></ClCompile>
+    <ClCompile Include="Engine\Scene\Level\TransactionalLevelLoader.cpp"><Filter>Engine\Scene\Level</Filter></ClCompile>
+    <ClCompile Include="Engine\Scene\Management\SceneDefinitionSerializer.cpp"><Filter>Engine\Scene\Management</Filter></ClCompile>
+    <ClInclude Include="Engine\Scene\Actor\Serialization\PrefabInstanceRegistry.h"><Filter>Engine\Scene\Actor\Serialization</Filter></ClInclude>
+    <ClInclude Include="Engine\Scene\Level\LevelDocument.h"><Filter>Engine\Scene\Level</Filter></ClInclude>
+    <ClInclude Include="Engine\Scene\Level\LevelSerializer.h"><Filter>Engine\Scene\Level</Filter></ClInclude>
+    <ClInclude Include="Engine\Scene\Level\LevelVersionMigration.h"><Filter>Engine\Scene\Level</Filter></ClInclude>
+    <ClInclude Include="Engine\Scene\Level\PrefabReferenceResolver.h"><Filter>Engine\Scene\Level</Filter></ClInclude>
+    <ClInclude Include="Engine\Scene\Level\TransactionalLevelLoader.h"><Filter>Engine\Scene\Level</Filter></ClInclude>
+    <ClInclude Include="Engine\Scene\Management\SceneDefinitionSerializer.h"><Filter>Engine\Scene\Management</Filter></ClInclude>
+  </ItemGroup>
 </Project>

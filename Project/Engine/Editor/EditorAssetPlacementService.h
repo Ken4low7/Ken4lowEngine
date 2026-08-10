@@ -141,6 +141,7 @@ namespace Ken4lowEngine
 				ActorSpawnOptions options{};
 				options.applySpawnOffset = false;
 				options.disableAutoRegisterMainCamera = true;
+				options.trackPrefabReference = true;
 				const std::string prefabPath = (std::filesystem::path("Resources") / relativePath).generic_string();
 				result.spawnedActor = actorWorld->SpawnActorFromJson(prefabPath, options);
 				if (!result.spawnedActor)

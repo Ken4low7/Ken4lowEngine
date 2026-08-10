@@ -12,6 +12,9 @@
 #include <CameraManager.h>
 #include <DebugCamera.h>
 #include <LightManager.h>
+#include <LevelDocument.h>
+#include <LevelSerializer.h>
+#include <TransactionalLevelLoader.h>
 #include <SceneComponent.h>
 #include <SceneManager.h>
 #include <ShadowSettings.h>
@@ -221,7 +224,7 @@ namespace Ken4lowEngine
 		static inline const std::filesystem::path kBackupDirectory = "../Generated/Backups/Levels";
 		static inline const std::filesystem::path kRecentLevelsPath = "../Generated/Editor/RecentLevels.json";
 		static inline const std::filesystem::path kTemporaryLoadDirectory = "../Generated/Intermediate/EditorLevelLoad";
-		static constexpr int kCurrentFormatVersion = 1;
+		static constexpr int kCurrentFormatVersion = static_cast<int>(LevelDocument::kCurrentVersion);
 		static constexpr std::size_t kMaximumRecentLevels = 10;
 
 		EditorLevelService() = default;
@@ -542,48 +545,14 @@ namespace Ken4lowEngine
 		nlohmann::json SerializeLevel(ActorWorld& actorWorld) const
 		{
 			BaseScene* scene = GetCurrentScene();
-			nlohmann::json level;
-			level["Format"] = "Ken4lowLevel";
-			level["Version"] = kCurrentFormatVersion;
-			level["Name"] = currentLevelPath_.empty() ? "Untitled" : currentLevelPath_.stem().string();
-			level["LevelSettings"] = {
-				{ "TargetScene", scene ? ResolveSceneName(*scene) : "UnknownScene" },
-			};
-			level["Actors"] = nlohmann::json::array();
-
-			std::unordered_map<const Actor*, std::string> actorIds;
-			std::size_t actorIndex = 0;
-			for (const auto& actorOwner : actorWorld.GetActors())
-			{
-				Actor* actor = actorOwner.get();
-				if (!actor || actor->IsPendingDestroy()) continue;
-				actorIds.emplace(actor, "Actor_" + std::to_string(actorIndex++));
-			}
-
-			for (const auto& actorOwner : actorWorld.GetActors())
-			{
-				Actor* actor = actorOwner.get();
-				if (!actor || actor->IsPendingDestroy()) continue;
-				const EditorActorState editorState = EditorActorStateRegistry::GetInstance()->GetState(actor);
-				Actor* parentActor = GetParentActor(*actor);
-				const auto parentId = parentActor ? actorIds.find(parentActor) : actorIds.end();
-
-				level["Actors"].push_back({
-					{ "Id", actorIds.at(actor) },
-					{ "ParentId", parentId != actorIds.end() ? parentId->second : std::string{} },
-					{ "Editor", {
-						{ "Visible", editorState.visible },
-						{ "Locked", editorState.locked },
-						{ "Folder", editorState.folderPath },
-					} },
-					{ "Data", ActorJsonSerializer::SerializeActor(*actor) },
-				});
-			}
-
-			level["Lighting"] = SerializeLighting();
-			level["Camera"] = SerializeCamera();
-			level["Environment"] = nlohmann::json::object(); // EnvironmentはPhase 10の拡張領域としてLevel形式に先行確保する。
-			return level;
+			LevelDocument document = LevelSerializer::CaptureWorld(
+				actorWorld,
+				currentLevelPath_.empty() ? "Untitled" : currentLevelPath_.stem().string(),
+				scene ? ResolveSceneName(*scene) : "UnknownScene",
+				SerializeLighting(),
+				SerializeCamera(),
+				nlohmann::json::object());
+			return LevelSerializer::Serialize(document);
 		}
 
 		bool SaveLevelToPath(
@@ -609,22 +578,22 @@ namespace Ken4lowEngine
 
 			try
 			{
-				if (path.has_parent_path()) std::filesystem::create_directories(path.parent_path());
 				if (createBackup && std::filesystem::exists(path)) CreateBackup(path);
+				BaseScene* scene = GetCurrentScene();
+				LevelDocument document = LevelSerializer::CaptureWorld(
+					*actorWorld,
+					path.stem().string(),
+					scene ? ResolveSceneName(*scene) : "UnknownScene",
+					SerializeLighting(),
+					SerializeCamera(),
+					nlohmann::json::object());
 
-				const nlohmann::json levelJson = SerializeLevel(*actorWorld);
-				const std::filesystem::path temporaryPath = path.string() + ".tmp";
+				const LevelSerializer::Result saveResult = LevelSerializer::SaveToFileAtomic(path, document);
+				if (!saveResult.succeeded)
 				{
-					std::ofstream file(temporaryPath, std::ios::trunc);
-					if (!file.is_open())
-					{
-						SetStatus(false, std::string(operationName) + " failed: " + path.generic_string());
-						return false;
-					}
-					file << levelJson.dump(4);
+					SetStatus(false, std::string(operationName) + " failed: " + saveResult.message);
+					return false;
 				}
-				if (std::filesystem::exists(path)) std::filesystem::remove(path);
-				std::filesystem::rename(temporaryPath, path); // 一時ファイルを書き切ってから置換し、途中終了でLevel本体を壊しにくくする。
 
 				if (updateCurrentPath)
 				{
@@ -705,91 +674,39 @@ namespace Ken4lowEngine
 			}
 
 			const std::filesystem::path path = NormalizeLevelPath(requestedPath);
-			try
+			LevelDocument document{};
+			const LevelSerializer::Result parseResult = LevelSerializer::LoadFromFile(path, document);
+			if (!parseResult.succeeded)
 			{
-				std::ifstream file(path);
-				if (!file.is_open())
-				{
-					SetStatus(false, "Open failed: " + path.generic_string());
-					return false;
-				}
-
-				nlohmann::json levelJson;
-				file >> levelJson;
-				if (!levelJson.is_object() || levelJson.value("Format", std::string{}) != "Ken4lowLevel")
-				{
-					SetStatus(false, "Ken4lowLevel形式ではありません: " + path.generic_string());
-					return false;
-				}
-				const int version = levelJson.value("Version", 0);
-				if (version <= 0 || version > kCurrentFormatVersion)
-				{
-					SetStatus(false, "未対応のLevel Versionです: " + std::to_string(version));
-					return false;
-				}
-
-				std::vector<PendingLoadedActor> pendingActors;
-				if (!levelJson.contains("Actors") || !PrepareActorLoadFiles(levelJson["Actors"], pendingActors))
-				{
-					SetStatus(false, "Actor配列の準備に失敗しました: " + path.generic_string());
-					return false;
-				}
-
-				EditorContext::GetInstance()->ResetTransientState();
-				EditorCommandHistory::GetInstance()->Clear();
-				actorWorld->SetSelectedEditorObject(nullptr, nullptr);
-				actorWorld->Finalize();
-				actorWorld->Initialize(); // Level読込後のActorを実行中Spawnと同じライフサイクルで登録する。
-
-				std::unordered_map<std::string, Actor*> loadedActors;
-				for (PendingLoadedActor& pending : pendingActors)
-				{
-					Actor* actor = actorWorld->SpawnActorFromJson(pending.temporaryActorPath.generic_string());
-					if (!actor)
-					{
-						actorWorld->Finalize();
-						actorWorld->Initialize();
-						std::filesystem::remove_all(kTemporaryLoadDirectory);
-						SetStatus(false, "Actorの復元に失敗しました: " + pending.id);
-						return false;
-					}
-					RestoreCameraRegistration(*actor, pending.actorJson);
-					EditorActorStateRegistry::GetInstance()->SetState(actor, pending.editorState);
-					loadedActors[pending.id] = actor;
-				}
-
-				for (const PendingLoadedActor& pending : pendingActors)
-				{
-					if (pending.parentId.empty()) continue;
-					const auto childIt = loadedActors.find(pending.id);
-					const auto parentIt = loadedActors.find(pending.parentId);
-					if (childIt == loadedActors.end() || parentIt == loadedActors.end()) continue;
-					SceneComponent* childRoot = childIt->second ? childIt->second->GetRootComponent() : nullptr;
-					SceneComponent* parentRoot = parentIt->second ? parentIt->second->GetRootComponent() : nullptr;
-					if (childRoot && parentRoot) childRoot->AttachTo(parentRoot); // Actor JSONのLocal Transformを維持したまま親子関係だけを復元する。
-				}
-
-				if (levelJson.contains("Lighting")) DeserializeLighting(levelJson["Lighting"]);
-				if (levelJson.contains("Camera")) DeserializeCamera(levelJson["Camera"]);
-				std::filesystem::remove_all(kTemporaryLoadDirectory);
-
-				actorWorld->SetSelectedEditorObject(nullptr, nullptr);
-				EditorContext::GetInstance()->GetSelection().Clear();
-				currentLevelPath_ = path;
-				EditorContext::GetInstance()->SetActiveLevelName(path.filename().string());
-				EditorContext::GetInstance()->MarkLevelDirty(false);
-				autoSaveElapsed_ = 0.0f;
-				AddRecentLevel(path);
-				SetStatus(true, "Opened: " + path.generic_string());
-				return true;
-			}
-			catch (const std::exception& exception)
-			{
-				std::error_code error;
-				std::filesystem::remove_all(kTemporaryLoadDirectory, error);
-				SetStatus(false, std::string("Open failed: ") + exception.what());
+				SetStatus(false, "Open failed: " + parseResult.message);
 				return false;
 			}
+
+			const TransactionalLevelLoader::Result loadResult = TransactionalLevelLoader::LoadDocument(document, *actorWorld);
+			if (!loadResult.succeeded)
+			{
+				SetStatus(false, "Open failed: " + loadResult.message);
+				return false; // Commit前失敗では現在のActorWorldとEditor状態を維持する。
+			}
+
+			EditorCommandHistory::GetInstance()->Clear();
+			EditorContext::GetInstance()->GetSelection().Clear();
+			EditorContext::GetInstance()->ClearPlacementRequest();
+			actorWorld->SetSelectedEditorObject(nullptr, nullptr);
+			currentLevelPath_ = path;
+			EditorContext::GetInstance()->SetActiveLevelName(path.filename().string());
+			EditorContext::GetInstance()->MarkLevelDirty(false);
+			autoSaveElapsed_ = 0.0f;
+			AddRecentLevel(path);
+
+			std::string message = "Opened: " + path.generic_string();
+			if (parseResult.migrated)
+			{
+				message += " (Version " + std::to_string(parseResult.sourceVersion) + " -> " +
+					std::to_string(LevelDocument::kCurrentVersion) + ")";
+			}
+			SetStatus(true, std::move(message));
+			return true;
 		}
 
 		static std::string MakeTimestamp()

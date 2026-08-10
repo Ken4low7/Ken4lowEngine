@@ -1067,4 +1067,19 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets"></ImportGroup>
+  <ItemGroup>
+    <ClCompile Include="Engine\Scene\Actor\Serialization\PrefabInstanceRegistry.cpp" />
+    <ClCompile Include="Engine\Scene\Level\LevelSerializer.cpp" />
+    <ClCompile Include="Engine\Scene\Level\LevelVersionMigration.cpp" />
+    <ClCompile Include="Engine\Scene\Level\PrefabReferenceResolver.cpp" />
+    <ClCompile Include="Engine\Scene\Level\TransactionalLevelLoader.cpp" />
+    <ClCompile Include="Engine\Scene\Management\SceneDefinitionSerializer.cpp" />
+    <ClInclude Include="Engine\Scene\Actor\Serialization\PrefabInstanceRegistry.h" />
+    <ClInclude Include="Engine\Scene\Level\LevelDocument.h" />
+    <ClInclude Include="Engine\Scene\Level\LevelSerializer.h" />
+    <ClInclude Include="Engine\Scene\Level\LevelVersionMigration.h" />
+    <ClInclude Include="Engine\Scene\Level\PrefabReferenceResolver.h" />
+    <ClInclude Include="Engine\Scene\Level\TransactionalLevelLoader.h" />
+    <ClInclude Include="Engine\Scene\Management\SceneDefinitionSerializer.h" />
+  </ItemGroup>
 </Project>

@@ -257,6 +257,7 @@ namespace Ken4lowEngine
 				options.applySpawnOffset = true;
 				options.spawnOffset = actorPrefabSpawnOffset_;
 				options.disableAutoRegisterMainCamera = true;
+				options.trackPrefabReference = true;
 				pendingSpawnFilePath_ = actorPrefabPath_;
 				pendingSpawnOptions_ = options;
 				hasPendingSpawnActor_ = true;

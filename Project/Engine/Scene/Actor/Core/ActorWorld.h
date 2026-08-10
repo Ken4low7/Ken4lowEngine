@@ -121,6 +121,11 @@ namespace Ken4lowEngine
 		/// </summary>
 		void Finalize();
 
+		/// <summary>全ActorのStaging成功後だけ現在Worldを置換するTransactional Loader専用入口。</summary>
+		bool CommitStagedActors(
+			std::vector<std::unique_ptr<Actor>> stagedActors,
+			std::vector<Actor*>* outActors = nullptr);
+
 		/// <summary>
 		/// 名前からActorを検索する
 		/// </summary>

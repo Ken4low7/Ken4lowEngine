@@ -1,6 +1,7 @@
 #include "ActorWorld.h"
 
 #include "ActorJsonSerializer.h"
+#include "PrefabInstanceRegistry.h"
 #include "CameraComponent.h"
 
 #include "LightManager.h"
@@ -147,6 +148,30 @@ namespace Ken4lowEngine
 		isInitialized_ = false; // 再Initialize時にSpawn済みActorを通常初期化できるように戻す
 	}
 
+	bool ActorWorld::CommitStagedActors(
+		std::vector<std::unique_ptr<Actor>> stagedActors,
+		std::vector<Actor*>* outActors)
+	{
+		if (isUpdating_) return false;
+		for (const std::unique_ptr<Actor>& actor : stagedActors)
+		{
+			if (!actor) return false; // Destructive pointへ入る前に全Staging所有権を検証する。
+		}
+
+		if (outActors) outActors->clear();
+		SetSelectedEditorObject(nullptr, nullptr);
+		Finalize();
+		Initialize(); // ここから先は検証済みActorの所有権移動だけなので失敗経路を持たせない。
+
+		if (outActors) outActors->reserve(stagedActors.size());
+		for (std::unique_ptr<Actor>& actor : stagedActors)
+		{
+			Actor* committedActor = AddActorToWorld(std::move(actor), false);
+			if (outActors) outActors->push_back(committedActor);
+		}
+		return true;
+	}
+
 	Actor* ActorWorld::FindActorById(ActorId id)
 	{
 		if (!id.IsValid()) return nullptr;
@@ -284,10 +309,17 @@ namespace Ken4lowEngine
 				continue; // CameraComponentがnullptrなら登録しない
 			}
 
-			cameraComponent->SetAutoRegisterMainCamera(false); // SpawnしたActorのCameraComponentをMainCameraとして登録する
+			if (options.disableAutoRegisterMainCamera)
+			{
+				cameraComponent->SetAutoRegisterMainCamera(false); // Prefab配置時は既存MainCameraを維持する。
+			}
 		}
 
 		AddActorToWorld(std::move(actor), false); // JSON生成済みComponentはSerializer側で初期化されている。
+		if (options.trackPrefabReference)
+		{
+			PrefabInstanceRegistry::GetInstance()->Register(spawnedActor, filePath);
+		}
 
 		selectedActor_ = spawnedActor; // Spawn後は自動的に生成したActorを選択状態にする
 		selectedComponent_ = nullptr; // Spawn後はComponent選択を解除する
@@ -459,6 +491,7 @@ namespace Ken4lowEngine
 
 	void ActorWorld::ReleaseActorFromWorld(Actor& actor)
 	{
+		PrefabInstanceRegistry::GetInstance()->Remove(&actor); // World寿命を越えてPrefab元ポインタを保持しない。
 		for (const auto& component : actor.GetComponents())
 		{
 			if (!component) continue;

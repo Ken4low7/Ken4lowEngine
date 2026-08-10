@@ -202,10 +202,8 @@ namespace Ken4lowEngine
 		result.migrated = document.migrated;
 
 		std::vector<std::unique_ptr<Actor>> stagedActors;
-		std::vector<Actor*> stagedActorPointers;
 		std::unordered_map<std::string, Actor*> actorsById;
 		stagedActors.reserve(document.actors.size());
-		stagedActorPointers.reserve(document.actors.size());
 
 		ActorSpawnOptions spawnOptions{};
 		spawnOptions.applySpawnOffset = false;
@@ -223,7 +221,6 @@ namespace Ken4lowEngine
 
 			Actor* actorPointer = actor.get();
 			actorsById[actorDocument.id] = actorPointer;
-			stagedActorPointers.push_back(actorPointer);
 			stagedActors.push_back(std::move(actor));
 		}
 
