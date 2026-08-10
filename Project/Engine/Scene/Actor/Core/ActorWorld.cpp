@@ -32,7 +32,6 @@ namespace Ken4lowEngine
 			RegisterPhysicsComponents(*actor);
 		}
 
-		RefreshActorPrefabFileList(); // Actor PrefabsのJSONファイル一覧を更新する
 
 		isInitialized_ = true; // ActorWorldの初期化が完了したことを示す
 	}
@@ -177,18 +176,19 @@ namespace Ken4lowEngine
 
 	Actor* ActorWorld::ResolveActor(const ActorHandle& handle)
 	{
-		return FindActorById(handle.GetId());
+		Actor* actor = FindActorById(handle.GetId());
+		return actor && !actor->IsPendingDestroy() ? actor : nullptr; // Destroy予約した時点で外部Handleからは無効として扱う。
 	}
 
 	const Actor* ActorWorld::ResolveActor(const ActorHandle& handle) const
 	{
-		return FindActorById(handle.GetId());
+		const Actor* actor = FindActorById(handle.GetId());
+		return actor && !actor->IsPendingDestroy() ? actor : nullptr; // World終端の実破棄待ちでも参照を再取得させない。
 	}
 
 	bool ActorWorld::IsActorHandleValid(const ActorHandle& handle) const
 	{
-		const Actor* actor = ResolveActor(handle);
-		return actor && !actor->IsPendingDestroy();
+		return ResolveActor(handle) != nullptr;
 	}
 
 	Actor* ActorWorld::FindActorByName(std::string_view name, bool includeInactive)

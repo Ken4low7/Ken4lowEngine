@@ -17,7 +17,7 @@ ActorWorldから外れた時点でlookup tableから削除するため、古いI
 ## ActorHandle
 
 `ActorHandle` はActorやActorWorldを所有せず、`ActorId` のみを保持します。  
-`ActorWorld::ResolveActor()` で必要な瞬間に解決し、Destroy済み・World外のActorは無効になります。  
+`ActorWorld::ResolveActor()` で必要な瞬間に解決し、Destroy予約済み・World外のActorは無効になります。  
 ActorComponentから所有Actorへの短寿命な内部参照は従来どおりnon-owning raw pointerを維持します。
 
 ## Component ordered-cache
@@ -50,6 +50,7 @@ Component追加・削除・`UpdateOrder` / `DrawOrder` 変更時だけdirtyに�
 - `Engine/Editor/Legacy/ActorWorld_ComponentEdit.cpp`
 
 `DebugScene`から`ActorWorld::DrawImGui()`を直接呼ぶ経路を外し、通常Editor導線は既存の`ActorWorldEditorBridge`を正規入口とします。  
+ActorWorldのRuntime初期化からPrefabファイル列挙も外し、Prefab一覧の更新はEditor側の操作時だけ行います。  
 既存Editor機能との互換のためActorWorld上の薄いEditor APIは残しますが、Editor実装本体はRuntime Coreから分離しています。  
 またEditorObject IDは生ポインタ値ではなく`ActorId` / `ComponentId`を優先します。
 
