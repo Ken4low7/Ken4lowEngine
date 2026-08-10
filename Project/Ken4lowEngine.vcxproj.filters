@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="Engine\Graphics\Resource\Asset">
+      <UniqueIdentifier>{2cbb96dc-21fd-48aa-b37e-bc6d78f3822e}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Engine\Graphics\Culling">
       <UniqueIdentifier>{3f7d873e-5b71-4bc1-a491-b26704b48611}</UniqueIdentifier>
     </Filter>
@@ -576,6 +579,15 @@
     </ClCompile>
     <ClCompile Include="Engine\Graphics\RenderState\Blend\BlendStateFactory.cpp">
       <Filter>Engine\Graphics\RenderState\Blend</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Graphics\Resource\Asset\AssetRegistry.cpp">
+      <Filter>Engine\Graphics\Resource\Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Graphics\Resource\Asset\AssetSystem.cpp">
+      <Filter>Engine\Graphics\Resource\Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Graphics\Resource\Asset\GpuDeferredReleaseQueue.cpp">
+      <Filter>Engine\Graphics\Resource\Asset</Filter>
     </ClCompile>
     <ClCompile Include="Engine\Graphics\Resource\Model\AssimpLoader.cpp">
       <Filter>Engine\Graphics\Resource\Model</Filter>
@@ -1424,6 +1436,21 @@
     </ClInclude>
     <ClInclude Include="Engine\Graphics\RenderState\Blend\BlendStateFactory.h">
       <Filter>Engine\Graphics\RenderState\Blend</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Graphics\Resource\Asset\AssetId.h">
+      <Filter>Engine\Graphics\Resource\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Graphics\Resource\Asset\AssetHandle.h">
+      <Filter>Engine\Graphics\Resource\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Graphics\Resource\Asset\AssetRegistry.h">
+      <Filter>Engine\Graphics\Resource\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Graphics\Resource\Asset\AssetSystem.h">
+      <Filter>Engine\Graphics\Resource\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Graphics\Resource\Asset\GpuDeferredReleaseQueue.h">
+      <Filter>Engine\Graphics\Resource\Asset</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Graphics\Resource\Model\PathUtil.h">
       <Filter>Engine\Graphics\Resource\Model</Filter>

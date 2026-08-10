@@ -7,7 +7,7 @@
 #include <SRVManager.h>
 #include <UAVManager.h>
 #include <TextureManager.h>
-#include <Engine/Graphics/Resource/Asset/AssetSystem.h>
+#include <AssetSystem.h>
 #include <SpriteManager.h>
 #include <Object3DCommon.h>
 #include <ModelManager.h>
