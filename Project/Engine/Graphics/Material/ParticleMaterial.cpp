@@ -1,5 +1,4 @@
 #include "ParticleMaterial.h"
-#include "ResourceManager.h"
 #include "DirectXCommon.h"
 
 namespace Ken4lowEngine
@@ -10,34 +9,18 @@ namespace Ken4lowEngine
 /// -------------------------------------------------------------
 void ParticleMaterial::Initialize()
 {
-	ID3D12Device* device = DirectXCommon::GetInstance()->GetDevice();
-
-	const UINT stride = Align256(sizeof(MaterialCBData));
-	const UINT bufferSize = stride * kSlotCount;
-
-	materialResource_ = ResourceManager::CreateBufferResource(device, bufferSize);
-	materialResource_->Map(0, nullptr, &materialDataBase_);
-	std::memset(materialDataBase_, 0, bufferSize);
-
-	// 初期値（全スロット同じでOK）
-	for (uint32_t i = 0; i < kSlotCount; ++i)
+	for (MaterialCBData& material : materialSlots_)
 	{
-		auto* m = reinterpret_cast<MaterialCBData*>(reinterpret_cast<uint8_t*>(materialDataBase_) + stride * i);
-		m->color = { 1,1,1,1 };
-		m->uvTransform = Matrix4x4::MakeIdentity();
-		m->drawType = 0;
+		material = {};
+		material.color = { 1, 1, 1, 1 };
+		material.uvTransform = Matrix4x4::MakeIdentity();
+		material.drawType = 0;
 	}
 }
 
 void ParticleMaterial::Finalize()
 {
-	if (materialResource_)
-	{
-		materialResource_->Unmap(0, nullptr);
-		materialDataBase_ = nullptr;
-		materialData_ = nullptr;
-		materialResource_.Reset();
-	}
+	materialSlots_ = {};
 }
 
 /// -------------------------------------------------------------
@@ -45,12 +28,7 @@ void ParticleMaterial::Finalize()
 /// -------------------------------------------------------------
 void ParticleMaterial::Update()
 {
-	// マテリアルデータがある場合
-	if (materialData_)
-	{
-		materialData_->color = this->materialData_->color;			   // 色
-		materialData_->uvTransform = this->materialData_->uvTransform; // UV変換行列
-	}
+	// CPUステージング値はSetDrawType/GetSlotData経由で直接更新し、描画時にFrameUploadArenaへ転送する。
 }
 
 /// -------------------------------------------------------------
@@ -58,15 +36,16 @@ void ParticleMaterial::Update()
 /// -------------------------------------------------------------
 void ParticleMaterial::SetPipeline(UINT rootParameterIndex, uint32_t slot) const
 {
-	ID3D12GraphicsCommandList* commandList = DirectXCommon::GetInstance()->GetCommandManager()->GetCommandList();
-
-	// マテリアルのリソースがある場合
-	if (materialResource_)
+	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
+	ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandManager()->GetCommandList();
+	const MaterialCBData& material = materialSlots_[slot % kSlotCount];
+	const FrameUploadArena::Allocation allocation = dxCommon->GetFrameUploadArena().AllocateConstant(material);
+	if (!allocation.IsValid())
 	{
-		const UINT stride = Align256(sizeof(MaterialCBData));
-		const uint32_t s = slot % kSlotCount;
-		commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, materialResource_->GetGPUVirtualAddress() + stride * s);
+		return;
 	}
+
+	commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, allocation.gpuAddress);
 }
 
 
