@@ -1,5 +1,6 @@
 #pragma once
 #include "Actor.h"
+#include "ActorHandle.h"
 #include "PhysicsWorld.h"
 #include "ActorSpawnOptions.h"
 #include "ActorJsonSerializer.h"
@@ -10,6 +11,7 @@
 #include <utility>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 namespace Ken4lowEngine
 {
@@ -125,6 +127,15 @@ namespace Ken4lowEngine
 		/// <param name="name">検索するActorの名前</param>
 		Actor* FindActorByName(std::string_view name, bool includeInactive = true);
 
+		Actor* FindActorById(ActorId id);
+		const Actor* FindActorById(ActorId id) const;
+		ActorComponent* FindComponentById(ComponentId id);
+		const ActorComponent* FindComponentById(ComponentId id) const;
+		ActorHandle MakeActorHandle(const Actor* actor) const;
+		Actor* ResolveActor(const ActorHandle& handle);
+		const Actor* ResolveActor(const ActorHandle& handle) const;
+		bool IsActorHandleValid(const ActorHandle& handle) const;
+
 		/// <summary>
 		/// 指定Tagを持つActorを検索する
 		/// </summary>
@@ -196,6 +207,14 @@ namespace Ken4lowEngine
 		void SetupDefaultPhysicsSettings();
 
 	private: /// ---------- 内部処理 ---------- ///
+
+		friend class Actor;
+		void PrepareActorForWorld(Actor& actor);
+		void ReleaseActorFromWorld(Actor& actor);
+		void OnComponentAdded(Actor& actor, ActorComponent& component);
+		void OnComponentRemoving(Actor& actor, ActorComponent& component);
+		void OnComponentRuntimeStateChanged(Actor& actor, ActorComponent& component);
+		void OnActorRuntimeStateChanged(Actor& actor);
 
 		/// <summary>
 		/// ActorWorldで使用するPhysicsWorldを設定する。
@@ -301,6 +320,11 @@ namespace Ken4lowEngine
 
 		// ActorWorldがActorの寿命を管理する
 		std::vector<std::unique_ptr<Actor>> actors_;
+
+		std::unordered_map<uint64_t, Actor*> actorsById_;
+		std::unordered_map<uint64_t, ActorComponent*> componentsById_;
+		uint64_t nextActorId_ = 1;
+		uint64_t nextComponentId_ = 1;
 
 		struct PendingActorAdd
 		{

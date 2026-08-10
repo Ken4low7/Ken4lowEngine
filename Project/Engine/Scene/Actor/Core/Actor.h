@@ -1,6 +1,7 @@
 #pragma once
 #include "ActorComponent.h"
 #include "SceneComponent.h"
+#include "WorldObjectId.h"
 
 #include <memory>
 #include <type_traits>
@@ -12,6 +13,7 @@
 
 namespace Ken4lowEngine
 {
+	class ActorWorld;
 	/// -------------------------------------------------------------
 	/// 			ゲーム内オブジェクトの基底クラス
 	/// -------------------------------------------------------------
@@ -34,6 +36,7 @@ namespace Ken4lowEngine
 			component->SetOwner(this); // Componentに所有者Actorを設定する
 
 			components_.push_back(std::move(component));
+			NotifyComponentAdded(ref);
 			return ref;
 		}
 
@@ -246,6 +249,10 @@ namespace Ken4lowEngine
 			return components_; // Editor表示用に読み取り専用でComponent一覧を返す
 		}
 
+	public: /// ---------- Runtime ID ---------- ///
+
+		ActorId GetId() const { return id_; }
+
 	public: /// ---------- 名前設定 ---------- ///
 
 		/// <summary>
@@ -271,7 +278,9 @@ namespace Ken4lowEngine
 		/// </summary>
 		void SetActive(bool active)
 		{
+			if (isActive_ == active) return;
 			isActive_ = active; // Actor単位でUpdate/Draw対象に含めるかを切り替える
+			NotifyActorRuntimeStateChanged();
 		}
 
 		/// <summary>
@@ -328,6 +337,9 @@ namespace Ken4lowEngine
 		/// </summary>
 		const ActorComponent* FindComponentByName(std::string_view name) const;
 
+		ActorComponent* FindComponentById(ComponentId id);
+		const ActorComponent* FindComponentById(ComponentId id) const;
+
 	public: /// ---------- RootComponent ---------- ///
 
 		/// <summary>
@@ -364,7 +376,24 @@ namespace Ken4lowEngine
 			return isPhysicsRegistered_; // PhysicsWorldへの登録状態を返す
 		}
 
+	private: /// ---------- ActorWorld連携 ---------- ///
+
+		friend class ActorWorld;
+		friend class ActorComponent;
+		void SetId(ActorId id) { id_ = id; }
+		void SetWorld(ActorWorld* world) { world_ = world; }
+		void NotifyComponentAdded(ActorComponent& component);
+		void NotifyComponentRemoving(ActorComponent& component);
+		void NotifyComponentRuntimeStateChanged(ActorComponent& component);
+		void NotifyActorRuntimeStateChanged();
+		void MarkComponentOrderDirty(bool updateOrderChanged, bool drawOrderChanged);
+
 	private: /// ---------- メンバ変数 ---------- ///
+
+		ActorId id_{}; // World内だけで有効な実行時ID。
+		ActorWorld* world_ = nullptr; // 所有権はActorWorld側。
+		bool updateOrderCacheDirty_ = true;
+		bool drawOrderCacheDirty_ = true;
 
 		// Actor全体の基準Transform。所有権はcomponents_側が持つ
 		SceneComponent* rootComponent_ = nullptr;

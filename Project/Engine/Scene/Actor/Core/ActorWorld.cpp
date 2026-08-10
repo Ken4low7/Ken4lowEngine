@@ -132,14 +132,19 @@ namespace Ken4lowEngine
 
 			// Actor破棄前にComponent側のFinalizeまで流す
 			actor->FinalizeForWorld();
+			ReleaseActorFromWorld(*actor);
 		}
 
 		actors_.clear(); // Finalize後にActorを破棄し、古い状態が残らないようにする
 		for (PendingActorAdd& pending : pendingActorAdds_)
 		{
-			if (pending.actor) pending.actor->FinalizeForWorld();
+			if (!pending.actor) continue;
+			pending.actor->FinalizeForWorld();
+			ReleaseActorFromWorld(*pending.actor);
 		}
 		pendingActorAdds_.clear();
+		actorsById_.clear();
+		componentsById_.clear();
 		LightManager::GetInstance()->SetLightComponentLights({}); // ActorWorld破棄時にComponent由来ライトを解除する
 #ifdef USE_IMGUI
 		EditorActorStateRegistry::GetInstance()->Clear();
@@ -147,6 +152,55 @@ namespace Ken4lowEngine
 #endif
 
 		isInitialized_ = false; // 再Initialize時にSpawn済みActorを通常初期化できるように戻す
+	}
+
+	Actor* ActorWorld::FindActorById(ActorId id)
+	{
+		if (!id.IsValid()) return nullptr;
+		const auto found = actorsById_.find(id.value);
+		return found != actorsById_.end() ? found->second : nullptr;
+	}
+
+	const Actor* ActorWorld::FindActorById(ActorId id) const
+	{
+		if (!id.IsValid()) return nullptr;
+		const auto found = actorsById_.find(id.value);
+		return found != actorsById_.end() ? found->second : nullptr;
+	}
+
+	ActorComponent* ActorWorld::FindComponentById(ComponentId id)
+	{
+		if (!id.IsValid()) return nullptr;
+		const auto found = componentsById_.find(id.value);
+		return found != componentsById_.end() ? found->second : nullptr;
+	}
+
+	const ActorComponent* ActorWorld::FindComponentById(ComponentId id) const
+	{
+		if (!id.IsValid()) return nullptr;
+		const auto found = componentsById_.find(id.value);
+		return found != componentsById_.end() ? found->second : nullptr;
+	}
+
+	ActorHandle ActorWorld::MakeActorHandle(const Actor* actor) const
+	{
+		return actor && OwnsActor(actor) ? ActorHandle(actor->GetId()) : ActorHandle{};
+	}
+
+	Actor* ActorWorld::ResolveActor(const ActorHandle& handle)
+	{
+		return FindActorById(handle.GetId());
+	}
+
+	const Actor* ActorWorld::ResolveActor(const ActorHandle& handle) const
+	{
+		return FindActorById(handle.GetId());
+	}
+
+	bool ActorWorld::IsActorHandleValid(const ActorHandle& handle) const
+	{
+		const Actor* actor = ResolveActor(handle);
+		return actor && !actor->IsPendingDestroy();
 	}
 
 	Actor* ActorWorld::FindActorByName(std::string_view name, bool includeInactive)
@@ -371,6 +425,7 @@ namespace Ken4lowEngine
 		if (!actor) return nullptr;
 		Actor* spawnedActor = actor.get();
 		spawnedActor->SetName(MakeUniqueActorName(spawnedActor->GetName())); // 全生成経路でActor名の一意性を保証する。
+		PrepareActorForWorld(*spawnedActor);
 		if (isUpdating_)
 		{
 			pendingActorAdds_.push_back({ std::move(actor), initializeActor });
@@ -381,6 +436,67 @@ namespace Ken4lowEngine
 		if (isInitialized_ && initializeActor) spawnedActor->InitializeForWorld();
 		if (isInitialized_) RegisterPhysicsComponents(*spawnedActor);
 		return spawnedActor;
+	}
+
+	void ActorWorld::PrepareActorForWorld(Actor& actor)
+	{
+		ActorId actorId = actor.GetId();
+		if (!actorId.IsValid() || (actorsById_.contains(actorId.value) && actorsById_[actorId.value] != &actor))
+		{
+			actorId = ActorId{ nextActorId_++ };
+			actor.SetId(actorId);
+		}
+		actorsById_[actorId.value] = &actor;
+		actor.SetWorld(this);
+		for (const auto& component : actor.GetComponents())
+		{
+			if (component) OnComponentAdded(actor, *component);
+		}
+	}
+
+	void ActorWorld::ReleaseActorFromWorld(Actor& actor)
+	{
+		for (const auto& component : actor.GetComponents())
+		{
+			if (!component) continue;
+			if (component->GetId().IsValid()) componentsById_.erase(component->GetId().value);
+			component->SetId({});
+		}
+		if (actor.GetId().IsValid()) actorsById_.erase(actor.GetId().value);
+		actor.SetWorld(nullptr);
+		actor.SetId({});
+	}
+
+	void ActorWorld::OnComponentAdded(Actor& actor, ActorComponent& component)
+	{
+		ComponentId componentId = component.GetId();
+		if (!componentId.IsValid() || (componentsById_.contains(componentId.value) && componentsById_[componentId.value] != &component))
+		{
+			componentId = ComponentId{ nextComponentId_++ };
+			component.SetId(componentId);
+		}
+		componentsById_[componentId.value] = &component;
+		if (isInitialized_ && component.IsInitialized()) RegisterPhysicsComponents(actor);
+	}
+
+	void ActorWorld::OnComponentRemoving(Actor& actor, ActorComponent& component)
+	{
+		if (isInitialized_) UnregisterPhysicsComponents(actor);
+		if (component.GetId().IsValid()) componentsById_.erase(component.GetId().value);
+		component.SetId({});
+	}
+
+	void ActorWorld::OnComponentRuntimeStateChanged(Actor& actor, ActorComponent&)
+	{
+		if (!isInitialized_) return;
+		RegisterPhysicsComponents(actor);
+	}
+
+	void ActorWorld::OnActorRuntimeStateChanged(Actor& actor)
+	{
+		if (!isInitialized_) return;
+		if (actor.IsActive() && !actor.IsPendingDestroy()) RegisterPhysicsComponents(actor);
+		else UnregisterPhysicsComponents(actor);
 	}
 
 	void ActorWorld::ProcessPendingActorAdds()
@@ -429,6 +545,7 @@ namespace Ken4lowEngine
 				ClearReferencesToActor(*actor);
 				UnregisterPhysicsComponents(*actor);
 				actor->FinalizeForWorld();
+				ReleaseActorFromWorld(*actor);
 				lastActorJsonSaveMessage_ = "Destroyed : " + actorName;
 				return true;
 			});

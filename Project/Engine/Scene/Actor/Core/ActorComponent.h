@@ -1,5 +1,7 @@
 #pragma once
 
+#include "WorldObjectId.h"
+
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -15,6 +17,7 @@ namespace Ken4lowEngine
 
 	// ActorComponentが所有者Actorを参照するための前方宣言
 	class Actor;
+	class ActorWorld;
 
 	/// -------------------------------------------------------------
 	/// 		  Actorに追加できる機能単位の基底クラス
@@ -127,6 +130,7 @@ namespace Ken4lowEngine
 			if (isInitialized_) return;
 			Initialize();
 			isInitialized_ = true;
+			NotifyOwnerRuntimeStateChanged(); // 初期化で生成されたPhysics実体をWorldへ通知する。
 		}
 
 		/// ActorWorldから外れる際に終了処理を一度だけ実行する。
@@ -160,6 +164,10 @@ namespace Ken4lowEngine
 			return owner_; // ActorComponentはActorを所有せず、参照だけ保持する
 		}
 
+	public: /// ---------- Runtime ID ---------- ///
+
+		ComponentId GetId() const { return id_; }
+
 	public: /// ---------- 名前設定 ---------- ///
 
 		/// <summary>
@@ -185,7 +193,9 @@ namespace Ken4lowEngine
 		/// </summary>
 		void SetActive(bool active)
 		{
+			if (isActive_ == active) return;
 			isActive_ = active; // Editor上で一時的にComponentの更新・描画を止めるためのフラグ
+			NotifyOwnerRuntimeStateChanged(); // Physics登録などWorld側の外部状態をイベントで同期する。
 		}
 
 		/// <summary>
@@ -217,7 +227,9 @@ namespace Ken4lowEngine
 		/// </summary>
 		void SetUpdateOrder(int order)
 		{
+			if (updateOrder_ == order) return;
 			updateOrder_ = order; // Updateの実行順を設定する
+			NotifyOwnerOrderChanged(true, false);
 		}
 
 		/// <summary>
@@ -233,7 +245,9 @@ namespace Ken4lowEngine
 		/// </summary>
 		void SetDrawOrder(int order)
 		{
+			if (drawOrder_ == order) return;
 			drawOrder_ = order; // Drawの実行順を設定する
+			NotifyOwnerOrderChanged(false, true);
 		}
 
 		/// <summary>
@@ -298,7 +312,16 @@ namespace Ken4lowEngine
 			}
 		}
 
+	private: /// ---------- ActorWorld連携 ---------- ///
+
+		friend class ActorWorld;
+		void SetId(ComponentId id) { id_ = id; }
+		void NotifyOwnerRuntimeStateChanged();
+		void NotifyOwnerOrderChanged(bool updateOrderChanged, bool drawOrderChanged);
+
 	protected: /// ---------- メンバ変数 ---------- ///
+
+		ComponentId id_{}; // JSONへ保存しないWorld実行時ID。
 
 		// 所有権はActor側にあり、ActorComponent側ではdeleteしない
 		Actor* owner_ = nullptr;

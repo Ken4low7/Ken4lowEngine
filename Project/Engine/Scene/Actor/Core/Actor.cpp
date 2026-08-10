@@ -1,4 +1,5 @@
 #include "Actor.h"
+#include "ActorWorld.h"
 
 #include <algorithm>
 #include <array>
@@ -11,6 +12,44 @@
 
 namespace Ken4lowEngine
 {
+	void ActorComponent::NotifyOwnerRuntimeStateChanged()
+	{
+		if (owner_) owner_->NotifyComponentRuntimeStateChanged(*this);
+	}
+
+	void ActorComponent::NotifyOwnerOrderChanged(bool updateOrderChanged, bool drawOrderChanged)
+	{
+		if (owner_) owner_->MarkComponentOrderDirty(updateOrderChanged, drawOrderChanged);
+	}
+
+	void Actor::NotifyComponentAdded(ActorComponent& component)
+	{
+		MarkComponentOrderDirty(true, true);
+		if (world_) world_->OnComponentAdded(*this, component);
+	}
+
+	void Actor::NotifyComponentRemoving(ActorComponent& component)
+	{
+		MarkComponentOrderDirty(true, true);
+		if (world_) world_->OnComponentRemoving(*this, component);
+	}
+
+	void Actor::NotifyComponentRuntimeStateChanged(ActorComponent& component)
+	{
+		if (world_) world_->OnComponentRuntimeStateChanged(*this, component);
+	}
+
+	void Actor::NotifyActorRuntimeStateChanged()
+	{
+		if (world_) world_->OnActorRuntimeStateChanged(*this);
+	}
+
+	void Actor::MarkComponentOrderDirty(bool updateOrderChanged, bool drawOrderChanged)
+	{
+		if (updateOrderChanged) updateOrderCacheDirty_ = true;
+		if (drawOrderChanged) drawOrderCacheDirty_ = true;
+	}
+
 	void Actor::Initialize()
 	{
 		InitializeComponents();
@@ -386,11 +425,13 @@ namespace Ken4lowEngine
 		for (auto& component : components_)
 		{
 			if (!component) continue;
+			NotifyComponentRemoving(*component);
 			component->FinalizeForWorld();
 			component->SetOwner(nullptr); // Component破棄時に所有Actorへの参照を残さない。
 		}
 
 		components_.clear(); // ActorがComponentの寿命を管理するため、ここで破棄する
+		MarkComponentOrderDirty(true, true);
 		rootComponent_ = nullptr;
 		isPhysicsRegistered_ = false;
 	}
@@ -514,10 +555,13 @@ namespace Ken4lowEngine
 			return false; // 指定されたComponentが見つからなかった場合は終了処理を行わない
 		}
 
-		// Finalize直後にunique_ptrを破棄し、Component内部の所有リソースはRAIIで解放する。
+		// World側のID/Physics参照を先に外してからComponent本体を破棄する。
+		NotifyComponentRemoving(*(*removeIt));
 		(*removeIt)->FinalizeForWorld();
 		(*removeIt)->SetOwner(nullptr);
 		components_.erase(removeIt);
+		MarkComponentOrderDirty(true, true);
+		NotifyActorRuntimeStateChanged(); // Rigidbody削除時は残ったColliderの関連付けも再同期する。
 		return true;
 	}
 
@@ -537,6 +581,26 @@ namespace Ken4lowEngine
 		}
 
 		return false;
+	}
+
+	ActorComponent* Actor::FindComponentById(ComponentId id)
+	{
+		if (!id.IsValid()) return nullptr;
+		for (auto& component : components_)
+		{
+			if (component && component->GetId() == id) return component.get();
+		}
+		return nullptr;
+	}
+
+	const ActorComponent* Actor::FindComponentById(ComponentId id) const
+	{
+		if (!id.IsValid()) return nullptr;
+		for (const auto& component : components_)
+		{
+			if (component && component->GetId() == id) return component.get();
+		}
+		return nullptr;
 	}
 
 	void Actor::AddTag(const std::string& tag)
