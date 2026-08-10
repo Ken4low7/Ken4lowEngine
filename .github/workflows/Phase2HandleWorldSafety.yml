@@ -31,6 +31,7 @@ jobs:
       - name: Harden ActorHandle world identity
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           @'
           from pathlib import Path
 
@@ -46,95 +47,57 @@ jobs:
                   raise RuntimeError(f"{label}: expected 1 match, found {count}")
               return text.replace(old, new, 1)
 
-          # WorldObjectId: World単位の実行時IDを追加する。
           path = "Project/Engine/Scene/Actor/Core/WorldObjectId.h"
           text = read(path)
-          marker = '''\t/// <summary>ActorWorld内でComponentを識別する実行時ID。0は無効値。</summary>\n\tstruct ComponentId\n'''
-          insertion = '''\t/// <summary>ActorWorldインスタンスを識別する実行時ID。0は無効値。</summary>\n\tstruct WorldId\n\t{\n\t\tuint64_t value = 0;\n\n\t\tconstexpr bool IsValid() const { return value != 0; }\n\t\tconstexpr explicit operator bool() const { return IsValid(); }\n\t\tconstexpr bool operator==(const WorldId&) const = default;\n\t};\n\n\t/// <summary>ActorWorld内でComponentを識別する実行時ID。0は無効値。</summary>\n\tstruct ComponentId\n'''
-          text = replace_once(text, marker, insertion, "WorldId insertion")
+          text = replace_once(text,
+              '''\t/// <summary>ActorWorld内でComponentを識別する実行時ID。0は無効値。</summary>\n\tstruct ComponentId\n''',
+              '''\t/// <summary>ActorWorldインスタンスを識別する実行時ID。0は無効値。</summary>\n\tstruct WorldId\n\t{\n\t\tuint64_t value = 0;\n\n\t\tconstexpr bool IsValid() const { return value != 0; }\n\t\tconstexpr explicit operator bool() const { return IsValid(); }\n\t\tconstexpr bool operator==(const WorldId&) const = default;\n\t};\n\n\t/// <summary>ActorWorld内でComponentを識別する実行時ID。0は無効値。</summary>\n\tstruct ComponentId\n''', "WorldId insertion")
           write(path, text)
 
-          # ActorHandle: WorldId + ActorId の組でのみ有効にする。
           path = "Project/Engine/Scene/Actor/Core/ActorHandle.h"
           write(path, '''#pragma once\n\n#include "WorldObjectId.h"\n\nnamespace Ken4lowEngine\n{\n\t/// <summary>\n\t/// Actorの生ポインタを長期間保持せず、WorldIdとActorIdからActorWorldへ解決するための軽量Handle。\n\t/// World自体は所有せず、別Worldの同一ActorIdへ誤解決しない。\n\t/// </summary>\n\tclass ActorHandle\n\t{\n\tpublic:\n\t\tconstexpr ActorHandle() = default;\n\t\tconstexpr ActorHandle(WorldId worldId, ActorId actorId) : worldId_(worldId), actorId_(actorId) {}\n\n\t\tconstexpr WorldId GetWorldId() const { return worldId_; }\n\t\tconstexpr ActorId GetId() const { return actorId_; }\n\t\tconstexpr bool IsSet() const { return worldId_.IsValid() && actorId_.IsValid(); }\n\t\tconstexpr void Reset() { worldId_ = {}; actorId_ = {}; }\n\t\tconstexpr explicit operator bool() const { return IsSet(); }\n\t\tconstexpr bool operator==(const ActorHandle&) const = default;\n\n\tprivate:\n\t\tWorldId worldId_{};\n\t\tActorId actorId_{};\n\t};\n} // namespace Ken4lowEngine\n''')
 
-          # ActorWorld header: WorldIdを保持し、遅延Reload参照をHandle化する。
           path = "Project/Engine/Scene/Actor/Core/ActorWorld.h"
           text = read(path)
-          text = replace_once(
-              text,
-              '''\t\tbool IsActorHandleValid(const ActorHandle& handle) const;\n''',
-              '''\t\tbool IsActorHandleValid(const ActorHandle& handle) const;\n\t\tWorldId GetWorldId() const { return worldId_; }\n''',
-              "ActorWorld GetWorldId")
-          text = replace_once(
-              text,
-              '''\t\tstd::unordered_map<uint64_t, Actor*> actorsById_;\n''',
-              '''\t\tWorldId worldId_{}; // ActorHandleが別Worldの同一ActorIdへ誤解決しないための実行時ID。\n\t\tstd::unordered_map<uint64_t, Actor*> actorsById_;\n''',
-              "ActorWorld worldId member")
-          text = replace_once(
-              text,
-              '''\t\tActor* pendingReloadActor_ = nullptr;\n''',
-              '''\t\tActorHandle pendingReloadActor_{};\n''',
-              "pending reload handle")
+          text = replace_once(text, '\t\tbool IsActorHandleValid(const ActorHandle& handle) const;\n', '\t\tbool IsActorHandleValid(const ActorHandle& handle) const;\n\t\tWorldId GetWorldId() const { return worldId_; }\n', "GetWorldId")
+          text = replace_once(text, '\t\tstd::unordered_map<uint64_t, Actor*> actorsById_;\n', '\t\tWorldId worldId_{}; // ActorHandleが別Worldの同一ActorIdへ誤解決しないための実行時ID。\n\t\tstd::unordered_map<uint64_t, Actor*> actorsById_;\n', "worldId member")
+          text = replace_once(text, '\t\tActor* pendingReloadActor_ = nullptr;\n', '\t\tActorHandle pendingReloadActor_{};\n', "pending reload member")
           write(path, text)
 
-          # ActorWorld runtime: WorldId発行、Handle解決、遅延Reloadを安全化する。
           path = "Project/Engine/Scene/Actor/Core/ActorWorld.cpp"
           text = read(path)
           text = replace_once(text, '#include <algorithm>\n#include <cstdio>\n', '#include <algorithm>\n#include <atomic>\n#include <cstdio>\n', "atomic include")
-          text = replace_once(
-              text,
-              '''namespace Ken4lowEngine\n{\n\tvoid ActorWorld::Initialize()\n''',
-              '''namespace Ken4lowEngine\n{\n\tnamespace\n\t{\n\t\tstd::atomic_uint64_t gNextActorWorldId{ 1 };\n\t}\n\n\tvoid ActorWorld::Initialize()\n''',
-              "world id allocator")
-          text = replace_once(text, '\t\tpendingReloadActor_ = nullptr;\n', '\t\tpendingReloadActor_.Reset();\n', "finalize pending handle")
-          text = replace_once(
-              text,
+          text = replace_once(text, 'namespace Ken4lowEngine\n{\n\tvoid ActorWorld::Initialize()\n', 'namespace Ken4lowEngine\n{\n\tnamespace\n\t{\n\t\tstd::atomic_uint64_t gNextActorWorldId{ 1 };\n\t}\n\n\tvoid ActorWorld::Initialize()\n', "world allocator")
+          text = replace_once(text,
               '''\tActorHandle ActorWorld::MakeActorHandle(const Actor* actor) const\n\t{\n\t\treturn actor && OwnsActor(actor) ? ActorHandle(actor->GetId()) : ActorHandle{};\n\t}\n\n\tActor* ActorWorld::ResolveActor(const ActorHandle& handle)\n\t{\n\t\tActor* actor = FindActorById(handle.GetId());\n\t\treturn actor && !actor->IsPendingDestroy() ? actor : nullptr; // Destroy予約した時点で外部Handleからは無効として扱う。\n\t}\n\n\tconst Actor* ActorWorld::ResolveActor(const ActorHandle& handle) const\n\t{\n\t\tconst Actor* actor = FindActorById(handle.GetId());\n\t\treturn actor && !actor->IsPendingDestroy() ? actor : nullptr; // World終端の実破棄待ちでも参照を再取得させない。\n\t}\n''',
-              '''\tActorHandle ActorWorld::MakeActorHandle(const Actor* actor) const\n\t{\n\t\treturn actor && OwnsActor(actor) && worldId_.IsValid()\n\t\t\t? ActorHandle(worldId_, actor->GetId())\n\t\t\t: ActorHandle{};\n\t}\n\n\tActor* ActorWorld::ResolveActor(const ActorHandle& handle)\n\t{\n\t\tif (!handle.IsSet() || handle.GetWorldId() != worldId_) return nullptr;\n\t\tActor* actor = FindActorById(handle.GetId());\n\t\treturn actor && !actor->IsPendingDestroy() ? actor : nullptr; // Destroy予約した時点で外部Handleからは無効として扱う。\n\t}\n\n\tconst Actor* ActorWorld::ResolveActor(const ActorHandle& handle) const\n\t{\n\t\tif (!handle.IsSet() || handle.GetWorldId() != worldId_) return nullptr;\n\t\tconst Actor* actor = FindActorById(handle.GetId());\n\t\treturn actor && !actor->IsPendingDestroy() ? actor : nullptr; // World終端の実破棄待ちでも参照を再取得させない。\n\t}\n''',
-              "ActorHandle resolve block")
-          text = replace_once(
-              text,
-              '''\t\tif (!hasPendingReloadActor_) return;\n\t\tif (!pendingReloadActor_ || !OwnsActor(pendingReloadActor_))\n\t\t{\n\t\t\thasPendingReloadActor_ = false;\n\t\t\tpendingReloadActor_ = nullptr;\n\t\t\tpendingReloadFilePath_.clear();\n\t\t\treturn; // 削除済みActorへの遅延参照は次フレームへ持ち越さない。\n\t\t}\n\n\t\tActor* reloadActor = pendingReloadActor_;\n''',
-              '''\t\tif (!hasPendingReloadActor_) return;\n\t\tActor* reloadActor = ResolveActor(pendingReloadActor_);\n\t\tif (!reloadActor)\n\t\t{\n\t\t\thasPendingReloadActor_ = false;\n\t\t\tpendingReloadActor_.Reset();\n\t\t\tpendingReloadFilePath_.clear();\n\t\t\treturn; // Destroy済み・別World・無効IDへの遅延参照は次フレームへ持ち越さない。\n\t\t}\n''',
-              "pending reload resolve")
-          text = replace_once(text, '\t\tpendingReloadActor_ = nullptr; // 次フレームで再度処理されないようにポインタをクリアする\n', '\t\tpendingReloadActor_.Reset(); // 次フレームで再度処理されないようにHandleをクリアする\n', "pending reload reset")
-          text = replace_once(
-              text,
-              '''\tvoid ActorWorld::PrepareActorForWorld(Actor& actor)\n\t{\n\t\tActorId actorId = actor.GetId();\n''',
-              '''\tvoid ActorWorld::PrepareActorForWorld(Actor& actor)\n\t{\n\t\tif (!worldId_.IsValid())\n\t\t{\n\t\t\tworldId_ = WorldId{ gNextActorWorldId.fetch_add(1, std::memory_order_relaxed) };\n\t\t}\n\n\t\tActorId actorId = actor.GetId();\n''',
-              "prepare world id")
-          text = replace_once(
-              text,
+              '''\tActorHandle ActorWorld::MakeActorHandle(const Actor* actor) const\n\t{\n\t\treturn actor && OwnsActor(actor) && worldId_.IsValid()\n\t\t\t? ActorHandle(worldId_, actor->GetId())\n\t\t\t: ActorHandle{};\n\t}\n\n\tActor* ActorWorld::ResolveActor(const ActorHandle& handle)\n\t{\n\t\tif (!handle.IsSet() || handle.GetWorldId() != worldId_) return nullptr;\n\t\tActor* actor = FindActorById(handle.GetId());\n\t\treturn actor && !actor->IsPendingDestroy() ? actor : nullptr; // Destroy予約した時点で外部Handleからは無効として扱う。\n\t}\n\n\tconst Actor* ActorWorld::ResolveActor(const ActorHandle& handle) const\n\t{\n\t\tif (!handle.IsSet() || handle.GetWorldId() != worldId_) return nullptr;\n\t\tconst Actor* actor = FindActorById(handle.GetId());\n\t\treturn actor && !actor->IsPendingDestroy() ? actor : nullptr; // World終端の実破棄待ちでも参照を再取得させない。\n\t}\n''', "resolve block")
+          text = replace_once(text,
+              '''\tvoid ActorWorld::ProcessPendingActorReload()\n\t{\n\t\tif (!hasPendingReloadActor_) return;\n\t\tif (!pendingReloadActor_ || !OwnsActor(pendingReloadActor_))\n\t\t{\n\t\t\thasPendingReloadActor_ = false;\n\t\t\tpendingReloadActor_ = nullptr;\n\t\t\tpendingReloadFilePath_.clear();\n\t\t\treturn; // 削除済みActorへの遅延参照は次フレームへ持ち越さない。\n\t\t}\n\n\t\tActor* reloadActor = pendingReloadActor_;\n\t\tconst std::string reloadFilePath = pendingReloadFilePath_;\n\n\t\thasPendingReloadActor_ = false; // 次フレームで再度処理されないようにフラグを下ろす\n\t\tpendingReloadActor_ = nullptr; // 次フレームで再度処理されないようにポインタをクリアする\n\t\tpendingReloadFilePath_.clear(); // 次フレームで再度処理されないようにファイルパスをクリアする\n''',
+              '''\tvoid ActorWorld::ProcessPendingActorReload()\n\t{\n\t\tif (!hasPendingReloadActor_) return;\n\t\tActor* reloadActor = ResolveActor(pendingReloadActor_);\n\t\tif (!reloadActor)\n\t\t{\n\t\t\thasPendingReloadActor_ = false;\n\t\t\tpendingReloadActor_.Reset();\n\t\t\tpendingReloadFilePath_.clear();\n\t\t\treturn; // Destroy済み・別World・無効IDへの遅延参照は次フレームへ持ち越さない。\n\t\t}\n\n\t\tconst std::string reloadFilePath = pendingReloadFilePath_;\n\n\t\thasPendingReloadActor_ = false; // 次フレームで再度処理されないようにフラグを下ろす\n\t\tpendingReloadActor_.Reset(); // 次フレームで再度処理されないようにHandleをクリアする\n\t\tpendingReloadFilePath_.clear(); // 次フレームで再度処理されないようにファイルパスをクリアする\n''', "pending reload block")
+          text = replace_once(text, '\tvoid ActorWorld::PrepareActorForWorld(Actor& actor)\n\t{\n\t\tActorId actorId = actor.GetId();\n', '\tvoid ActorWorld::PrepareActorForWorld(Actor& actor)\n\t{\n\t\tif (!worldId_.IsValid())\n\t\t{\n\t\t\tworldId_ = WorldId{ gNextActorWorldId.fetch_add(1, std::memory_order_relaxed) };\n\t\t}\n\n\t\tActorId actorId = actor.GetId();\n', "prepare world id")
+          text = replace_once(text,
               '''\t\tif (pendingReloadActor_ == &actor)\n\t\t{\n\t\t\tpendingReloadActor_ = nullptr;\n\t\t\thasPendingReloadActor_ = false;\n\t\t\tpendingReloadFilePath_.clear();\n\t\t}\n''',
-              '''\t\tif (pendingReloadActor_.GetWorldId() == worldId_ && pendingReloadActor_.GetId() == actor.GetId())\n\t\t{\n\t\t\tpendingReloadActor_.Reset();\n\t\t\thasPendingReloadActor_ = false;\n\t\t\tpendingReloadFilePath_.clear();\n\t\t}\n''',
-              "clear pending reload handle")
+              '''\t\tif (pendingReloadActor_.GetWorldId() == worldId_ && pendingReloadActor_.GetId() == actor.GetId())\n\t\t{\n\t\t\tpendingReloadActor_.Reset();\n\t\t\thasPendingReloadActor_ = false;\n\t\t\tpendingReloadFilePath_.clear();\n\t\t}\n''', "clear pending reload")
+          text = text.replace('pendingReloadActor_ = nullptr;', 'pendingReloadActor_.Reset();')
           write(path, text)
 
-          # Legacy Editorから遅延Reloadを予約するときもHandleを使う。
           path = "Project/Engine/Editor/Legacy/ActorWorld_ImGui.cpp"
           text = read(path)
-          text = replace_once(text, '\t\t\t\tpendingReloadActor_ = saveTargetActor;\n', '\t\t\t\tpendingReloadActor_ = MakeActorHandle(saveTargetActor);\n', "editor pending reload handle")
+          text = replace_once(text, '\t\t\t\tpendingReloadActor_ = saveTargetActor;\n', '\t\t\t\tpendingReloadActor_ = MakeActorHandle(saveTargetActor);\n', "editor reload handle")
           write(path, text)
 
-          # Phase 2ドキュメントへWorld境界の保証を明記する。
           path = "Project/Docs/Phase2WorldFoundation.md"
           text = read(path)
-          text = replace_once(
-              text,
+          text = replace_once(text,
               '''`ActorHandle` はActorやActorWorldを所有せず、`ActorId` のみを保持します。  \n`ActorWorld::ResolveActor()` で必要な瞬間に解決し、Destroy予約済み・World外のActorは無効になります。  \nActorComponentから所有Actorへの短寿命な内部参照は従来どおりnon-owning raw pointerを維持します。\n''',
-              '''`ActorHandle` はActorやActorWorldを所有せず、`WorldId + ActorId` の組だけを保持します。  \n`ActorWorld::ResolveActor()` で必要な瞬間に解決し、Destroy予約済み・World外・別Worldの同一ActorIdは無効になります。  \nActorWorld内部の遅延JSON再読込もraw `Actor*` ではなく`ActorHandle`で保持します。  \nActorComponentから所有Actorへの短寿命な内部参照は従来どおりnon-owning raw pointerを維持します。\n''',
-              "phase2 handle docs")
-          text = replace_once(
-              text,
-              '''- Destroy後のActorHandleが解決されない\n''',
-              '''- Destroy後のActorHandleが解決されない\n- 別ActorWorldの同一ActorIdへActorHandleが誤解決されない\n''',
-              "phase2 completion docs")
+              '''`ActorHandle` はActorやActorWorldを所有せず、`WorldId + ActorId` の組だけを保持します。  \n`ActorWorld::ResolveActor()` で必要な瞬間に解決し、Destroy予約済み・World外・別Worldの同一ActorIdは無効になります。  \nActorWorld内部の遅延JSON再読込もraw `Actor*` ではなく`ActorHandle`で保持します。  \nActorComponentから所有Actorへの短寿命な内部参照は従来どおりnon-owning raw pointerを維持します。\n''', "docs handle")
+          text = replace_once(text, '- Destroy後のActorHandleが解決されない\n', '- Destroy後のActorHandleが解決されない\n- 別ActorWorldの同一ActorIdへActorHandleが誤解決されない\n', "docs completion")
           write(path, text)
           '@ | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           git diff --check
-          git status --short
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           git add Project/Engine/Scene/Actor/Core/WorldObjectId.h `
                   Project/Engine/Scene/Actor/Core/ActorHandle.h `
                   Project/Engine/Scene/Actor/Core/ActorWorld.h `
