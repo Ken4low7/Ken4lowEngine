@@ -19,10 +19,8 @@ namespace Ken4lowEngine
 		InitializeMaterial();
 		InitializeVertexBuffer();
 		InitializeIndexBuffer();
-		wvpResource_ = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(TransformationMatrix));
-		wvpResource_->Map(0, nullptr, reinterpret_cast<void**>(&wvpData_));
-		wvpData_->World = Matrix4x4::MakeIdentity();
-		wvpData_->WVP = Matrix4x4::MakeIdentity();
+		wvpData_.World = Matrix4x4::MakeIdentity();
+		wvpData_.WVP = Matrix4x4::MakeIdentity();
 	}
 
 	void CloudLayer::Update()
@@ -32,8 +30,8 @@ namespace Ken4lowEngine
 		// 雲は SkyBox の内側へ貼らず、カメラ上空へ追従する水平平面として配置する。
 		const Matrix4x4 world = Matrix4x4::MakeAffineMatrix(
 			{ planeScale, 1.0f, planeScale }, { 0.0f, 0.0f, 0.0f }, { cameraPosition.x, cameraPosition.y + height_, cameraPosition.z });
-		wvpData_->World = world;
-		wvpData_->WVP = Matrix4x4::Multiply(world, CameraManager::GetInstance()->GetActiveViewProjectionMatrix());
+		wvpData_.World = world;
+		wvpData_.WVP = Matrix4x4::Multiply(world, CameraManager::GetInstance()->GetActiveViewProjectionMatrix());
 	}
 
 	void CloudLayer::Draw()
@@ -45,16 +43,25 @@ namespace Ken4lowEngine
 
 		ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		SkyBoxManager::GetInstance()->SetCloudRenderSetting();
-		materialData_->color = { tintColor_.x, tintColor_.y, tintColor_.z, tintColor_.w * alpha_ };
-		materialData_->textureIndex = textureIndex_;
-		materialData_->uvOffset = uvOffset_;
-		materialData_->cloudHeight = height_;
-		materialData_->cloudScale = scale_;
-		materialData_->textureAvailable = 1u;
+		materialData_.color = { tintColor_.x, tintColor_.y, tintColor_.z, tintColor_.w * alpha_ };
+		materialData_.textureIndex = textureIndex_;
+		materialData_.uvOffset = uvOffset_;
+		materialData_.cloudHeight = height_;
+		materialData_.cloudScale = scale_;
+		materialData_.textureAvailable = 1u;
+
+		auto& frameUploadArena = dxCommon_->GetFrameUploadArena();
+		const FrameUploadArena::Allocation materialAllocation = frameUploadArena.AllocateConstant(materialData_);
+		const FrameUploadArena::Allocation wvpAllocation = frameUploadArena.AllocateConstant(wvpData_);
+		if (!materialAllocation.IsValid() || !wvpAllocation.IsValid())
+		{
+			return;
+		}
+
 		commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
 		commandList->IASetIndexBuffer(&indexBufferView_);
-		commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
-		commandList->SetGraphicsRootConstantBufferView(1, wvpResource_->GetGPUVirtualAddress());
+		commandList->SetGraphicsRootConstantBufferView(0, materialAllocation.gpuAddress);
+		commandList->SetGraphicsRootConstantBufferView(1, wvpAllocation.gpuAddress); // 現在Frame専用のCBVへ切り替え、前FrameのGPU参照とCPU更新を分離する。
 		commandList->DrawIndexedInstanced(kNumIndex, 1, 0, 0, 0);
 	}
 
@@ -87,20 +94,18 @@ namespace Ken4lowEngine
 
 	void CloudLayer::InitializeMaterial()
 	{
-		materialResource_ = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(Material));
-		materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
-		materialData_->color = tintColor_;
-		materialData_->uvTransform = Matrix4x4::MakeIdentity();
-		materialData_->topColor = {};
-		materialData_->bottomColor = {};
-		materialData_->horizonColor = {};
-		materialData_->textureIndex = textureIndex_;
-		materialData_->skyType = 3u;
-		materialData_->uvOffset = uvOffset_;
-		materialData_->cloudHeight = height_;
-		materialData_->cloudScale = scale_;
-		materialData_->textureAvailable = 0u;
-		materialData_->padding = 0.0f;
+		materialData_.color = tintColor_;
+		materialData_.uvTransform = Matrix4x4::MakeIdentity();
+		materialData_.topColor = {};
+		materialData_.bottomColor = {};
+		materialData_.horizonColor = {};
+		materialData_.textureIndex = textureIndex_;
+		materialData_.skyType = 3u;
+		materialData_.uvOffset = uvOffset_;
+		materialData_.cloudHeight = height_;
+		materialData_.cloudScale = scale_;
+		materialData_.textureAvailable = 0u;
+		materialData_.padding = 0.0f;
 	}
 
 	void CloudLayer::InitializeVertexBuffer()
