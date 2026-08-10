@@ -27,7 +27,7 @@ jobs:
       - name: ActorId ComponentId Handle
         shell: pwsh
         run: |
-          python Project/Tools/Scripts/ApplyPhase2WorldFoundation.py ids
+          python Project/Tools/Scripts/ApplyPhase2WorldFoundationV2.py ids
           git add -A
           if (-not (git diff --cached --quiet)) {
             git commit -m "ActorとComponentの実行時IDとHandle基盤を追加"
@@ -36,7 +36,7 @@ jobs:
       - name: Component ordered cache
         shell: pwsh
         run: |
-          python Project/Tools/Scripts/ApplyPhase2WorldFoundation.py cache
+          python Project/Tools/Scripts/ApplyPhase2WorldFoundationV2.py cache
           git add -A
           if (-not (git diff --cached --quiet)) {
             git commit -m "Componentの更新描画順キャッシュを追加"
@@ -45,7 +45,7 @@ jobs:
       - name: Event driven physics registration
         shell: pwsh
         run: |
-          python Project/Tools/Scripts/ApplyPhase2WorldFoundation.py physics
+          python Project/Tools/Scripts/ApplyPhase2WorldFoundationV2.py physics
           git add -A
           if (-not (git diff --cached --quiet)) {
             git commit -m "Physics登録をイベント駆動へ変更"
@@ -54,16 +54,16 @@ jobs:
       - name: Separate ActorWorld editor code
         shell: pwsh
         run: |
-          python Project/Tools/Scripts/ApplyPhase2WorldFoundation.py editor
+          python Project/Tools/Scripts/ApplyPhase2WorldFoundationV2.py editor
           git add -A
           if (-not (git diff --cached --quiet)) {
-            git commit -m "ActorWorldから旧Editor実装を分離"
+            git commit -m "ActorWorldの旧Editor実装をEditor領域へ分離"
           }
 
       - name: Add Phase 2 documentation
         shell: pwsh
         run: |
-          python Project/Tools/Scripts/ApplyPhase2WorldFoundation.py docs
+          python Project/Tools/Scripts/ApplyPhase2WorldFoundationV2.py docs
           git add -A
           if (-not (git diff --cached --quiet)) {
             git commit -m "Phase 2のWorld基盤設計を文書化"
@@ -71,7 +71,7 @@ jobs:
 
       - name: Source audit
         shell: pwsh
-        run: python Project/Tools/Scripts/ApplyPhase2WorldFoundation.py validate
+        run: python Project/Tools/Scripts/ApplyPhase2WorldFoundationV2.py validate
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v3
@@ -91,6 +91,7 @@ jobs:
         run: |
           git rm .github/workflows/Phase2WorldFoundation.yml
           git rm Project/Tools/Scripts/ApplyPhase2WorldFoundation.py
+          git rm Project/Tools/Scripts/ApplyPhase2WorldFoundationV2.py
           git commit -m "Phase 2用の一時適用Workflowを削除"
 
       - name: Push Phase 2 commits
