@@ -4,7 +4,6 @@
 #include "ShadowMapArrayRenderTarget.h"
 #include "DirectXCommon.h"
 #include "CameraManager.h"
-#include "ResourceManager.h"
 
 #include <algorithm>
 #include <array>
@@ -40,11 +39,11 @@ namespace Ken4lowEngine
 		pointRenderTarget_ = std::make_unique<ShadowMapArrayRenderTarget>();
 		pointRenderTarget_->Initialize(dxCommon_, kInactivePlaceholderSize, kInactivePlaceholderSize, kPointFaceCount, ShadowArrayViewType::TextureCube, L"PointLightCubeShadowMap");
 
-		extendedShadowResource_ = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(ExtendedShadowParameterGPU));
-		extendedShadowResource_->Map(0, nullptr, reinterpret_cast<void**>(&gpuData_));
-		*gpuData_ = ExtendedShadowParameterGPU{};
-		for (Matrix4x4& matrix : gpuData_->cascadeLightViewProjection) { matrix = Matrix4x4::MakeIdentity(); }
-		extendedShadowResource_->SetName(L"ExtendedShadowParameterConstantBuffer");
+		gpuData_ = ExtendedShadowParameterGPU{};
+		for (Matrix4x4& matrix : gpuData_.cascadeLightViewProjection) { matrix = Matrix4x4::MakeIdentity(); }
+		uploadedGpuAddress_ = 0;
+		uploadedFrameIndex_ = UINT32_MAX;
+		gpuDataDirty_ = true;
 	}
 
 	void ShadowSystem::Finalize()
@@ -53,9 +52,10 @@ namespace Ken4lowEngine
 		if (pointRenderTarget_) { pointRenderTarget_->Finalize(); }
 		csmRenderTarget_.reset();
 		pointRenderTarget_.reset();
-		if (extendedShadowResource_) { extendedShadowResource_->Unmap(0, nullptr); }
-		gpuData_ = nullptr;
-		extendedShadowResource_.Reset();
+		gpuData_ = ExtendedShadowParameterGPU{};
+		uploadedGpuAddress_ = 0;
+		uploadedFrameIndex_ = UINT32_MAX;
+		gpuDataDirty_ = true;
 		dxCommon_ = nullptr;
 		desiredMapSize_ = 2048;
 	}
@@ -82,7 +82,7 @@ namespace Ken4lowEngine
 		}
 
 		const uint32_t gpuLightIndex = ResolveGpuLightIndex(lightManager, lightIndex);
-		gpuData_->shadowCasterLightIndex = gpuLightIndex; // 通常描画側は選択中ライトだけへShadowを適用する。
+		gpuData_.shadowCasterLightIndex = gpuLightIndex; // 通常描画側は選択中ライトだけへShadowを適用する。
 
 		if (casterType == LightManager::ShadowCasterType::Point)
 		{
@@ -102,13 +102,13 @@ namespace Ken4lowEngine
 			{
 				const float farZ = std::max(ClampPositive(light.distance, 1.0f), 1.0f);
 				const float nearZ = std::clamp(lightManager.spotShadowNearZ_, 0.01f, farZ * 0.5f);
-				gpuData_->shadowTechnique = kSpotLinearShadowTechnique;
-				gpuData_->pointLightPositionAndFar = { light.position.x, light.position.y, light.position.z, farZ };
-				gpuData_->cameraPositionAndPointNear.w = nearZ;
+				gpuData_.shadowTechnique = kSpotLinearShadowTechnique;
+				gpuData_.pointLightPositionAndFar = { light.position.x, light.position.y, light.position.z, farZ };
+				gpuData_.cameraPositionAndPointNear.w = nearZ;
 			}
 			else if (casterType == LightManager::ShadowCasterType::Directional)
 			{
-				gpuData_->shadowTechnique = kDirectionalShadowTechnique;
+				gpuData_.shadowTechnique = kDirectionalShadowTechnique;
 			}
 
 			ExecuteLegacyPass(lightManager, drawShadowObjects);
@@ -119,9 +119,21 @@ namespace Ken4lowEngine
 
 	void ShadowSystem::Bind(uint32_t extendedShadowCbvRootIndex, uint32_t csmSrvRootIndex, uint32_t pointSrvRootIndex) const
 	{
-		if (!dxCommon_ || !extendedShadowResource_ || !csmRenderTarget_ || !pointRenderTarget_) { return; }
-		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
-		commandList->SetGraphicsRootConstantBufferView(extendedShadowCbvRootIndex, extendedShadowResource_->GetGPUVirtualAddress());
+		if (!dxCommon_ || !csmRenderTarget_ || !pointRenderTarget_) { return; }
+
+		auto* commandManager = dxCommon_->GetCommandManager();
+		const uint32_t frameIndex = commandManager->GetCurrentFrameIndex();
+		if (gpuDataDirty_ || uploadedFrameIndex_ != frameIndex || uploadedGpuAddress_ == 0)
+		{
+			const FrameUploadArena::Allocation allocation = dxCommon_->GetFrameUploadArena().AllocateConstant(gpuData_);
+			if (!allocation.IsValid()) { return; }
+			uploadedGpuAddress_ = allocation.gpuAddress;
+			uploadedFrameIndex_ = frameIndex;
+			gpuDataDirty_ = false; // 同一Frameの全Objectは同じShadow定数を共有し、Arena消費を1回に抑える。
+		}
+
+		auto* commandList = commandManager->GetCommandList();
+		commandList->SetGraphicsRootConstantBufferView(extendedShadowCbvRootIndex, uploadedGpuAddress_);
 		commandList->SetGraphicsRootDescriptorTable(csmSrvRootIndex, csmRenderTarget_->GetSrvHandleGPU());
 		commandList->SetGraphicsRootDescriptorTable(pointSrvRootIndex, pointRenderTarget_->GetSrvHandleGPU());
 	}
@@ -129,7 +141,7 @@ namespace Ken4lowEngine
 	void ShadowSystem::ExecuteLegacyPass(LightManager& lightManager, const std::function<void()>& drawShadowObjects)
 	{
 		activePassLightViewProjection_ = lightManager.BuildShadowLightViewProjection(CameraManager::GetInstance()->GetActiveCameraPosition());
-		gpuData_->cascadeLightViewProjection[0] = activePassLightViewProjection_; // Receiverは各Objectの更新状態ではなくFrame共通行列を参照する。
+		gpuData_.cascadeLightViewProjection[0] = activePassLightViewProjection_; // Receiverは各Objectの更新状態ではなくFrame共通行列を参照する。
 		dxCommon_->BeginShadowMapPass();
 		if (drawShadowObjects) { drawShadowObjects(); }
 		dxCommon_->EndShadowMapPass();
@@ -152,10 +164,10 @@ namespace Ken4lowEngine
 			Vector3{ 0.0f, 1.0f, 0.0f }, Vector3{ 0.0f, 1.0f, 0.0f }
 		};
 
-		gpuData_->shadowTechnique = kPointShadowTechnique;
-		gpuData_->shadowCasterLightIndex = gpuLightIndex;
-		gpuData_->pointLightPositionAndFar = { light.position.x, light.position.y, light.position.z, farZ };
-		gpuData_->cameraPositionAndPointNear.w = nearZ;
+		gpuData_.shadowTechnique = kPointShadowTechnique;
+		gpuData_.shadowCasterLightIndex = gpuLightIndex;
+		gpuData_.pointLightPositionAndFar = { light.position.x, light.position.y, light.position.z, farZ };
+		gpuData_.cameraPositionAndPointNear.w = nearZ;
 		for (uint32_t face = 0; face < kPointFaceCount; ++face)
 		{
 			const Matrix4x4 view = Matrix4x4::MakeLookAtMatrix(light.position, light.position + directions[face], upVectors[face]);
@@ -192,9 +204,9 @@ namespace Ken4lowEngine
 		const float aspect = std::max(cameraManager->GetActiveAspectRatio(), 0.01f);
 		const Vector3 lightDirection = Vector3::NormalizeSafe(light.direction, { 0.3f, -1.0f, 0.2f });
 
-		gpuData_->shadowTechnique = kCsmShadowTechnique;
-		gpuData_->shadowCasterLightIndex = gpuLightIndex;
-		gpuData_->pointLightPositionAndFar = { forward.x, forward.y, forward.z, shadowFar }; // CSM時はxyzをCamera ForwardとしてCascade選択へ使う。
+		gpuData_.shadowTechnique = kCsmShadowTechnique;
+		gpuData_.shadowCasterLightIndex = gpuLightIndex;
+		gpuData_.pointLightPositionAndFar = { forward.x, forward.y, forward.z, shadowFar }; // CSM時はxyzをCamera ForwardとしてCascade選択へ使う。
 
 		float sliceNear = cameraNear;
 		for (uint32_t cascade = 0; cascade < kCascadeCount; ++cascade)
@@ -224,16 +236,16 @@ namespace Ken4lowEngine
 			radius = std::ceil(std::max(radius, 1.0f) * 16.0f) / 16.0f;
 			const float lightDistance = radius * 2.0f + 10.0f;
 			const float lightFar = lightDistance + radius * 2.0f + 20.0f;
-			gpuData_->cascadeLightViewProjection[cascade] = BuildStableDirectionalMatrix(
+			gpuData_.cascadeLightViewProjection[cascade] = BuildStableDirectionalMatrix(
 				lightDirection, center, radius, radius, lightDistance, 0.1f, lightFar, csmRenderTarget_->GetWidth());
-			activePassLightViewProjection_ = gpuData_->cascadeLightViewProjection[cascade];
+			activePassLightViewProjection_ = gpuData_.cascadeLightViewProjection[cascade];
 			csmRenderTarget_->BeginSlice(dxCommon_->GetCommandManager()->GetCommandList(), cascade);
 			if (drawShadowObjects) { drawShadowObjects(); }
 			sliceNear = sliceFar;
 		}
 		csmRenderTarget_->End(dxCommon_->GetCommandManager()->GetCommandList());
-		gpuData_->cascadeSplits = { splits[0], splits[1], splits[2], splits[3] };
-		gpuData_->cascadeCount = kCascadeCount;
+		gpuData_.cascadeSplits = { splits[0], splits[1], splits[2], splits[3] };
+		gpuData_.cascadeCount = kCascadeCount;
 	}
 
 	uint32_t ShadowSystem::ResolveGpuLightIndex(const LightManager& lightManager, int32_t legacyLightIndex) const
@@ -275,17 +287,17 @@ namespace Ken4lowEngine
 
 	void ShadowSystem::ResetGpuData(const LightManager& lightManager)
 	{
-		if (!gpuData_) { return; }
-		for (Matrix4x4& matrix : gpuData_->cascadeLightViewProjection) { matrix = Matrix4x4::MakeIdentity(); }
-		gpuData_->cascadeSplits = {};
-		gpuData_->pointLightPositionAndFar = {};
+		for (Matrix4x4& matrix : gpuData_.cascadeLightViewProjection) { matrix = Matrix4x4::MakeIdentity(); }
+		gpuData_.cascadeSplits = {};
+		gpuData_.pointLightPositionAndFar = {};
 		const Vector3 cameraPosition = CameraManager::GetInstance()->GetActiveCameraPosition();
-		gpuData_->cameraPositionAndPointNear = { cameraPosition.x, cameraPosition.y, cameraPosition.z, lightManager.pointShadowNearZ_ };
-		gpuData_->shadowTechnique = 0;
-		gpuData_->cascadeCount = 0;
-		gpuData_->shadowCasterLightIndex = UINT32_MAX;
-		gpuData_->shadowBias = lightManager.shadowBias_;
-		gpuData_->normalBias = lightManager.normalBias_;
-		gpuData_->shadowStrength = lightManager.shadowStrength_;
+		gpuData_.cameraPositionAndPointNear = { cameraPosition.x, cameraPosition.y, cameraPosition.z, lightManager.pointShadowNearZ_ };
+		gpuData_.shadowTechnique = 0;
+		gpuData_.cascadeCount = 0;
+		gpuData_.shadowCasterLightIndex = UINT32_MAX;
+		gpuData_.shadowBias = lightManager.shadowBias_;
+		gpuData_.normalBias = lightManager.normalBias_;
+		gpuData_.shadowStrength = lightManager.shadowStrength_;
+		gpuDataDirty_ = true;
 	}
 }
