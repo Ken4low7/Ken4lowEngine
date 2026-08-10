@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SceneDefinition.h"
+#include "SceneDefinitionSerializer.h"
 
 #include <filesystem>
 #include <fstream>
@@ -103,53 +104,16 @@ namespace Ken4lowEngine
 	private:
 		bool LoadSceneFile(const std::filesystem::path& path)
 		{
-			try
+			SceneDefinition definition{};
+			std::string error;
+			if (!SceneDefinitionSerializer::LoadFromFile(path, definition, error))
 			{
-				std::ifstream file(path);
-				if (!file.is_open())
-				{
-					AppendError("Scene定義を開けません: " + path.generic_string());
-					return false;
-				}
-
-				nlohmann::json json;
-				file >> json;
-				SceneDefinition definition{};
-				definition.id = json.value("Id", path.stem().string());
-				definition.className = json.value("Class", definition.id);
-				definition.levelPath = json.value("Level", std::string{});
-				definition.gameMode = json.value("GameMode", std::string{});
-				definition.playerActor = json.value("PlayerActor", std::string{});
-				definition.uiLayout = json.value("UILayout", std::string{});
-				definition.bgmPath = json.value("BGM", std::string{});
-				definition.nextScene = json.value("NextScene", std::string{});
-				definition.retryScene = json.value("RetryScene", std::string{});
-				definition.editorOnly = json.value("EditorOnly", false);
-
-				if (json.contains("Transition") && json["Transition"].is_object())
-				{
-					definition.transition.type = json["Transition"].value("Type", "Fade");
-					definition.transition.duration = json["Transition"].value("Duration", 1.0f);
-				}
-				if (json.contains("Parameters") && json["Parameters"].is_object())
-				{
-					definition.parameters = json["Parameters"];
-				}
-
-				if (!definition.IsValid())
-				{
-					AppendError("必須項目が不足したScene定義です: " + path.generic_string());
-					return false;
-				}
-
-				definitions_[definition.id] = std::move(definition); // 同じIDは後から読んだ定義で明示的に上書きする。
-				return true;
-			}
-			catch (const std::exception& exception)
-			{
-				AppendError(path.generic_string() + ": " + exception.what());
+				AppendError(std::move(error));
 				return false;
 			}
+
+			definitions_[definition.id] = std::move(definition); // 同じIDは後から読んだ定義で明示的に上書きする。
+			return true;
 		}
 
 		void AppendError(std::string message)
