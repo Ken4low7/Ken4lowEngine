@@ -24,6 +24,13 @@ void GpuParticleBuffers::Initialize(Camera* camera)
 	CreateFreeListIndexBuffer();
 	CreateFreeListBuffer();
 
+	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
+	const uint32_t frameCount = dxCommon->GetCommandManager()->GetFrameResourceCount();
+	perFrameBuffers_.Initialize(dxCommon->GetDevice(), frameCount);
+	perFrameBuffers_.WriteAll(perFrameData_);
+	emitterBootstrapBuffers_.Initialize(dxCommon->GetDevice(), frameCount);
+	emitterBootstrapBuffers_.WriteAll(emitterData_[0]);
+
 	particleBuffer_->SetName(L"GpuParticleBuffers::particleBuffer_");
 	freeListIndexBuffer_->SetName(L"GpuParticleBuffers::freeListIndexBuffer_");
 	freeListBuffer_->SetName(L"GpuParticleBuffers::freeListBuffer_");
@@ -51,8 +58,21 @@ void GpuParticleBuffers::Update(float deltaTime)
 	);
 
 	perFrameData_.time += perFrameData_.deltaTime;
-	perViewDirty_ = true;
-	perFrameDirty_ = true; // Update後の値は次のCBV要求時に現在Frame専用領域へ1回だけ転送する。
+	const uint32_t frameIndex = DirectXCommon::GetInstance()->GetCommandManager()->GetCurrentFrameIndex();
+	perFrameBuffers_.WriteFrame(frameIndex, perFrameData_);
+	perViewDirty_ = true; // Update後のPerViewは次のCBV要求時に現在Frame専用Arenaへ1回だけ転送する。
+}
+
+ID3D12Resource* GpuParticleBuffers::GetPerFrameBuffer()
+{
+	const uint32_t frameIndex = DirectXCommon::GetInstance()->GetCommandManager()->GetCurrentFrameIndex();
+	return perFrameBuffers_.GetResource(frameIndex).Get();
+}
+
+ID3D12Resource* GpuParticleBuffers::GetEmitterBuffer()
+{
+	const uint32_t frameIndex = DirectXCommon::GetInstance()->GetCommandManager()->GetCurrentFrameIndex();
+	return emitterBootstrapBuffers_.GetResource(frameIndex).Get();
 }
 
 GpuEmitterCBData* GpuParticleBuffers::GetEmitterCBData(uint32_t slot)
@@ -88,20 +108,8 @@ D3D12_GPU_VIRTUAL_ADDRESS GpuParticleBuffers::GetPerViewCBAddress()
 
 D3D12_GPU_VIRTUAL_ADDRESS GpuParticleBuffers::GetPerFrameCBAddress()
 {
-	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
-	const uint32_t frameIndex = dxCommon->GetCommandManager()->GetCurrentFrameIndex();
-	if (perFrameDirty_ || perFrameUploadedFrameIndex_ != frameIndex || perFrameGpuAddress_ == 0)
-	{
-		const FrameUploadArena::Allocation allocation = dxCommon->GetFrameUploadArena().AllocateConstant(perFrameData_);
-		if (!allocation.IsValid())
-		{
-			return 0;
-		}
-		perFrameGpuAddress_ = allocation.gpuAddress;
-		perFrameUploadedFrameIndex_ = frameIndex;
-		perFrameDirty_ = false;
-	}
-	return perFrameGpuAddress_;
+	ID3D12Resource* resource = GetPerFrameBuffer();
+	return resource ? resource->GetGPUVirtualAddress() : 0;
 }
 
 /// -------------------------------------------------------------
@@ -166,7 +174,6 @@ void GpuParticleBuffers::InitializePerFrameData()
 	perFrameData_ = {};
 	perFrameData_.time = 0.0f;
 	perFrameData_.deltaTime = 1.0f / 60.0f;
-	perFrameDirty_ = true;
 }
 
 /// -------------------------------------------------------------
