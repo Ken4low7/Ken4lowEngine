@@ -469,6 +469,13 @@ namespace Ken4lowEngine
 			}
 		}
 
+		// 欠損AudioはProject SettingsのSilent fallbackとして再生をスキップする。
+		if (!std::filesystem::is_regular_file(normalized))
+		{
+			OutputDebugStringA(("AudioManager: missing audio -> silent fallback: " + normalized + "\n").c_str());
+			return nullptr;
+		}
+
 		// 未キャッシュなら新しくデコードする
 		auto clip = std::make_shared<CachedClip>();
 		if (!MFAudioDecoder::DecodeFile(normalized, clip->data))

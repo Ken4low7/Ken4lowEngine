@@ -5,6 +5,7 @@
 #include "SRVManager.h"
 #include "Engine/Graphics/Resource/Asset/GpuDeferredReleaseQueue.h"
 #include "ResourceManager.h"
+#include <Engine/Core/Project/ProjectSettings.h>
 
 #include <algorithm>
 #include <cctype>
@@ -35,6 +36,12 @@ namespace Ken4lowEngine
 		// Compiled 配下の .dds 一覧を先に索引化
 		BuildTexturePathIndex();
 
+		ProjectSettings* settings = ProjectSettings::GetInstance();
+		if (settings->EnsureLoaded() && !settings->GetFallbackTextureKey().empty())
+		{
+			fallbackTextureKey_ = settings->GetFallbackTextureKey();
+		}
+		CreateSolidColorTexture(fallbackTextureKey_, 255, 0, 255, 255, 8, 8); // 欠損Assetを画面上で識別できるマゼンタTexture。
 		LoadTexture("Sample/uvChecker.dds");
 	}
 
@@ -123,7 +130,14 @@ namespace Ken4lowEngine
 	{
 		const std::string filePathStr = NormalizeTexturePath(filePath);
 		if (textureDatas.contains(filePathStr)) return;
-		LoadTextureFromData(filePathStr, LoadTextureData(filePathStr));
+		try
+		{
+			LoadTextureFromData(filePathStr, LoadTextureData(filePathStr));
+		}
+		catch (const std::exception& exception)
+		{
+			Log(std::format("[TextureManager] Missing texture, fallback is used: {} ({})\n", filePathStr, exception.what()));
+		}
 	}
 
 	void TextureManager::LoadTextureFromData(const std::string& filePath, DirectX::ScratchImage image)
@@ -283,63 +297,46 @@ namespace Ken4lowEngine
 
 	uint32_t TextureManager::GetTextureIndexByFilePath(const std::string& filePath)
 	{
-		std::string key = NormalizeTexturePath(filePath);
-
-		auto it = textureDatas.find(key);
-		if (it != textureDatas.end())
-		{
-			return it->second.srvIndex;
-		}
-
-		throw std::runtime_error("Texture not found: " + key);
+		const std::string key = NormalizeTexturePath(filePath);
+		if (!textureDatas.contains(key)) LoadTexture(filePath);
+		const auto found = textureDatas.find(key);
+		if (found != textureDatas.end()) return found->second.srvIndex;
+		const auto fallback = textureDatas.find(fallbackTextureKey_);
+		return fallback != textureDatas.end() ? fallback->second.srvIndex : UINT32_MAX;
 	}
 
 	D3D12_GPU_DESCRIPTOR_HANDLE TextureManager::GetSrvHandleGPU(const std::string& filePath)
 	{
-		std::string key = NormalizeTexturePath(filePath);
-
-		auto it = textureDatas.find(key);
-		if (it == textureDatas.end())
-		{
-			LoadTexture(filePath);
-			it = textureDatas.find(key);
-		}
-
-		assert(it != textureDatas.end());
-		return it->second.srvHandleGPU;
+		const std::string key = NormalizeTexturePath(filePath);
+		if (!textureDatas.contains(key)) LoadTexture(filePath);
+		const auto found = textureDatas.find(key);
+		if (found != textureDatas.end()) return found->second.srvHandleGPU;
+		const auto fallback = textureDatas.find(fallbackTextureKey_);
+		return fallback != textureDatas.end() ? fallback->second.srvHandleGPU : D3D12_GPU_DESCRIPTOR_HANDLE{};
 	}
 
 	uint32_t TextureManager::GetSrvIndex(const std::string& filePath)
 	{
-		std::string key = NormalizeTexturePath(filePath);
-
-		auto it = textureDatas.find(key);
-		if (it == textureDatas.end())
-		{
-			LoadTexture(filePath);
-			it = textureDatas.find(key);
-		}
-
-		assert(it != textureDatas.end());
-		return it->second.srvIndex;
+		return GetTextureIndexByFilePath(filePath);
 	}
 
 	const DirectX::TexMetadata& TextureManager::GetMetaData(const std::string& filePath)
 	{
-		std::string filePathStr = NormalizeTexturePath(filePath);
-
-		assert(textureDatas.find(filePathStr) != textureDatas.end());
-
-		TextureData& textureData = textureDatas[filePathStr];
-		return textureData.metaData;
+		const std::string key = NormalizeTexturePath(filePath);
+		if (!textureDatas.contains(key)) LoadTexture(filePath);
+		const auto found = textureDatas.find(key);
+		if (found != textureDatas.end()) return found->second.metaData;
+		return textureDatas.at(fallbackTextureKey_).metaData;
 	}
 
 	ID3D12Resource* TextureManager::GetResource(const std::string& filePath)
 	{
-		std::string filePathStr = NormalizeTexturePath(filePath);
-		auto it = textureDatas.find(filePathStr);
-		assert(it != textureDatas.end());
-		return it->second.resource.Get();
+		const std::string key = NormalizeTexturePath(filePath);
+		if (!textureDatas.contains(key)) LoadTexture(filePath);
+		const auto found = textureDatas.find(key);
+		if (found != textureDatas.end()) return found->second.resource.Get();
+		const auto fallback = textureDatas.find(fallbackTextureKey_);
+		return fallback != textureDatas.end() ? fallback->second.resource.Get() : nullptr;
 	}
 
 	void TextureManager::BuildTexturePathIndex()
@@ -410,6 +407,7 @@ namespace Ken4lowEngine
 
 	std::string TextureManager::NormalizeTexturePath(const std::string& filePath)
 	{
+		if (filePath == fallbackTextureKey_) return fallbackTextureKey_;
 		std::string path = NormalizeSlashes(filePath);
 
 		while (path.rfind("./", 0) == 0)

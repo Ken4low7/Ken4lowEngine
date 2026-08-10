@@ -1082,4 +1082,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\Scene\Level\TransactionalLevelLoader.h" />
     <ClInclude Include="Engine\Scene\Management\SceneDefinitionSerializer.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Engine\Core\Project\ProjectSettings.h" />
+  </ItemGroup>
 </Project>

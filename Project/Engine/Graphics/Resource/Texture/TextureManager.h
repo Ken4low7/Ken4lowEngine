@@ -46,6 +46,9 @@ namespace Ken4lowEngine
 		// シングルトンインスタンスを取得
 		static TextureManager* GetInstance();
 
+		/// <summary>欠損Textureで使用する生成TextureのCache keyを取得する。</summary>
+		const std::string& GetFallbackTextureKey() const { return fallbackTextureKey_; }
+
 		// 初期化処理
 		void Initialize(DirectXCommon* dxCommon);
 
@@ -172,6 +175,8 @@ namespace Ken4lowEngine
 
 		// コンパイル済みテクスチャのルートディレクトリ
 		static constexpr const char* kTextureRootDir = "Resources/Textures/Compiled";
+
+		std::string fallbackTextureKey_ = "__Ken4lowMissingTexture";
 
 	private: /// ---------- コンストラクタ / デストラクタ / コピー禁止 ---------- ///
 

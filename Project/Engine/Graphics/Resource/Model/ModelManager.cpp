@@ -3,6 +3,7 @@
 #include <numeric>
 #include <Model.h>
 #include "Engine/Graphics/Resource/Asset/GpuDeferredReleaseQueue.h"
+#include <Engine/Core/Project/ProjectSettings.h>
 
 #include <utility>
 
@@ -104,15 +105,23 @@ namespace Ken4lowEngine
 	std::shared_ptr<Model> ModelManager::LoadModel(const std::string& filePath)
 	{
 		auto it = models_.find(filePath);
-		if (it != models_.end())
-		{
-			return it->second;
-		}
+		if (it != models_.end()) return it->second;
 
-		auto model = std::make_shared<Model>();
-		model->Initialize(filePath);
-		models_.insert(std::make_pair(filePath, model));
-		return model;
+		ProjectSettings* settings = ProjectSettings::GetInstance();
+		if (settings->EnsureLoaded() && !settings->GetFallbackModelKey().empty()) fallbackModelKey_ = settings->GetFallbackModelKey();
+		if (filePath == fallbackModelKey_) return GetFallbackModel();
+
+		try
+		{
+			auto model = std::make_shared<Model>();
+			model->Initialize(filePath);
+			models_.insert(std::make_pair(filePath, model));
+			return model;
+		}
+		catch (const std::exception&)
+		{
+			return GetFallbackModel(); // 欠損Modelでも描画側へnullptrを流さず、目視可能なGeometryで継続する。
+		}
 	}
 
 	std::shared_ptr<Model> ModelManager::LoadModelFromData(const std::string& filePath, ModelData modelData)
@@ -154,6 +163,32 @@ namespace Ken4lowEngine
 	std::shared_ptr<Model> ModelManager::FindModel(const std::string& filePath)
 	{
 		return LoadModel(filePath);
+	}
+
+	std::shared_ptr<Model> ModelManager::GetFallbackModel()
+	{
+		if (const auto found = models_.find(fallbackModelKey_); found != models_.end()) return found->second;
+
+		ProjectSettings* settings = ProjectSettings::GetInstance();
+		if (settings->EnsureLoaded() && !settings->GetFallbackModelKey().empty()) fallbackModelKey_ = settings->GetFallbackModelKey();
+
+		SubMesh subMesh{};
+		subMesh.vertices = {
+			{ { -0.75f, -0.75f, 0.0f, 1.0f }, { 0.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } },
+			{ {  0.00f,  0.75f, 0.0f, 1.0f }, { 0.5f, 0.0f }, { 0.0f, 0.0f, -1.0f } },
+			{ {  0.75f, -0.75f, 0.0f, 1.0f }, { 1.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } },
+		};
+		subMesh.indices = { 0, 1, 2 };
+		subMesh.material.textureFilePath = settings->EnsureLoaded()
+			? settings->GetFallbackTextureKey()
+			: "__Ken4lowMissingTexture";
+
+		ModelData data{};
+		data.subMeshes.push_back(std::move(subMesh));
+		auto model = std::make_shared<Model>();
+		model->InitializeFromData(std::move(data));
+		models_[fallbackModelKey_] = model;
+		return model;
 	}
 
 	void ModelManager::Finalize()

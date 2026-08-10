@@ -76,6 +76,9 @@ namespace Ken4lowEngine
 		/// <returns>指定パスに対応する Model の shared_ptr。</returns>
 		std::shared_ptr<Model> FindModel(const std::string& filePath);
 
+		/// <summary>欠損Modelで使用する生成プレースホルダーを取得する。</summary>
+		std::shared_ptr<Model> GetFallbackModel();
+
 		/// <summary>
 		/// 終了処理を実行します。
 		/// </summary>
@@ -175,6 +178,8 @@ namespace Ken4lowEngine
 
 		// 読み込んだモデルデータのキャッシュ
 		std::unordered_map<std::string, std::shared_ptr<Model>> models_;
+
+		std::string fallbackModelKey_ = "__Ken4lowMissingModel";
 
 		// モデルリソースの格納ディレクトリパス
 		const std::string directoryPath = "Resources";
