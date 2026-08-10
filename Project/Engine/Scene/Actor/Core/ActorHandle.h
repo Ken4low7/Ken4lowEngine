@@ -5,22 +5,24 @@
 namespace Ken4lowEngine
 {
 	/// <summary>
-	/// Actorの生ポインタを長期間保持せず、ActorIdからActorWorldへ解決するための軽量Handle。
-	/// Worldを所有しないため、World破棄後にdangling pointerを残さない。
+	/// Actorの生ポインタを長期間保持せず、WorldIdとActorIdからActorWorldへ解決するための軽量Handle。
+	/// World自体は所有せず、別Worldの同一ActorIdへ誤解決しない。
 	/// </summary>
 	class ActorHandle
 	{
 	public:
 		constexpr ActorHandle() = default;
-		explicit constexpr ActorHandle(ActorId id) : id_(id) {}
+		constexpr ActorHandle(WorldId worldId, ActorId actorId) : worldId_(worldId), actorId_(actorId) {}
 
-		constexpr ActorId GetId() const { return id_; }
-		constexpr bool IsSet() const { return id_.IsValid(); }
-		constexpr void Reset() { id_ = {}; }
+		constexpr WorldId GetWorldId() const { return worldId_; }
+		constexpr ActorId GetId() const { return actorId_; }
+		constexpr bool IsSet() const { return worldId_.IsValid() && actorId_.IsValid(); }
+		constexpr void Reset() { worldId_ = {}; actorId_ = {}; }
 		constexpr explicit operator bool() const { return IsSet(); }
 		constexpr bool operator==(const ActorHandle&) const = default;
 
 	private:
-		ActorId id_{};
+		WorldId worldId_{};
+		ActorId actorId_{};
 	};
 } // namespace Ken4lowEngine

@@ -14,6 +14,16 @@ namespace Ken4lowEngine
 		constexpr bool operator==(const ActorId&) const = default;
 	};
 
+	/// <summary>ActorWorldインスタンスを識別する実行時ID。0は無効値。</summary>
+	struct WorldId
+	{
+		uint64_t value = 0;
+
+		constexpr bool IsValid() const { return value != 0; }
+		constexpr explicit operator bool() const { return IsValid(); }
+		constexpr bool operator==(const WorldId&) const = default;
+	};
+
 	/// <summary>ActorWorld内でComponentを識別する実行時ID。0は無効値。</summary>
 	struct ComponentId
 	{

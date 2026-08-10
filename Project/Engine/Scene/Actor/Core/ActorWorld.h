@@ -135,6 +135,7 @@ namespace Ken4lowEngine
 		Actor* ResolveActor(const ActorHandle& handle);
 		const Actor* ResolveActor(const ActorHandle& handle) const;
 		bool IsActorHandleValid(const ActorHandle& handle) const;
+		WorldId GetWorldId() const { return worldId_; }
 
 		/// <summary>
 		/// 指定Tagを持つActorを検索する
@@ -321,6 +322,7 @@ namespace Ken4lowEngine
 		// ActorWorldがActorの寿命を管理する
 		std::vector<std::unique_ptr<Actor>> actors_;
 
+		WorldId worldId_{}; // ActorHandleが別Worldの同一ActorIdへ誤解決しないための実行時ID。
 		std::unordered_map<uint64_t, Actor*> actorsById_;
 		std::unordered_map<uint64_t, ActorComponent*> componentsById_;
 		uint64_t nextActorId_ = 1;
@@ -344,7 +346,7 @@ namespace Ken4lowEngine
 		Actor* selectedActor_ = nullptr;
 
 		// JSON読込を次フレームUpdateで実行するための予約Actor
-		Actor* pendingReloadActor_ = nullptr;
+		ActorHandle pendingReloadActor_{};
 
 		// JSON読込予約中のファイルパス
 		std::string pendingReloadFilePath_;

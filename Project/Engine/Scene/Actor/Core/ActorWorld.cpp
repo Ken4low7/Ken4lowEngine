@@ -12,10 +12,16 @@
 #endif
 
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 
 namespace Ken4lowEngine
 {
+	namespace
+	{
+		std::atomic_uint64_t gNextActorWorldId{ 1 };
+	}
+
 	void ActorWorld::Initialize()
 	{
 		if (isInitialized_)
@@ -106,7 +112,7 @@ namespace Ken4lowEngine
 		isUpdating_ = false;
 		selectedActor_ = nullptr;
 		selectedComponent_ = nullptr;
-		pendingReloadActor_ = nullptr;
+		pendingReloadActor_.Reset();
 		hasPendingReloadActor_ = false;
 		hasPendingSpawnActor_ = false;
 		pendingReloadFilePath_.clear();
@@ -171,17 +177,21 @@ namespace Ken4lowEngine
 
 	ActorHandle ActorWorld::MakeActorHandle(const Actor* actor) const
 	{
-		return actor && OwnsActor(actor) ? ActorHandle(actor->GetId()) : ActorHandle{};
+		return actor && OwnsActor(actor) && worldId_.IsValid()
+			? ActorHandle(worldId_, actor->GetId())
+			: ActorHandle{};
 	}
 
 	Actor* ActorWorld::ResolveActor(const ActorHandle& handle)
 	{
+		if (!handle.IsSet() || handle.GetWorldId() != worldId_) return nullptr;
 		Actor* actor = FindActorById(handle.GetId());
 		return actor && !actor->IsPendingDestroy() ? actor : nullptr; // Destroy予約した時点で外部Handleからは無効として扱う。
 	}
 
 	const Actor* ActorWorld::ResolveActor(const ActorHandle& handle) const
 	{
+		if (!handle.IsSet() || handle.GetWorldId() != worldId_) return nullptr;
 		const Actor* actor = FindActorById(handle.GetId());
 		return actor && !actor->IsPendingDestroy() ? actor : nullptr; // World終端の実破棄待ちでも参照を再取得させない。
 	}
@@ -335,19 +345,19 @@ namespace Ken4lowEngine
 	void ActorWorld::ProcessPendingActorReload()
 	{
 		if (!hasPendingReloadActor_) return;
-		if (!pendingReloadActor_ || !OwnsActor(pendingReloadActor_))
+		Actor* reloadActor = ResolveActor(pendingReloadActor_);
+		if (!reloadActor)
 		{
 			hasPendingReloadActor_ = false;
-			pendingReloadActor_ = nullptr;
+			pendingReloadActor_.Reset();
 			pendingReloadFilePath_.clear();
-			return; // 削除済みActorへの遅延参照は次フレームへ持ち越さない。
+			return; // Destroy済み・別World・無効IDへの遅延参照は次フレームへ持ち越さない。
 		}
 
-		Actor* reloadActor = pendingReloadActor_;
 		const std::string reloadFilePath = pendingReloadFilePath_;
 
 		hasPendingReloadActor_ = false; // 次フレームで再度処理されないようにフラグを下ろす
-		pendingReloadActor_ = nullptr; // 次フレームで再度処理されないようにポインタをクリアする
+		pendingReloadActor_.Reset(); // 次フレームで再度処理されないようにHandleをクリアする
 		pendingReloadFilePath_.clear(); // 次フレームで再度処理されないようにファイルパスをクリアする
 
 		selectedComponent_ = nullptr; // Componentは作り直されるので選択解除する
@@ -428,6 +438,11 @@ namespace Ken4lowEngine
 
 	void ActorWorld::PrepareActorForWorld(Actor& actor)
 	{
+		if (!worldId_.IsValid())
+		{
+			worldId_ = WorldId{ gNextActorWorldId.fetch_add(1, std::memory_order_relaxed) };
+		}
+
 		ActorId actorId = actor.GetId();
 		if (!actorId.IsValid() || (actorsById_.contains(actorId.value) && actorsById_[actorId.value] != &actor))
 		{
@@ -512,9 +527,9 @@ namespace Ken4lowEngine
 	{
 		if (selectedActor_ == &actor) selectedActor_ = nullptr;
 		if (selectedComponent_ && selectedComponent_->GetOwner() == &actor) selectedComponent_ = nullptr;
-		if (pendingReloadActor_ == &actor)
+		if (pendingReloadActor_.GetWorldId() == worldId_ && pendingReloadActor_.GetId() == actor.GetId())
 		{
-			pendingReloadActor_ = nullptr;
+			pendingReloadActor_.Reset();
 			hasPendingReloadActor_ = false;
 			pendingReloadFilePath_.clear();
 		}

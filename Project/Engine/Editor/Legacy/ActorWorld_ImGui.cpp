@@ -98,7 +98,7 @@ namespace Ken4lowEngine
 				const std::string actorName = saveTargetActor->GetName().empty() ? saveTargetActor->GetClassTypeName() : saveTargetActor->GetName();
 				const std::string filePath = "Resources/ActorPrefabs/" + actorName + ".json";
 				selectedComponent_ = nullptr;
-				pendingReloadActor_ = saveTargetActor;
+				pendingReloadActor_ = MakeActorHandle(saveTargetActor);
 				pendingReloadFilePath_ = filePath;
 				hasPendingReloadActor_ = true;
 				lastActorJsonSaveMessage_ = "再読込を予約しました: " + filePath;

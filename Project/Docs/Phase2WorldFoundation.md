@@ -16,8 +16,9 @@ ActorWorldから外れた時点でlookup tableから削除するため、古いI
 
 ## ActorHandle
 
-`ActorHandle` はActorやActorWorldを所有せず、`ActorId` のみを保持します。  
-`ActorWorld::ResolveActor()` で必要な瞬間に解決し、Destroy予約済み・World外のActorは無効になります。  
+`ActorHandle` はActorやActorWorldを所有せず、`WorldId + ActorId` の組だけを保持します。
+`ActorWorld::ResolveActor()` で必要な瞬間に解決し、Destroy予約済み・World外・別Worldの同一ActorIdは無効になります。
+ActorWorld内部の遅延JSON再読込もraw `Actor*` ではなく`ActorHandle`で保持します。
 ActorComponentから所有Actorへの短寿命な内部参照は従来どおりnon-owning raw pointerを維持します。
 
 ## Component ordered-cache
@@ -58,6 +59,7 @@ ActorWorldのRuntime初期化からPrefabファイル列挙も外し、Prefab一
 
 - Runtime ID lookupがSpawn / Destroy / Component追加削除に追従する
 - Destroy後のActorHandleが解決されない
+- 別ActorWorldの同一ActorIdへActorHandleが誤解決されない
 - Actor Update / Drawで毎フレームsortしない
 - Physics登録走査が毎フレーム実行されない
 - 旧ActorWorld Editor実装がRuntime Coreディレクトリから分離されている
