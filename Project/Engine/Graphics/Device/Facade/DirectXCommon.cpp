@@ -17,6 +17,7 @@ namespace Ken4lowEngine
 	namespace
 	{
 		constexpr uint32_t kMinShadowMapSize = 1;
+		constexpr std::size_t kFrameUploadCapacityBytes = 4u * 1024u * 1024u;
 		using Clock = std::chrono::steady_clock;
 
 		float ToMilliseconds(const Clock::time_point& begin)
@@ -75,6 +76,11 @@ namespace Ken4lowEngine
 			GetDevice(),
 			swapChain_->GetSwapChainDesc().BufferCount,
 			backBufferIndex_);
+		frameUploadArena_.Initialize(
+			GetDevice(),
+			commandManager_->GetFrameResourceCount(),
+			kFrameUploadCapacityBytes);
+		frameUploadArena_.BeginFrame(backBufferIndex_);
 
 		device_->GetDXGIFactory()->MakeWindowAssociation(winApp->GetHwnd(), DXGI_MWA_NO_ALT_ENTER);
 		dxcCompilerManager_->Initialize();
@@ -166,18 +172,20 @@ namespace Ken4lowEngine
 		const auto presentBegin = Clock::now();
 		const HRESULT presentResult = swapChain_->GetSwapChain()->Present(1, 0);
 		endDrawPerformanceTiming_.presentMs = ToMilliseconds(presentBegin);
+		const uint32_t nextFrameIndex = swapChain_->GetSwapChain()->GetCurrentBackBufferIndex();
 
 		if (framesInFlightEnabled_)
 		{
 			commandManager_->SignalCurrentFrame(submittedFrameIndex);
-			const uint32_t nextFrameIndex = swapChain_->GetSwapChain()->GetCurrentBackBufferIndex();
 			commandManager_->PrepareFrame(nextFrameIndex);
-			backBufferIndex_ = nextFrameIndex;
 		}
 		else
 		{
-			commandManager_->WaitAndReset(); // 単一Upload Buffer更新が残る間の安全な互換同期経路。
+			commandManager_->WaitAndReset();
 		}
+
+		backBufferIndex_ = nextFrameIndex;
+		frameUploadArena_.BeginFrame(backBufferIndex_); // Fence安全化後に次Frameの一時Upload領域だけを再利用する。
 
 		const DX12CommandManager::PerformanceTiming& commandTiming = commandManager_->GetPerformanceTiming();
 		endDrawPerformanceTiming_.commandListCloseMs = commandTiming.commandListCloseMs;
@@ -206,6 +214,7 @@ namespace Ken4lowEngine
 	{
 		if (!commandManager_ || !fenceManager_) return;
 		WaitForGpuIdle();
+		frameUploadArena_.Finalize();
 
 		if (mainRenderTarget_)
 		{
