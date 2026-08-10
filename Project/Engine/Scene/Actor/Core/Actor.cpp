@@ -50,6 +50,30 @@ namespace Ken4lowEngine
 		if (drawOrderChanged) drawOrderCacheDirty_ = true;
 	}
 
+	const std::vector<ActorComponent*>& Actor::GetUpdateOrderedComponents()
+	{
+		if (!updateOrderCacheDirty_) return updateOrderedComponents_;
+		updateOrderedComponents_.clear();
+		updateOrderedComponents_.reserve(components_.size());
+		for (auto& component : components_) if (component) updateOrderedComponents_.push_back(component.get());
+		std::stable_sort(updateOrderedComponents_.begin(), updateOrderedComponents_.end(),
+			[](const ActorComponent* lhs, const ActorComponent* rhs) { return lhs->GetUpdateOrder() < rhs->GetUpdateOrder(); });
+		updateOrderCacheDirty_ = false;
+		return updateOrderedComponents_;
+	}
+
+	const std::vector<ActorComponent*>& Actor::GetDrawOrderedComponents()
+	{
+		if (!drawOrderCacheDirty_) return drawOrderedComponents_;
+		drawOrderedComponents_.clear();
+		drawOrderedComponents_.reserve(components_.size());
+		for (auto& component : components_) if (component) drawOrderedComponents_.push_back(component.get());
+		std::stable_sort(drawOrderedComponents_.begin(), drawOrderedComponents_.end(),
+			[](const ActorComponent* lhs, const ActorComponent* rhs) { return lhs->GetDrawOrder() < rhs->GetDrawOrder(); });
+		drawOrderCacheDirty_ = false;
+		return drawOrderedComponents_;
+	}
+
 	void Actor::Initialize()
 	{
 		InitializeComponents();
@@ -71,168 +95,46 @@ namespace Ken4lowEngine
 
 	void Actor::Update(float deltaTime)
 	{
-		if (!isActive_)
+		if (!isActive_) return;
+		for (ActorComponent* component : GetUpdateOrderedComponents())
 		{
-			return; // 無効なActorはUpdate対象から外す
-		}
-
-		std::vector<ActorComponent*> updateComponents;
-
-		for (auto& component : components_)
-		{
-			if (!component || !component->IsActiveInHierarchy())
-			{
-				continue; // 無効化されたComponentはUpdate対象から外す
-			}
-
-			updateComponents.push_back(component.get());
-		}
-
-		std::stable_sort(updateComponents.begin(), updateComponents.end(),
-			[](const ActorComponent* a, const ActorComponent* b)
-			{
-				return a->GetUpdateOrder() < b->GetUpdateOrder(); // UpdateOrderの昇順でソートする
-			});
-
-		for (ActorComponent* component : updateComponents)
-		{
-			if (!component)
-			{
-				continue; // 無効化されたComponentはUpdate対象から外す
-			}
-
-			// Actorは更新順だけ管理し、処理内容はComponent側に任せる
-			component->Update(deltaTime);
+			if (component && component->IsActiveInHierarchy()) component->Update(deltaTime);
 		}
 	}
 
 	void Actor::UpdateEditor(float deltaTime)
 	{
 		if (!isActive_) return;
-
-		std::vector<ActorComponent*> updateComponents;
-		for (auto& component : components_)
+		for (ActorComponent* component : GetUpdateOrderedComponents())
 		{
-			if (component && component->IsActiveInHierarchy()) updateComponents.push_back(component.get());
+			if (component && component->IsActiveInHierarchy()) component->UpdateEditor(deltaTime);
 		}
-
-		std::stable_sort(updateComponents.begin(), updateComponents.end(),
-			[](const ActorComponent* lhs, const ActorComponent* rhs)
-			{
-				return lhs->GetUpdateOrder() < rhs->GetUpdateOrder();
-			});
-
-		for (ActorComponent* component : updateComponents) component->UpdateEditor(deltaTime);
 	}
 
 	void Actor::PostPhysicsUpdate(float deltaTime)
 	{
-		if (!isActive_)
+		if (!isActive_) return;
+		for (ActorComponent* component : GetUpdateOrderedComponents())
 		{
-			return; // 無効なActorはPostPhysicsUpdate対象から外す
-		}
-
-		std::vector<ActorComponent*> updateComponents;
-
-		for (auto& component : components_)
-		{
-			if (!component || !component->IsActiveInHierarchy())
-			{
-				continue; // 無効化されたComponentはPostPhysicsUpdate対象から外す
-			}
-
-			// 物理更新後のTransform反映処理をComponent側へ流す。
-			updateComponents.push_back(component.get());
-		}
-
-		std::stable_sort(updateComponents.begin(), updateComponents.end(),
-			[](const ActorComponent* a, const ActorComponent* b)
-			{
-				return a->GetUpdateOrder() < b->GetUpdateOrder(); // UpdateOrderの昇順でソートする
-			});
-
-		for (ActorComponent* component : updateComponents)
-		{
-			if (!component)
-			{
-				continue; // 無効化されたComponentはPostPhysicsUpdate対象から外す
-			}
-
-			component->PostPhysicsUpdate(deltaTime);
+			if (component && component->IsActiveInHierarchy()) component->PostPhysicsUpdate(deltaTime);
 		}
 	}
 
 	void Actor::Draw()
 	{
-		if (!isActive_)
+		if (!isActive_) return;
+		for (ActorComponent* component : GetDrawOrderedComponents())
 		{
-			return; // 無効なActorはDraw対象から外す
-		}
-
-		std::vector<ActorComponent*> drawComponents;
-
-		for (auto& component : components_)
-		{
-			if (!component || !component->IsActiveInHierarchy())
-			{
-				continue; // 無効化されたComponentはDraw対象から外す
-			}
-
-			// 描画を持つComponentだけがDrawを実装する
-			drawComponents.push_back(component.get());
-		}
-
-		std::stable_sort(drawComponents.begin(), drawComponents.end(),
-			[](const ActorComponent* a, const ActorComponent* b)
-			{
-				return a->GetDrawOrder() < b->GetDrawOrder(); // DrawOrderの昇順でソートする
-			});
-
-		for (ActorComponent* component : drawComponents)
-		{
-			if (!component)
-			{
-				continue; // 無効化されたComponentはDraw対象から外す
-			}
-
-			component->Draw();
+			if (component && component->IsActiveInHierarchy()) component->Draw();
 		}
 	}
 
 	void Actor::DrawShadow()
 	{
-		if (!isActive_)
+		if (!isActive_) return;
+		for (ActorComponent* component : GetDrawOrderedComponents())
 		{
-			return; // 無効なActorはShadow描画対象から外す
-		}
-
-		std::vector<ActorComponent*> drawComponents;
-
-		for (auto& component : components_)
-		{
-			if (!component || !component->IsActiveInHierarchy())
-			{
-				continue; // 無効化されたComponentはShadow描画対象から外す
-			}
-
-			drawComponents.push_back(component.get());
-		}
-
-		std::stable_sort(drawComponents.begin(), drawComponents.end(),
-			[](const ActorComponent* a, const ActorComponent* b)
-			{
-				return a->GetDrawOrder() < b->GetDrawOrder(); // DrawOrderの昇順でソートする
-			});
-
-		for (ActorComponent* component : drawComponents)
-		{
-			if (!component)
-			{
-				continue; // 無効化されたComponentはShadow描画対象から外す
-			}
-
-			// 影を落とすComponentだけがShadow描画を実装する
-			component->DrawShadow();
+			if (component && component->IsActiveInHierarchy()) component->DrawShadow();
 		}
 	}
 
@@ -431,6 +333,8 @@ namespace Ken4lowEngine
 		}
 
 		components_.clear(); // ActorがComponentの寿命を管理するため、ここで破棄する
+		updateOrderedComponents_.clear();
+		drawOrderedComponents_.clear();
 		MarkComponentOrderDirty(true, true);
 		rootComponent_ = nullptr;
 		isPhysicsRegistered_ = false;

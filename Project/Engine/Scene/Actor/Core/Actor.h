@@ -387,6 +387,8 @@ namespace Ken4lowEngine
 		void NotifyComponentRuntimeStateChanged(ActorComponent& component);
 		void NotifyActorRuntimeStateChanged();
 		void MarkComponentOrderDirty(bool updateOrderChanged, bool drawOrderChanged);
+		const std::vector<ActorComponent*>& GetUpdateOrderedComponents();
+		const std::vector<ActorComponent*>& GetDrawOrderedComponents();
 
 	private: /// ---------- メンバ変数 ---------- ///
 
@@ -394,6 +396,8 @@ namespace Ken4lowEngine
 		ActorWorld* world_ = nullptr; // 所有権はActorWorld側。
 		bool updateOrderCacheDirty_ = true;
 		bool drawOrderCacheDirty_ = true;
+		std::vector<ActorComponent*> updateOrderedComponents_;
+		std::vector<ActorComponent*> drawOrderedComponents_;
 
 		// Actor全体の基準Transform。所有権はcomponents_側が持つ
 		SceneComponent* rootComponent_ = nullptr;
