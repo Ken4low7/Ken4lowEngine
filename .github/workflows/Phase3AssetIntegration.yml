@@ -1,0 +1,178 @@
+name: Phase3AssetIntegration
+
+on:
+  push:
+    branches:
+      - feature/phase3-asset-foundation
+    paths:
+      - .github/workflows/Phase3AssetIntegration.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate-and-validate:
+    runs-on: windows-2025-vs2026
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/phase3-asset-foundation
+          fetch-depth: 0
+
+      - name: Configure Git
+        shell: pwsh
+        run: |
+          git config user.name "Ken4low7"
+          git config user.email "knt411sirokuro@gmail.com"
+          git config core.autocrlf false
+          git reset --hard HEAD
+
+      - name: Integrate Phase 3 asset foundation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding="utf-8")
+
+          def write(path, text):
+              Path(path).write_text(text, encoding="utf-8", newline="\n")
+
+          def rep(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"{label}: expected 1 match, found {count}")
+              return text.replace(old, new, 1)
+
+          def replace_range(text, start, end, replacement, label):
+              begin = text.find(start)
+              if begin < 0:
+                  raise RuntimeError(f"{label}: start not found")
+              finish = text.find(end, begin)
+              if finish < 0:
+                  raise RuntimeError(f"{label}: end not found")
+              return text[:begin] + replacement + text[finish:]
+
+          # Model: CPU Import済みModelDataからMain ThreadでGPU Meshだけ構築できるようにする。
+          path = "Project/Engine/Graphics/Resource/Model/Model.h"
+          text = read(path)
+          text = rep(text,
+              '\t\tvoid Initialize(const std::string& filePath);\n',
+              '\t\tvoid Initialize(const std::string& filePath);\n\n\t\t// Worker ThreadでImport済みのModelDataからGPU側のMesh / Texture参照を構築する。\n\t\tvoid InitializeFromData(ModelData modelData);\n',
+              "Model InitializeFromData declaration")
+          write(path, text)
+
+          path = "Project/Engine/Graphics/Resource/Model/Model.cpp"
+          text = read(path)
+          text = rep(text, '#include <cctype>\n', '#include <cctype>\n#include <utility>\n', "Model utility include")
+          model_init = '''\tvoid Model::Initialize(const std::string& filePath)\n\t{\n\t\tInitializeFromData(AssimpLoader::LoadModel(filePath));\n\t}\n\n\tvoid Model::InitializeFromData(ModelData modelData)\n\t{\n\t\tmodelData_ = std::move(modelData);\n\n\t\tmeshes_.clear();\n\t\tmaterialSRVs_.clear();\n\t\tmaterialUsePointSampling_.clear();\n\n\t\tmeshes_.reserve(modelData_.subMeshes.size());\n\t\tmaterialSRVs_.reserve(modelData_.subMeshes.size());\n\t\tmaterialUsePointSampling_.reserve(modelData_.subMeshes.size());\n\n\t\tstatic const std::string kDefaultTexturePath = "Effects/white.dds";\n\n\t\tBuildLocalBounds();\n\n\t\tfor (const auto& sub : modelData_.subMeshes)\n\t\t{\n\t\t\tstd::string texturePath = sub.material.textureFilePath;\n\t\t\tif (texturePath.empty())\n\t\t\t{\n\t\t\t\ttexturePath = kDefaultTexturePath;\n\t\t\t}\n\n\t\t\tTextureManager::GetInstance()->LoadTexture(texturePath);\n\t\t\tmaterialSRVs_.push_back(TextureManager::GetInstance()->GetSrvHandleGPU(texturePath));\n\t\t\t// face/pixel系はデフォルトで Point Sampling を有効化し、まず見た目のぼやけを防ぐ。\n\t\t\tmaterialUsePointSampling_.push_back(ShouldUsePointSampling(texturePath));\n\n\t\t\tMesh mesh{};\n\t\t\tmesh.Initialize(sub.vertices, sub.indices);\n\t\t\tmeshes_.push_back(std::move(mesh));\n\t\t}\n\t}\n\n'''
+          text = replace_range(text, '\tvoid Model::Initialize(const std::string& filePath)\n', '\tvoid Model::BuildLocalBounds()\n', model_init, "Model initialize range")
+          write(path, text)
+
+          # ModelManager: Async finalize / Handle resolve / GC用Unloadを追加する。
+          path = "Project/Engine/Graphics/Resource/Model/ModelManager.h"
+          text = read(path)
+          text = rep(text,
+              '\t\tstd::shared_ptr<Model> LoadModel(const std::string& filePath);\n',
+              '\t\tstd::shared_ptr<Model> LoadModel(const std::string& filePath);\n\n\t\t/// WorkerでImport済みのModelDataをMain ThreadでGPU Resource化してCacheへ登録する。\n\t\tstd::shared_ptr<Model> LoadModelFromData(const std::string& filePath, ModelData modelData);\n\n\t\t/// Loadを発生させず、現在Cache済みのModelだけを取得する。\n\t\tstd::shared_ptr<Model> GetLoadedModel(const std::string& filePath) const;\n\n\t\t/// Cacheだけが所有しているModelを安全にUnloadする。GPU利用中ならFence完了まで寿命を延長する。\n\t\tbool UnloadModel(const std::string& filePath, bool deferredRelease = true);\n',
+              "ModelManager APIs")
+          write(path, text)
+
+          path = "Project/Engine/Graphics/Resource/Model/ModelManager.cpp"
+          text = read(path)
+          text = rep(text, '#include <Model.h>\n', '#include <Model.h>\n#include "Engine/Graphics/Resource/Asset/GpuDeferredReleaseQueue.h"\n\n#include <utility>\n', "ModelManager includes")
+          insert_anchor = '\n\n\n\t/// -------------------------------------------------------------\n\t///\t\t\t\t\t　モデルデータの取得関数\n'
+          model_manager_methods = '''\n\tstd::shared_ptr<Model> ModelManager::LoadModelFromData(const std::string& filePath, ModelData modelData)\n\t{\n\t\tif (const auto found = models_.find(filePath); found != models_.end()) return found->second;\n\n\t\tauto model = std::make_shared<Model>();\n\t\tmodel->InitializeFromData(std::move(modelData));\n\t\tmodels_[filePath] = model;\n\t\treturn model;\n\t}\n\n\tstd::shared_ptr<Model> ModelManager::GetLoadedModel(const std::string& filePath) const\n\t{\n\t\tconst auto found = models_.find(filePath);\n\t\treturn found != models_.end() ? found->second : nullptr;\n\t}\n\n\tbool ModelManager::UnloadModel(const std::string& filePath, bool deferredRelease)\n\t{\n\t\tconst auto found = models_.find(filePath);\n\t\tif (found == models_.end() || !found->second) return false;\n\t\tif (found->second.use_count() > 1) return false; // legacy側がshared_ptrを保持している間は破棄しない。\n\n\t\tstd::shared_ptr<Model> retiredModel = std::move(found->second);\n\t\tmodels_.erase(found);\n\t\tif (deferredRelease && GpuDeferredReleaseQueue::GetInstance()->IsInitialized())\n\t\t{\n\t\t\tGpuDeferredReleaseQueue::GetInstance()->EnqueueKeepAlive(std::static_pointer_cast<void>(retiredModel));\n\t\t}\n\t\treturn true;\n\t}\n'''
+          text = rep(text, insert_anchor, model_manager_methods + insert_anchor, "ModelManager method insertion")
+          write(path, text)
+
+          # TextureManager: Decode済みScratchImageを受け取る経路とDeferred Unloadを追加する。
+          path = "Project/Engine/Graphics/Resource/Texture/TextureManager.h"
+          text = read(path)
+          text = rep(text,
+              '\t\tvoid LoadTexture(const std::string& filePath);\n',
+              '\t\tvoid LoadTexture(const std::string& filePath);\n\n\t\t// WorkerでDecode済みの画像からMain ThreadでGPU Resource / SRVを生成する。\n\t\tvoid LoadTextureFromData(const std::string& filePath, DirectX::ScratchImage image);\n\n\t\t// AssetRegistryで同一Textureを一意化するため、TextureManagerと同じ規則でPathを解決する。\n\t\tstd::string ResolveTexturePath(const std::string& filePath);\n\n\t\t// Texture Cacheから取り外し、必要ならGPU Fence完了までResource / SRV解放を遅延する。\n\t\tbool UnloadTexture(const std::string& filePath, bool deferredRelease = true);\n',
+              "TextureManager APIs")
+          write(path, text)
+
+          path = "Project/Engine/Graphics/Resource/Texture/TextureManager.cpp"
+          text = read(path)
+          text = rep(text, '#include "SRVManager.h"\n', '#include "SRVManager.h"\n#include "Engine/Graphics/Resource/Asset/GpuDeferredReleaseQueue.h"\n', "Texture deferred include")
+          text = rep(text, '#include <format>\n', '#include <format>\n#include <stdexcept>\n#include <utility>\n', "Texture utility includes")
+
+          load_data = '''\tDirectX::ScratchImage TextureManager::LoadTextureData(const std::string& filePath)\n\t{\n\t\tDirectX::ScratchImage image{};\n\t\tconst std::wstring filePathW = ConvertString(filePath);\n\t\tconst bool isDDS = filePathW.ends_with(L".dds") || filePathW.ends_with(L".DDS");\n\t\tconst HRESULT hr = isDDS\n\t\t\t? DirectX::LoadFromDDSFile(filePathW.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image)\n\t\t\t: DirectX::LoadFromWICFile(filePathW.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);\n\t\tif (FAILED(hr))\n\t\t{\n\t\t\tthrow std::runtime_error("Failed to decode texture: " + filePath);\n\t\t}\n\t\treturn image;\n\t}\n\n'''
+          text = replace_range(text, '\tDirectX::ScratchImage TextureManager::LoadTextureData(const std::string& filePath)\n', '\tvoid TextureManager::LoadTexture(const std::string& filePath)\n', load_data, "Texture LoadTextureData")
+
+          load_texture = '''\tvoid TextureManager::LoadTexture(const std::string& filePath)\n\t{\n\t\tconst std::string filePathStr = NormalizeTexturePath(filePath);\n\t\tif (textureDatas.contains(filePathStr)) return;\n\t\tLoadTextureFromData(filePathStr, LoadTextureData(filePathStr));\n\t}\n\n\tvoid TextureManager::LoadTextureFromData(const std::string& filePath, DirectX::ScratchImage image)\n\t{\n\t\tconst std::string filePathStr = NormalizeTexturePath(filePath);\n\t\tif (textureDatas.contains(filePathStr)) return;\n\n\t\tHRESULT hr{};\n\t\tconst bool isDDS = ConvertString(filePathStr).ends_with(L".dds") || ConvertString(filePathStr).ends_with(L".DDS");\n\t\tconst auto& meta0 = image.GetMetadata();\n#ifdef _DEBUG\n\t\tLog(std::format("[TextureManager] Loaded texture={} source={} format={} size={}x{} mipLevels={} srgb={} alphaMode={}\\n",\n\t\t\tfilePathStr, isDDS ? "DDS" : "WIC", static_cast<int>(meta0.format),\n\t\t\tmeta0.width, meta0.height, meta0.mipLevels,\n\t\t\tDirectX::IsSRGB(meta0.format) ? "true" : "false", static_cast<int>(meta0.GetAlphaMode())));\n#endif\n\t\tconst bool isLegacyTall = (!isDDS) && (meta0.width == meta0.height * 2);\n\n\t\tDirectX::ScratchImage normalized{};\n\t\tconst DirectX::ScratchImage* uploadImage = &image;\n\t\tif (isLegacyTall)\n\t\t{\n\t\t\tDirectX::TexMetadata metaData0 = meta0;\n\t\t\tmetaData0.height = meta0.width;\n\t\t\tmetaData0.mipLevels = 1;\n\t\t\tmetaData0.arraySize = 1;\n\t\t\thr = normalized.Initialize2D(metaData0.format, metaData0.width, metaData0.height, metaData0.arraySize, metaData0.mipLevels);\n\t\t\tif (FAILED(hr)) throw std::runtime_error("Failed to normalize legacy texture: " + filePathStr);\n\n\t\t\tconst DirectX::Image* srcImage = image.GetImage(0, 0, 0);\n\t\t\tconst DirectX::Image* destImage = normalized.GetImage(0, 0, 0);\n\t\t\tDirectX::Rect srcRect = { 0, 0, static_cast<size_t>(srcImage->width), static_cast<size_t>(srcImage->height) };\n\t\t\thr = DirectX::CopyRectangle(*srcImage, srcRect, *destImage, DirectX::TEX_FILTER_DEFAULT, 0, UINT(srcImage->height));\n\t\t\tif (FAILED(hr)) throw std::runtime_error("Failed to copy legacy texture: " + filePathStr);\n\t\t\tuploadImage = &normalized;\n\t\t}\n\n\t\tTextureData textureData{};\n\t\ttextureData.metaData = uploadImage->GetMetadata();\n\t\ttextureData.resource = CreateTextureResource(dxCommon_->GetDevice(), textureData.metaData);\n\t\tif (!textureData.resource) throw std::runtime_error("Failed to create texture resource: " + filePathStr);\n\t\ttextureData.resource->SetName(L"TextureResource");\n\n\t\tComPtr<ID3D12Resource> intermediateResource = UploadTextureData(\n\t\t\ttextureData.resource.Get(), *uploadImage, dxCommon_->GetDevice(), dxCommon_->GetCommandManager()->GetCommandList());\n\t\tdxCommon_->GetCommandManager()->ExecuteAndWait();\n\n\t\ttextureData.srvIndex = SRVManager::GetInstance()->Allocate();\n\t\ttextureData.srvHandleCPU = SRVManager::GetInstance()->GetCPUDescriptorHandle(textureData.srvIndex);\n\t\ttextureData.srvHandleGPU = SRVManager::GetInstance()->GetGPUDescriptorHandle(textureData.srvIndex);\n\n\t\tD3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};\n\t\tsrvDesc.Format = textureData.metaData.format;\n\t\tsrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;\n\t\tif (textureData.metaData.IsCubemap())\n\t\t{\n\t\t\tsrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;\n\t\t\tsrvDesc.TextureCube.MostDetailedMip = 0;\n\t\t\tsrvDesc.TextureCube.MipLevels = UINT_MAX;\n\t\t\tsrvDesc.TextureCube.ResourceMinLODClamp = 0.0f;\n\t\t}\n\t\telse\n\t\t{\n\t\t\tsrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;\n\t\t\tsrvDesc.Texture2D.MipLevels = UINT(textureData.metaData.mipLevels);\n\t\t}\n\n\t\tdxCommon_->GetDevice()->CreateShaderResourceView(textureData.resource.Get(), &srvDesc, textureData.srvHandleCPU);\n\t\ttextureDatas.emplace(filePathStr, std::move(textureData));\n\t}\n\n'''
+          text = replace_range(text, '\tvoid TextureManager::LoadTexture(const std::string& filePath)\n', '\tvoid TextureManager::ReloadTexture(const std::string& filePath)\n', load_texture, "Texture LoadTexture")
+
+          reload_unload = '''\tvoid TextureManager::ReloadTexture(const std::string& filePath)\n\t{\n\t\tconst std::string key = NormalizeTexturePath(filePath);\n\t\tUnloadTexture(key, true);\n\t\tLoadTexture(key);\n\t}\n\n\tbool TextureManager::UnloadTexture(const std::string& filePath, bool deferredRelease)\n\t{\n\t\tconst std::string key = NormalizeTexturePath(filePath);\n\t\tconst auto found = textureDatas.find(key);\n\t\tif (found == textureDatas.end()) return false;\n\n\t\tComPtr<ID3D12Resource> retiredResource = std::move(found->second.resource);\n\t\tconst uint32_t retiredSrvIndex = found->second.srvIndex;\n\t\ttextureDatas.erase(found);\n\n\t\tif (deferredRelease && GpuDeferredReleaseQueue::GetInstance()->IsInitialized())\n\t\t{\n\t\t\tGpuDeferredReleaseQueue::GetInstance()->EnqueueResource(std::move(retiredResource), retiredSrvIndex);\n\t\t}\n\t\telse if (retiredSrvIndex != UINT32_MAX)\n\t\t{\n\t\t\tSRVManager::GetInstance()->Free(retiredSrvIndex);\n\t\t}\n\t\treturn true;\n\t}\n\n\tstd::string TextureManager::ResolveTexturePath(const std::string& filePath)\n\t{\n\t\treturn NormalizeTexturePath(filePath);\n\t}\n\n'''
+          text = replace_range(text, '\tvoid TextureManager::ReloadTexture(const std::string& filePath)\n', '\tvoid TextureManager::CreateSolidColorTexture(', reload_unload, "Texture Reload/Unload")
+          write(path, text)
+
+          # Framework: AssetSystemをTexture初期化後に開始し、描画提出後にAsync/GC/Fence回収を進める。
+          path = "Project/Engine/Core/Application/Framework.cpp"
+          text = read(path)
+          text = rep(text, '#include <TextureManager.h>\n', '#include <TextureManager.h>\n#include <Engine/Graphics/Resource/Asset/AssetSystem.h>\n', "Framework AssetSystem include")
+          text = rep(text, '\t\t\tDraw();\n\n\t\t\tFrameAllocationTracker::GetInstance()->EndFrame();\n', '\t\t\tDraw();\n\n\t\t\t// GPUへのFrame送信後にAsync完了反映・Asset GC・Deferred Releaseを進める。\n\t\t\tAssetSystem::GetInstance()->Update();\n\n\t\t\tFrameAllocationTracker::GetInstance()->EndFrame();\n', "Framework asset update")
+          text = rep(text, '\t\tTextureManager::GetInstance()->Initialize(dxCommon_);\n', '\t\tTextureManager::GetInstance()->Initialize(dxCommon_);\n\n\t\t// Texture / Modelを共通AssetHandleで扱うAsset基盤を初期化する。\n\t\tAssetSystem::GetInstance()->Initialize(dxCommon_);\n', "Framework asset initialize")
+          text = rep(text, '\t\tModelManager::GetInstance()->Finalize();\n', '\t\t// AssetのAsync処理とGPU Deferred ReleaseをGPU idleまで完了してから各Managerを破棄する。\n\t\tAssetSystem::GetInstance()->Finalize();\n\n\t\tModelManager::GetInstance()->Finalize();\n', "Framework asset finalize")
+          write(path, text)
+
+          # Visual Studio ProjectへPhase 3のcppを登録する。
+          path = "Project/Ken4lowEngine.vcxproj"
+          text = read(path)
+          anchor = '    <ClCompile Include="Engine\\Graphics\\Resource\\Model\\AssimpLoader.cpp" />\n'
+          asset_sources = '''    <ClCompile Include="Engine\\Graphics\\Resource\\Asset\\AssetRegistry.cpp" />\n    <ClCompile Include="Engine\\Graphics\\Resource\\Asset\\AssetSystem.cpp" />\n    <ClCompile Include="Engine\\Graphics\\Resource\\Asset\\GpuDeferredReleaseQueue.cpp" />\n'''
+          text = rep(text, anchor, asset_sources + anchor, "vcxproj asset cpp")
+
+          # ClInclude一覧がある場合はIDEから新規Headerも見えるように登録する。
+          header_anchor = '    <ClInclude Include="Engine\\Graphics\\Resource\\Model\\AssimpLoader.h" />\n'
+          if header_anchor in text:
+              asset_headers = '''    <ClInclude Include="Engine\\Graphics\\Resource\\Asset\\AssetHandle.h" />\n    <ClInclude Include="Engine\\Graphics\\Resource\\Asset\\AssetId.h" />\n    <ClInclude Include="Engine\\Graphics\\Resource\\Asset\\AssetRegistry.h" />\n    <ClInclude Include="Engine\\Graphics\\Resource\\Asset\\AssetSystem.h" />\n    <ClInclude Include="Engine\\Graphics\\Resource\\Asset\\GpuDeferredReleaseQueue.h" />\n'''
+              text = rep(text, header_anchor, asset_headers + header_anchor, "vcxproj asset headers")
+          write(path, text)
+
+          # Phase 3設計と制約をRepository内へ残す。
+          path = Path("Project/Docs/Phase3AssetFoundation.md")
+          path.write_text('''# Phase 3 — Asset基盤\n\n## 完了対象\n\n- [x] AssetId\n- [x] AssetHandle\n- [x] AssetRegistry\n- [x] Model / Texture統合\n- [x] Unload / GC\n- [x] GPU Deferred Delete\n- [x] Async Loading\n\n## AssetId / AssetHandle\n\n`AssetId` は0を無効値とするRuntime IDで、同一プロセス中は再利用しません。`AssetHandle` はPayloadやManagerを所有せず、`AssetId + AssetType`だけを保持します。\n\n## AssetRegistry\n\nTexture / Modelを共通Registryへ登録し、Load状態、参照数、最終使用Frame、GC対象可否、失敗理由を管理します。既存のManager CacheはPayload所有を継続し、Phase 3で描画側を一斉変更しない構成です。\n\n## Model / Texture統合\n\n`AssetSystem` を共通入口として同期Load、非同期Load、Resolve、Acquire / Releaseを提供します。旧`ModelManager` / `TextureManager` APIは互換経路として維持します。\n\n## Unload / GC\n\nGCは`AssetSystem`で明示的に`garbageCollectible`へ設定したAssetだけを対象にします。参照数0かつ未使用期間を超えたAssetをUnloadし、legacyコードがRegistry外で使うAssetを勝手に破棄しません。Modelはlegacy `shared_ptr`が残っている場合Unloadを延期します。\n\n## GPU Deferred Delete\n\nTexture Resource / SRVおよびModelの最終所有権は`GpuDeferredReleaseQueue`へ移し、現在のFence値より後のSignalが完了するまで保持します。これによりGPU参照中のDescriptor再利用を避けます。終了時はGPU完了を待ってQueueをFlushします。\n\n## Async Loading\n\nModelはAssimp ImportをWorker Threadで行い、Mesh / Texture等のD3D12 Resource生成をMain Threadへ戻します。TextureはDirectXTex DecodeをWorker Threadで行い、GPU Resource / SRV生成をMain Threadへ戻します。D3D12 CommandListを複数Threadから直接操作しません。\n\n## Phase 3の境界\n\nPhase 3はAssetのIdentity / Lifetime / Async基盤までを対象とします。Copy Queue専用Upload、Streaming Mip、Bindless Descriptor、Asset dependency graphの完全自動化は後続Phaseへ残します。\n''', encoding="utf-8", newline="\n")
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          git diff --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git add Project/Engine/Graphics/Resource/Model/Model.h `
+                  Project/Engine/Graphics/Resource/Model/Model.cpp `
+                  Project/Engine/Graphics/Resource/Model/ModelManager.h `
+                  Project/Engine/Graphics/Resource/Model/ModelManager.cpp `
+                  Project/Engine/Graphics/Resource/Texture/TextureManager.h `
+                  Project/Engine/Graphics/Resource/Texture/TextureManager.cpp `
+                  Project/Engine/Core/Application/Framework.cpp `
+                  Project/Ken4lowEngine.vcxproj `
+                  Project/Docs/Phase3AssetFoundation.md `
+                  Project/Engine/Graphics/Resource/Asset
+          git commit -m "AssetのUnloadとAsync Loadingを統合"
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v3
+        with:
+          msbuild-architecture: x64
+
+      - name: Compile Debug C++
+        shell: pwsh
+        run: msbuild Project/Ken4lowEngine.sln /m /t:ClCompile /p:Platform=x64 /p:Configuration=Debug /verbosity:minimal "/clp:ErrorsOnly;Summary"
+
+      - name: Compile Release C++
+        shell: pwsh
+        run: msbuild Project/Ken4lowEngine.sln /m /t:ClCompile /p:Platform=x64 /p:Configuration=Release /verbosity:minimal "/clp:ErrorsOnly;Summary"
+
+      - name: Remove temporary workflow and push
+        if: success()
+        shell: pwsh
+        run: |
+          git rm .github/workflows/Phase3AssetIntegration.yml
+          git commit -m "Phase 3の一時Asset検証Workflowを削除"
+          git push origin HEAD:feature/phase3-asset-foundation
