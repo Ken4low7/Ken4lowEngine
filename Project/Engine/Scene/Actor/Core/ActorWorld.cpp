@@ -50,19 +50,12 @@ namespace Ken4lowEngine
 				continue; // 削除予約済みActorは同じフレームで再更新しない。
 			}
 
-			if (!actor->IsActive())
-			{
-				UnregisterPhysicsComponents(*actor); // 無効なActorは物理登録から外す
-				continue;
-			}
-			actor->InitializeComponents(); // 実行中に追加されたComponentをフレーム境界で初期化する。
-			RegisterPhysicsComponents(*actor); // ComponentのActive変更を含めてPhysics登録を同期する。
+			if (!actor->IsActive()) continue;
+			actor->InitializeComponents(); // 初期化完了通知でPhysics登録をイベント同期する。
 
-			// ActorWorldは更新順だけ管理し、処理内容はActor/Component側に任せる
+			// 毎フレームのPhysics再走査は行わず、Component追加・削除・Active変更イベントで同期する。
 			actor->Update(deltaTime);
-			actor->InitializeComponents(); // Update中に追加されたComponentもPhysics登録前に初期化する。
-			if (actor->IsPendingDestroy() || !actor->IsActive()) UnregisterPhysicsComponents(*actor);
-			else RegisterPhysicsComponents(*actor); // Update内のActive変更を直後のPhysics Stepへ反映する。
+			actor->InitializeComponents(); // Update中に追加されたComponentも同フレームのPhysics Step前に初期化する。
 
 		}
 		isUpdating_ = false;
@@ -82,13 +75,8 @@ namespace Ken4lowEngine
 		for (auto& actor : actors_)
 		{
 			if (!actor || actor->IsPendingDestroy()) continue;
-			if (!actor->IsActive())
-			{
-				UnregisterPhysicsComponents(*actor);
-				continue;
-			}
+			if (!actor->IsActive()) continue;
 			actor->InitializeComponents();
-			RegisterPhysicsComponents(*actor); // Edit中のActive変更も物理デバッグ登録へ反映する。
 			actor->UpdateEditor(deltaTime);
 		}
 		isUpdating_ = false;

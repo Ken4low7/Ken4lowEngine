@@ -62,12 +62,7 @@ namespace Ken4lowEngine
 			return;
 		}
 
-		// 一度登録済みの静的World Actorは、417個規模のCollider登録確認を毎フレーム繰り返さない。
-		if (actor.IsPhysicsRegistered() && actor.GetLayer() == "WorldStatic")
-		{
-			return;
-		}
-
+		// Phase 2以降は毎フレーム呼ばれないため、状態変更イベント時は必ず最新構成を同期する。
 		auto colliders = actor.GetComponents<ColliderComponent>();
 		auto* rigidbody = actor.GetComponent<RigidbodyComponent>();
 		Rigidbody* physicsRigidbody = rigidbody && rigidbody->IsActiveInHierarchy() ? rigidbody->GetRigidbody() : nullptr;
