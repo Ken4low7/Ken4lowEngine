@@ -82,6 +82,24 @@ namespace Ken4lowEngine
 			return true;
 		}
 
+		nlohmann::json PrepareActorJsonForSpawn(const nlohmann::json& actorJson, const ActorSpawnOptions& options)
+		{
+			nlohmann::json preparedJson = actorJson;
+			if (!options.disableAutoRegisterMainCamera ||
+				!preparedJson.contains("Components") || !preparedJson["Components"].is_array())
+			{
+				return preparedJson;
+			}
+
+			for (nlohmann::json& componentJson : preparedJson["Components"])
+			{
+				if (!componentJson.is_object() || componentJson.value("Class", std::string{}) != "CameraComponent") continue;
+				// Transactional LoaderのStaging中に、まだWorldへCommitしていないCameraがMainCameraを奪わないようにする。
+				componentJson["AutoRegisterMainCamera"] = false;
+			}
+			return preparedJson;
+		}
+
 		std::unordered_set<ActorComponent*> PrepareComponentsForReload(Actor& actor)
 		{
 			std::unordered_set<ActorComponent*> reusableComponents;
@@ -240,11 +258,12 @@ namespace Ken4lowEngine
 		std::unique_ptr<Actor> actor;
 		try
 		{
-			if (!ValidateActorDefinition(actorJson)) return nullptr;
+			const nlohmann::json preparedJson = PrepareActorJsonForSpawn(actorJson, options);
+			if (!ValidateActorDefinition(preparedJson)) return nullptr;
 
-			actor = ActorFactory::CreateActor(actorJson["Class"].get<std::string>());
+			actor = ActorFactory::CreateActor(preparedJson["Class"].get<std::string>());
 			if (!actor) return nullptr;
-			if (!LoadActorFromJson(*actor, actorJson))
+			if (!LoadActorFromJson(*actor, preparedJson))
 			{
 				actor->FinalizeForWorld();
 				return nullptr;
