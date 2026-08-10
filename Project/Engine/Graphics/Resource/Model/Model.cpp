@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <limits>
 #include <cctype>
+#include <utility>
 
 namespace Ken4lowEngine
 {
@@ -27,7 +28,12 @@ namespace Ken4lowEngine
 
 	void Model::Initialize(const std::string& filePath)
 	{
-		modelData_ = AssimpLoader::LoadModel(filePath);
+		InitializeFromData(AssimpLoader::LoadModel(filePath));
+	}
+
+	void Model::InitializeFromData(ModelData modelData)
+	{
+		modelData_ = std::move(modelData);
 
 		meshes_.clear();
 		materialSRVs_.clear();

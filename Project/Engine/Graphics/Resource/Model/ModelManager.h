@@ -57,6 +57,15 @@ namespace Ken4lowEngine
 		/// <param name="filePath">モデルファイルのパス。</param>
 		std::shared_ptr<Model> LoadModel(const std::string& filePath);
 
+		/// WorkerでImport済みのModelDataをMain ThreadでGPU Resource化してCacheへ登録する。
+		std::shared_ptr<Model> LoadModelFromData(const std::string& filePath, ModelData modelData);
+
+		/// Loadを発生させず、現在Cache済みのModelだけを取得する。
+		std::shared_ptr<Model> GetLoadedModel(const std::string& filePath) const;
+
+		/// Cacheだけが所有しているModelを安全にUnloadする。GPU利用中ならFence完了まで寿命を延長する。
+		bool UnloadModel(const std::string& filePath, bool deferredRelease = true);
+
 		/// <summary>
 		/// 指定されたファイルパスに対応する Model を取得します。<br/>
 		/// ・models_ に存在する場合：既存の shared_ptr を返す<br/>

@@ -3,12 +3,15 @@
 
 #include "DirectXCommon.h"
 #include "SRVManager.h"
+#include "Engine/Graphics/Resource/Asset/GpuDeferredReleaseQueue.h"
 #include "ResourceManager.h"
 
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
 #include <format>
+#include <stdexcept>
+#include <utility>
 
 #include <d3dx12.h>
 
@@ -104,41 +107,32 @@ namespace Ken4lowEngine
 	DirectX::ScratchImage TextureManager::LoadTextureData(const std::string& filePath)
 	{
 		DirectX::ScratchImage image{};
-		std::wstring filePathW = ConvertString(filePath);
-
-		HRESULT hr = DirectX::LoadFromWICFile(filePathW.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
-		assert(SUCCEEDED(hr));
-
+		const std::wstring filePathW = ConvertString(filePath);
+		const bool isDDS = filePathW.ends_with(L".dds") || filePathW.ends_with(L".DDS");
+		const HRESULT hr = isDDS
+			? DirectX::LoadFromDDSFile(filePathW.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image)
+			: DirectX::LoadFromWICFile(filePathW.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
+		if (FAILED(hr))
+		{
+			throw std::runtime_error("Failed to decode texture: " + filePath);
+		}
 		return image;
 	}
 
 	void TextureManager::LoadTexture(const std::string& filePath)
 	{
+		const std::string filePathStr = NormalizeTexturePath(filePath);
+		if (textureDatas.contains(filePathStr)) return;
+		LoadTextureFromData(filePathStr, LoadTextureData(filePathStr));
+	}
+
+	void TextureManager::LoadTextureFromData(const std::string& filePath, DirectX::ScratchImage image)
+	{
+		const std::string filePathStr = NormalizeTexturePath(filePath);
+		if (textureDatas.contains(filePathStr)) return;
+
 		HRESULT hr{};
-
-		std::string filePathStr = NormalizeTexturePath(filePath);
-
-		if (textureDatas.contains(filePathStr))
-		{
-			return;
-		}
-
-		DirectX::ScratchImage image{};
-		std::wstring filePathW = ConvertString(filePathStr);
-
-		const bool isDDS = filePathW.ends_with(L".dds");
-
-		if (isDDS)
-		{
-			hr = DirectX::LoadFromDDSFile(filePathW.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image);
-			assert(SUCCEEDED(hr));
-		}
-		else
-		{
-			hr = DirectX::LoadFromWICFile(filePathW.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
-			assert(SUCCEEDED(hr));
-		}
-
+		const bool isDDS = ConvertString(filePathStr).ends_with(L".dds") || ConvertString(filePathStr).ends_with(L".DDS");
 		const auto& meta0 = image.GetMetadata();
 #ifdef _DEBUG
 		Log(std::format("[TextureManager] Loaded texture={} source={} format={} size={}x{} mipLevels={} srgb={} alphaMode={}\n",
@@ -150,45 +144,31 @@ namespace Ken4lowEngine
 
 		DirectX::ScratchImage normalized{};
 		const DirectX::ScratchImage* uploadImage = &image;
-
 		if (isLegacyTall)
 		{
 			DirectX::TexMetadata metaData0 = meta0;
 			metaData0.height = meta0.width;
 			metaData0.mipLevels = 1;
 			metaData0.arraySize = 1;
-
 			hr = normalized.Initialize2D(metaData0.format, metaData0.width, metaData0.height, metaData0.arraySize, metaData0.mipLevels);
-			assert(SUCCEEDED(hr));
+			if (FAILED(hr)) throw std::runtime_error("Failed to normalize legacy texture: " + filePathStr);
 
 			const DirectX::Image* srcImage = image.GetImage(0, 0, 0);
 			const DirectX::Image* destImage = normalized.GetImage(0, 0, 0);
-
-			DirectX::Rect srcRect = {
-				0, 0,
-				static_cast<size_t>(srcImage->width),
-				static_cast<size_t>(srcImage->height)
-			};
-
+			DirectX::Rect srcRect = { 0, 0, static_cast<size_t>(srcImage->width), static_cast<size_t>(srcImage->height) };
 			hr = DirectX::CopyRectangle(*srcImage, srcRect, *destImage, DirectX::TEX_FILTER_DEFAULT, 0, UINT(srcImage->height));
-			assert(SUCCEEDED(hr));
-
+			if (FAILED(hr)) throw std::runtime_error("Failed to copy legacy texture: " + filePathStr);
 			uploadImage = &normalized;
 		}
 
-		TextureData& textureData = textureDatas[filePathStr];
+		TextureData textureData{};
 		textureData.metaData = uploadImage->GetMetadata();
-#ifdef _DEBUG
-		// DDS 読み込み後の最終メタデータを出力し、sRGB/通常フォーマット取り違えを切り分ける。
-		Log(std::format("[TextureManager] Upload texture={} format={} mipLevels={} srgb={}\n",
-			filePathStr, static_cast<int>(textureData.metaData.format), textureData.metaData.mipLevels,
-			DirectX::IsSRGB(textureData.metaData.format) ? "true" : "false"));
-#endif
 		textureData.resource = CreateTextureResource(dxCommon_->GetDevice(), textureData.metaData);
+		if (!textureData.resource) throw std::runtime_error("Failed to create texture resource: " + filePathStr);
 		textureData.resource->SetName(L"TextureResource");
 
-		ComPtr<ID3D12Resource> intermediateResource = UploadTextureData(textureData.resource.Get(), *uploadImage, dxCommon_->GetDevice(), dxCommon_->GetCommandManager()->GetCommandList());
-
+		ComPtr<ID3D12Resource> intermediateResource = UploadTextureData(
+			textureData.resource.Get(), *uploadImage, dxCommon_->GetDevice(), dxCommon_->GetCommandManager()->GetCommandList());
 		dxCommon_->GetCommandManager()->ExecuteAndWait();
 
 		textureData.srvIndex = SRVManager::GetInstance()->Allocate();
@@ -198,7 +178,6 @@ namespace Ken4lowEngine
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 		srvDesc.Format = textureData.metaData.format;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-
 		if (textureData.metaData.IsCubemap())
 		{
 			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
@@ -213,25 +192,40 @@ namespace Ken4lowEngine
 		}
 
 		dxCommon_->GetDevice()->CreateShaderResourceView(textureData.resource.Get(), &srvDesc, textureData.srvHandleCPU);
+		textureDatas.emplace(filePathStr, std::move(textureData));
 	}
 
 	void TextureManager::ReloadTexture(const std::string& filePath)
 	{
-		std::string key = NormalizeTexturePath(filePath);
-
-		auto it = textureDatas.find(key);
-		if (it != textureDatas.end())
-		{
-			if (it->second.srvIndex != UINT32_MAX)
-			{
-				SRVManager::GetInstance()->Free(it->second.srvIndex);
-				it->second.srvIndex = UINT32_MAX;
-			}
-			it->second.resource.Reset();
-			textureDatas.erase(it);
-		}
-
+		const std::string key = NormalizeTexturePath(filePath);
+		UnloadTexture(key, true);
 		LoadTexture(key);
+	}
+
+	bool TextureManager::UnloadTexture(const std::string& filePath, bool deferredRelease)
+	{
+		const std::string key = NormalizeTexturePath(filePath);
+		const auto found = textureDatas.find(key);
+		if (found == textureDatas.end()) return false;
+
+		ComPtr<ID3D12Resource> retiredResource = std::move(found->second.resource);
+		const uint32_t retiredSrvIndex = found->second.srvIndex;
+		textureDatas.erase(found);
+
+		if (deferredRelease && GpuDeferredReleaseQueue::GetInstance()->IsInitialized())
+		{
+			GpuDeferredReleaseQueue::GetInstance()->EnqueueResource(std::move(retiredResource), retiredSrvIndex);
+		}
+		else if (retiredSrvIndex != UINT32_MAX)
+		{
+			SRVManager::GetInstance()->Free(retiredSrvIndex);
+		}
+		return true;
+	}
+
+	std::string TextureManager::ResolveTexturePath(const std::string& filePath)
+	{
+		return NormalizeTexturePath(filePath);
 	}
 
 	void TextureManager::CreateSolidColorTexture(const std::string& key, uint8_t r, uint8_t g, uint8_t b, uint8_t a, uint32_t width, uint32_t height)

@@ -7,6 +7,7 @@
 #include <SRVManager.h>
 #include <UAVManager.h>
 #include <TextureManager.h>
+#include <Engine/Graphics/Resource/Asset/AssetSystem.h>
 #include <SpriteManager.h>
 #include <Object3DCommon.h>
 #include <ModelManager.h>
@@ -101,6 +102,9 @@ namespace Ken4lowEngine
 			// 更新済みの状態をもとに、3D / 2D / UI を描画する。
 			Draw();
 
+			// GPUへのFrame送信後にAsync完了反映・Asset GC・Deferred Releaseを進める。
+			AssetSystem::GetInstance()->Update();
+
 			FrameAllocationTracker::GetInstance()->EndFrame();
 		}
 
@@ -150,6 +154,9 @@ namespace Ken4lowEngine
 
 		// テクスチャマネージャーの初期化
 		TextureManager::GetInstance()->Initialize(dxCommon_);
+
+		// Texture / Modelを共通AssetHandleで扱うAsset基盤を初期化する。
+		AssetSystem::GetInstance()->Initialize(dxCommon_);
 
 		// ブレンドステートファクトリの初期化
 		BlendStateFactory::GetInstance()->Initialize();
@@ -253,6 +260,9 @@ namespace Ken4lowEngine
 
 		// Object3DCommonの終了処理
 		Object3DCommon::GetInstance()->Finalize();
+
+		// AssetのAsync処理とGPU Deferred ReleaseをGPU idleまで完了してから各Managerを破棄する。
+		AssetSystem::GetInstance()->Finalize();
 
 		ModelManager::GetInstance()->Finalize();
 

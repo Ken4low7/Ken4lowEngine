@@ -304,6 +304,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\Graphics\RenderTarget\Main\MainRenderTarget.cpp" />
     <ClCompile Include="Engine\Graphics\RenderTarget\Shadow\ShadowMapRenderTarget.cpp" />
     <ClCompile Include="Engine\Graphics\RenderTarget\Shadow\ShadowMapArrayRenderTarget.cpp" />
+    <ClCompile Include="Engine\Graphics\Resource\Asset\AssetRegistry.cpp" />
+    <ClCompile Include="Engine\Graphics\Resource\Asset\AssetSystem.cpp" />
+    <ClCompile Include="Engine\Graphics\Resource\Asset\GpuDeferredReleaseQueue.cpp" />
     <ClCompile Include="Engine\Graphics\Resource\Model\AssimpLoader.cpp" />
     <ClCompile Include="Engine\Graphics\Resource\Model\KMeshLoader.cpp" />
     <ClCompile Include="Engine\Graphics\Resource\Model\ModelLoader.cpp" />
@@ -932,6 +935,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\Graphics\RenderTarget\Main\MainRenderTarget.h" />
     <ClInclude Include="Engine\Graphics\RenderTarget\Shadow\ShadowMapRenderTarget.h" />
     <ClInclude Include="Engine\Graphics\RenderTarget\Shadow\ShadowMapArrayRenderTarget.h" />
+    <ClInclude Include="Engine\Graphics\Resource\Asset\AssetHandle.h" />
+    <ClInclude Include="Engine\Graphics\Resource\Asset\AssetId.h" />
+    <ClInclude Include="Engine\Graphics\Resource\Asset\AssetRegistry.h" />
+    <ClInclude Include="Engine\Graphics\Resource\Asset\AssetSystem.h" />
+    <ClInclude Include="Engine\Graphics\Resource\Asset\GpuDeferredReleaseQueue.h" />
     <ClInclude Include="Engine\Graphics\Resource\Model\AssimpLoader.h" />
     <ClInclude Include="Engine\Graphics\Resource\Model\KMeshLoader.h" />
     <ClInclude Include="Engine\Graphics\Resource\Model\ModelLoader.h" />

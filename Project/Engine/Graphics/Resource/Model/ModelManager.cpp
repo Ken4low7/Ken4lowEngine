@@ -2,6 +2,9 @@
 #include <AssimpLoader.h>
 #include <numeric>
 #include <Model.h>
+#include "Engine/Graphics/Resource/Asset/GpuDeferredReleaseQueue.h"
+
+#include <utility>
 
 namespace Ken4lowEngine
 {
@@ -110,6 +113,37 @@ namespace Ken4lowEngine
 		model->Initialize(filePath);
 		models_.insert(std::make_pair(filePath, model));
 		return model;
+	}
+
+	std::shared_ptr<Model> ModelManager::LoadModelFromData(const std::string& filePath, ModelData modelData)
+	{
+		if (const auto found = models_.find(filePath); found != models_.end()) return found->second;
+
+		auto model = std::make_shared<Model>();
+		model->InitializeFromData(std::move(modelData));
+		models_[filePath] = model;
+		return model;
+	}
+
+	std::shared_ptr<Model> ModelManager::GetLoadedModel(const std::string& filePath) const
+	{
+		const auto found = models_.find(filePath);
+		return found != models_.end() ? found->second : nullptr;
+	}
+
+	bool ModelManager::UnloadModel(const std::string& filePath, bool deferredRelease)
+	{
+		const auto found = models_.find(filePath);
+		if (found == models_.end() || !found->second) return false;
+		if (found->second.use_count() > 1) return false; // legacy側がshared_ptrを保持している間は破棄しない。
+
+		std::shared_ptr<Model> retiredModel = std::move(found->second);
+		models_.erase(found);
+		if (deferredRelease && GpuDeferredReleaseQueue::GetInstance()->IsInitialized())
+		{
+			GpuDeferredReleaseQueue::GetInstance()->EnqueueKeepAlive(std::static_pointer_cast<void>(retiredModel));
+		}
+		return true;
 	}
 
 

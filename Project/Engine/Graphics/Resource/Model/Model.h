@@ -20,6 +20,9 @@ namespace Ken4lowEngine
 		// モデルデータのファイルパスを指定して初期化を行います。
 		void Initialize(const std::string& filePath);
 
+		// Worker ThreadでImport済みのModelDataからGPU側のMesh / Texture参照を構築する。
+		void InitializeFromData(ModelData modelData);
+
 		// モデルの描画処理
 		void BuildLocalBounds();
 

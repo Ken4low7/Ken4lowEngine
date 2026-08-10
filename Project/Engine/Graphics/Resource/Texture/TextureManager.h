@@ -64,6 +64,15 @@ namespace Ken4lowEngine
 		// テクスチャの読み込みとSRV作成
 		void LoadTexture(const std::string& filePath);
 
+		// WorkerでDecode済みの画像からMain ThreadでGPU Resource / SRVを生成する。
+		void LoadTextureFromData(const std::string& filePath, DirectX::ScratchImage image);
+
+		// AssetRegistryで同一Textureを一意化するため、TextureManagerと同じ規則でPathを解決する。
+		std::string ResolveTexturePath(const std::string& filePath);
+
+		// Texture Cacheから取り外し、必要ならGPU Fence完了までResource / SRV解放を遅延する。
+		bool UnloadTexture(const std::string& filePath, bool deferredRelease = true);
+
 		// テクスチャの再読み込み
 		void ReloadTexture(const std::string& filePath);
 
