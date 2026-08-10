@@ -24,14 +24,76 @@ namespace Ken4lowEngine
 	{
 		if (!dxCommon_) return;
 
-		MeasurePhase(PerformancePhase::BeginDraw, [this]()
+		renderGraph_.Reset();
+		const RenderGraph::ResourceHandle backBuffer = renderGraph_.CreateResource("BackBuffer", true);
+		const RenderGraph::ResourceHandle shadowMap = renderGraph_.CreateResource("ShadowMap", true);
+		const RenderGraph::ResourceHandle sceneColor = renderGraph_.CreateResource("SceneColor", true);
+		const RenderGraph::ResourceHandle postColor = renderGraph_.CreateResource("PostColor", false);
+		RenderGraph::PassHandle previousPass{};
+
+		auto addChainedPass = [this, &previousPass](
+			std::string name,
+			std::initializer_list<RenderGraph::ResourceHandle> reads,
+			std::initializer_list<RenderGraph::ResourceHandle> writes,
+			std::function<void()> execute)
 			{
-				dxCommon_->BeginDraw();
+				RenderGraph::PassHandle pass = renderGraph_.AddPass(std::move(name), reads, writes, std::move(execute));
+				if (previousPass.IsValid()) renderGraph_.AddDependency(previousPass, pass);
+				previousPass = pass;
+				return pass;
+			};
+
+		addChainedPass("BeginDraw", {}, { backBuffer }, [this]()
+			{
+				MeasurePhase(PerformancePhase::BeginDraw, [this]() { dxCommon_->BeginDraw(); });
+			});
+		addChainedPass("ShadowPrepare", {}, { shadowMap }, [this, &callbacks]()
+			{
+				MeasurePhase(PerformancePhase::ShadowPrepare, callbacks.prepareShadowPass);
+			});
+		addChainedPass("ShadowRender", { shadowMap }, { shadowMap }, [this, &callbacks]()
+			{
+				MeasurePhase(PerformancePhase::ShadowRender, [&callbacks]()
+					{
+						LightManager::GetInstance()->ExecuteShadowPasses(callbacks.drawShadowObjects);
+					});
 			});
 
-		ExecuteShadowMapPass(callbacks);
-		if (editorModeEnabled) ExecuteEditorFrame(callbacks);
-		else ExecuteGameFrame(callbacks);
+		if (editorModeEnabled)
+		{
+			addChainedPass("EditorUiBuild", {}, {}, [this, &callbacks]() { MeasurePhase(PerformancePhase::EditorUiBuild, callbacks.buildEditorUi); });
+			addChainedPass("EditorPicking", {}, {}, [this, &callbacks]() { MeasurePhase(PerformancePhase::EditorPicking, callbacks.executeEditorPickingPass); });
+			addChainedPass("MainWorldRender", { shadowMap }, { sceneColor }, [this, &callbacks]() { MeasurePhase(PerformancePhase::MainWorldRender, callbacks.drawGameWorldToSceneTarget); });
+			addChainedPass("PostEffect", { sceneColor }, { postColor }, [this, &callbacks]() { MeasurePhase(PerformancePhase::PostEffect, callbacks.renderPostEffectToGameRenderTarget); });
+			addChainedPass("SelectionOutline", { postColor }, { postColor }, [this, &callbacks]() { MeasurePhase(PerformancePhase::SelectionOutline, callbacks.renderEditorSelectionOutline); });
+			addChainedPass("SceneOverlay", { postColor }, { postColor }, [this, &callbacks]()
+				{
+					MeasurePhase(PerformancePhase::SceneOverlay, [&callbacks]()
+						{
+							if (callbacks.beginGameRenderTargetOverlay) callbacks.beginGameRenderTargetOverlay();
+							if (callbacks.drawScene2DOverlay) callbacks.drawScene2DOverlay();
+							if (callbacks.endGameRenderTargetOverlay) callbacks.endGameRenderTargetOverlay();
+						});
+				});
+			addChainedPass("ImGuiRender", { postColor }, { backBuffer }, [this, &callbacks]() { MeasurePhase(PerformancePhase::ImGuiRender, callbacks.drawImGuiOverlay); });
+		}
+		else
+		{
+			addChainedPass("MainWorldRender", { shadowMap }, { sceneColor }, [this, &callbacks]() { MeasurePhase(PerformancePhase::MainWorldRender, callbacks.drawGameWorldToSceneTarget); });
+			addChainedPass("BackBufferPostEffect", { sceneColor }, { backBuffer }, [this, &callbacks]() { MeasurePhase(PerformancePhase::BackBufferPostEffect, callbacks.applyPostEffectToBackBuffer); });
+			addChainedPass("BackBufferRebind", { backBuffer }, { backBuffer }, [this, &callbacks]() { MeasurePhase(PerformancePhase::BackBufferRebind, callbacks.rebindBackBufferForGameOverlay); });
+			addChainedPass("GameUi", { backBuffer }, { backBuffer }, [this, &callbacks]() { MeasurePhase(PerformancePhase::GameUi, callbacks.drawGameUIToBackBuffer); });
+		}
+
+		std::string graphError;
+		if (!renderGraph_.Compile(&graphError) || !renderGraph_.Execute(&graphError))
+		{
+			// Graph検証失敗時だけ旧固定順へFallbackし、描画そのものを失わない。
+			MeasurePhase(PerformancePhase::BeginDraw, [this]() { dxCommon_->BeginDraw(); });
+			ExecuteShadowMapPass(callbacks);
+			if (editorModeEnabled) ExecuteEditorFrame(callbacks);
+			else ExecuteGameFrame(callbacks);
+		}
 	}
 
 	void RenderPipelineController::MeasurePhase(PerformancePhase phase, const std::function<void()>& callback)
@@ -159,6 +221,12 @@ namespace Ken4lowEngine
 			drawEndDrawRow("EndDraw Total", endDrawTiming.totalMs);
 			ImGui::EndTable();
 		}
+
+		const RenderGraph::CompileStats& graphStats = renderGraph_.GetCompileStats();
+		ImGui::SeparatorText("Render Graph");
+		ImGui::Text("Render Graph Passes: %zu", graphStats.passCount);
+		ImGui::Text("Resources: %zu / Dependencies: %zu", graphStats.resourceCount, graphStats.dependencyCount);
+		ImGui::Text("Transient Logical Resources: %zu", graphStats.transientResourceCount);
 
 		ImGui::SeparatorText("Render Pipeline CPU Pass");
 		if (ImGui::BeginTable("##RenderPipelinePerformanceTable", 4,

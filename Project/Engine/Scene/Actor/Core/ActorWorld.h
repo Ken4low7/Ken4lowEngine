@@ -126,6 +126,11 @@ namespace Ken4lowEngine
 			std::vector<std::unique_ptr<Actor>> stagedActors,
 			std::vector<Actor*>* outActors = nullptr);
 
+		/// <summary>現在Worldを維持したままStaging Actorを追加するSubLevel専用入口。</summary>
+		bool AppendStagedActors(
+			std::vector<std::unique_ptr<Actor>> stagedActors,
+			std::vector<Actor*>* outActors = nullptr);
+
 		/// <summary>
 		/// 名前からActorを検索する
 		/// </summary>

@@ -6,6 +6,7 @@
 #include "PrefabInstanceRegistry.h"
 #include "PrefabReferenceResolver.h"
 #include "SceneComponent.h"
+#include <Engine/Scene/Streaming/WorldPartitionManager.h>
 
 #ifdef USE_IMGUI
 #include <Editor/EditorActorStateRegistry.h>
@@ -138,6 +139,68 @@ namespace Ken4lowEngine
 		document.camera = levelJson.value("Camera", nlohmann::json::object());
 		document.environment = levelJson.value("Environment", nlohmann::json::object());
 
+		if (levelJson.contains("WorldPartition") && levelJson["WorldPartition"].is_object())
+		{
+			const nlohmann::json& partition = levelJson["WorldPartition"];
+			document.worldPartition.enabled = partition.value("Enabled", false);
+			document.worldPartition.cellSize = partition.value("CellSize", 128.0f);
+			document.worldPartition.loadRadiusCells = partition.value("LoadRadiusCells", 1);
+			document.worldPartition.unloadRadiusCells = partition.value("UnloadRadiusCells", 2);
+			if (document.worldPartition.cellSize <= 0.0f)
+			{
+				outError = "WorldPartition CellSizeは0より大きい必要があります。";
+				return false;
+			}
+			if (document.worldPartition.loadRadiusCells < 0 ||
+				document.worldPartition.unloadRadiusCells < document.worldPartition.loadRadiusCells)
+			{
+				outError = "WorldPartitionのLoad/Unload Radiusが不正です。";
+				return false;
+			}
+		}
+
+		if (levelJson.contains("SubLevels"))
+		{
+			if (!levelJson["SubLevels"].is_array())
+			{
+				outError = "SubLevelsは配列である必要があります。";
+				return false;
+			}
+			std::unordered_set<std::string> subLevelIds;
+			for (const nlohmann::json& subLevelJson : levelJson["SubLevels"])
+			{
+				if (!subLevelJson.is_object())
+				{
+					outError = "SubLevel entryはobjectである必要があります。";
+					return false;
+				}
+				LevelSubLevelReference subLevel{};
+				subLevel.id = subLevelJson.value("Id", std::string{});
+				subLevel.path = subLevelJson.value("Path", std::string{});
+				subLevel.cellX = subLevelJson.value("CellX", 0);
+				subLevel.cellZ = subLevelJson.value("CellZ", 0);
+				subLevel.priority = subLevelJson.value("Priority", 1);
+				subLevel.alwaysLoaded = subLevelJson.value("AlwaysLoaded", false);
+				if (subLevel.id.empty() || subLevel.path.empty())
+				{
+					outError = "SubLevelには空でないIdとPathが必要です。";
+					return false;
+				}
+				if (!subLevelIds.insert(subLevel.id).second)
+				{
+					outError = "SubLevel Idが重複しています: " + subLevel.id;
+					return false;
+				}
+				std::filesystem::path resolvedPath(subLevel.path);
+				if (resolvedPath.is_relative() && !subLevel.path.starts_with("Resources/"))
+				{
+					resolvedPath = levelBaseDirectory / resolvedPath;
+				}
+				subLevel.resolvedPath = resolvedPath.lexically_normal();
+				document.subLevels.push_back(std::move(subLevel));
+			}
+		}
+
 		std::size_t actorIndex = 0;
 		for (const nlohmann::json& entry : levelJson["Actors"])
 		{
@@ -217,6 +280,24 @@ namespace Ken4lowEngine
 		level["LevelSettings"] = {
 			{ "TargetScene", document.targetScene },
 		};
+		level["WorldPartition"] = {
+			{ "Enabled", document.worldPartition.enabled },
+			{ "CellSize", document.worldPartition.cellSize },
+			{ "LoadRadiusCells", document.worldPartition.loadRadiusCells },
+			{ "UnloadRadiusCells", document.worldPartition.unloadRadiusCells },
+		};
+		level["SubLevels"] = nlohmann::json::array();
+		for (const LevelSubLevelReference& subLevel : document.subLevels)
+		{
+			level["SubLevels"].push_back({
+				{ "Id", subLevel.id },
+				{ "Path", subLevel.path },
+				{ "CellX", subLevel.cellX },
+				{ "CellZ", subLevel.cellZ },
+				{ "Priority", subLevel.priority },
+				{ "AlwaysLoaded", subLevel.alwaysLoaded },
+			});
+		}
 		level["Actors"] = nlohmann::json::array();
 
 		for (const LevelActorDocument& actor : document.actors)
@@ -266,19 +347,26 @@ namespace Ken4lowEngine
 		document.camera = std::move(camera);
 		document.environment = std::move(environment);
 
+		WorldPartitionManager* partitionManager = WorldPartitionManager::GetInstance();
+		if (partitionManager->IsConfiguredFor(&actorWorld))
+		{
+			document.worldPartition = partitionManager->GetSettings();
+			document.subLevels = partitionManager->GetSubLevels();
+		}
+
 		std::unordered_map<const Actor*, std::string> actorIds;
 		std::size_t actorIndex = 0;
 		for (const auto& actorOwner : actorWorld.GetActors())
 		{
 			Actor* actor = actorOwner.get();
-			if (!actor || actor->IsPendingDestroy()) continue;
+			if (!actor || actor->IsPendingDestroy() || WorldPartitionManager::GetInstance()->IsStreamingActor(actor)) continue;
 			actorIds.emplace(actor, "Actor_" + std::to_string(actorIndex++));
 		}
 
 		for (const auto& actorOwner : actorWorld.GetActors())
 		{
 			Actor* actor = actorOwner.get();
-			if (!actor || actor->IsPendingDestroy()) continue;
+			if (!actor || actor->IsPendingDestroy() || WorldPartitionManager::GetInstance()->IsStreamingActor(actor)) continue;
 
 			LevelActorDocument actorDocument{};
 			actorDocument.id = actorIds.at(actor);

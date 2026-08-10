@@ -107,8 +107,10 @@ namespace Ken4lowEngine
 		}
 
 		std::pmr::memory_resource* scratch = FrameMemory::GetInstance()->GetMemoryResource();
-		std::pmr::vector<uint32_t> indegree(passes_.size(), 0u, scratch);
-		std::pmr::vector<int32_t> lastAccess(resources_.size(), -1, scratch);
+		std::pmr::vector<uint32_t> indegree(scratch);
+		indegree.assign(passes_.size(), 0u);
+		std::pmr::vector<int32_t> lastAccess(scratch);
+		lastAccess.assign(resources_.size(), -1);
 		std::vector<std::vector<uint32_t>> adjacency(passes_.size());
 
 		auto addEdge = [&adjacency, &indegree, this](uint32_t before, uint32_t after)

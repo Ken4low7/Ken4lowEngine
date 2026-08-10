@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstddef>
 #include <functional>
+#include <Engine/Graphics/RenderGraph/RenderGraph.h>
 
 namespace Ken4lowEngine
 {
@@ -11,7 +12,7 @@ namespace Ken4lowEngine
 
 	/// <summary>
 	/// 既存描画処理を並べるだけの薄いレンダーパイプライン入口です。<br/>
-	/// RenderPass/FrameGraphはまだ導入せず、GameApplicationに散らばっていた1フレーム内の
+	/// Phase 6ではRenderGraphへPass依存を宣言し、GameApplicationに散らばっていた1フレーム内の
 	/// Shadow/Scene/PostEffect/UI/Present手前までの順序を見える化するためのFacadeとして機能します。
 	/// </summary>
 	class RenderPipelineController
@@ -131,6 +132,7 @@ namespace Ken4lowEngine
 
 		static RenderPipelineController* activeController_;
 		DirectXCommon* dxCommon_ = nullptr;
+		RenderGraph renderGraph_{};
 		std::array<PerformanceMetric, kPerformancePhaseCount> performanceMetrics_{};
 		FrameTimingSummary frameTimingSummary_{};
 	};

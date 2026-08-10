@@ -9,6 +9,7 @@
 #include "PrefabInstanceRegistry.h"
 #include "SceneComponent.h"
 #include "ShadowSettings.h"
+#include <Engine/Scene/Streaming/WorldPartitionManager.h>
 
 #ifdef USE_IMGUI
 #include <CameraManager.h>
@@ -275,6 +276,7 @@ namespace Ken4lowEngine
 #ifdef USE_IMGUI
 		ApplyEditorCamera(document.camera);
 #endif
+		WorldPartitionManager::GetInstance()->Configure(&actorWorld, document.worldPartition, document.subLevels);
 		actorWorld.SetSelectedEditorObject(nullptr, nullptr);
 
 		result.succeeded = true;

@@ -172,6 +172,29 @@ namespace Ken4lowEngine
 		return true;
 	}
 
+	bool ActorWorld::AppendStagedActors(
+		std::vector<std::unique_ptr<Actor>> stagedActors,
+		std::vector<Actor*>* outActors)
+	{
+		if (isUpdating_) return false;
+		for (const std::unique_ptr<Actor>& actor : stagedActors)
+		{
+			if (!actor) return false;
+		}
+
+		if (outActors)
+		{
+			outActors->clear();
+			outActors->reserve(stagedActors.size());
+		}
+		for (std::unique_ptr<Actor>& actor : stagedActors)
+		{
+			Actor* committedActor = AddActorToWorld(std::move(actor), false);
+			if (outActors) outActors->push_back(committedActor);
+		}
+		return true;
+	}
+
 	Actor* ActorWorld::FindActorById(ActorId id)
 	{
 		if (!id.IsValid()) return nullptr;

@@ -201,8 +201,44 @@ def validate_level_references() -> list[ValidationIssue]:
         if not isinstance(data, dict) or data.get("Format") != "Ken4lowLevel":
             continue
         version = data.get("Version", 1)
-        if not isinstance(version, int) or version < 1 or version > 2:
+        if not isinstance(version, int) or version < 1 or version > 3:
             issues.append(ValidationIssue(path, f"未対応Level Versionです: {version}"))
+        partition = data.get("WorldPartition", {})
+        if partition and not isinstance(partition, dict):
+            issues.append(ValidationIssue(path, "WorldPartitionはobjectである必要があります"))
+        elif isinstance(partition, dict):
+            load_radius = partition.get("LoadRadiusCells", 1)
+            unload_radius = partition.get("UnloadRadiusCells", 2)
+            cell_size = partition.get("CellSize", 128.0)
+            if not isinstance(cell_size, (int, float)) or cell_size <= 0:
+                issues.append(ValidationIssue(path, "WorldPartition.CellSizeは0より大きい必要があります"))
+            if not isinstance(load_radius, int) or not isinstance(unload_radius, int) or load_radius < 0 or unload_radius < load_radius:
+                issues.append(ValidationIssue(path, "WorldPartitionのLoad/Unload Radiusが不正です"))
+
+        sublevels = data.get("SubLevels", [])
+        if not isinstance(sublevels, list):
+            issues.append(ValidationIssue(path, "SubLevelsは配列である必要があります"))
+        else:
+            sublevel_ids: set[str] = set()
+            for index, sublevel in enumerate(sublevels):
+                if not isinstance(sublevel, dict):
+                    issues.append(ValidationIssue(path, f"SubLevels[{index}]がobjectではありません"))
+                    continue
+                sublevel_id = sublevel.get("Id")
+                sublevel_path = sublevel.get("Path")
+                if not isinstance(sublevel_id, str) or not sublevel_id:
+                    issues.append(ValidationIssue(path, f"SubLevels[{index}].Idが必要です"))
+                elif sublevel_id in sublevel_ids:
+                    issues.append(ValidationIssue(path, f"SubLevel Idが重複しています: {sublevel_id}"))
+                else:
+                    sublevel_ids.add(sublevel_id)
+                if not isinstance(sublevel_path, str) or not sublevel_path:
+                    issues.append(ValidationIssue(path, f"SubLevels[{index}].Pathが必要です"))
+                else:
+                    resolved_sublevel = resolve_project_path(sublevel_path, source=path)
+                    if not resolved_sublevel.is_file():
+                        issues.append(ValidationIssue(path, f"SubLevel参照が切れています: {sublevel_path}"))
+
         actors = data.get("Actors")
         if not isinstance(actors, list):
             issues.append(ValidationIssue(path, "Actorsが配列ではありません"))

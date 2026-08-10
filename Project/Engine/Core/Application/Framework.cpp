@@ -22,6 +22,10 @@
 #include <GameTimer.h>
 #include <ResolutionManager.h>
 #include <FrameAllocationTracker.h>
+#include <Engine/Core/Concurrency/JobSystem.h>
+#include <Engine/Core/Memory/FrameMemory.h>
+#include <Engine/Core/Streaming/StreamingManager.h>
+#include <Engine/Scene/Streaming/WorldPartitionManager.h>
 
 #ifdef USE_IMGUI
 #include <Editor/EditorWindowManager.h>
@@ -47,6 +51,7 @@ namespace Ken4lowEngine
 		while (!winApp_->ProcessMessage())// 終了リクエストが来たら抜ける
 		{
 			// ウィンドウ処理・Update・Drawを含むEngine側の1フレーム全体を計測する。
+			FrameMemory::GetInstance()->BeginFrame();
 			FrameAllocationTracker::GetInstance()->BeginFrame();
 
 			// Alt+Enter の入力要求を検知し、現在の表示モードに応じて次の表示設定を組み立てる。
@@ -96,6 +101,10 @@ namespace Ken4lowEngine
 				}
 			}
 
+			// Worker完了をMain Threadへ反映してから、Camera位置に応じた次のStreaming要求を作る。
+			StreamingManager::GetInstance()->Update();
+			WorldPartitionManager::GetInstance()->Update(CameraManager::GetInstance()->GetActiveCameraPosition());
+
 			// 入力・シーン・各種マネージャなどのゲーム状態を1フレーム進める。
 			Update();
 
@@ -140,6 +149,11 @@ namespace Ken4lowEngine
 
 
 #pragma region ---------- 基盤システムの初期化処理 ----------
+		// CPU Job / Streaming / Frame scratchを描画系より先に起動する。
+		FrameMemory::GetInstance()->Initialize();
+		JobSystem::GetInstance()->Initialize();
+		StreamingManager::GetInstance()->Initialize();
+
 		// DirectX共通クラスの生成
 		dxCommon_ = DirectXCommon::GetInstance();
 		dxCommon_->Initialize(winApp_, winApp_->GetClientWidth(), winApp_->GetClientHeight());
@@ -231,6 +245,12 @@ namespace Ken4lowEngine
 	{
 		// 以降はフレーム計測対象外なので、先にCRT Hookを元へ戻す。
 		FrameAllocationTracker::GetInstance()->Finalize();
+
+		// Streaming CompletionがEngine状態へ触れないよう、描画/Asset破棄より先に非同期基盤を停止する。
+		WorldPartitionManager::GetInstance()->Reset();
+		StreamingManager::GetInstance()->Finalize();
+		JobSystem::GetInstance()->Finalize();
+		FrameMemory::GetInstance()->Finalize();
 
 #ifdef USE_IMGUI
 		// TextureManager/SRVManager/DirectXCommonより先にエディタ用プレビューキャッシュを解放する。

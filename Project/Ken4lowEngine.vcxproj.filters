@@ -2321,4 +2321,18 @@
   <ItemGroup>
     <ClInclude Include="Engine\Core\Project\ProjectSettings.h"><Filter>Engine\Core</Filter></ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Engine\Core\Concurrency\JobSystem.cpp" />
+    <ClCompile Include="Engine\Core\Memory\FrameMemory.cpp" />
+    <ClCompile Include="Engine\Core\Streaming\StreamingManager.cpp" />
+    <ClCompile Include="Engine\Graphics\RenderGraph\RenderGraph.cpp" />
+    <ClCompile Include="Engine\Scene\Streaming\SubLevelManager.cpp" />
+    <ClCompile Include="Engine\Scene\Streaming\WorldPartitionManager.cpp" />
+    <ClInclude Include="Engine\Core\Concurrency\JobSystem.h" />
+    <ClInclude Include="Engine\Core\Memory\FrameMemory.h" />
+    <ClInclude Include="Engine\Core\Streaming\StreamingManager.h" />
+    <ClInclude Include="Engine\Graphics\RenderGraph\RenderGraph.h" />
+    <ClInclude Include="Engine\Scene\Streaming\SubLevelManager.h" />
+    <ClInclude Include="Engine\Scene\Streaming\WorldPartitionManager.h" />
+  </ItemGroup>
 </Project>
