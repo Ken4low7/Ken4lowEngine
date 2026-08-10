@@ -139,6 +139,8 @@ Load / Unload半径を分けることで、境界付近を移動したときの�
 
 `AlwaysLoaded` SubLevelはCamera位置に関係なくLoad対象になります。
 
+`ActorWorld::Finalize()` 時には、そのWorldが現在のPartition対象なら先に `WorldPartitionManager::Reset()` を行います。これによりEditorのNew LevelやWorld再初期化後に、旧LevelのSubLevel Requestが新しいWorldへ遅れて混入することを防ぎます。
+
 ## Level Format Version 3
 
 Phase 6で `Ken4lowLevel` のCurrent Versionを `3` に更新しました。
