@@ -3,6 +3,8 @@
 #include "Vector4.h"
 #include "Matrix4x4.h"
 
+#include <array>
+
 namespace Ken4lowEngine
 {
 
@@ -26,7 +28,6 @@ public: /// ---------- 構造体 ---------- ///
 public: /// ---------- メンバ関数 ---------- ///
 
 	static constexpr uint32_t kSlotCount = 256;
-	static inline constexpr UINT Align256(UINT size) { return (size + 255) & ~255u; }
 
 	/// <summary>
 	/// コンストラクタ
@@ -58,23 +59,23 @@ public: /// ---------- メンバ関数 ---------- ///
 
 	MaterialCBData* GetSlotData(uint32_t slot)
 	{
-		const UINT stride = Align256(sizeof(MaterialCBData));
-		const uint32_t s = slot % kSlotCount;
-		auto* base = reinterpret_cast<uint8_t*>(materialDataBase_);
-		return reinterpret_cast<MaterialCBData*>(base + stride * s);
+		return &materialSlots_[slot % kSlotCount];
+	}
+
+	const MaterialCBData* GetSlotData(uint32_t slot) const
+	{
+		return &materialSlots_[slot % kSlotCount];
 	}
 
 	// 描画タイプのセッター
-	void SetDrawType(uint32_t type, uint32_t slot) {
-		auto* m = GetSlotData(slot);
-		m->drawType = type;
+	void SetDrawType(uint32_t type, uint32_t slot)
+	{
+		GetSlotData(slot)->drawType = type;
 	}
 
 public: /// ---------- メンバ変数 ---------- ///
 
-	void* materialDataBase_ = nullptr; // ★ base
-	MaterialCBData* materialData_ = nullptr; // マテリアルデータ
-	ComPtr<ID3D12Resource> materialResource_; // マテリアルリソース
+	std::array<MaterialCBData, kSlotCount> materialSlots_{}; // CPU側に保持し、描画時だけ現在FrameのUpload Arenaへ転送する。
 
 	// テクスチャ系データ
 	std::string textureFilePath;			 // テクスチャファイルパス
