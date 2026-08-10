@@ -213,7 +213,9 @@ namespace Ken4lowEngine
 
 	bool SubLevelManager::IsStreamingActor(const Actor* actor) const
 	{
-		return actor && actorWorld_ && actor->GetWorld() == actorWorld_ && actor->GetId().IsValid() &&
+		// ActorWorldはWorldポインタを外部公開しないため、現在Worldで発行したActorIdの追跡集合だけを使う。
+		// Configure/Reset時に集合を破棄するので、別Worldの同一IDへ状態を持ち越さない。
+		return actor && actorWorld_ && actor->GetId().IsValid() &&
 			streamedActorIds_.contains(actor->GetId().value);
 	}
 
