@@ -68,16 +68,14 @@ namespace Ken4lowEngine
 		bool LoadTexture(const std::string& texturePath, bool reloadTexture);
 
 		DirectXCommon* dxCommon_ = nullptr;
-		ComPtr<ID3D12Resource> materialResource_;
-		Material* materialData_ = nullptr;
+		Material materialData_{};
 		ComPtr<ID3D12Resource> vertexResource_;
 		D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
 		VertexData* vertexData_ = nullptr;
 		ComPtr<ID3D12Resource> indexResource_;
 		D3D12_INDEX_BUFFER_VIEW indexBufferView_{};
 		uint32_t* indexData_ = nullptr;
-		ComPtr<ID3D12Resource> wvpResource_;
-		TransformationMatrix* wvpData_ = nullptr;
+		TransformationMatrix wvpData_{};
 
 		bool enabled_ = false;
 		bool textureAvailable_ = false;
