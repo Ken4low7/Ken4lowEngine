@@ -1,0 +1,292 @@
+name: Phase6AdvancedSystemsIntegration
+
+on:
+  push:
+    branches:
+      - feature/phase6-advanced-systems
+    paths:
+      - .github/workflows/Phase6AdvancedSystemsIntegration.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate-and-validate:
+    runs-on: windows-2025-vs2026
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/phase6-advanced-systems
+          fetch-depth: 0
+
+      - name: Configure Git
+        shell: pwsh
+        run: |
+          git config user.name "Ken4low7"
+          git config user.email "knt411sirokuro@gmail.com"
+          git config core.autocrlf false
+
+      - name: Integrate Phase 6 systems
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8', newline='\n')
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{label}: expected 1 match, found {count}')
+              return text.replace(old, new, 1)
+
+          # ActorWorld: Transactional Replaceとは別にSubLevel用Additive Commitを追加。
+          path = 'Project/Engine/Scene/Actor/Core/ActorWorld.h'
+          text = read(path)
+          old = '''\t\tbool CommitStagedActors(\n\t\t\tstd::vector<std::unique_ptr<Actor>> stagedActors,\n\t\t\tstd::vector<Actor*>* outActors = nullptr);\n'''
+          new = old + '''\n\t\t/// <summary>現在Worldを維持したままStaging Actorを追加するSubLevel専用入口。</summary>\n\t\tbool AppendStagedActors(\n\t\t\tstd::vector<std::unique_ptr<Actor>> stagedActors,\n\t\t\tstd::vector<Actor*>* outActors = nullptr);\n'''
+          if 'AppendStagedActors(' not in text:
+              text = replace_once(text, old, new, 'ActorWorld Append declaration')
+          write(path, text)
+
+          path = 'Project/Engine/Scene/Actor/Core/ActorWorld.cpp'
+          text = read(path)
+          if 'bool ActorWorld::AppendStagedActors(' not in text:
+              anchor = '\tActor* ActorWorld::FindActorById(ActorId id)\n'
+              implementation = '''\tbool ActorWorld::AppendStagedActors(\n\t\tstd::vector<std::unique_ptr<Actor>> stagedActors,\n\t\tstd::vector<Actor*>* outActors)\n\t{\n\t\tif (isUpdating_) return false;\n\t\tfor (const std::unique_ptr<Actor>& actor : stagedActors)\n\t\t{\n\t\t\tif (!actor) return false;\n\t\t}\n\n\t\tif (outActors)\n\t\t{\n\t\t\toutActors->clear();\n\t\t\toutActors->reserve(stagedActors.size());\n\t\t}\n\t\tfor (std::unique_ptr<Actor>& actor : stagedActors)\n\t\t{\n\t\t\tActor* committedActor = AddActorToWorld(std::move(actor), false);\n\t\t\tif (outActors) outActors->push_back(committedActor);\n\t\t}\n\t\treturn true;\n\t}\n\n'''
+              text = replace_once(text, anchor, implementation + anchor, 'ActorWorld Append implementation')
+          write(path, text)
+
+          # LevelSerializer: Version 3のSubLevel / WorldPartitionを読み書きし、Streaming ActorをBase Level保存から除外。
+          path = 'Project/Engine/Scene/Level/LevelSerializer.cpp'
+          text = read(path)
+          if '#include <Engine/Scene/Streaming/WorldPartitionManager.h>' not in text:
+              text = replace_once(
+                  text,
+                  '#include "SceneComponent.h"\n',
+                  '#include "SceneComponent.h"\n#include <Engine/Scene/Streaming/WorldPartitionManager.h>\n',
+                  'LevelSerializer partition include')
+
+          deserialize_anchor = '\t\tdocument.environment = levelJson.value("Environment", nlohmann::json::object());\n'
+          if 'document.worldPartition.enabled' not in text:
+              deserialize_block = deserialize_anchor + '''\n\t\tif (levelJson.contains("WorldPartition") && levelJson["WorldPartition"].is_object())\n\t\t{\n\t\t\tconst nlohmann::json& partition = levelJson["WorldPartition"];\n\t\t\tdocument.worldPartition.enabled = partition.value("Enabled", false);\n\t\t\tdocument.worldPartition.cellSize = partition.value("CellSize", 128.0f);\n\t\t\tdocument.worldPartition.loadRadiusCells = partition.value("LoadRadiusCells", 1);\n\t\t\tdocument.worldPartition.unloadRadiusCells = partition.value("UnloadRadiusCells", 2);\n\t\t\tif (document.worldPartition.cellSize <= 0.0f)\n\t\t\t{\n\t\t\t\toutError = "WorldPartition CellSizeは0より大きい必要があります。";\n\t\t\t\treturn false;\n\t\t\t}\n\t\t\tif (document.worldPartition.loadRadiusCells < 0 ||\n\t\t\t\tdocument.worldPartition.unloadRadiusCells < document.worldPartition.loadRadiusCells)\n\t\t\t{\n\t\t\t\toutError = "WorldPartitionのLoad/Unload Radiusが不正です。";\n\t\t\t\treturn false;\n\t\t\t}\n\t\t}\n\n\t\tif (levelJson.contains("SubLevels"))\n\t\t{\n\t\t\tif (!levelJson["SubLevels"].is_array())\n\t\t\t{\n\t\t\t\toutError = "SubLevelsは配列である必要があります。";\n\t\t\t\treturn false;\n\t\t\t}\n\t\t\tstd::unordered_set<std::string> subLevelIds;\n\t\t\tfor (const nlohmann::json& subLevelJson : levelJson["SubLevels"])\n\t\t\t{\n\t\t\t\tif (!subLevelJson.is_object())\n\t\t\t\t{\n\t\t\t\t\toutError = "SubLevel entryはobjectである必要があります。";\n\t\t\t\t\treturn false;\n\t\t\t\t}\n\t\t\t\tLevelSubLevelReference subLevel{};\n\t\t\t\tsubLevel.id = subLevelJson.value("Id", std::string{});\n\t\t\t\tsubLevel.path = subLevelJson.value("Path", std::string{});\n\t\t\t\tsubLevel.cellX = subLevelJson.value("CellX", 0);\n\t\t\t\tsubLevel.cellZ = subLevelJson.value("CellZ", 0);\n\t\t\t\tsubLevel.priority = subLevelJson.value("Priority", 1);\n\t\t\t\tsubLevel.alwaysLoaded = subLevelJson.value("AlwaysLoaded", false);\n\t\t\t\tif (subLevel.id.empty() || subLevel.path.empty())\n\t\t\t\t{\n\t\t\t\t\toutError = "SubLevelには空でないIdとPathが必要です。";\n\t\t\t\t\treturn false;\n\t\t\t\t}\n\t\t\t\tif (!subLevelIds.insert(subLevel.id).second)\n\t\t\t\t{\n\t\t\t\t\toutError = "SubLevel Idが重複しています: " + subLevel.id;\n\t\t\t\t\treturn false;\n\t\t\t\t}\n\t\t\t\tstd::filesystem::path resolvedPath(subLevel.path);\n\t\t\t\tif (resolvedPath.is_relative() && !subLevel.path.starts_with("Resources/"))\n\t\t\t\t{\n\t\t\t\t\tresolvedPath = levelBaseDirectory / resolvedPath;\n\t\t\t\t}\n\t\t\t\tsubLevel.resolvedPath = resolvedPath.lexically_normal();\n\t\t\t\tdocument.subLevels.push_back(std::move(subLevel));\n\t\t\t}\n\t\t}\n'''
+              text = replace_once(text, deserialize_anchor, deserialize_block, 'LevelSerializer SubLevel deserialize')
+
+          serialize_anchor = '\t\tlevel["Actors"] = nlohmann::json::array();\n'
+          if 'level["WorldPartition"]' not in text:
+              serialize_block = '''\t\tlevel["WorldPartition"] = {\n\t\t\t{ "Enabled", document.worldPartition.enabled },\n\t\t\t{ "CellSize", document.worldPartition.cellSize },\n\t\t\t{ "LoadRadiusCells", document.worldPartition.loadRadiusCells },\n\t\t\t{ "UnloadRadiusCells", document.worldPartition.unloadRadiusCells },\n\t\t};\n\t\tlevel["SubLevels"] = nlohmann::json::array();\n\t\tfor (const LevelSubLevelReference& subLevel : document.subLevels)\n\t\t{\n\t\t\tlevel["SubLevels"].push_back({\n\t\t\t\t{ "Id", subLevel.id },\n\t\t\t\t{ "Path", subLevel.path },\n\t\t\t\t{ "CellX", subLevel.cellX },\n\t\t\t\t{ "CellZ", subLevel.cellZ },\n\t\t\t\t{ "Priority", subLevel.priority },\n\t\t\t\t{ "AlwaysLoaded", subLevel.alwaysLoaded },\n\t\t\t});\n\t\t}\n'''
+              text = replace_once(text, serialize_anchor, serialize_block + serialize_anchor, 'LevelSerializer SubLevel serialize')
+
+          capture_anchor = '\t\tdocument.environment = std::move(environment);\n'
+          if 'IsConfiguredFor(&actorWorld)' not in text:
+              capture_block = capture_anchor + '''\n\t\tWorldPartitionManager* partitionManager = WorldPartitionManager::GetInstance();\n\t\tif (partitionManager->IsConfiguredFor(&actorWorld))\n\t\t{\n\t\t\tdocument.worldPartition = partitionManager->GetSettings();\n\t\t\tdocument.subLevels = partitionManager->GetSubLevels();\n\t\t}\n'''
+              text = replace_once(text, capture_anchor, capture_block, 'LevelSerializer Capture partition')
+
+          actor_filter = '\t\t\tActor* actor = actorOwner.get();\n\t\t\tif (!actor || actor->IsPendingDestroy()) continue;\n'
+          replacement_filter = '\t\t\tActor* actor = actorOwner.get();\n\t\t\tif (!actor || actor->IsPendingDestroy() || WorldPartitionManager::GetInstance()->IsStreamingActor(actor)) continue;\n'
+          count = text.count(actor_filter)
+          if count == 2:
+              text = text.replace(actor_filter, replacement_filter)
+          elif count != 0:
+              raise RuntimeError(f'LevelSerializer streaming actor filter: expected 0 or 2, found {count}')
+          write(path, text)
+
+          # Base Level Commit成功後にWorld Partitionを構成する。
+          path = 'Project/Engine/Scene/Level/TransactionalLevelLoader.cpp'
+          text = read(path)
+          if '#include <Engine/Scene/Streaming/WorldPartitionManager.h>' not in text:
+              text = replace_once(
+                  text,
+                  '#include "ShadowSettings.h"\n',
+                  '#include "ShadowSettings.h"\n#include <Engine/Scene/Streaming/WorldPartitionManager.h>\n',
+                  'Transactional loader partition include')
+          if 'Configure(&actorWorld, document.worldPartition, document.subLevels)' not in text:
+              anchor = '\t\tactorWorld.SetSelectedEditorObject(nullptr, nullptr);\n\n\t\tresult.succeeded = true;\n'
+              replacement = '\t\tWorldPartitionManager::GetInstance()->Configure(&actorWorld, document.worldPartition, document.subLevels);\n\t\tactorWorld.SetSelectedEditorObject(nullptr, nullptr);\n\n\t\tresult.succeeded = true;\n'
+              text = replace_once(text, anchor, replacement, 'Transactional loader partition configure')
+          write(path, text)
+
+          # Framework lifecycleへJob/Streaming/Partition/FrameMemoryを接続。
+          path = 'Project/Engine/Core/Application/Framework.cpp'
+          text = read(path)
+          if '#include <Engine/Core/Concurrency/JobSystem.h>' not in text:
+              text = replace_once(
+                  text,
+                  '#include <FrameAllocationTracker.h>\n',
+                  '#include <FrameAllocationTracker.h>\n#include <Engine/Core/Concurrency/JobSystem.h>\n#include <Engine/Core/Memory/FrameMemory.h>\n#include <Engine/Core/Streaming/StreamingManager.h>\n#include <Engine/Scene/Streaming/WorldPartitionManager.h>\n',
+                  'Framework Phase6 includes')
+          if 'FrameMemory::GetInstance()->BeginFrame();' not in text:
+              text = replace_once(
+                  text,
+                  '\t\t\tFrameAllocationTracker::GetInstance()->BeginFrame();\n',
+                  '\t\t\tFrameMemory::GetInstance()->BeginFrame();\n\t\t\tFrameAllocationTracker::GetInstance()->BeginFrame();\n',
+                  'Framework FrameMemory begin')
+          if 'StreamingManager::GetInstance()->Update();' not in text:
+              anchor = '\t\t\t// 入力・シーン・各種マネージャなどのゲーム状態を1フレーム進める。\n\t\t\tUpdate();\n'
+              replacement = '''\t\t\t// Worker完了をMain Threadへ反映してから、Camera位置に応じた次のStreaming要求を作る。\n\t\t\tStreamingManager::GetInstance()->Update();\n\t\t\tWorldPartitionManager::GetInstance()->Update(CameraManager::GetInstance()->GetActiveCameraPosition());\n\n''' + anchor
+              text = replace_once(text, anchor, replacement, 'Framework Streaming update')
+          if 'JobSystem::GetInstance()->Initialize();' not in text:
+              anchor = '\t\t// DirectX共通クラスの生成\n'
+              replacement = '''\t\t// CPU Job / Streaming / Frame scratchを描画系より先に起動する。\n\t\tFrameMemory::GetInstance()->Initialize();\n\t\tJobSystem::GetInstance()->Initialize();\n\t\tStreamingManager::GetInstance()->Initialize();\n\n''' + anchor
+              text = replace_once(text, anchor, replacement, 'Framework Phase6 initialize')
+          if 'WorldPartitionManager::GetInstance()->Reset();' not in text:
+              anchor = '\t\tFrameAllocationTracker::GetInstance()->Finalize();\n'
+              replacement = anchor + '''\n\t\t// Streaming CompletionがEngine状態へ触れないよう、描画/Asset破棄より先に非同期基盤を停止する。\n\t\tWorldPartitionManager::GetInstance()->Reset();\n\t\tStreamingManager::GetInstance()->Finalize();\n\t\tJobSystem::GetInstance()->Finalize();\n\t\tFrameMemory::GetInstance()->Finalize();\n'''
+              text = replace_once(text, anchor, replacement, 'Framework Phase6 finalize')
+          write(path, text)
+
+          # RenderPipelineControllerをPass単位のRender Graph実行へ移行。
+          path = 'Project/Engine/Graphics/Pipeline/RenderPipelineController.h'
+          text = read(path)
+          if '#include <Engine/Graphics/RenderGraph/RenderGraph.h>' not in text:
+              text = replace_once(
+                  text,
+                  '#include <functional>\n',
+                  '#include <functional>\n#include <Engine/Graphics/RenderGraph/RenderGraph.h>\n',
+                  'RenderPipeline RenderGraph include')
+          if 'RenderGraph renderGraph_;' not in text:
+              text = replace_once(
+                  text,
+                  '\t\tDirectXCommon* dxCommon_ = nullptr;\n',
+                  '\t\tDirectXCommon* dxCommon_ = nullptr;\n\t\tRenderGraph renderGraph_{};\n',
+                  'RenderPipeline RenderGraph member')
+          text = text.replace(
+              'RenderPass/FrameGraphはまだ導入せず、GameApplicationに散らばっていた1フレーム内の',
+              'Phase 6ではRenderGraphへPass依存を宣言し、GameApplicationに散らばっていた1フレーム内の')
+          write(path, text)
+
+          path = 'Project/Engine/Graphics/Pipeline/RenderPipelineController.cpp'
+          text = read(path)
+          function_start = text.index('\tvoid RenderPipelineController::ExecuteFrame(bool editorModeEnabled, const FrameCallbacks& callbacks)')
+          function_end = text.index('\n\tvoid RenderPipelineController::MeasurePhase', function_start)
+          replacement = '''\tvoid RenderPipelineController::ExecuteFrame(bool editorModeEnabled, const FrameCallbacks& callbacks)\n\t{\n\t\tif (!dxCommon_) return;\n\n\t\trenderGraph_.Reset();\n\t\tconst RenderGraph::ResourceHandle backBuffer = renderGraph_.CreateResource("BackBuffer", true);\n\t\tconst RenderGraph::ResourceHandle shadowMap = renderGraph_.CreateResource("ShadowMap", true);\n\t\tconst RenderGraph::ResourceHandle sceneColor = renderGraph_.CreateResource("SceneColor", true);\n\t\tconst RenderGraph::ResourceHandle postColor = renderGraph_.CreateResource("PostColor", false);\n\t\tRenderGraph::PassHandle previousPass{};\n\n\t\tauto addChainedPass = [this, &previousPass](\n\t\t\tstd::string name,\n\t\t\tstd::initializer_list<RenderGraph::ResourceHandle> reads,\n\t\t\tstd::initializer_list<RenderGraph::ResourceHandle> writes,\n\t\t\tstd::function<void()> execute)\n\t\t\t{\n\t\t\t\tRenderGraph::PassHandle pass = renderGraph_.AddPass(std::move(name), reads, writes, std::move(execute));\n\t\t\t\tif (previousPass.IsValid()) renderGraph_.AddDependency(previousPass, pass);\n\t\t\t\tpreviousPass = pass;\n\t\t\t\treturn pass;\n\t\t\t};\n\n\t\taddChainedPass("BeginDraw", {}, { backBuffer }, [this]()\n\t\t\t{\n\t\t\t\tMeasurePhase(PerformancePhase::BeginDraw, [this]() { dxCommon_->BeginDraw(); });\n\t\t\t});\n\t\taddChainedPass("ShadowPrepare", {}, { shadowMap }, [this, &callbacks]()\n\t\t\t{\n\t\t\t\tMeasurePhase(PerformancePhase::ShadowPrepare, callbacks.prepareShadowPass);\n\t\t\t});\n\t\taddChainedPass("ShadowRender", { shadowMap }, { shadowMap }, [this, &callbacks]()\n\t\t\t{\n\t\t\t\tMeasurePhase(PerformancePhase::ShadowRender, [&callbacks]()\n\t\t\t\t\t{\n\t\t\t\t\t\tLightManager::GetInstance()->ExecuteShadowPasses(callbacks.drawShadowObjects);\n\t\t\t\t\t});\n\t\t\t});\n\n\t\tif (editorModeEnabled)\n\t\t{\n\t\t\taddChainedPass("EditorUiBuild", {}, {}, [this, &callbacks]() { MeasurePhase(PerformancePhase::EditorUiBuild, callbacks.buildEditorUi); });\n\t\t\taddChainedPass("EditorPicking", {}, {}, [this, &callbacks]() { MeasurePhase(PerformancePhase::EditorPicking, callbacks.executeEditorPickingPass); });\n\t\t\taddChainedPass("MainWorldRender", { shadowMap }, { sceneColor }, [this, &callbacks]() { MeasurePhase(PerformancePhase::MainWorldRender, callbacks.drawGameWorldToSceneTarget); });\n\t\t\taddChainedPass("PostEffect", { sceneColor }, { postColor }, [this, &callbacks]() { MeasurePhase(PerformancePhase::PostEffect, callbacks.renderPostEffectToGameRenderTarget); });\n\t\t\taddChainedPass("SelectionOutline", { postColor }, { postColor }, [this, &callbacks]() { MeasurePhase(PerformancePhase::SelectionOutline, callbacks.renderEditorSelectionOutline); });\n\t\t\taddChainedPass("SceneOverlay", { postColor }, { postColor }, [this, &callbacks]()\n\t\t\t\t{\n\t\t\t\t\tMeasurePhase(PerformancePhase::SceneOverlay, [&callbacks]()\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tif (callbacks.beginGameRenderTargetOverlay) callbacks.beginGameRenderTargetOverlay();\n\t\t\t\t\t\t\tif (callbacks.drawScene2DOverlay) callbacks.drawScene2DOverlay();\n\t\t\t\t\t\t\tif (callbacks.endGameRenderTargetOverlay) callbacks.endGameRenderTargetOverlay();\n\t\t\t\t\t\t});\n\t\t\t\t});\n\t\t\taddChainedPass("ImGuiRender", { postColor }, { backBuffer }, [this, &callbacks]() { MeasurePhase(PerformancePhase::ImGuiRender, callbacks.drawImGuiOverlay); });\n\t\t}\n\t\telse\n\t\t{\n\t\t\taddChainedPass("MainWorldRender", { shadowMap }, { sceneColor }, [this, &callbacks]() { MeasurePhase(PerformancePhase::MainWorldRender, callbacks.drawGameWorldToSceneTarget); });\n\t\t\taddChainedPass("BackBufferPostEffect", { sceneColor }, { backBuffer }, [this, &callbacks]() { MeasurePhase(PerformancePhase::BackBufferPostEffect, callbacks.applyPostEffectToBackBuffer); });\n\t\t\taddChainedPass("BackBufferRebind", { backBuffer }, { backBuffer }, [this, &callbacks]() { MeasurePhase(PerformancePhase::BackBufferRebind, callbacks.rebindBackBufferForGameOverlay); });\n\t\t\taddChainedPass("GameUi", { backBuffer }, { backBuffer }, [this, &callbacks]() { MeasurePhase(PerformancePhase::GameUi, callbacks.drawGameUIToBackBuffer); });\n\t\t}\n\n\t\tstd::string graphError;\n\t\tif (!renderGraph_.Compile(&graphError) || !renderGraph_.Execute(&graphError))\n\t\t{\n\t\t\t// Graph検証失敗時だけ旧固定順へFallbackし、描画そのものを失わない。\n\t\t\tMeasurePhase(PerformancePhase::BeginDraw, [this]() { dxCommon_->BeginDraw(); });\n\t\t\tExecuteShadowMapPass(callbacks);\n\t\t\tif (editorModeEnabled) ExecuteEditorFrame(callbacks);\n\t\t\telse ExecuteGameFrame(callbacks);\n\t\t}\n\t}\n'''
+          text = text[:function_start] + replacement + text[function_end:]
+          if 'Render Graph Passes:' not in text:
+              anchor = '\t\tImGui::SeparatorText("Render Pipeline CPU Pass");\n'
+              graph_ui = '''\t\tconst RenderGraph::CompileStats& graphStats = renderGraph_.GetCompileStats();\n\t\tImGui::SeparatorText("Render Graph");\n\t\tImGui::Text("Render Graph Passes: %zu", graphStats.passCount);\n\t\tImGui::Text("Resources: %zu / Dependencies: %zu", graphStats.resourceCount, graphStats.dependencyCount);\n\t\tImGui::Text("Transient Logical Resources: %zu", graphStats.transientResourceCount);\n\n'''
+              text = replace_once(text, anchor, graph_ui + anchor, 'RenderGraph diagnostic UI')
+          write(path, text)
+
+          # RenderGraph scratchのpmr vector構築を明示Allocator形式へしてMSVC互換を固定。
+          path = 'Project/Engine/Graphics/RenderGraph/RenderGraph.cpp'
+          text = read(path)
+          text = text.replace(
+              'std::pmr::vector<uint32_t> indegree(passes_.size(), 0u, scratch);\n\t\tstd::pmr::vector<int32_t> lastAccess(resources_.size(), -1, scratch);',
+              'std::pmr::vector<uint32_t> indegree(scratch);\n\t\tindegree.assign(passes_.size(), 0u);\n\t\tstd::pmr::vector<int32_t> lastAccess(scratch);\n\t\tlastAccess.assign(resources_.size(), -1);')
+          write(path, text)
+
+          # SubLevel実装の標準例外includeを補完。
+          path = 'Project/Engine/Scene/Streaming/SubLevelManager.cpp'
+          text = read(path)
+          if '#include <stdexcept>' not in text:
+              text = replace_once(text, '#include <sstream>\n', '#include <sstream>\n#include <stdexcept>\n', 'SubLevel stdexcept include')
+          write(path, text)
+
+          # Phase 5 ValidationをLevel Version 3 / SubLevel参照へ拡張。
+          path = 'Project/Tools/Scripts/project_validation.py'
+          text = read(path)
+          text = text.replace('version > 2:', 'version > 3:')
+          if 'SubLevel参照が切れています' not in text:
+              anchor = '''        actors = data.get("Actors")\n'''
+              block = '''        partition = data.get("WorldPartition", {})\n        if partition and not isinstance(partition, dict):\n            issues.append(ValidationIssue(path, "WorldPartitionはobjectである必要があります"))\n        elif isinstance(partition, dict):\n            load_radius = partition.get("LoadRadiusCells", 1)\n            unload_radius = partition.get("UnloadRadiusCells", 2)\n            cell_size = partition.get("CellSize", 128.0)\n            if not isinstance(cell_size, (int, float)) or cell_size <= 0:\n                issues.append(ValidationIssue(path, "WorldPartition.CellSizeは0より大きい必要があります"))\n            if not isinstance(load_radius, int) or not isinstance(unload_radius, int) or load_radius < 0 or unload_radius < load_radius:\n                issues.append(ValidationIssue(path, "WorldPartitionのLoad/Unload Radiusが不正です"))\n\n        sublevels = data.get("SubLevels", [])\n        if not isinstance(sublevels, list):\n            issues.append(ValidationIssue(path, "SubLevelsは配列である必要があります"))\n        else:\n            sublevel_ids: set[str] = set()\n            for index, sublevel in enumerate(sublevels):\n                if not isinstance(sublevel, dict):\n                    issues.append(ValidationIssue(path, f"SubLevels[{index}]がobjectではありません"))\n                    continue\n                sublevel_id = sublevel.get("Id")\n                sublevel_path = sublevel.get("Path")\n                if not isinstance(sublevel_id, str) or not sublevel_id:\n                    issues.append(ValidationIssue(path, f"SubLevels[{index}].Idが必要です"))\n                elif sublevel_id in sublevel_ids:\n                    issues.append(ValidationIssue(path, f"SubLevel Idが重複しています: {sublevel_id}"))\n                else:\n                    sublevel_ids.add(sublevel_id)\n                if not isinstance(sublevel_path, str) or not sublevel_path:\n                    issues.append(ValidationIssue(path, f"SubLevels[{index}].Pathが必要です"))\n                else:\n                    resolved_sublevel = resolve_project_path(sublevel_path, source=path)\n                    if not resolved_sublevel.is_file():\n                        issues.append(ValidationIssue(path, f"SubLevel参照が切れています: {sublevel_path}"))\n\n'''
+              text = replace_once(text, anchor, block + anchor, 'Project validation SubLevels')
+          write(path, text)
+
+          # Visual StudioへPhase 6翻訳単位を登録。
+          cpp_files = [
+              r'Engine\Core\Concurrency\JobSystem.cpp',
+              r'Engine\Core\Memory\FrameMemory.cpp',
+              r'Engine\Core\Streaming\StreamingManager.cpp',
+              r'Engine\Graphics\RenderGraph\RenderGraph.cpp',
+              r'Engine\Scene\Streaming\SubLevelManager.cpp',
+              r'Engine\Scene\Streaming\WorldPartitionManager.cpp',
+          ]
+          header_files = [
+              r'Engine\Core\Concurrency\JobSystem.h',
+              r'Engine\Core\Memory\FrameMemory.h',
+              r'Engine\Core\Streaming\StreamingManager.h',
+              r'Engine\Graphics\RenderGraph\RenderGraph.h',
+              r'Engine\Scene\Streaming\SubLevelManager.h',
+              r'Engine\Scene\Streaming\WorldPartitionManager.h',
+          ]
+
+          path = 'Project/Ken4lowEngine.vcxproj'
+          text = read(path)
+          missing_cpp = [item for item in cpp_files if item not in text]
+          missing_headers = [item for item in header_files if item not in text]
+          if missing_cpp or missing_headers:
+              lines = ['  <ItemGroup>']
+              lines += [f'    <ClCompile Include="{item}" />' for item in missing_cpp]
+              lines += [f'    <ClInclude Include="{item}" />' for item in missing_headers]
+              lines.append('  </ItemGroup>')
+              item_group = '\n'.join(lines) + '\n'
+              index = text.rfind('</Project>')
+              if index < 0: raise RuntimeError('vcxproj Project end not found')
+              text = text[:index] + item_group + text[index:]
+          write(path, text)
+
+          path = 'Project/Ken4lowEngine.vcxproj.filters'
+          text = read(path)
+          missing_cpp = [item for item in cpp_files if item not in text]
+          missing_headers = [item for item in header_files if item not in text]
+          if missing_cpp or missing_headers:
+              lines = ['  <ItemGroup>']
+              lines += [f'    <ClCompile Include="{item}" />' for item in missing_cpp]
+              lines += [f'    <ClInclude Include="{item}" />' for item in missing_headers]
+              lines.append('  </ItemGroup>')
+              item_group = '\n'.join(lines) + '\n'
+              index = text.rfind('</Project>')
+              if index < 0: raise RuntimeError('filters Project end not found')
+              text = text[:index] + item_group + text[index:]
+          write(path, text)
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          git diff --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git add Project
+          git commit -m "Phase 6の高度化基盤をEngineへ統合"
+          git push origin HEAD:feature/phase6-advanced-systems
+
+      - name: Validate project data
+        shell: pwsh
+        run: |
+          Set-Location Project
+          python Tools/Scripts/ValidateEngineModules.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python Tools/Scripts/ValidateProjectAssets.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python Tools/Scripts/CheckBrokenReferences.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s Tests/Phase5 -p "test_*.py" -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v3
+        with:
+          msbuild-architecture: x64
+
+      - name: Compile Debug C++
+        shell: pwsh
+        run: |
+          msbuild Project/Ken4lowEngine.vcxproj /m /t:ClCompile /p:Platform=x64 /p:Configuration=Debug /verbosity:minimal "/clp:ErrorsOnly;Summary"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Compile Release C++
+        shell: pwsh
+        run: |
+          msbuild Project/Ken4lowEngine.vcxproj /m /t:ClCompile /p:Platform=x64 /p:Configuration=Release /verbosity:minimal "/clp:ErrorsOnly;Summary"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Remove temporary workflow and push
+        shell: pwsh
+        run: |
+          git rm .github/workflows/Phase6AdvancedSystemsIntegration.yml
+          git commit -m "Phase 6の一時統合検証Workflowを削除"
+          git push origin HEAD:feature/phase6-advanced-systems
