@@ -84,73 +84,70 @@ public:
 		const float displayFrameIntervalMs = completed.frameIntervalMs > 0.0f ? completed.frameIntervalMs : frameIntervalMs_;
 		const float displayInstantFps = displayFrameIntervalMs > 0.0f ? 1000.0f / displayFrameIntervalMs : instantFps_;
 
-		if (!ImGui::Begin("Performance Phase 検証"))
+		if (ImGui::Begin("Performance Phase 検証"))
 		{
-			ImGui::End();
-			return;
+			if (ImGui::Button("最大値リセット"))
+			{
+				for (Metric& metric : metrics_) metric.maxMs = metric.lastMs;
+			}
+
+			ImGui::SeparatorText("実フレーム");
+			ImGui::Text("Frame Interval: %.2f ms", displayFrameIntervalMs);
+			ImGui::Text("Instant FPS: %.1f", displayInstantFps);
+
+			const float measuredSceneMs =
+				GetMetric(Phase::ActorWorldUpdate).lastMs +
+				GetMetric(Phase::PhysicsWorldUpdate).lastMs +
+				GetMetric(Phase::PostPhysicsUpdate).lastMs +
+				GetMetric(Phase::ActorDraw).lastMs +
+				GetMetric(Phase::PhysicsDebugDraw).lastMs +
+				GetMetric(Phase::ShadowDraw).lastMs +
+				GetMetric(Phase::ScreenSpaceUI).lastMs;
+			ImGui::Text("Measured DebugScene CPU: %.2f ms", measuredSceneMs);
+			ImGui::Text("Unmeasured / Other: %.2f ms", (std::max)(0.0f, displayFrameIntervalMs - measuredSceneMs));
+			ImGui::TextDisabled("OtherにはEditor UI、PostEffect、GPU待ち、Present、Framework共通処理などが含まれます。");
+
+			ImGui::SeparatorText("Physics State");
+			ImGui::Text("Actor Count: %zu", actorCount_);
+			ImGui::Text("Collider Count: %zu", colliderCount_);
+			ImGui::Text("Theoretical Pair Count: %zu", theoreticalPairCount_);
+			ImGui::Text("Contact Count: %zu", contactCount_);
+			ImGui::Text("Sub Step Count: %d", subStepCount_);
+
+			ImGui::SeparatorText("CPU Phase");
+			if (ImGui::BeginTable("##PerformancePhaseTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame))
+			{
+				ImGui::TableSetupColumn("Phase");
+				ImGui::TableSetupColumn("Last ms");
+				ImGui::TableSetupColumn("EMA ms");
+				ImGui::TableSetupColumn("Max ms");
+				ImGui::TableHeadersRow();
+				DrawMetricRow("ActorWorld Update", Phase::ActorWorldUpdate);
+				DrawMetricRow("PhysicsWorld Update", Phase::PhysicsWorldUpdate);
+				DrawMetricRow("PostPhysics Update", Phase::PostPhysicsUpdate);
+				DrawMetricRow("Actor Draw", Phase::ActorDraw);
+				DrawMetricRow("Physics Debug Draw", Phase::PhysicsDebugDraw);
+				DrawMetricRow("Shadow Draw", Phase::ShadowDraw);
+				DrawMetricRow("Screen Space UI", Phase::ScreenSpaceUI);
+				ImGui::EndTable();
+			}
+
+			ImGui::SeparatorText("次の最適化判断");
+			if (GetMetric(Phase::PhysicsWorldUpdate).averageMs > 4.0f)
+			{
+				ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "PhysicsWorldが重いため、Static Spatial Gridの導入効果を計測します。");
+			}
+			else
+			{
+				ImGui::TextDisabled("PhysicsWorldが軽い場合は、Other側のEditor/Render/GPU待ちを優先して調査します。");
+			}
 		}
-
-		if (ImGui::Button("最大値リセット"))
-		{
-			for (Metric& metric : metrics_) metric.maxMs = metric.lastMs;
-		}
-
-		ImGui::SeparatorText("実フレーム");
-		ImGui::Text("Frame Interval: %.2f ms", displayFrameIntervalMs);
-		ImGui::Text("Instant FPS: %.1f", displayInstantFps);
-
-		const float measuredSceneMs =
-			GetMetric(Phase::ActorWorldUpdate).lastMs +
-			GetMetric(Phase::PhysicsWorldUpdate).lastMs +
-			GetMetric(Phase::PostPhysicsUpdate).lastMs +
-			GetMetric(Phase::ActorDraw).lastMs +
-			GetMetric(Phase::PhysicsDebugDraw).lastMs +
-			GetMetric(Phase::ShadowDraw).lastMs +
-			GetMetric(Phase::ScreenSpaceUI).lastMs;
-		ImGui::Text("Measured DebugScene CPU: %.2f ms", measuredSceneMs);
-		ImGui::Text("Unmeasured / Other: %.2f ms", (std::max)(0.0f, displayFrameIntervalMs - measuredSceneMs));
-		ImGui::TextDisabled("OtherにはEditor UI、PostEffect、GPU待ち、Present、Framework共通処理などが含まれます。");
-
-		ImGui::SeparatorText("Physics State");
-		ImGui::Text("Actor Count: %zu", actorCount_);
-		ImGui::Text("Collider Count: %zu", colliderCount_);
-		ImGui::Text("Theoretical Pair Count: %zu", theoreticalPairCount_);
-		ImGui::Text("Contact Count: %zu", contactCount_);
-		ImGui::Text("Sub Step Count: %d", subStepCount_);
-
-		ImGui::SeparatorText("CPU Phase");
-		if (ImGui::BeginTable("##PerformancePhaseTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame))
-		{
-			ImGui::TableSetupColumn("Phase");
-			ImGui::TableSetupColumn("Last ms");
-			ImGui::TableSetupColumn("EMA ms");
-			ImGui::TableSetupColumn("Max ms");
-			ImGui::TableHeadersRow();
-			DrawMetricRow("ActorWorld Update", Phase::ActorWorldUpdate);
-			DrawMetricRow("PhysicsWorld Update", Phase::PhysicsWorldUpdate);
-			DrawMetricRow("PostPhysics Update", Phase::PostPhysicsUpdate);
-			DrawMetricRow("Actor Draw", Phase::ActorDraw);
-			DrawMetricRow("Physics Debug Draw", Phase::PhysicsDebugDraw);
-			DrawMetricRow("Shadow Draw", Phase::ShadowDraw);
-			DrawMetricRow("Screen Space UI", Phase::ScreenSpaceUI);
-			ImGui::EndTable();
-		}
-
-		ImGui::SeparatorText("次の最適化判断");
-		if (GetMetric(Phase::PhysicsWorldUpdate).averageMs > 4.0f)
-		{
-			ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "PhysicsWorldが重いため、Static Spatial Gridの導入効果を計測します。");
-		}
-		else
-		{
-			ImGui::TextDisabled("PhysicsWorldが軽い場合は、Other側のEditor/Render/GPU待ちを優先して調査します。");
-		}
-
 		ImGui::End();
 
+		// Render Pipeline Performanceは独立ウィンドウなので、上のDockタブが非選択でも毎フレーム登録する。
 		if (Ken4lowEngine::RenderPipelineController* renderPipeline = Ken4lowEngine::RenderPipelineController::GetActiveController())
 		{
-			renderPipeline->DrawPerformanceImGui(); // 同じ診断タイミングで描画PassとPresent待ちも別ウィンドウへ表示する。
+			renderPipeline->DrawPerformanceImGui();
 		}
 #endif // USE_IMGUI
 	}
