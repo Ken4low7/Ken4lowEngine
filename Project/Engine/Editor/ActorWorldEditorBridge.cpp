@@ -29,7 +29,7 @@ namespace Ken4lowEngine
 		uint64_t MakeActorEditorId(std::string_view sceneName, const Actor* actor)
 		{
 			const std::string actorKey = std::string(sceneName) + "/Actor/" +
-				std::to_string(static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(actor)));
+				std::to_string(static_cast<unsigned long long>(actor ? actor->GetId().value : 0));
 			return MakeStableEditorObjectId(actorKey);
 		}
 
@@ -252,7 +252,7 @@ namespace Ken4lowEngine
 		{
 			static std::atomic_uint64_t serial = 0;
 			return "../Generated/Intermediate/EditorUndo/" + std::string(prefix) + "_" +
-				std::to_string(reinterpret_cast<uintptr_t>(actor)) + "_" + std::to_string(++serial) + ".json";
+				std::to_string(actor ? actor->GetId().value : 0) + "_" + std::to_string(++serial) + ".json";
 		}
 
 		void SelectActor(ActorWorld& actorWorld, Actor* actor)
@@ -595,13 +595,13 @@ namespace Ken4lowEngine
 			std::unordered_map<const ActorComponent*, uint64_t> componentIds;
 			int componentSortOrder = 0;
 			const std::string actorKey = sceneNameText + "/Actor/" +
-				std::to_string(static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(actor)));
+				std::to_string(static_cast<unsigned long long>(actor ? actor->GetId().value : 0));
 			for (const auto& componentOwner : actor->GetComponents())
 			{
 				ActorComponent* component = componentOwner.get();
 				if (!component) continue;
 				const std::string componentKey = actorKey + "/Component/" +
-					std::to_string(static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(component)));
+					std::to_string(static_cast<unsigned long long>(component ? component->GetId().value : 0));
 				componentIds.emplace(component, MakeStableEditorObjectId(componentKey));
 			}
 

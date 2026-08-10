@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -138,10 +138,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\Scene\Actor\Character\CharacterMovementComponent.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Character\HumanoidDefinition.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Character\HumanoidVisualComponent.cpp" />
-    <ClCompile Include="Engine\Scene\Actor\Core\ActorWorld_ComponentEdit.cpp" />
+    <ClCompile Include="Engine\Editor\Legacy\ActorWorld_ComponentEdit.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Core\ActorWorld_Draw.cpp" />
-    <ClCompile Include="Engine\Scene\Actor\Core\ActorWorld_ImGui.cpp" />
-    <ClCompile Include="Engine\Scene\Actor\Core\ActorWorld_Prefab.cpp" />
+    <ClCompile Include="Engine\Editor\Legacy\ActorWorld_ImGui.cpp" />
+    <ClCompile Include="Engine\Editor\Legacy\ActorWorld_Prefab.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Core\ActorWorld_Pysics.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Factory\ActorFactory.cpp" />
     <ClCompile Include="Engine\Scene\Actor\Serialization\ComponentFactory.cpp" />
@@ -732,6 +732,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\Scene\Actor\Components\WorldTextComponent.h" />
     <ClInclude Include="Engine\Scene\Actor\Core\ActorWorld.h" />
     <ClInclude Include="Engine\Scene\Actor\Core\Actor.h" />
+    <ClInclude Include="Engine\Scene\Actor\Core\ActorHandle.h" />
+    <ClInclude Include="Engine\Scene\Actor\Core\WorldObjectId.h" />
     <ClInclude Include="ApplicationLayer\Scene\DebugScene\DebugScene.h" />
     <ClInclude Include="Engine\Physics\Collision\Legacy\CollisionManager.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>

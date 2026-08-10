@@ -181,7 +181,7 @@ void DebugScene::Finalize()
 void DebugScene::DrawImGui()
 {
 #ifdef USE_IMGUI
-	actorWorld_.DrawImGui();
+	// ActorWorldのEditor UIはEngine/Editor側のBridgeを正規導線とし、Runtime Worldから直接描画しない。
 	DrawActorWorldValidationImGui();
 	levelDataValidation_.DrawImGui(); // Blender JSONからLevelDataへの読み込み結果を画面上で確認する。
 	levelImportValidation_.DrawImGui(); // BlenderSceneDataからActor/Component用Levelへの変換結果を確認する。
