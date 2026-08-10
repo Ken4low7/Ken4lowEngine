@@ -2,6 +2,7 @@
 
 #include "SceneDefinition.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <string>
 
