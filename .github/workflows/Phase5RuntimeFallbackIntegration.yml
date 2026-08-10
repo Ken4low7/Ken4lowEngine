@@ -1,0 +1,194 @@
+name: Phase5RuntimeFallbackIntegration
+
+on:
+  push:
+    branches:
+      - feature/phase5-team-development
+    paths:
+      - .github/workflows/Phase5RuntimeFallbackIntegration.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: windows-2025-vs2026
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/phase5-team-development
+          fetch-depth: 0
+
+      - name: Configure Git
+        shell: pwsh
+        run: |
+          git config user.name "Ken4low7"
+          git config user.email "knt411sirokuro@gmail.com"
+          git config core.autocrlf false
+
+      - name: Integrate runtime fallbacks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8-sig')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8', newline='\n')
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{label}: expected 1 match, found {count}')
+              return text.replace(old, new, 1)
+
+          # Texture: 欠損時に生成マゼンタTextureへ安全にFallbackする。
+          path = 'Project/Engine/Graphics/Resource/Texture/TextureManager.h'
+          text = read(path)
+          text = replace_once(text,
+              '\t\tstatic TextureManager* GetInstance();\n',
+              '\t\tstatic TextureManager* GetInstance();\n\n'
+              '\t\t/// <summary>欠損Textureで使用する生成TextureのCache keyを取得する。</summary>\n'
+              '\t\tconst std::string& GetFallbackTextureKey() const { return fallbackTextureKey_; }\n',
+              'Texture fallback accessor')
+          text = replace_once(text,
+              '\t\tstatic constexpr const char* kTextureRootDir = "Resources/Textures/Compiled";\n',
+              '\t\tstatic constexpr const char* kTextureRootDir = "Resources/Textures/Compiled";\n\n'
+              '\t\tstd::string fallbackTextureKey_ = "__Ken4lowMissingTexture";\n',
+              'Texture fallback member')
+          write(path, text)
+
+          path = 'Project/Engine/Graphics/Resource/Texture/TextureManager.cpp'
+          text = read(path)
+          text = replace_once(text,
+              '#include "ResourceManager.h"\n',
+              '#include "ResourceManager.h"\n#include <Engine/Core/Project/ProjectSettings.h>\n',
+              'Texture settings include')
+          text = replace_once(text,
+              '\t\t// Compiled 配下の .dds 一覧を先に索引化\n\t\tBuildTexturePathIndex();\n\n\t\tLoadTexture("Sample/uvChecker.dds");\n',
+              '\t\t// Compiled 配下の .dds 一覧を先に索引化\n\t\tBuildTexturePathIndex();\n\n'
+              '\t\tProjectSettings* settings = ProjectSettings::GetInstance();\n'
+              '\t\tif (settings->EnsureLoaded() && !settings->GetFallbackTextureKey().empty())\n'
+              '\t\t{\n'
+              '\t\t\tfallbackTextureKey_ = settings->GetFallbackTextureKey();\n'
+              '\t\t}\n'
+              '\t\tCreateSolidColorTexture(fallbackTextureKey_, 255, 0, 255, 255, 8, 8); // 欠損Assetを画面上で識別できるマゼンタTexture。\n'
+              '\t\tLoadTexture("Sample/uvChecker.dds");\n',
+              'Texture initialize fallback')
+          text = replace_once(text,
+              '\t\tconst std::string filePathStr = NormalizeTexturePath(filePath);\n\t\tif (textureDatas.contains(filePathStr)) return;\n\t\tLoadTextureFromData(filePathStr, LoadTextureData(filePathStr));\n',
+              '\t\tconst std::string filePathStr = NormalizeTexturePath(filePath);\n'
+              '\t\tif (textureDatas.contains(filePathStr)) return;\n'
+              '\t\ttry\n'
+              '\t\t{\n'
+              '\t\t\tLoadTextureFromData(filePathStr, LoadTextureData(filePathStr));\n'
+              '\t\t}\n'
+              '\t\tcatch (const std::exception& exception)\n'
+              '\t\t{\n'
+              '\t\t\tLog(std::format("[TextureManager] Missing texture, fallback is used: {} ({})\\n", filePathStr, exception.what()));\n'
+              '\t\t}\n',
+              'Texture load fallback')
+          old = '''\tuint32_t TextureManager::GetTextureIndexByFilePath(const std::string& filePath)\n\t{\n\t\tstd::string key = NormalizeTexturePath(filePath);\n\n\t\tauto it = textureDatas.find(key);\n\t\tif (it != textureDatas.end())\n\t\t{\n\t\t\treturn it->second.srvIndex;\n\t\t}\n\n\t\tthrow std::runtime_error("Texture not found: " + key);\n\t}\n'''
+          new = '''\tuint32_t TextureManager::GetTextureIndexByFilePath(const std::string& filePath)\n\t{\n\t\tconst std::string key = NormalizeTexturePath(filePath);\n\t\tif (!textureDatas.contains(key)) LoadTexture(filePath);\n\t\tconst auto found = textureDatas.find(key);\n\t\tif (found != textureDatas.end()) return found->second.srvIndex;\n\t\tconst auto fallback = textureDatas.find(fallbackTextureKey_);\n\t\treturn fallback != textureDatas.end() ? fallback->second.srvIndex : UINT32_MAX;\n\t}\n'''
+          text = replace_once(text, old, new, 'Texture index fallback')
+          old = '''\tD3D12_GPU_DESCRIPTOR_HANDLE TextureManager::GetSrvHandleGPU(const std::string& filePath)\n\t{\n\t\tstd::string key = NormalizeTexturePath(filePath);\n\n\t\tauto it = textureDatas.find(key);\n\t\tif (it == textureDatas.end())\n\t\t{\n\t\t\tLoadTexture(filePath);\n\t\t\tit = textureDatas.find(key);\n\t\t}\n\n\t\tassert(it != textureDatas.end());\n\t\treturn it->second.srvHandleGPU;\n\t}\n'''
+          new = '''\tD3D12_GPU_DESCRIPTOR_HANDLE TextureManager::GetSrvHandleGPU(const std::string& filePath)\n\t{\n\t\tconst std::string key = NormalizeTexturePath(filePath);\n\t\tif (!textureDatas.contains(key)) LoadTexture(filePath);\n\t\tconst auto found = textureDatas.find(key);\n\t\tif (found != textureDatas.end()) return found->second.srvHandleGPU;\n\t\tconst auto fallback = textureDatas.find(fallbackTextureKey_);\n\t\treturn fallback != textureDatas.end() ? fallback->second.srvHandleGPU : D3D12_GPU_DESCRIPTOR_HANDLE{};\n\t}\n'''
+          text = replace_once(text, old, new, 'Texture GPU handle fallback')
+          old = '''\tuint32_t TextureManager::GetSrvIndex(const std::string& filePath)\n\t{\n\t\tstd::string key = NormalizeTexturePath(filePath);\n\n\t\tauto it = textureDatas.find(key);\n\t\tif (it == textureDatas.end())\n\t\t{\n\t\t\tLoadTexture(filePath);\n\t\t\tit = textureDatas.find(key);\n\t\t}\n\n\t\tassert(it != textureDatas.end());\n\t\treturn it->second.srvIndex;\n\t}\n'''
+          new = '''\tuint32_t TextureManager::GetSrvIndex(const std::string& filePath)\n\t{\n\t\treturn GetTextureIndexByFilePath(filePath);\n\t}\n'''
+          text = replace_once(text, old, new, 'Texture SRV index fallback')
+          old = '''\tconst DirectX::TexMetadata& TextureManager::GetMetaData(const std::string& filePath)\n\t{\n\t\tstd::string filePathStr = NormalizeTexturePath(filePath);\n\n\t\tassert(textureDatas.find(filePathStr) != textureDatas.end());\n\n\t\tTextureData& textureData = textureDatas[filePathStr];\n\t\treturn textureData.metaData;\n\t}\n'''
+          new = '''\tconst DirectX::TexMetadata& TextureManager::GetMetaData(const std::string& filePath)\n\t{\n\t\tconst std::string key = NormalizeTexturePath(filePath);\n\t\tif (!textureDatas.contains(key)) LoadTexture(filePath);\n\t\tconst auto found = textureDatas.find(key);\n\t\tif (found != textureDatas.end()) return found->second.metaData;\n\t\treturn textureDatas.at(fallbackTextureKey_).metaData;\n\t}\n'''
+          text = replace_once(text, old, new, 'Texture metadata fallback')
+          old = '''\tID3D12Resource* TextureManager::GetResource(const std::string& filePath)\n\t{\n\t\tstd::string filePathStr = NormalizeTexturePath(filePath);\n\t\tauto it = textureDatas.find(filePathStr);\n\t\tassert(it != textureDatas.end());\n\t\treturn it->second.resource.Get();\n\t}\n'''
+          new = '''\tID3D12Resource* TextureManager::GetResource(const std::string& filePath)\n\t{\n\t\tconst std::string key = NormalizeTexturePath(filePath);\n\t\tif (!textureDatas.contains(key)) LoadTexture(filePath);\n\t\tconst auto found = textureDatas.find(key);\n\t\tif (found != textureDatas.end()) return found->second.resource.Get();\n\t\tconst auto fallback = textureDatas.find(fallbackTextureKey_);\n\t\treturn fallback != textureDatas.end() ? fallback->second.resource.Get() : nullptr;\n\t}\n'''
+          text = replace_once(text, old, new, 'Texture resource fallback')
+          text = replace_once(text,
+              '\t\tstd::string path = NormalizeSlashes(filePath);\n',
+              '\t\tif (filePath == fallbackTextureKey_) return fallbackTextureKey_;\n\t\tstd::string path = NormalizeSlashes(filePath);\n',
+              'Texture normalize fallback key')
+          write(path, text)
+
+          # Model: 欠損時に単純な三角形Modelを生成して返す。
+          path = 'Project/Engine/Graphics/Resource/Model/ModelManager.h'
+          text = read(path)
+          text = replace_once(text,
+              '\t\tstd::shared_ptr<Model> FindModel(const std::string& filePath);\n',
+              '\t\tstd::shared_ptr<Model> FindModel(const std::string& filePath);\n\n'
+              '\t\t/// <summary>欠損Modelで使用する生成プレースホルダーを取得する。</summary>\n'
+              '\t\tstd::shared_ptr<Model> GetFallbackModel();\n',
+              'Model fallback accessor')
+          text = replace_once(text,
+              '\t\tstd::unordered_map<std::string, std::shared_ptr<Model>> models_;\n',
+              '\t\tstd::unordered_map<std::string, std::shared_ptr<Model>> models_;\n\n'
+              '\t\tstd::string fallbackModelKey_ = "__Ken4lowMissingModel";\n',
+              'Model fallback member')
+          write(path, text)
+
+          path = 'Project/Engine/Graphics/Resource/Model/ModelManager.cpp'
+          text = read(path)
+          text = replace_once(text,
+              '#include "Engine/Graphics/Resource/Asset/GpuDeferredReleaseQueue.h"\n',
+              '#include "Engine/Graphics/Resource/Asset/GpuDeferredReleaseQueue.h"\n#include <Engine/Core/Project/ProjectSettings.h>\n',
+              'Model settings include')
+          old = '''\tstd::shared_ptr<Model> ModelManager::LoadModel(const std::string& filePath)\n\t{\n\t\tauto it = models_.find(filePath);\n\t\tif (it != models_.end())\n\t\t{\n\t\t\treturn it->second;\n\t\t}\n\n\t\tauto model = std::make_shared<Model>();\n\t\tmodel->Initialize(filePath);\n\t\tmodels_.insert(std::make_pair(filePath, model));\n\t\treturn model;\n\t}\n'''
+          new = '''\tstd::shared_ptr<Model> ModelManager::LoadModel(const std::string& filePath)\n\t{\n\t\tauto it = models_.find(filePath);\n\t\tif (it != models_.end()) return it->second;\n\n\t\tProjectSettings* settings = ProjectSettings::GetInstance();\n\t\tif (settings->EnsureLoaded() && !settings->GetFallbackModelKey().empty()) fallbackModelKey_ = settings->GetFallbackModelKey();\n\t\tif (filePath == fallbackModelKey_) return GetFallbackModel();\n\n\t\ttry\n\t\t{\n\t\t\tauto model = std::make_shared<Model>();\n\t\t\tmodel->Initialize(filePath);\n\t\t\tmodels_.insert(std::make_pair(filePath, model));\n\t\t\treturn model;\n\t\t}\n\t\tcatch (const std::exception&)\n\t\t{\n\t\t\treturn GetFallbackModel(); // 欠損Modelでも描画側へnullptrを流さず、目視可能なGeometryで継続する。\n\t\t}\n\t}\n'''
+          text = replace_once(text, old, new, 'Model load fallback')
+          marker = '''\tstd::shared_ptr<Model> ModelManager::FindModel(const std::string& filePath)\n\t{\n\t\treturn LoadModel(filePath);\n\t}\n'''
+          replacement = marker + '''\n\tstd::shared_ptr<Model> ModelManager::GetFallbackModel()\n\t{\n\t\tif (const auto found = models_.find(fallbackModelKey_); found != models_.end()) return found->second;\n\n\t\tProjectSettings* settings = ProjectSettings::GetInstance();\n\t\tif (settings->EnsureLoaded() && !settings->GetFallbackModelKey().empty()) fallbackModelKey_ = settings->GetFallbackModelKey();\n\n\t\tSubMesh subMesh{};\n\t\tsubMesh.vertices = {\n\t\t\t{ { -0.75f, -0.75f, 0.0f, 1.0f }, { 0.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } },\n\t\t\t{ {  0.00f,  0.75f, 0.0f, 1.0f }, { 0.5f, 0.0f }, { 0.0f, 0.0f, -1.0f } },\n\t\t\t{ {  0.75f, -0.75f, 0.0f, 1.0f }, { 1.0f, 1.0f }, { 0.0f, 0.0f, -1.0f } },\n\t\t};\n\t\tsubMesh.indices = { 0, 1, 2 };\n\t\tsubMesh.material.textureFilePath = settings->EnsureLoaded()\n\t\t\t? settings->GetFallbackTextureKey()\n\t\t\t: "__Ken4lowMissingTexture";\n\n\t\tModelData data{};\n\t\tdata.subMeshes.push_back(std::move(subMesh));\n\t\tauto model = std::make_shared<Model>();\n\t\tmodel->InitializeFromData(std::move(data));\n\t\tmodels_[fallbackModelKey_] = model;\n\t\treturn model;\n\t}\n'''
+          text = replace_once(text, marker, replacement, 'Model fallback implementation')
+          write(path, text)
+
+          # Audio: 欠損ファイルはDecoderへ渡さず明示的なSilent fallbackにする。
+          path = 'Project/Engine/System/Audio/Manager/AudioManager.cpp'
+          text = read(path)
+          text = replace_once(text,
+              '\t\t// 未キャッシュなら新しくデコードする\n\t\tauto clip = std::make_shared<CachedClip>();\n',
+              '\t\t// 欠損AudioはProject SettingsのSilent fallbackとして再生をスキップする。\n'
+              '\t\tif (!std::filesystem::is_regular_file(normalized))\n'
+              '\t\t{\n'
+              '\t\t\tOutputDebugStringA(("AudioManager: missing audio -> silent fallback: " + normalized + "\\n").c_str());\n'
+              '\t\t\treturn nullptr;\n'
+              '\t\t}\n\n'
+              '\t\t// 未キャッシュなら新しくデコードする\n\t\tauto clip = std::make_shared<CachedClip>();\n',
+              'Audio silent fallback')
+          write(path, text)
+
+          # Project Settings headerをVisual Studio上でも表示する。
+          path = 'Project/Ken4lowEngine.vcxproj'
+          text = read(path)
+          if 'Engine\\Core\\Project\\ProjectSettings.h' not in text:
+              insert = '  <ItemGroup>\n    <ClInclude Include="Engine\\Core\\Project\\ProjectSettings.h" />\n  </ItemGroup>\n'
+              index = text.rfind('</Project>')
+              if index < 0:
+                  raise RuntimeError('vcxproj closing Project not found')
+              text = text[:index] + insert + text[index:]
+          write(path, text)
+
+          path = 'Project/Ken4lowEngine.vcxproj.filters'
+          text = read(path)
+          if 'Engine\\Core\\Project\\ProjectSettings.h' not in text:
+              insert = '  <ItemGroup>\n    <ClInclude Include="Engine\\Core\\Project\\ProjectSettings.h"><Filter>Engine\\Core</Filter></ClInclude>\n  </ItemGroup>\n'
+              index = text.rfind('</Project>')
+              if index < 0:
+                  raise RuntimeError('filters closing Project not found')
+              text = text[:index] + insert + text[index:]
+          write(path, text)
+          '@ | python -
+
+          git diff --check
+          git add Project
+          git commit -m "不足アセットのフォールバック処理を追加"
+          git push origin HEAD:feature/phase5-team-development
+
+      - name: Remove temporary workflow
+        shell: pwsh
+        run: |
+          git pull --rebase origin feature/phase5-team-development
+          git rm .github/workflows/Phase5RuntimeFallbackIntegration.yml
+          git commit -m "Phase 5の一時Runtime統合Workflowを削除"
+          git push origin HEAD:feature/phase5-team-development
