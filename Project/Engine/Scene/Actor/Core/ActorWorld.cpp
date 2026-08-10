@@ -6,6 +6,7 @@
 
 #include "LightManager.h"
 #include "SceneComponent.h"
+#include <Engine/Scene/Streaming/WorldPartitionManager.h>
 
 #ifdef USE_IMGUI
 #include <Editor/EditorActorStateRegistry.h>
@@ -110,6 +111,12 @@ namespace Ken4lowEngine
 
 	void ActorWorld::Finalize()
 	{
+		WorldPartitionManager* partitionManager = WorldPartitionManager::GetInstance();
+		if (partitionManager->IsConfiguredFor(this))
+		{
+			partitionManager->Reset(); // World破棄後に旧SubLevel Requestを残さない。
+		}
+
 		isUpdating_ = false;
 		selectedActor_ = nullptr;
 		selectedComponent_ = nullptr;
