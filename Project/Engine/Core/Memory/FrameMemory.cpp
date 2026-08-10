@@ -80,14 +80,19 @@ namespace Ken4lowEngine
 		if (bytes == 0) bytes = 1;
 		if (alignment == 0) alignment = alignof(std::max_align_t);
 
-		const std::size_t mask = alignment - 1;
-		const std::size_t alignedOffset = (offset_ + mask) & ~mask;
-		if (alignedOffset <= buffer_.size() && bytes <= buffer_.size() - alignedOffset)
+		// vector<byte>の通常領域はfundamental alignmentまでに限定する。
+		// over-aligned型はupstreamへ逃がし、memory_resourceのalignment契約を維持する。
+		if (alignment <= alignof(std::max_align_t))
 		{
-			void* pointer = buffer_.data() + alignedOffset;
-			offset_ = alignedOffset + bytes;
-			highWaterBytes_ = (std::max)(highWaterBytes_, offset_ + overflowBytes_);
-			return pointer;
+			const std::size_t mask = alignment - 1;
+			const std::size_t alignedOffset = (offset_ + mask) & ~mask;
+			if (alignedOffset <= buffer_.size() && bytes <= buffer_.size() - alignedOffset)
+			{
+				void* pointer = buffer_.data() + alignedOffset;
+				offset_ = alignedOffset + bytes;
+				highWaterBytes_ = (std::max)(highWaterBytes_, offset_ + overflowBytes_);
+				return pointer;
+			}
 		}
 
 		void* pointer = upstream_->allocate(bytes, alignment);
