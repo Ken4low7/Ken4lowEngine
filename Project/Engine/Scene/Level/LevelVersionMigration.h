@@ -15,5 +15,6 @@ namespace Ken4lowEngine
 
 	private:
 		static bool MigrateVersion1To2(nlohmann::json& levelJson, std::string& outError);
+		static bool MigrateVersion2To3(nlohmann::json& levelJson, std::string& outError);
 	};
 } // namespace Ken4lowEngine
