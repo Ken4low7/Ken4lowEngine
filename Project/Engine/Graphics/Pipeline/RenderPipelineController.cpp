@@ -169,9 +169,25 @@ namespace Ken4lowEngine
 				dxCommon_->SetFramesInFlightEnabled(framesInFlightEnabled);
 			}
 			ImGui::Text("Frame Resources: %u", dxCommon_->GetCommandManager()->GetFrameResourceCount());
+
+			const FrameUploadArena::Stats uploadStats = dxCommon_->GetFrameUploadArena().GetStats();
+			constexpr double kBytesPerMiB = 1024.0 * 1024.0;
+			ImGui::Text("Frame Upload Arena: %.3f / %.3f MiB",
+				static_cast<double>(uploadStats.usedBytes) / kBytesPerMiB,
+				static_cast<double>(uploadStats.capacityBytes) / kBytesPerMiB);
+			ImGui::Text("Upload High Water: %.3f MiB",
+				static_cast<double>(uploadStats.highWaterBytes) / kBytesPerMiB);
+			ImGui::Text("Upload Overflow: %.3f MiB (%zu allocs)",
+				static_cast<double>(uploadStats.overflowBytes) / kBytesPerMiB,
+				uploadStats.overflowAllocationCount); // Arena容量不足をPerformance画面から即座に判定できるようにする。
+			if (uploadStats.overflowAllocationCount > 0)
+			{
+				ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.25f, 1.0f), "Frame Upload Arena overflow detected.");
+			}
+
 			if (framesInFlightEnabled)
 			{
-				ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "検証用ON: 単一Upload/ConstantBufferのPer-Frame化が未完了です。");
+				ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "検証用ON: 動的Upload BufferのPer-Frame化を継続中です。");
 			}
 			else
 			{
