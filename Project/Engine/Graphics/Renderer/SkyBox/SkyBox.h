@@ -20,7 +20,7 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	/// 役割:
 	/// - 環境テクスチャを使ったスカイボックスの頂点/インデックスデータを保持する
-	/// - マテリアル / WVP 定数バッファを更新する
+	/// - マテリアル / WVP 定数データを更新する
 	/// - SkyBoxManager が設定した描画状態のもとでキューブを描画する
 	///
 	/// 注意:
@@ -87,7 +87,7 @@ namespace Ken4lowEngine
 		/// - DirectXCommon と使用カメラを取得する
 		/// - 環境テクスチャを読み込む
 		/// - スカイボックス用のスケール・回転・位置を初期化する
-		/// - マテリアル / 頂点 / インデックス / WVP バッファを生成する
+		/// - マテリアル / 頂点 / インデックス / WVP データを初期化する
 		void Initialize(const std::string& filePath);
 
 		/// <summary>
@@ -97,7 +97,7 @@ namespace Ken4lowEngine
 		/// 実行内容:
 		/// - ワールド行列を計算する
 		/// - 通常カメラまたはデバッグカメラの ViewProjection を選ぶ
-		/// - World * ViewProjection を計算して WVP バッファへ反映する
+		/// - World * ViewProjection を計算して WVP データへ反映する
 		void Update();
 
 		/// <summary>
@@ -109,7 +109,7 @@ namespace Ken4lowEngine
 		///
 		/// 実行内容:
 		/// - 頂点 / インデックスバッファをバインドする
-		/// - Material / WVP 定数バッファをバインドする
+		/// - Material / WVP を現在FrameのUpload Arenaへ確保してバインドする
 		/// - DrawIndexedInstanced でキューブを描画する
 		void Draw();
 
@@ -160,7 +160,7 @@ namespace Ken4lowEngine
 	private: /// ---------- 内部メンバ関数 ---------- ///
 
 		/// <summary>
-		/// マテリアル用定数バッファを生成・初期化する。
+		/// マテリアル用CPUステージングデータを初期化する。
 		/// </summary>
 		void InitializeMaterial();
 
@@ -188,18 +188,16 @@ namespace Ken4lowEngine
 		/// 環境マップ用 GPU ハンドル
 		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle_ = {};
 
-		/// Material 定数バッファ
-		ComPtr<ID3D12Resource> materialResource;
-		Material* materialData_ = nullptr;
+		/// Material のCPUステージングデータ
+		Material materialData_{};
 
 		/// 頂点バッファ
 		ComPtr<ID3D12Resource> vertexResource;
 		D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
 		VertexData* vertexData_ = nullptr;
 
-		/// WVP 定数バッファ
-		ComPtr<ID3D12Resource> wvpResource;
-		TransformationMatrix* wvpData = nullptr;
+		/// WVP のCPUステージングデータ
+		TransformationMatrix wvpData_{};
 
 		/// インデックスバッファ
 		ComPtr<ID3D12Resource> indexResource;
