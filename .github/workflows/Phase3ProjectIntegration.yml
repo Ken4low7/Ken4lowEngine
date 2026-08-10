@@ -1,0 +1,109 @@
+name: Phase3ProjectIntegration
+
+on:
+  push:
+    branches:
+      - feature/phase3-asset-foundation
+    paths:
+      - .github/workflows/Phase3ProjectIntegration.yml
+
+permissions:
+  contents: write
+
+jobs:
+  project-integration:
+    runs-on: windows-2025-vs2026
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/phase3-asset-foundation
+          fetch-depth: 0
+
+      - name: Configure Git
+        shell: pwsh
+        run: |
+          git config user.name "Ken4low7"
+          git config user.email "knt411sirokuro@gmail.com"
+          git config core.autocrlf false
+          git reset --hard HEAD
+
+      - name: Integrate Asset project paths and filters
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding="utf-8")
+
+          def write(path, text):
+              Path(path).write_text(text, encoding="utf-8", newline="\n")
+
+          def rep_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"{label}: expected 1 match, found {count}")
+              return text.replace(old, new, 1)
+
+          # Debug / Releaseの両方でAssetSystem.hを短いinclude名から利用できるようにする。
+          path = "Project/Ken4lowEngine.vcxproj"
+          text = read(path)
+          old = '$(ProjectDir)Engine\\Graphics\\Resource;$(ProjectDir)Engine\\Graphics\\Resource\\Model;'
+          new = '$(ProjectDir)Engine\\Graphics\\Resource;$(ProjectDir)Engine\\Graphics\\Resource\\Asset;$(ProjectDir)Engine\\Graphics\\Resource\\Model;'
+          count = text.count(old)
+          if count != 2:
+              raise RuntimeError(f"Asset include path: expected 2 matches, found {count}")
+          text = text.replace(old, new)
+          write(path, text)
+
+          # Framework側も既存Managerと同じinclude形式へ揃え、IncludePathの登録を実際に検証する。
+          path = "Project/Engine/Core/Application/Framework.cpp"
+          text = read(path)
+          text = rep_once(text, '#include <Engine/Graphics/Resource/Asset/AssetSystem.h>\n', '#include <AssetSystem.h>\n', "Framework AssetSystem include")
+          write(path, text)
+
+          # Visual StudioのSolution ExplorerでもAsset基盤を正しいFilter配下へ表示する。
+          path = "Project/Ken4lowEngine.vcxproj.filters"
+          text = read(path)
+          filter_anchor = '    <Filter Include="Engine\\Graphics\\Culling">\n'
+          filter_entry = '    <Filter Include="Engine\\Graphics\\Resource\\Asset">\n      <UniqueIdentifier>{2cbb96dc-21fd-48aa-b37e-bc6d78f3822e}</UniqueIdentifier>\n    </Filter>\n'
+          text = rep_once(text, filter_anchor, filter_entry + filter_anchor, "Asset filter")
+
+          compile_anchor = '    <ClCompile Include="Engine\\Graphics\\Resource\\Model\\AssimpLoader.cpp">\n'
+          compile_entries = '''    <ClCompile Include="Engine\\Graphics\\Resource\\Asset\\AssetRegistry.cpp">\n      <Filter>Engine\\Graphics\\Resource\\Asset</Filter>\n    </ClCompile>\n    <ClCompile Include="Engine\\Graphics\\Resource\\Asset\\AssetSystem.cpp">\n      <Filter>Engine\\Graphics\\Resource\\Asset</Filter>\n    </ClCompile>\n    <ClCompile Include="Engine\\Graphics\\Resource\\Asset\\GpuDeferredReleaseQueue.cpp">\n      <Filter>Engine\\Graphics\\Resource\\Asset</Filter>\n    </ClCompile>\n'''
+          text = rep_once(text, compile_anchor, compile_entries + compile_anchor, "Asset cpp filters")
+
+          header_anchor = '    <ClInclude Include="Engine\\Graphics\\Resource\\Model\\PathUtil.h">\n'
+          header_entries = '''    <ClInclude Include="Engine\\Graphics\\Resource\\Asset\\AssetId.h">\n      <Filter>Engine\\Graphics\\Resource\\Asset</Filter>\n    </ClInclude>\n    <ClInclude Include="Engine\\Graphics\\Resource\\Asset\\AssetHandle.h">\n      <Filter>Engine\\Graphics\\Resource\\Asset</Filter>\n    </ClInclude>\n    <ClInclude Include="Engine\\Graphics\\Resource\\Asset\\AssetRegistry.h">\n      <Filter>Engine\\Graphics\\Resource\\Asset</Filter>\n    </ClInclude>\n    <ClInclude Include="Engine\\Graphics\\Resource\\Asset\\AssetSystem.h">\n      <Filter>Engine\\Graphics\\Resource\\Asset</Filter>\n    </ClInclude>\n    <ClInclude Include="Engine\\Graphics\\Resource\\Asset\\GpuDeferredReleaseQueue.h">\n      <Filter>Engine\\Graphics\\Resource\\Asset</Filter>\n    </ClInclude>\n'''
+          text = rep_once(text, header_anchor, header_entries + header_anchor, "Asset header filters")
+          write(path, text)
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          git diff --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git add Project/Ken4lowEngine.vcxproj Project/Ken4lowEngine.vcxproj.filters Project/Engine/Core/Application/Framework.cpp
+          git commit -m "Asset基盤をVisual Studioプロジェクトへ統合"
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v3
+        with:
+          msbuild-architecture: x64
+
+      - name: Compile Debug C++
+        shell: pwsh
+        run: msbuild Project/Ken4lowEngine.sln /m /t:ClCompile /p:Platform=x64 /p:Configuration=Debug /verbosity:minimal "/clp:ErrorsOnly;Summary"
+
+      - name: Compile Release C++
+        shell: pwsh
+        run: msbuild Project/Ken4lowEngine.sln /m /t:ClCompile /p:Platform=x64 /p:Configuration=Release /verbosity:minimal "/clp:ErrorsOnly;Summary"
+
+      - name: Remove temporary workflow and push
+        if: success()
+        shell: pwsh
+        run: |
+          git rm .github/workflows/Phase3ProjectIntegration.yml
+          git commit -m "Phase 3の一時プロジェクト統合Workflowを削除"
+          git push origin HEAD:feature/phase3-asset-foundation
