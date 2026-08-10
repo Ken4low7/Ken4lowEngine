@@ -37,6 +37,10 @@ namespace Ken4lowEngine
 				if (!MigrateVersion1To2(levelJson, outError)) return false;
 				version = 2;
 				break;
+			case 2:
+				if (!MigrateVersion2To3(levelJson, outError)) return false;
+				version = 3;
+				break;
 			default:
 				outError = "Migration経路が定義されていないLevel Versionです: " + std::to_string(version);
 				return false;
@@ -72,8 +76,6 @@ namespace Ken4lowEngine
 				return false;
 			}
 
-			// Phase 4以前のLevelはActor JSONをDataへ直接埋め込んでいた。
-			// その形はVersion 2でも互換経路として維持し、Prefab参照は新規保存時だけ使用する。
 			if (!actorEntry.contains("Editor") || !actorEntry["Editor"].is_object())
 			{
 				actorEntry["Editor"] = {
@@ -83,7 +85,6 @@ namespace Ken4lowEngine
 				};
 			}
 
-			// 開発途中のPrefabPath表記が存在した場合もVersion 2のPrefab objectへ寄せる。
 			if (actorEntry.contains("PrefabPath") && actorEntry["PrefabPath"].is_string())
 			{
 				nlohmann::json prefab = nlohmann::json::object();
@@ -96,6 +97,32 @@ namespace Ken4lowEngine
 		}
 
 		levelJson["Version"] = 2;
+		return true;
+	}
+
+	bool LevelVersionMigration::MigrateVersion2To3(nlohmann::json& levelJson, std::string& outError)
+	{
+		if (!levelJson.contains("Actors") || !levelJson["Actors"].is_array())
+		{
+			outError = "Version 2 LevelのActorsが不正です。";
+			return false;
+		}
+
+		if (!levelJson.contains("SubLevels") || !levelJson["SubLevels"].is_array())
+		{
+			levelJson["SubLevels"] = nlohmann::json::array();
+		}
+		if (!levelJson.contains("WorldPartition") || !levelJson["WorldPartition"].is_object())
+		{
+			levelJson["WorldPartition"] = {
+				{ "Enabled", false },
+				{ "CellSize", 128.0f },
+				{ "LoadRadiusCells", 1 },
+				{ "UnloadRadiusCells", 2 },
+			};
+		}
+
+		levelJson["Version"] = 3;
 		return true;
 	}
 } // namespace Ken4lowEngine
