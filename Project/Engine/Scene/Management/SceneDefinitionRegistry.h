@@ -2,6 +2,7 @@
 
 #include "SceneDefinition.h"
 #include "SceneDefinitionSerializer.h"
+#include <Engine/Core/Project/ProjectSettings.h>
 
 #include <filesystem>
 #include <fstream>
@@ -18,7 +19,11 @@ namespace Ken4lowEngine
 	public:
 		SceneDefinitionRegistry()
 		{
-			Load("Resources/JSON/Scenes/SceneRegistry.json"); // SceneManager生成時に標準Registryを自動読込して既存ChangeScene呼び出しをデータ化する。
+			ProjectSettings* projectSettings = ProjectSettings::GetInstance();
+			const std::filesystem::path registryPath = projectSettings->EnsureLoaded()
+				? projectSettings->GetSceneRegistryPath()
+				: "Resources/JSON/Scenes/SceneRegistry.json";
+			Load(registryPath); // Project Settingsが壊れていても従来の標準RegistryへFallbackする。
 		}
 
 		bool Load(const std::filesystem::path& registryPath)
@@ -92,6 +97,13 @@ namespace Ken4lowEngine
 
 		[[nodiscard]] std::string GetStartupScene(bool debugBuild) const
 		{
+			ProjectSettings* projectSettings = ProjectSettings::GetInstance();
+			if (projectSettings->EnsureLoaded())
+			{
+				const std::string& overrideScene = projectSettings->GetStartupSceneOverride();
+				if (!overrideScene.empty() && Find(overrideScene)) return overrideScene;
+			}
+
 			const std::string& requested = debugBuild ? debugStartupScene_ : startupScene_;
 			if (Find(requested)) return requested;
 			return definitions_.empty() ? requested : definitions_.begin()->first;
