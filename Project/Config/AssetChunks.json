@@ -1,0 +1,36 @@
+{
+  "ChunkConfigVersion": 1,
+  "DefaultChunk": "core",
+  "Rules": [
+    {
+      "Name": "Font assets",
+      "Chunk": "ui",
+      "AssetTypes": [
+        "Font"
+      ]
+    },
+    {
+      "Name": "UI textures",
+      "Chunk": "ui",
+      "LogicalKeyPrefixes": [
+        "Resources/Textures/Sources/UI/"
+      ]
+    },
+    {
+      "Name": "Stage meshes",
+      "Chunk": "world",
+      "LogicalKeyPrefixes": [
+        "Resources/Models/Sources/Stages/"
+      ]
+    }
+  ],
+  "ChunkDependencies": {
+    "ui": [
+      "core"
+    ],
+    "world": [
+      "core"
+    ]
+  },
+  "OwnerBindings": []
+}
