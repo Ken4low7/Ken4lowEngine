@@ -237,6 +237,7 @@ namespace Ken4lowEngine
 		const RenderGraph::ResourceHandle shadowMap = renderGraph_.CreateResource("ShadowMap", true);
 		const RenderGraph::ResourceHandle sceneColor = renderGraph_.CreateResource("SceneColor", true);
 		const RenderGraph::ResourceHandle postColor = renderGraph_.CreateResource("PostColor", false);
+		renderGraph_.MarkResourceOutput(backBuffer); // 最終表示先BackBufferをCulling sinkとして明示し、未使用Passだけを除外可能にする。
 		RenderGraph::PassHandle previousPass{};
 
 		auto addChainedPass = [this, &previousPass](
@@ -251,10 +252,11 @@ namespace Ken4lowEngine
 				return pass;
 			};
 
-		addChainedPass("BeginDraw", {}, { backBuffer }, [this]()
+		const RenderGraph::PassHandle beginDrawPass = addChainedPass("BeginDraw", {}, { backBuffer }, [this]()
 			{
 				MeasurePhase(PerformancePhase::BeginDraw, [this]() { dxCommon_->BeginDraw(); });
 			});
+		renderGraph_.MarkPassSideEffect(beginDrawPass);
 		addChainedPass("ShadowPrepare", {}, { shadowMap }, [this, &callbacks]()
 			{
 				MeasurePhase(PerformancePhase::ShadowPrepare, callbacks.prepareShadowPass);
@@ -269,8 +271,10 @@ namespace Ken4lowEngine
 
 		if (editorModeEnabled)
 		{
-			addChainedPass("EditorUiBuild", {}, {}, [this, &callbacks]() { MeasurePhase(PerformancePhase::EditorUiBuild, callbacks.buildEditorUi); });
-			addChainedPass("EditorPicking", {}, {}, [this, &callbacks]() { MeasurePhase(PerformancePhase::EditorPicking, callbacks.executeEditorPickingPass); });
+			const RenderGraph::PassHandle editorUiBuildPass = addChainedPass("EditorUiBuild", {}, {}, [this, &callbacks]() { MeasurePhase(PerformancePhase::EditorUiBuild, callbacks.buildEditorUi); });
+			const RenderGraph::PassHandle editorPickingPass = addChainedPass("EditorPicking", {}, {}, [this, &callbacks]() { MeasurePhase(PerformancePhase::EditorPicking, callbacks.executeEditorPickingPass); });
+			renderGraph_.MarkPassSideEffect(editorUiBuildPass);
+			renderGraph_.MarkPassSideEffect(editorPickingPass); // Resourceを持たないEditor処理も外部状態へ作用するためCulling rootとして保持する。
 			addChainedPass("MainWorldRender", { shadowMap }, { sceneColor }, [this, &callbacks]() { MeasurePhase(PerformancePhase::MainWorldRender, callbacks.drawGameWorldToSceneTarget); });
 			addChainedPass("PostEffect", { sceneColor }, { postColor }, [this, &callbacks]() { MeasurePhase(PerformancePhase::PostEffect, callbacks.renderPostEffectToGameRenderTarget); });
 			addChainedPass("SelectionOutline", { postColor }, { postColor }, [this, &callbacks]() { MeasurePhase(PerformancePhase::SelectionOutline, callbacks.renderEditorSelectionOutline); });
@@ -496,7 +500,10 @@ namespace Ken4lowEngine
 
 		const RenderGraph::CompileStats& graphStats = renderGraph_.GetCompileStats();
 		ImGui::SeparatorText("Render Graph");
-		ImGui::Text("Render Graph Passes: %zu", graphStats.passCount);
+		ImGui::Text("Render Graph Passes: %zu declared / %zu executed / %zu culled",
+			graphStats.passCount, graphStats.executedPassCount, graphStats.culledPassCount);
+		ImGui::Text("Culling Roots: %zu outputs / %zu side effects",
+			graphStats.outputResourceCount, graphStats.sideEffectPassCount); // Pass Cullingの効き具合をPerformance画面から直接確認できるようにする。
 		ImGui::Text("Resources: %zu / Dependencies: %zu", graphStats.resourceCount, graphStats.dependencyCount);
 		ImGui::Text("Transient Logical Resources: %zu", graphStats.transientResourceCount);
 
