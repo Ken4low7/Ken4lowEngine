@@ -13,15 +13,31 @@ namespace Ken4lowEngine
 		passes_.clear();
 		compiledOrder_.clear();
 		dependencyRecords_.clear();
+		barrierPlan_.clear();
 		compileStats_ = {};
 		compiled_ = false;
 	}
 
 	RenderGraph::ResourceHandle RenderGraph::CreateResource(std::string name, bool imported)
 	{
+		return CreateResource(
+			std::move(name),
+			imported,
+			ResourceState::Unknown,
+			ResourceState::Unknown);
+	}
+
+	RenderGraph::ResourceHandle RenderGraph::CreateResource(
+		std::string name,
+		bool imported,
+		ResourceState initialState,
+		ResourceState finalState)
+	{
 		ResourceNode node{};
 		node.name = std::move(name);
 		node.lifetime.imported = imported;
+		node.initialState = initialState;
+		node.finalState = finalState;
 		resources_.push_back(std::move(node));
 		compiled_ = false;
 		return { static_cast<uint32_t>(resources_.size() - 1) };
@@ -95,6 +111,7 @@ namespace Ken4lowEngine
 		if (outError) outError->clear();
 		compiledOrder_.clear();
 		dependencyRecords_.clear();
+		barrierPlan_.clear();
 		compileStats_ = {};
 		compileStats_.passCount = passes_.size();
 		compileStats_.resourceCount = resources_.size();
@@ -167,7 +184,7 @@ namespace Ken4lowEngine
 		lastWriter.assign(resources_.size(), -1);
 		std::vector<std::vector<uint32_t>> activeReaders(resources_.size());
 		std::pmr::vector<uint8_t> accessMasks(scratch);
-		accessMasks.assign(resources_.size(), 0u);
+		accessMasks.assign(resources_.size(), uint8_t{ 0 });
 
 		for (uint32_t passIndex = 0; passIndex < passes_.size(); ++passIndex)
 		{
@@ -177,25 +194,25 @@ namespace Ken4lowEngine
 				addDependencyRecord(dependency, passIndex, {}, HazardType::Explicit);
 			}
 
-			std::fill(accessMasks.begin(), accessMasks.end(), 0u);
+			std::fill(accessMasks.begin(), accessMasks.end(), uint8_t{ 0 });
 			for (const ResourceAccess& access : pass.accesses)
 			{
 				ResourceNode& resource = resources_[access.resource.id];
 				resource.lifetime.firstPass = (std::min)(resource.lifetime.firstPass, static_cast<std::size_t>(passIndex));
 				resource.lifetime.lastPass = (std::max)(resource.lifetime.lastPass, static_cast<std::size_t>(passIndex));
 				uint8_t& mask = accessMasks[access.resource.id];
-				if (access.access == AccessType::Read || access.access == AccessType::ReadWrite) mask |= 0x1u;
-				if (access.access == AccessType::Write || access.access == AccessType::ReadWrite) mask |= 0x2u;
+				if (access.access == AccessType::Read || access.access == AccessType::ReadWrite) mask |= uint8_t{ 0x1 };
+				if (access.access == AccessType::Write || access.access == AccessType::ReadWrite) mask |= uint8_t{ 0x2 };
 			}
 
 			// Read/read access remains parallel; only RAW, WAR and WAW hazards generate ordering edges.
-			for (uint32_t resourceIndex = 0; resourceIndex < accessMasks.size(); ++resourceIndex)
+			for (std::size_t resourceIndex = 0; resourceIndex < accessMasks.size(); ++resourceIndex)
 			{
 				const uint8_t mask = accessMasks[resourceIndex];
-				if (mask == 0u) continue;
-				const bool reads = (mask & 0x1u) != 0u;
-				const bool writes = (mask & 0x2u) != 0u;
-				const ResourceHandle handle{ resourceIndex };
+				if (mask == uint8_t{ 0 }) continue;
+				const bool reads = (mask & uint8_t{ 0x1 }) != uint8_t{ 0 };
+				const bool writes = (mask & uint8_t{ 0x2 }) != uint8_t{ 0 };
+				const ResourceHandle handle{ static_cast<uint32_t>(resourceIndex) };
 
 				if (reads && lastWriter[resourceIndex] >= 0)
 				{
@@ -251,18 +268,183 @@ namespace Ken4lowEngine
 			return false;
 		}
 
+		if (!BuildBarrierPlan(outError))
+		{
+			compiledOrder_.clear();
+			compiled_ = false;
+			return false;
+		}
+
 		compiled_ = true;
+		return true;
+	}
+
+	bool RenderGraph::BuildBarrierPlan(std::string* outError)
+	{
+		barrierPlan_.clear();
+		compileStats_.transitionBarrierCount = 0;
+		compileStats_.uavBarrierCount = 0;
+		compileStats_.unknownStateAccessCount = 0;
+
+		std::vector<ResourceState> currentStates;
+		currentStates.reserve(resources_.size());
+		for (const ResourceNode& resource : resources_)
+		{
+			currentStates.push_back(resource.initialState);
+		}
+
+		std::vector<ResourceState> previousAccessStates(resources_.size(), ResourceState::Unknown);
+		std::vector<uint8_t> previousAccessMasks(resources_.size(), uint8_t{ 0 });
+		std::vector<ResourceState> requestedStates(resources_.size(), ResourceState::Unknown);
+		std::vector<uint8_t> mergedAccessMasks(resources_.size(), uint8_t{ 0 });
+
+		// Barrier planning stays D3D12-independent so manually managed resources can migrate without double transitions.
+		for (uint32_t passIndex : compiledOrder_)
+		{
+			if (passIndex >= passes_.size()) continue;
+			std::fill(requestedStates.begin(), requestedStates.end(), ResourceState::Unknown);
+			std::fill(mergedAccessMasks.begin(), mergedAccessMasks.end(), uint8_t{ 0 });
+
+			const PassNode& pass = passes_[passIndex];
+			for (const ResourceAccess& access : pass.accesses)
+			{
+				const std::size_t resourceIndex = access.resource.id;
+				uint8_t& mask = mergedAccessMasks[resourceIndex];
+				if (access.access == AccessType::Read || access.access == AccessType::ReadWrite) mask |= uint8_t{ 0x1 };
+				if (access.access == AccessType::Write || access.access == AccessType::ReadWrite) mask |= uint8_t{ 0x2 };
+
+				if (access.state == ResourceState::Unknown)
+				{
+					++compileStats_.unknownStateAccessCount;
+					continue;
+				}
+
+				ResourceState& requestedState = requestedStates[resourceIndex];
+				if (requestedState == ResourceState::Unknown)
+				{
+					requestedState = access.state;
+				}
+				else if (requestedState != access.state)
+				{
+					if (outError)
+					{
+						*outError = "Render Graphの同一Pass内でResource Stateが競合しています: " + pass.name +
+							" / " + resources_[resourceIndex].name;
+					}
+					return false;
+				}
+			}
+
+			for (std::size_t resourceIndex = 0; resourceIndex < resources_.size(); ++resourceIndex)
+			{
+				const uint8_t accessMask = mergedAccessMasks[resourceIndex];
+				if (accessMask == uint8_t{ 0 }) continue;
+
+				const ResourceHandle resourceHandle{ static_cast<uint32_t>(resourceIndex) };
+				const ResourceState requestedState = requestedStates[resourceIndex];
+				if (requestedState == ResourceState::Unknown)
+				{
+					currentStates[resourceIndex] = ResourceState::Unknown;
+					previousAccessStates[resourceIndex] = ResourceState::Unknown;
+					previousAccessMasks[resourceIndex] = accessMask;
+					continue;
+				}
+
+				const ResourceState currentState = currentStates[resourceIndex];
+				if (currentState != ResourceState::Unknown && currentState != requestedState)
+				{
+					barrierPlan_.push_back({
+						resourceHandle,
+						PassHandle{ passIndex },
+						BarrierType::Transition,
+						BarrierPlacement::BeforePass,
+						currentState,
+						requestedState,
+					});
+					++compileStats_.transitionBarrierCount;
+				}
+
+				const bool previousWrites = (previousAccessMasks[resourceIndex] & uint8_t{ 0x2 }) != uint8_t{ 0 };
+				const bool currentWrites = (accessMask & uint8_t{ 0x2 }) != uint8_t{ 0 };
+				if (requestedState == ResourceState::UnorderedAccess &&
+					previousAccessStates[resourceIndex] == ResourceState::UnorderedAccess &&
+					(previousWrites || currentWrites))
+				{
+					barrierPlan_.push_back({
+						resourceHandle,
+						PassHandle{ passIndex },
+						BarrierType::UnorderedAccess,
+						BarrierPlacement::BeforePass,
+						ResourceState::UnorderedAccess,
+						ResourceState::UnorderedAccess,
+					});
+					++compileStats_.uavBarrierCount;
+				}
+
+				currentStates[resourceIndex] = requestedState;
+				previousAccessStates[resourceIndex] = requestedState;
+				previousAccessMasks[resourceIndex] = accessMask;
+			}
+		}
+
+		for (std::size_t resourceIndex = 0; resourceIndex < resources_.size(); ++resourceIndex)
+		{
+			const ResourceState finalState = resources_[resourceIndex].finalState;
+			const ResourceState currentState = currentStates[resourceIndex];
+			if (finalState == ResourceState::Unknown || currentState == ResourceState::Unknown || finalState == currentState)
+			{
+				continue;
+			}
+
+			barrierPlan_.push_back({
+				ResourceHandle{ static_cast<uint32_t>(resourceIndex) },
+				{},
+				BarrierType::Transition,
+				BarrierPlacement::AfterGraph,
+				currentState,
+				finalState,
+			});
+			++compileStats_.transitionBarrierCount;
+		}
+
 		return true;
 	}
 
 	bool RenderGraph::Execute(std::string* outError)
 	{
+		return Execute(BarrierCallback{}, outError);
+	}
+
+	bool RenderGraph::Execute(const BarrierCallback& barrierCallback, std::string* outError)
+	{
 		if (!compiled_ && !Compile(outError)) return false;
 		for (uint32_t passIndex : compiledOrder_)
 		{
 			if (passIndex >= passes_.size()) continue;
+			if (barrierCallback)
+			{
+				for (const BarrierRecord& barrier : barrierPlan_)
+				{
+					if (barrier.placement == BarrierPlacement::BeforePass && barrier.pass.id == passIndex)
+					{
+						barrierCallback(barrier);
+					}
+				}
+			}
+
 			const ExecuteCallback& callback = passes_[passIndex].execute;
 			if (callback) callback();
+		}
+
+		if (barrierCallback)
+		{
+			for (const BarrierRecord& barrier : barrierPlan_)
+			{
+				if (barrier.placement == BarrierPlacement::AfterGraph)
+				{
+					barrierCallback(barrier);
+				}
+			}
 		}
 		return true;
 	}
