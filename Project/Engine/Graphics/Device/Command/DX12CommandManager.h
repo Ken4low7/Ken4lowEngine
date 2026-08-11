@@ -45,6 +45,9 @@ public:
 	/// 従来互換の完全待機。ExecuteAndWait内部でも使用する。
 	void WaitAndReset();
 
+	/// 完全待機後に指定FrameResourceへ切り替え、SwapChainとCPU側Frame indexを同期する。
+	void WaitAndPrepareFrame(uint32_t frameIndex);
+
 	void SetFenceManager(DX12FenceManager* fenceManager) { fenceManager_ = fenceManager; }
 
 	ID3D12GraphicsCommandList* GetCommandList() const { return commandList_.Get(); }
