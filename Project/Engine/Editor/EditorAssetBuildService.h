@@ -20,6 +20,7 @@ namespace Ken4lowEngine
 		Manifest,
 		Incremental,
 		Packages,
+		Determinism,
 		All
 	};
 
