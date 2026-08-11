@@ -1,12 +1,16 @@
 import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
 
 
-SCRIPT_PATH = Path(__file__).resolve().parents[2] / "Tools" / "Scripts" / "BuildAssetPackages.py"
+SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "Tools" / "Scripts"
+SCRIPT_PATH = SCRIPTS_DIR / "BuildAssetPackages.py"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
 SPEC = importlib.util.spec_from_file_location("build_asset_packages", SCRIPT_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
