@@ -1,9 +1,12 @@
 #pragma once
 
+#include "DX12Include.h"
 #include <array>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
+#include <vector>
 #include <Engine/Graphics/RenderGraph/RenderGraph.h>
 
 namespace Ken4lowEngine
@@ -90,10 +93,12 @@ namespace Ken4lowEngine
 		/// 完了済みフレームのUpdate/Draw/Present計測値を保持し、次フレームのEditor UIから参照できるようにする。
 		void SetFrameTimingSummary(const FrameTimingSummary& summary) { frameTimingSummary_ = summary; }
 
-		/// RenderPipeline各Passと完了済みフレームのCPU時間をEditorへ表示する。
+		/// RenderPipeline各Passと完了済みフレームのCPU/GPU時間をEditorへ表示する。
 		void DrawPerformanceImGui();
 
 		const PerformanceMetric& GetPerformanceMetric(PerformancePhase phase) const;
+		const PerformanceMetric& GetGpuPerformanceMetric(PerformancePhase phase) const { return gpuPerformanceMetrics_[ToIndex(phase)]; }
+		const PerformanceMetric& GetGpuFrameMetric() const { return gpuFrameMetric_; }
 		const FrameTimingSummary& GetFrameTimingSummary() const { return frameTimingSummary_; }
 
 		/// 現在GameApplicationが使用しているControllerをDebugSceneの診断UIから参照する。
@@ -102,6 +107,15 @@ namespace Ken4lowEngine
 	private:
 		using Clock = std::chrono::steady_clock;
 		static constexpr std::size_t kPerformancePhaseCount = static_cast<std::size_t>(PerformancePhase::Count);
+		static constexpr uint32_t kGpuQueriesPerPhase = 2;
+		static constexpr uint32_t kGpuFrameQueryCount = 2;
+		static constexpr uint32_t kGpuQueriesPerFrame = static_cast<uint32_t>(kPerformancePhaseCount) * kGpuQueriesPerPhase + kGpuFrameQueryCount;
+
+		struct GpuFrameState
+		{
+			std::array<bool, kPerformancePhaseCount> recordedPhases{};
+			bool pendingResolve = false;
+		};
 
 		static constexpr std::size_t ToIndex(PerformancePhase phase)
 		{
@@ -110,7 +124,17 @@ namespace Ken4lowEngine
 
 		void MeasurePhase(PerformancePhase phase, const std::function<void()>& callback);
 		void UpdatePerformanceMetric(PerformancePhase phase, float elapsedMs);
+		void UpdateGpuPerformanceMetric(PerformancePhase phase, float elapsedMs);
 		static const char* GetPerformancePhaseName(PerformancePhase phase);
+
+		void InitializeGpuTiming();
+		void CollectGpuTiming(uint32_t frameIndex);
+		void BeginGpuFrame(uint32_t frameIndex);
+		void EndGpuFrame(uint32_t frameIndex);
+		void WriteGpuPhaseTimestamp(PerformancePhase phase, bool begin);
+		uint32_t GetGpuFrameBaseQuery(uint32_t frameIndex) const;
+		uint32_t GetGpuPhaseQuery(uint32_t frameIndex, PerformancePhase phase, bool begin) const;
+		uint32_t GetGpuFrameTotalQuery(uint32_t frameIndex, bool begin) const;
 
 		/// <summary>
 		/// ShadowMapへ深度を書き込む既存パスを実行します。<br/>
@@ -134,6 +158,19 @@ namespace Ken4lowEngine
 		DirectXCommon* dxCommon_ = nullptr;
 		RenderGraph renderGraph_{};
 		std::array<PerformanceMetric, kPerformancePhaseCount> performanceMetrics_{};
+		std::array<PerformanceMetric, kPerformancePhaseCount> gpuPerformanceMetrics_{};
+		PerformanceMetric gpuFrameMetric_{};
 		FrameTimingSummary frameTimingSummary_{};
+
+		ComPtr<ID3D12QueryHeap> gpuTimestampHeap_{};
+		ComPtr<ID3D12Resource> gpuTimestampReadback_{};
+		std::vector<GpuFrameState> gpuFrameStates_{};
+		uint64_t gpuTimestampFrequency_ = 0;
+		uint32_t gpuFrameResourceCount_ = 0;
+		uint32_t currentGpuFrameIndex_ = 0;
+		bool gpuTimingAvailable_ = false;
+
+		uint64_t framesInFlightStableFrames_ = 0;
+		uint64_t frameSyncMismatchCount_ = 0;
 	};
 } // namespace Ken4lowEngine
