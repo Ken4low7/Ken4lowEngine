@@ -3,8 +3,10 @@
 #include "DirectXCommon.h"
 #include "GameTimer.h"
 #include "LightManager.h"
+#include "ResourceManager.h"
 
 #include <algorithm>
+#include <cassert>
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -18,11 +20,217 @@ namespace Ken4lowEngine
 	{
 		dxCommon_ = dxCommon;
 		activeController_ = this;
+		InitializeGpuTiming();
+	}
+
+	void RenderPipelineController::InitializeGpuTiming()
+	{
+		gpuTimingAvailable_ = false;
+		gpuTimestampHeap_.Reset();
+		gpuTimestampReadback_.Reset();
+		gpuFrameStates_.clear();
+		gpuTimestampFrequency_ = 0;
+		gpuFrameResourceCount_ = 0;
+
+		if (!dxCommon_ || !dxCommon_->GetDevice() || !dxCommon_->GetCommandManager())
+		{
+			return;
+		}
+
+		gpuFrameResourceCount_ = (std::max)(1u, dxCommon_->GetCommandManager()->GetFrameResourceCount());
+		const uint32_t totalQueryCount = gpuFrameResourceCount_ * kGpuQueriesPerFrame;
+		D3D12_QUERY_HEAP_DESC queryHeapDesc{};
+		queryHeapDesc.Count = totalQueryCount;
+		queryHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+		queryHeapDesc.NodeMask = 0;
+		if (FAILED(dxCommon_->GetDevice()->CreateQueryHeap(&queryHeapDesc, IID_PPV_ARGS(&gpuTimestampHeap_))))
+		{
+			return;
+		}
+
+		const UINT64 readbackBytes = static_cast<UINT64>(totalQueryCount) * sizeof(uint64_t);
+		gpuTimestampReadback_ = ResourceManager::CreateBufferResource(
+			dxCommon_->GetDevice(),
+			readbackBytes,
+			D3D12_HEAP_TYPE_READBACK,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COPY_DEST);
+		if (!gpuTimestampReadback_)
+		{
+			gpuTimestampHeap_.Reset();
+			return;
+		}
+
+		if (FAILED(dxCommon_->GetCommandManager()->GetCommandQueue()->GetTimestampFrequency(&gpuTimestampFrequency_)) || gpuTimestampFrequency_ == 0)
+		{
+			gpuTimestampReadback_.Reset();
+			gpuTimestampHeap_.Reset();
+			return;
+		}
+
+		gpuTimestampHeap_->SetName(L"RenderPipeline GPU Timestamp Heap");
+		gpuTimestampReadback_->SetName(L"RenderPipeline GPU Timestamp Readback");
+		gpuFrameStates_.resize(gpuFrameResourceCount_);
+		gpuTimingAvailable_ = true; // FrameResource再利用時だけReadbackすることでGPUを追加待機せず計測する。
+	}
+
+	uint32_t RenderPipelineController::GetGpuFrameBaseQuery(uint32_t frameIndex) const
+	{
+		return (frameIndex % (std::max)(1u, gpuFrameResourceCount_)) * kGpuQueriesPerFrame;
+	}
+
+	uint32_t RenderPipelineController::GetGpuPhaseQuery(uint32_t frameIndex, PerformancePhase phase, bool begin) const
+	{
+		return GetGpuFrameBaseQuery(frameIndex) + static_cast<uint32_t>(ToIndex(phase)) * kGpuQueriesPerPhase + (begin ? 0u : 1u);
+	}
+
+	uint32_t RenderPipelineController::GetGpuFrameTotalQuery(uint32_t frameIndex, bool begin) const
+	{
+		return GetGpuFrameBaseQuery(frameIndex) + static_cast<uint32_t>(kPerformancePhaseCount) * kGpuQueriesPerPhase + (begin ? 0u : 1u);
+	}
+
+	void RenderPipelineController::CollectGpuTiming(uint32_t frameIndex)
+	{
+		if (!gpuTimingAvailable_ || gpuFrameStates_.empty() || !gpuTimestampReadback_ || gpuTimestampFrequency_ == 0)
+		{
+			return;
+		}
+
+		const uint32_t safeFrameIndex = frameIndex % gpuFrameResourceCount_;
+		GpuFrameState& state = gpuFrameStates_[safeFrameIndex];
+		if (!state.pendingResolve)
+		{
+			return;
+		}
+
+		const uint32_t baseQuery = GetGpuFrameBaseQuery(safeFrameIndex);
+		const SIZE_T beginByte = static_cast<SIZE_T>(baseQuery) * sizeof(uint64_t);
+		const SIZE_T endByte = static_cast<SIZE_T>(baseQuery + kGpuQueriesPerFrame) * sizeof(uint64_t);
+		const D3D12_RANGE readRange{ beginByte, endByte };
+		void* mappedData = nullptr;
+		if (FAILED(gpuTimestampReadback_->Map(0, &readRange, &mappedData)) || !mappedData)
+		{
+			return;
+		}
+
+		const auto* timestamps = static_cast<const uint64_t*>(mappedData);
+		const double millisecondsPerTick = 1000.0 / static_cast<double>(gpuTimestampFrequency_);
+		for (std::size_t phaseIndex = 0; phaseIndex < kPerformancePhaseCount; ++phaseIndex)
+		{
+			if (!state.recordedPhases[phaseIndex])
+			{
+				continue;
+			}
+
+			const PerformancePhase phase = static_cast<PerformancePhase>(phaseIndex);
+			const uint32_t beginQuery = GetGpuPhaseQuery(safeFrameIndex, phase, true);
+			const uint32_t endQuery = GetGpuPhaseQuery(safeFrameIndex, phase, false);
+			if (timestamps[endQuery] >= timestamps[beginQuery])
+			{
+				const float elapsedMs = static_cast<float>(static_cast<double>(timestamps[endQuery] - timestamps[beginQuery]) * millisecondsPerTick);
+				UpdateGpuPerformanceMetric(phase, elapsedMs);
+			}
+		}
+
+		const uint32_t frameBeginQuery = GetGpuFrameTotalQuery(safeFrameIndex, true);
+		const uint32_t frameEndQuery = GetGpuFrameTotalQuery(safeFrameIndex, false);
+		if (timestamps[frameEndQuery] >= timestamps[frameBeginQuery])
+		{
+			const float frameMs = static_cast<float>(static_cast<double>(timestamps[frameEndQuery] - timestamps[frameBeginQuery]) * millisecondsPerTick);
+			gpuFrameMetric_.lastMs = (std::max)(0.0f, frameMs);
+			gpuFrameMetric_.averageMs = gpuFrameMetric_.sampleCount == 0 ? gpuFrameMetric_.lastMs : gpuFrameMetric_.averageMs * 0.9f + gpuFrameMetric_.lastMs * 0.1f;
+			gpuFrameMetric_.maxMs = (std::max)(gpuFrameMetric_.maxMs, gpuFrameMetric_.lastMs);
+			++gpuFrameMetric_.sampleCount;
+		}
+
+		const D3D12_RANGE writeRange{ 0, 0 };
+		gpuTimestampReadback_->Unmap(0, &writeRange);
+		state.pendingResolve = false;
+		state.recordedPhases.fill(false);
+	}
+
+	void RenderPipelineController::BeginGpuFrame(uint32_t frameIndex)
+	{
+		if (!gpuTimingAvailable_ || gpuFrameStates_.empty())
+		{
+			return;
+		}
+
+		currentGpuFrameIndex_ = frameIndex % gpuFrameResourceCount_;
+		GpuFrameState& state = gpuFrameStates_[currentGpuFrameIndex_];
+		state.recordedPhases.fill(false);
+		state.pendingResolve = false;
+		dxCommon_->GetCommandManager()->GetCommandList()->EndQuery(
+			gpuTimestampHeap_.Get(),
+			D3D12_QUERY_TYPE_TIMESTAMP,
+			GetGpuFrameTotalQuery(currentGpuFrameIndex_, true));
+	}
+
+	void RenderPipelineController::WriteGpuPhaseTimestamp(PerformancePhase phase, bool begin)
+	{
+		if (!gpuTimingAvailable_ || gpuFrameStates_.empty())
+		{
+			return;
+		}
+
+		ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
+		commandList->EndQuery(
+			gpuTimestampHeap_.Get(),
+			D3D12_QUERY_TYPE_TIMESTAMP,
+			GetGpuPhaseQuery(currentGpuFrameIndex_, phase, begin));
+		gpuFrameStates_[currentGpuFrameIndex_].recordedPhases[ToIndex(phase)] = true;
+	}
+
+	void RenderPipelineController::EndGpuFrame(uint32_t frameIndex)
+	{
+		if (!gpuTimingAvailable_ || gpuFrameStates_.empty())
+		{
+			return;
+		}
+
+		const uint32_t safeFrameIndex = frameIndex % gpuFrameResourceCount_;
+		ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
+		const uint32_t frameEndQuery = GetGpuFrameTotalQuery(safeFrameIndex, false);
+		commandList->EndQuery(gpuTimestampHeap_.Get(), D3D12_QUERY_TYPE_TIMESTAMP, frameEndQuery);
+
+		GpuFrameState& state = gpuFrameStates_[safeFrameIndex];
+		for (std::size_t phaseIndex = 0; phaseIndex < kPerformancePhaseCount; ++phaseIndex)
+		{
+			if (!state.recordedPhases[phaseIndex])
+			{
+				continue;
+			}
+
+			const PerformancePhase phase = static_cast<PerformancePhase>(phaseIndex);
+			const uint32_t beginQuery = GetGpuPhaseQuery(safeFrameIndex, phase, true);
+			const UINT64 destinationOffset = static_cast<UINT64>(beginQuery) * sizeof(uint64_t);
+			commandList->ResolveQueryData(
+				gpuTimestampHeap_.Get(),
+				D3D12_QUERY_TYPE_TIMESTAMP,
+				beginQuery,
+				2,
+				gpuTimestampReadback_.Get(),
+				destinationOffset);
+		}
+
+		const uint32_t frameBeginQuery = GetGpuFrameTotalQuery(safeFrameIndex, true);
+		commandList->ResolveQueryData(
+			gpuTimestampHeap_.Get(),
+			D3D12_QUERY_TYPE_TIMESTAMP,
+			frameBeginQuery,
+			2,
+			gpuTimestampReadback_.Get(),
+			static_cast<UINT64>(frameBeginQuery) * sizeof(uint64_t));
+		state.pendingResolve = true;
 	}
 
 	void RenderPipelineController::ExecuteFrame(bool editorModeEnabled, const FrameCallbacks& callbacks)
 	{
 		if (!dxCommon_) return;
+
+		const uint32_t frameIndex = dxCommon_->GetCommandManager()->GetCurrentFrameIndex();
+		CollectGpuTiming(frameIndex);
+		BeginGpuFrame(frameIndex);
 
 		renderGraph_.Reset();
 		const RenderGraph::ResourceHandle backBuffer = renderGraph_.CreateResource("BackBuffer", true);
@@ -94,20 +302,33 @@ namespace Ken4lowEngine
 			if (editorModeEnabled) ExecuteEditorFrame(callbacks);
 			else ExecuteGameFrame(callbacks);
 		}
+
+		EndGpuFrame(frameIndex);
 	}
 
 	void RenderPipelineController::MeasurePhase(PerformancePhase phase, const std::function<void()>& callback)
 	{
 		if (!callback) return;
+		WriteGpuPhaseTimestamp(phase, true);
 		const auto begin = Clock::now();
 		callback();
 		const float elapsedMs = std::chrono::duration<float, std::milli>(Clock::now() - begin).count();
+		WriteGpuPhaseTimestamp(phase, false);
 		UpdatePerformanceMetric(phase, elapsedMs);
 	}
 
 	void RenderPipelineController::UpdatePerformanceMetric(PerformancePhase phase, float elapsedMs)
 	{
 		PerformanceMetric& metric = performanceMetrics_[ToIndex(phase)];
+		metric.lastMs = (std::max)(0.0f, elapsedMs);
+		metric.averageMs = metric.sampleCount == 0 ? metric.lastMs : metric.averageMs * 0.9f + metric.lastMs * 0.1f;
+		metric.maxMs = (std::max)(metric.maxMs, metric.lastMs);
+		++metric.sampleCount;
+	}
+
+	void RenderPipelineController::UpdateGpuPerformanceMetric(PerformancePhase phase, float elapsedMs)
+	{
+		PerformanceMetric& metric = gpuPerformanceMetrics_[ToIndex(phase)];
 		metric.lastMs = (std::max)(0.0f, elapsedMs);
 		metric.averageMs = metric.sampleCount == 0 ? metric.lastMs : metric.averageMs * 0.9f + metric.lastMs * 0.1f;
 		metric.maxMs = (std::max)(metric.maxMs, metric.lastMs);
@@ -159,6 +380,8 @@ namespace Ken4lowEngine
 		if (ImGui::Button("最大値リセット"))
 		{
 			for (PerformanceMetric& metric : performanceMetrics_) metric.maxMs = metric.lastMs;
+			for (PerformanceMetric& metric : gpuPerformanceMetrics_) metric.maxMs = metric.lastMs;
+			gpuFrameMetric_.maxMs = gpuFrameMetric_.lastMs;
 		}
 
 		if (dxCommon_)
@@ -168,6 +391,8 @@ namespace Ken4lowEngine
 			{
 				dxCommon_->SetFramesInFlightEnabled(framesInFlightEnabled);
 			}
+			ImGui::SameLine();
+			ImGui::TextDisabled("Active: %s", dxCommon_->IsFramesInFlightActive() ? "ON" : "OFF");
 			ImGui::Text("Frame Resources: %u", dxCommon_->GetCommandManager()->GetFrameResourceCount());
 
 			const FrameUploadArena::Stats uploadStats = dxCommon_->GetFrameUploadArena().GetStats();
@@ -185,9 +410,40 @@ namespace Ken4lowEngine
 				ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.25f, 1.0f), "Frame Upload Arena overflow detected.");
 			}
 
-			if (framesInFlightEnabled)
+			const uint32_t backBufferIndex = dxCommon_->GetSwapChain()->GetSwapChain()->GetCurrentBackBufferIndex();
+			const uint32_t commandFrameIndex = dxCommon_->GetCommandManager()->GetCurrentFrameIndex();
+			const uint32_t arenaFrameIndex = uploadStats.currentFrameIndex;
+			const bool frameIndicesMatch = backBufferIndex == commandFrameIndex && commandFrameIndex == arenaFrameIndex;
+			if (dxCommon_->IsFramesInFlightActive())
 			{
-				ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "検証用ON: 動的Upload BufferのPer-Frame化を継続中です。");
+				if (frameIndicesMatch)
+				{
+					++framesInFlightStableFrames_;
+				}
+				else
+				{
+					++frameSyncMismatchCount_;
+					framesInFlightStableFrames_ = 0;
+				}
+			}
+
+			ImGui::SeparatorText("Frames in Flight Stability");
+			ImGui::Text("BackBuffer / Command / Arena: %u / %u / %u", backBufferIndex, commandFrameIndex, arenaFrameIndex);
+			ImGui::Text("Stable Frames: %llu", static_cast<unsigned long long>(framesInFlightStableFrames_));
+			ImGui::Text("Index Mismatches: %llu", static_cast<unsigned long long>(frameSyncMismatchCount_));
+			if (ImGui::Button("同期統計リセット"))
+			{
+				framesInFlightStableFrames_ = 0;
+				frameSyncMismatchCount_ = 0;
+			}
+			if (!frameIndicesMatch)
+			{
+				ImGui::TextColored(ImVec4(1.0f, 0.25f, 0.2f, 1.0f), "Frame Resource index mismatch detected.");
+			}
+
+			if (dxCommon_->IsFramesInFlightActive())
+			{
+				ImGui::TextColored(ImVec4(0.45f, 0.9f, 0.45f, 1.0f), "Frames in Flight実行中: 長時間Stress Testで同期エラーを監視します。");
 			}
 			else
 			{
@@ -271,14 +527,54 @@ namespace Ken4lowEngine
 			ImGui::EndTable();
 		}
 
+		ImGui::SeparatorText("Render Pipeline GPU Timestamp");
+		if (!gpuTimingAvailable_)
+		{
+			ImGui::TextDisabled("GPU Timestamp Query is unavailable.");
+		}
+		else
+		{
+			ImGui::Text("GPU Pipeline Total: Last %.3f ms / EMA %.3f ms / Max %.3f ms",
+				gpuFrameMetric_.lastMs, gpuFrameMetric_.averageMs, gpuFrameMetric_.maxMs);
+			if (ImGui::BeginTable("##RenderPipelineGpuPerformanceTable", 4,
+				ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame))
+			{
+				ImGui::TableSetupColumn("Phase");
+				ImGui::TableSetupColumn("Last ms");
+				ImGui::TableSetupColumn("EMA ms");
+				ImGui::TableSetupColumn("Max ms");
+				ImGui::TableHeadersRow();
+				for (std::size_t index = 0; index < kPerformancePhaseCount; ++index)
+				{
+					const PerformancePhase phase = static_cast<PerformancePhase>(index);
+					const PerformanceMetric& metric = gpuPerformanceMetrics_[index];
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					ImGui::TextUnformatted(GetPerformancePhaseName(phase));
+					ImGui::TableSetColumnIndex(1);
+					ImGui::Text("%.3f", metric.lastMs);
+					ImGui::TableSetColumnIndex(2);
+					ImGui::Text("%.3f", metric.averageMs);
+					ImGui::TableSetColumnIndex(3);
+					ImGui::Text("%.3f", metric.maxMs);
+				}
+				ImGui::EndTable();
+			}
+		}
+
 		ImGui::SeparatorText("判定");
 		const float editorUiMs = GetPerformanceMetric(PerformancePhase::EditorUiBuild).averageMs;
 		const float mainWorldMs = GetPerformanceMetric(PerformancePhase::MainWorldRender).averageMs;
 		const float shadowMs = GetPerformanceMetric(PerformancePhase::ShadowRender).averageMs;
+		const float gpuFrameMs = gpuFrameMetric_.averageMs;
 
-		if (endDrawTiming.fenceWaitMs > 4.0f)
+		if (endDrawTiming.fenceWaitMs > 4.0f && gpuFrameMetric_.sampleCount > 0 && gpuFrameMs < 4.0f)
 		{
-			ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "Fence Waitが大きいです。Per-Frame GPU Buffer移行後にFrames in Flightを常用します。");
+			ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "GPU実処理よりFence Waitが大きいため、VSync / Frame pacing / Resource再利用待ちを優先して調査します。");
+		}
+		else if (gpuFrameMetric_.sampleCount > 0 && gpuFrameMs > 8.0f)
+		{
+			ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "GPU Pipelineが重いです。GPU Timestamp表の上位Passを優先して調査します。");
 		}
 		else if (endDrawTiming.presentMs > 4.0f)
 		{
@@ -290,11 +586,11 @@ namespace Ken4lowEngine
 		}
 		else if (mainWorldMs + shadowMs > 8.0f)
 		{
-			ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "Main World + Shadowが重いです。DrawCallとMesh描画回数を優先して調査します。");
+			ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "Main World + ShadowのCPU記録が重いです。DrawCallとMesh描画回数を優先して調査します。");
 		}
 		else
 		{
-			ImGui::TextDisabled("CPU側で大きな待ちが見えない場合はGPU Timestamp Queryを次に追加します。");
+			ImGui::TextDisabled("CPU/GPUとも大きな単発ボトルネックは検出していません。");
 		}
 
 		ImGui::End();
