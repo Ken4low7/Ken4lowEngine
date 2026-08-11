@@ -4,6 +4,7 @@
     [string]$Platform = "x64",
     [int]$MipLevel = 0,
     [switch]$Force,
+    [switch]$DisableDdc,
     [int]$BuildVersion = 3
 )
 
@@ -39,6 +40,7 @@ function Test-TextureBuildRequired {
         [string]$Operation,
         [int]$MipLevel,
         [bool]$DisableMipMap,
+        [string]$BuildKey,
         [int]$BuildVersion,
         [bool]$Force
     )
@@ -58,6 +60,7 @@ function Test-TextureBuildRequired {
     if ([int64]$meta.SourceSizeBytes -ne [int64]$SourceFile.Length) { return "Source size changed" }
     if ([int]$meta.MipLevel -ne $MipLevel) { return "MipLevel changed" }
     if ([bool]$meta.DisableMipMap -ne $DisableMipMap) { return "DisableMipMap changed" }
+    if ([string]$meta.BuildKey -ne $BuildKey) { return "BuildKey changed" }
 
     return $null
 }
@@ -72,12 +75,14 @@ function Write-TextureBuildMeta {
         [string]$Operation,
         [int]$MipLevel,
         [bool]$DisableMipMap,
+        [string]$BuildKey,
         [int]$BuildVersion
     )
 
     $meta = [ordered]@{
         BuildVersion     = $BuildVersion
         AssetType        = "Texture"
+        BuildKey         = $BuildKey
         Operation        = $Operation
         SourcePath       = $SourceRelativePath
         OutputPath       = $OutputRelativePath
@@ -121,6 +126,7 @@ Write-Host "[BuildTextures] Configuration : $Configuration"
 Write-Host "[BuildTextures] Platform      : $Platform"
 Write-Host "[BuildTextures] MipLevel      : $MipLevel"
 Write-Host "[BuildTextures] Force         : $Force"
+Write-Host "[BuildTextures] DisableDdc    : $DisableDdc"
 Write-Host "[BuildTextures] BuildVersion  : $BuildVersion"
 
 try {
@@ -166,6 +172,10 @@ $convertedCount = 0
 $copiedCount = 0
 $upToDateCount = 0
 $failedCount = 0
+$ddcHitCount = 0
+$ddcMissCount = 0
+$ddcRestoredBytes = [int64]0
+$ddcWrittenBytes = [int64]0
 
 foreach ($file in $sourceFiles) {
     $ext = $file.Extension.ToLowerInvariant()
@@ -185,6 +195,15 @@ foreach ($file in $sourceFiles) {
     $sourceHash = Get-FileSha256 -Path $file.FullName
     $disableMipMap = if ($operation -eq "Convert") { Test-PixelArtTexture -RelativePath $relative } else { $false }
     $metaPath = Get-BuildMetaPath -OutputPath $finalOutputPath
+    $buildKey = Get-DerivedDataBuildKey -AssetType "Texture" -BuildVersion $BuildVersion -Inputs @(
+        "Configuration=$Configuration",
+        "Platform=$Platform",
+        "SourcePath=$sourceRelativePath",
+        "SourceSha256=$sourceHash",
+        "Operation=$operation",
+        "MipLevel=$MipLevel",
+        "DisableMipMap=$disableMipMap"
+    )
 
     $buildReason = Test-TextureBuildRequired `
         -SourceFile $file `
@@ -196,6 +215,7 @@ foreach ($file in $sourceFiles) {
         -Operation $operation `
         -MipLevel $MipLevel `
         -DisableMipMap $disableMipMap `
+        -BuildKey $buildKey `
         -BuildVersion $BuildVersion `
         -Force $Force
 
@@ -205,16 +225,37 @@ foreach ($file in $sourceFiles) {
         continue
     }
 
-    # 変数直後のコロンをドライブ修飾子として解釈されないよう、書式演算子で出力する。
     Write-Host ("[BuildTextures] {0}: {1}" -f $operation, $relative)
     Write-Host "[BuildTextures] Reason: $buildReason"
+
+    $cacheExtension = [System.IO.Path]::GetExtension($finalOutputPath)
+    $ddcEntryDirectory = Get-DdcEntryDirectory -GeneratedRoot $generatedRoot -AssetType "Texture" -BuildKey $buildKey
+    $ddcPayloadPath = Join-Path $ddcEntryDirectory ("payload" + $cacheExtension)
+    if (-not $DisableDdc -and -not $Force) {
+        $restore = Restore-DdcFile -CachePath $ddcPayloadPath -OutputPath $finalOutputPath
+        if ($restore.Hit) {
+            Write-Host "[BuildTextures] DDC HIT: $relative"
+            Write-TextureBuildMeta -SourceFile $file -MetaPath $metaPath `
+                -SourceRelativePath $sourceRelativePath -OutputRelativePath $outputRelativePath `
+                -SourceHash $sourceHash -Operation $operation -MipLevel $MipLevel `
+                -DisableMipMap $disableMipMap -BuildKey $buildKey -BuildVersion $BuildVersion
+            $ddcHitCount++
+            $ddcRestoredBytes += [int64]$restore.Bytes
+            continue
+        }
+        $ddcMissCount++
+        Write-Host "[BuildTextures] DDC MISS: $relative"
+    }
 
     if ($operation -eq "Copy") {
         Copy-Item -LiteralPath $file.FullName -Destination $finalOutputPath -Force
         Write-TextureBuildMeta -SourceFile $file -MetaPath $metaPath `
             -SourceRelativePath $sourceRelativePath -OutputRelativePath $outputRelativePath `
             -SourceHash $sourceHash -Operation $operation -MipLevel $MipLevel `
-            -DisableMipMap $disableMipMap -BuildVersion $BuildVersion
+            -DisableMipMap $disableMipMap -BuildKey $buildKey -BuildVersion $BuildVersion
+        if (-not $DisableDdc) {
+            $ddcWrittenBytes += Store-DdcFile -SourcePath $finalOutputPath -CachePath $ddcPayloadPath
+        }
         $copiedCount++
         continue
     }
@@ -238,9 +279,13 @@ foreach ($file in $sourceFiles) {
     Write-TextureBuildMeta -SourceFile $file -MetaPath $metaPath `
         -SourceRelativePath $sourceRelativePath -OutputRelativePath $outputRelativePath `
         -SourceHash $sourceHash -Operation $operation -MipLevel $MipLevel `
-        -DisableMipMap $disableMipMap -BuildVersion $BuildVersion
+        -DisableMipMap $disableMipMap -BuildKey $buildKey -BuildVersion $BuildVersion
+    if (-not $DisableDdc) {
+        $ddcWrittenBytes += Store-DdcFile -SourcePath $finalOutputPath -CachePath $ddcPayloadPath
+    }
     $convertedCount++
 }
 
 Write-Host "[BuildTextures] Completed. Converted=$convertedCount CopiedDDS=$copiedCount UpToDate=$upToDateCount Failed=$failedCount"
-exit 0
+Write-Host "[BuildTextures] DDC Hits=$ddcHitCount Misses=$ddcMissCount Restored=$(Format-ByteSize $ddcRestoredBytes) Written=$(Format-ByteSize $ddcWrittenBytes) Disabled=$DisableDdc"
+exit $(if ($failedCount -gt 0) { 1 } else { 0 })
