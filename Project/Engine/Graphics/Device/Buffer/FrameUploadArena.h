@@ -24,11 +24,13 @@ namespace Ken4lowEngine
 		{
 			void* cpuAddress = nullptr;
 			D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = 0;
+			ID3D12Resource* resource = nullptr;
+			std::size_t resourceOffsetBytes = 0;
 			std::size_t sizeBytes = 0;
 
 			[[nodiscard]] bool IsValid() const
 			{
-				return cpuAddress != nullptr && gpuAddress != 0;
+				return cpuAddress != nullptr && gpuAddress != 0 && resource != nullptr;
 			}
 		};
 
@@ -132,6 +134,8 @@ namespace Ken4lowEngine
 				Allocation allocation{};
 				allocation.cpuAddress = frame.mappedData + alignedOffset;
 				allocation.gpuAddress = frame.resource->GetGPUVirtualAddress() + alignedOffset;
+				allocation.resource = frame.resource.Get();
+				allocation.resourceOffsetBytes = alignedOffset; // CopyBufferRegionでも同じFrame寿命のUpload領域を安全に参照できるようにする。
 				allocation.sizeBytes = sizeBytes;
 				frame.offsetBytes = alignedOffset + sizeBytes;
 				frame.highWaterBytes = (std::max)(frame.highWaterBytes, frame.offsetBytes);
@@ -217,6 +221,8 @@ namespace Ken4lowEngine
 			Allocation allocation{};
 			allocation.cpuAddress = block.mappedData;
 			allocation.gpuAddress = block.resource->GetGPUVirtualAddress();
+			allocation.resource = block.resource.Get();
+			allocation.resourceOffsetBytes = 0;
 			allocation.sizeBytes = sizeBytes;
 			frame.overflowBytes += resourceBytes;
 			++frame.overflowAllocationCount;
