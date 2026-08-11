@@ -12,6 +12,7 @@ namespace Ken4lowEngine
 		resources_.clear();
 		passes_.clear();
 		compiledOrder_.clear();
+		livePassMask_.clear();
 		dependencyRecords_.clear();
 		barrierPlan_.clear();
 		compileStats_ = {};
@@ -106,10 +107,33 @@ namespace Ken4lowEngine
 		return true;
 	}
 
+	bool RenderGraph::MarkResourceOutput(ResourceHandle resource)
+	{
+		if (!ValidateResourceHandle(resource))
+		{
+			return false;
+		}
+		resources_[resource.id].output = true;
+		compiled_ = false;
+		return true;
+	}
+
+	bool RenderGraph::MarkPassSideEffect(PassHandle pass)
+	{
+		if (!pass.IsValid() || pass.id >= passes_.size())
+		{
+			return false;
+		}
+		passes_[pass.id].sideEffect = true;
+		compiled_ = false;
+		return true;
+	}
+
 	bool RenderGraph::Compile(std::string* outError)
 	{
 		if (outError) outError->clear();
 		compiledOrder_.clear();
+		livePassMask_.clear();
 		dependencyRecords_.clear();
 		barrierPlan_.clear();
 		compileStats_ = {};
@@ -197,9 +221,6 @@ namespace Ken4lowEngine
 			std::fill(accessMasks.begin(), accessMasks.end(), uint8_t{ 0 });
 			for (const ResourceAccess& access : pass.accesses)
 			{
-				ResourceNode& resource = resources_[access.resource.id];
-				resource.lifetime.firstPass = (std::min)(resource.lifetime.firstPass, static_cast<std::size_t>(passIndex));
-				resource.lifetime.lastPass = (std::max)(resource.lifetime.lastPass, static_cast<std::size_t>(passIndex));
 				uint8_t& mask = accessMasks[access.resource.id];
 				if (access.access == AccessType::Read || access.access == AccessType::ReadWrite) mask |= uint8_t{ 0x1 };
 				if (access.access == AccessType::Write || access.access == AccessType::ReadWrite) mask |= uint8_t{ 0x2 };
@@ -268,6 +289,9 @@ namespace Ken4lowEngine
 			return false;
 		}
 
+		ApplyPassCulling();
+		RebuildResourceLifetimes();
+
 		if (!BuildBarrierPlan(outError))
 		{
 			compiledOrder_.clear();
@@ -277,6 +301,137 @@ namespace Ken4lowEngine
 
 		compiled_ = true;
 		return true;
+	}
+
+	void RenderGraph::ApplyPassCulling()
+	{
+		livePassMask_.assign(passes_.size(), uint8_t{ 0 });
+		compileStats_.outputResourceCount = 0;
+		compileStats_.sideEffectPassCount = 0;
+
+		bool hasCullingRoot = false;
+		for (const ResourceNode& resource : resources_)
+		{
+			if (resource.output)
+			{
+				++compileStats_.outputResourceCount;
+				hasCullingRoot = true;
+			}
+			if (resource.finalState != ResourceState::Unknown)
+			{
+				hasCullingRoot = true;
+			}
+		}
+		for (const PassNode& pass : passes_)
+		{
+			if (pass.sideEffect)
+			{
+				++compileStats_.sideEffectPassCount;
+				hasCullingRoot = true;
+			}
+		}
+
+		if (!hasCullingRoot)
+		{
+			std::fill(livePassMask_.begin(), livePassMask_.end(), uint8_t{ 1 });
+			compileStats_.executedPassCount = compiledOrder_.size();
+			compileStats_.culledPassCount = 0;
+			return;
+		}
+
+		std::vector<int32_t> finalWriters(resources_.size(), -1);
+		for (uint32_t passIndex : compiledOrder_)
+		{
+			if (passIndex >= passes_.size()) continue;
+			for (const ResourceAccess& access : passes_[passIndex].accesses)
+			{
+				if (access.access == AccessType::Write || access.access == AccessType::ReadWrite)
+				{
+					finalWriters[access.resource.id] = static_cast<int32_t>(passIndex);
+				}
+			}
+		}
+
+		std::vector<std::vector<uint32_t>> requiredPredecessors(passes_.size());
+		for (const DependencyRecord& dependency : dependencyRecords_)
+		{
+			if (!dependency.before.IsValid() || !dependency.after.IsValid() ||
+				dependency.before.id >= passes_.size() || dependency.after.id >= passes_.size())
+			{
+				continue;
+			}
+			if (dependency.hazard == HazardType::Explicit || dependency.hazard == HazardType::ReadAfterWrite)
+			{
+				requiredPredecessors[dependency.after.id].push_back(dependency.before.id);
+			}
+		}
+
+		std::vector<uint32_t> worklist;
+		worklist.reserve(passes_.size());
+		auto markLive = [this, &worklist](uint32_t passIndex)
+			{
+				if (passIndex >= livePassMask_.size() || livePassMask_[passIndex] != uint8_t{ 0 }) return;
+				livePassMask_[passIndex] = uint8_t{ 1 };
+				worklist.push_back(passIndex);
+			};
+
+		for (uint32_t passIndex = 0; passIndex < passes_.size(); ++passIndex)
+		{
+			if (passes_[passIndex].sideEffect) markLive(passIndex);
+		}
+		for (std::size_t resourceIndex = 0; resourceIndex < resources_.size(); ++resourceIndex)
+		{
+			const ResourceNode& resource = resources_[resourceIndex];
+			if (!resource.output && resource.finalState == ResourceState::Unknown) continue;
+			if (finalWriters[resourceIndex] >= 0)
+			{
+				markLive(static_cast<uint32_t>(finalWriters[resourceIndex]));
+			}
+		}
+
+		// Culling follows only data/explicit requirements; WAR/WAW edges order surviving passes but never keep dead work alive.
+		std::size_t workCursor = 0;
+		while (workCursor < worklist.size())
+		{
+			const uint32_t passIndex = worklist[workCursor++];
+			for (uint32_t predecessor : requiredPredecessors[passIndex])
+			{
+				markLive(predecessor);
+			}
+		}
+
+		compiledOrder_.erase(
+			std::remove_if(
+				compiledOrder_.begin(), compiledOrder_.end(),
+				[this](uint32_t passIndex)
+				{
+					return passIndex >= livePassMask_.size() || livePassMask_[passIndex] == uint8_t{ 0 };
+				}),
+			compiledOrder_.end());
+
+		compileStats_.executedPassCount = compiledOrder_.size();
+		compileStats_.culledPassCount = compileStats_.passCount - compileStats_.executedPassCount;
+	}
+
+	void RenderGraph::RebuildResourceLifetimes()
+	{
+		for (ResourceNode& resource : resources_)
+		{
+			resource.lifetime.firstPass = (std::numeric_limits<std::size_t>::max)();
+			resource.lifetime.lastPass = 0;
+		}
+
+		for (std::size_t scheduleIndex = 0; scheduleIndex < compiledOrder_.size(); ++scheduleIndex)
+		{
+			const uint32_t passIndex = compiledOrder_[scheduleIndex];
+			if (passIndex >= passes_.size()) continue;
+			for (const ResourceAccess& access : passes_[passIndex].accesses)
+			{
+				ResourceNode& resource = resources_[access.resource.id];
+				resource.lifetime.firstPass = (std::min)(resource.lifetime.firstPass, scheduleIndex);
+				resource.lifetime.lastPass = (std::max)(resource.lifetime.lastPass, scheduleIndex);
+			}
+		}
 	}
 
 	bool RenderGraph::BuildBarrierPlan(std::string* outError)
@@ -457,6 +612,15 @@ namespace Ken4lowEngine
 	const std::vector<RenderGraph::ResourceAccess>* RenderGraph::GetPassAccesses(PassHandle handle) const
 	{
 		return handle.IsValid() && handle.id < passes_.size() ? &passes_[handle.id].accesses : nullptr;
+	}
+
+	bool RenderGraph::IsPassCulled(PassHandle handle) const
+	{
+		if (!handle.IsValid() || handle.id >= passes_.size() || livePassMask_.size() != passes_.size())
+		{
+			return false;
+		}
+		return livePassMask_[handle.id] == uint8_t{ 0 };
 	}
 
 	std::string_view RenderGraph::GetResourceName(ResourceHandle handle) const
