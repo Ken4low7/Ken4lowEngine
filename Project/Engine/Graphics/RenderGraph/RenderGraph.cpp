@@ -12,6 +12,7 @@ namespace Ken4lowEngine
 		resources_.clear();
 		passes_.clear();
 		compiledOrder_.clear();
+		dependencyRecords_.clear();
 		compileStats_ = {};
 		compiled_ = false;
 	}
@@ -28,18 +29,35 @@ namespace Ken4lowEngine
 
 	RenderGraph::PassHandle RenderGraph::AddPass(
 		std::string name,
-		std::vector<ResourceHandle> reads,
-		std::vector<ResourceHandle> writes,
+		std::vector<ResourceAccess> accesses,
 		ExecuteCallback execute)
 	{
 		PassNode node{};
 		node.name = std::move(name);
-		node.reads = std::move(reads);
-		node.writes = std::move(writes);
+		node.accesses = std::move(accesses);
 		node.execute = std::move(execute);
 		passes_.push_back(std::move(node));
 		compiled_ = false;
 		return { static_cast<uint32_t>(passes_.size() - 1) };
+	}
+
+	RenderGraph::PassHandle RenderGraph::AddPass(
+		std::string name,
+		std::vector<ResourceHandle> reads,
+		std::vector<ResourceHandle> writes,
+		ExecuteCallback execute)
+	{
+		std::vector<ResourceAccess> accesses;
+		accesses.reserve(reads.size() + writes.size());
+		for (ResourceHandle handle : reads)
+		{
+			accesses.push_back({ handle, AccessType::Read, ResourceState::Unknown });
+		}
+		for (ResourceHandle handle : writes)
+		{
+			accesses.push_back({ handle, AccessType::Write, ResourceState::Unknown });
+		}
+		return AddPass(std::move(name), std::move(accesses), std::move(execute));
 	}
 
 	RenderGraph::PassHandle RenderGraph::AddPass(
@@ -76,6 +94,7 @@ namespace Ken4lowEngine
 	{
 		if (outError) outError->clear();
 		compiledOrder_.clear();
+		dependencyRecords_.clear();
 		compileStats_ = {};
 		compileStats_.passCount = passes_.size();
 		compileStats_.resourceCount = resources_.size();
@@ -88,19 +107,11 @@ namespace Ken4lowEngine
 
 		for (const PassNode& pass : passes_)
 		{
-			for (ResourceHandle handle : pass.reads)
+			for (const ResourceAccess& access : pass.accesses)
 			{
-				if (!ValidateResourceHandle(handle))
+				if (!ValidateResourceHandle(access.resource))
 				{
-					if (outError) *outError = "Render GraphのRead Resource Handleが無効です: " + pass.name;
-					return false;
-				}
-			}
-			for (ResourceHandle handle : pass.writes)
-			{
-				if (!ValidateResourceHandle(handle))
-				{
-					if (outError) *outError = "Render GraphのWrite Resource Handleが無効です: " + pass.name;
+					if (outError) *outError = "Render GraphのResource Access Handleが無効です: " + pass.name;
 					return false;
 				}
 			}
@@ -109,40 +120,108 @@ namespace Ken4lowEngine
 		std::pmr::memory_resource* scratch = FrameMemory::GetInstance()->GetMemoryResource();
 		std::pmr::vector<uint32_t> indegree(scratch);
 		indegree.assign(passes_.size(), 0u);
-		std::pmr::vector<int32_t> lastAccess(scratch);
-		lastAccess.assign(resources_.size(), -1);
 		std::vector<std::vector<uint32_t>> adjacency(passes_.size());
 
 		auto addEdge = [&adjacency, &indegree, this](uint32_t before, uint32_t after)
 			{
-				if (before == after || before >= passes_.size() || after >= passes_.size()) return;
+				if (before == after || before >= passes_.size() || after >= passes_.size()) return false;
 				auto& edges = adjacency[before];
-				if (std::find(edges.begin(), edges.end(), after) != edges.end()) return;
+				if (std::find(edges.begin(), edges.end(), after) != edges.end()) return false;
 				edges.push_back(after);
 				++indegree[after];
 				++compileStats_.dependencyCount;
+				return true;
 			};
+
+		auto addDependencyRecord = [this, &addEdge](uint32_t before, uint32_t after, ResourceHandle resource, HazardType hazard)
+			{
+				if (before == after || before >= passes_.size() || after >= passes_.size()) return;
+				const auto duplicate = std::find_if(
+					dependencyRecords_.begin(), dependencyRecords_.end(),
+					[before, after, resource, hazard](const DependencyRecord& record)
+					{
+						return record.before.id == before && record.after.id == after &&
+							record.resource == resource && record.hazard == hazard;
+					});
+				if (duplicate != dependencyRecords_.end()) return;
+
+				dependencyRecords_.push_back({ PassHandle{ before }, PassHandle{ after }, resource, hazard });
+				switch (hazard)
+				{
+				case HazardType::ReadAfterWrite:
+					++compileStats_.rawHazardCount;
+					break;
+				case HazardType::WriteAfterRead:
+					++compileStats_.warHazardCount;
+					break;
+				case HazardType::WriteAfterWrite:
+					++compileStats_.wawHazardCount;
+					break;
+				default:
+					break;
+				}
+				addEdge(before, after);
+			};
+
+		std::pmr::vector<int32_t> lastWriter(scratch);
+		lastWriter.assign(resources_.size(), -1);
+		std::vector<std::vector<uint32_t>> activeReaders(resources_.size());
+		std::pmr::vector<uint8_t> accessMasks(scratch);
+		accessMasks.assign(resources_.size(), 0u);
 
 		for (uint32_t passIndex = 0; passIndex < passes_.size(); ++passIndex)
 		{
 			const PassNode& pass = passes_[passIndex];
-			for (uint32_t dependency : pass.explicitDependencies) addEdge(dependency, passIndex);
+			for (uint32_t dependency : pass.explicitDependencies)
+			{
+				addDependencyRecord(dependency, passIndex, {}, HazardType::Explicit);
+			}
 
-			auto registerAccess = [&](ResourceHandle handle)
+			std::fill(accessMasks.begin(), accessMasks.end(), 0u);
+			for (const ResourceAccess& access : pass.accesses)
+			{
+				ResourceNode& resource = resources_[access.resource.id];
+				resource.lifetime.firstPass = (std::min)(resource.lifetime.firstPass, static_cast<std::size_t>(passIndex));
+				resource.lifetime.lastPass = (std::max)(resource.lifetime.lastPass, static_cast<std::size_t>(passIndex));
+				uint8_t& mask = accessMasks[access.resource.id];
+				if (access.access == AccessType::Read || access.access == AccessType::ReadWrite) mask |= 0x1u;
+				if (access.access == AccessType::Write || access.access == AccessType::ReadWrite) mask |= 0x2u;
+			}
+
+			// Read/read access remains parallel; only RAW, WAR and WAW hazards generate ordering edges.
+			for (uint32_t resourceIndex = 0; resourceIndex < accessMasks.size(); ++resourceIndex)
+			{
+				const uint8_t mask = accessMasks[resourceIndex];
+				if (mask == 0u) continue;
+				const bool reads = (mask & 0x1u) != 0u;
+				const bool writes = (mask & 0x2u) != 0u;
+				const ResourceHandle handle{ resourceIndex };
+
+				if (reads && lastWriter[resourceIndex] >= 0)
 				{
-					ResourceNode& resource = resources_[handle.id];
-					resource.lifetime.firstPass = (std::min)(resource.lifetime.firstPass, static_cast<std::size_t>(passIndex));
-					resource.lifetime.lastPass = (std::max)(resource.lifetime.lastPass, static_cast<std::size_t>(passIndex));
-					const int32_t previousPass = lastAccess[handle.id];
-					if (previousPass >= 0 && static_cast<uint32_t>(previousPass) != passIndex)
-					{
-						addEdge(static_cast<uint32_t>(previousPass), passIndex);
-					}
-					lastAccess[handle.id] = static_cast<int32_t>(passIndex);
-				};
+					addDependencyRecord(
+						static_cast<uint32_t>(lastWriter[resourceIndex]), passIndex, handle, HazardType::ReadAfterWrite);
+				}
 
-			for (ResourceHandle handle : pass.reads) registerAccess(handle);
-			for (ResourceHandle handle : pass.writes) registerAccess(handle);
+				if (writes)
+				{
+					if (lastWriter[resourceIndex] >= 0)
+					{
+						addDependencyRecord(
+							static_cast<uint32_t>(lastWriter[resourceIndex]), passIndex, handle, HazardType::WriteAfterWrite);
+					}
+					for (uint32_t reader : activeReaders[resourceIndex])
+					{
+						addDependencyRecord(reader, passIndex, handle, HazardType::WriteAfterRead);
+					}
+					activeReaders[resourceIndex].clear();
+					lastWriter[resourceIndex] = static_cast<int32_t>(passIndex);
+				}
+				else if (reads)
+				{
+					activeReaders[resourceIndex].push_back(passIndex);
+				}
+			}
 		}
 
 		std::pmr::vector<uint32_t> ready(scratch);
@@ -191,6 +270,16 @@ namespace Ken4lowEngine
 	const RenderGraph::ResourceLifetime* RenderGraph::GetResourceLifetime(ResourceHandle handle) const
 	{
 		return ValidateResourceHandle(handle) ? &resources_[handle.id].lifetime : nullptr;
+	}
+
+	const std::vector<RenderGraph::ResourceAccess>* RenderGraph::GetPassAccesses(PassHandle handle) const
+	{
+		return handle.IsValid() && handle.id < passes_.size() ? &passes_[handle.id].accesses : nullptr;
+	}
+
+	std::string_view RenderGraph::GetResourceName(ResourceHandle handle) const
+	{
+		return ValidateResourceHandle(handle) ? std::string_view(resources_[handle.id].name) : std::string_view{};
 	}
 
 	std::string_view RenderGraph::GetPassName(PassHandle handle) const
