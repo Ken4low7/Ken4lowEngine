@@ -3,6 +3,7 @@
     [string]$Configuration = "Debug",
     [string]$Platform = "x64",
     [switch]$Force,
+    [switch]$DisableDdc,
     [int]$BuildVersion = 1
 )
 
@@ -79,6 +80,7 @@ function Test-MeshBuildRequired {
         [string]$SourceRelativePath,
         [string]$OutputRelativePath,
         [string]$DependencyFingerprint,
+        [string]$BuildKey,
         [int]$BuildVersion,
         [bool]$Force
     )
@@ -94,6 +96,7 @@ function Test-MeshBuildRequired {
     if ([string]$meta.SourcePath -ne $SourceRelativePath) { return "Source path changed" }
     if ([string]$meta.OutputPath -ne $OutputRelativePath) { return "Output path changed" }
     if ([string]$meta.DependencyFingerprint -ne $DependencyFingerprint) { return "Source or dependency changed" }
+    if ([string]$meta.BuildKey -ne $BuildKey) { return "BuildKey changed" }
     return $null
 }
 
@@ -106,6 +109,29 @@ function Invoke-MeshConverter {
     $process = Start-Process -FilePath $ExePath -ArgumentList @($InputPath) -NoNewWindow -Wait -PassThru
     Write-Host "[BuildMeshes] ExitCode: $($process.ExitCode)"
     return $process.ExitCode
+}
+
+function Write-MeshBuildMeta {
+    param(
+        [string]$MetaPath,
+        [string]$SourceRelativePath,
+        [string]$OutputRelativePath,
+        [string]$DependencyFingerprint,
+        [object[]]$DependencyRecords,
+        [string]$BuildKey,
+        [int]$BuildVersion
+    )
+
+    $meta = [ordered]@{
+        BuildVersion          = $BuildVersion
+        AssetType             = "Mesh"
+        BuildKey              = $BuildKey
+        SourcePath            = $SourceRelativePath
+        OutputPath            = $OutputRelativePath
+        DependencyFingerprint = $DependencyFingerprint
+        Dependencies          = $DependencyRecords
+    }
+    Write-BuildMeta -Meta $meta -MetaPath $MetaPath
 }
 
 try {
@@ -148,6 +174,10 @@ $sourceFiles = Get-ChildItem -Path $modelSourceRoot -Recurse -File | Where-Objec
 $convertedCount = 0
 $upToDateCount = 0
 $failedCount = 0
+$ddcHitCount = 0
+$ddcMissCount = 0
+$ddcRestoredBytes = [int64]0
+$ddcWrittenBytes = [int64]0
 
 foreach ($file in $sourceFiles) {
     $relative = Get-RelativePathSafe -BasePath $modelSourceRoot -TargetPath $file.FullName
@@ -161,10 +191,16 @@ foreach ($file in $sourceFiles) {
     $dependencyFingerprint = Get-DependencyFingerprint -Records $dependencyRecords
     $sourceRelativePath = Get-ProjectRelativePath -ProjectDir $ProjectDir -TargetPath $file.FullName
     $outputRelativePath = Get-ProjectRelativePath -ProjectDir $ProjectDir -TargetPath $finalOutputPath
+    $buildKey = Get-DerivedDataBuildKey -AssetType "Mesh" -BuildVersion $BuildVersion -Inputs @(
+        "Configuration=$Configuration",
+        "Platform=$Platform",
+        "SourcePath=$sourceRelativePath",
+        "DependencyFingerprint=$dependencyFingerprint"
+    )
 
     $buildReason = Test-MeshBuildRequired -OutputPath $finalOutputPath -MetaPath $metaPath `
         -SourceRelativePath $sourceRelativePath -OutputRelativePath $outputRelativePath `
-        -DependencyFingerprint $dependencyFingerprint `
+        -DependencyFingerprint $dependencyFingerprint -BuildKey $buildKey `
         -BuildVersion $BuildVersion -Force $Force
 
     if ($null -eq $buildReason) {
@@ -175,6 +211,23 @@ foreach ($file in $sourceFiles) {
 
     Write-Host "[BuildMeshes] Convert: $relative"
     Write-Host "[BuildMeshes] Reason : $buildReason"
+
+    $ddcEntryDirectory = Get-DdcEntryDirectory -GeneratedRoot $generatedRoot -AssetType "Mesh" -BuildKey $buildKey
+    $ddcPayloadPath = Join-Path $ddcEntryDirectory "payload.kmesh"
+    if (-not $DisableDdc -and -not $Force) {
+        $restore = Restore-DdcFile -CachePath $ddcPayloadPath -OutputPath $finalOutputPath
+        if ($restore.Hit) {
+            Write-Host "[BuildMeshes] DDC HIT: $relative"
+            Write-MeshBuildMeta -MetaPath $metaPath -SourceRelativePath $sourceRelativePath `
+                -OutputRelativePath $outputRelativePath -DependencyFingerprint $dependencyFingerprint `
+                -DependencyRecords $dependencyRecords -BuildKey $buildKey -BuildVersion $BuildVersion
+            $ddcHitCount++
+            $ddcRestoredBytes += [int64]$restore.Bytes
+            continue
+        }
+        $ddcMissCount++
+        Write-Host "[BuildMeshes] DDC MISS: $relative"
+    }
 
     $sourceDir = Split-Path $file.FullName -Parent
     $sourceBaseName = [System.IO.Path]::GetFileNameWithoutExtension($file.Name)
@@ -191,17 +244,16 @@ foreach ($file in $sourceFiles) {
     }
 
     Move-Item -LiteralPath $generatedKmeshPath -Destination $finalOutputPath -Force
-    $meta = [ordered]@{
-        BuildVersion          = $BuildVersion
-        AssetType             = "Mesh"
-        SourcePath            = $sourceRelativePath
-        OutputPath            = $outputRelativePath
-        DependencyFingerprint = $dependencyFingerprint
-        Dependencies          = $dependencyRecords
+    Write-MeshBuildMeta -MetaPath $metaPath -SourceRelativePath $sourceRelativePath `
+        -OutputRelativePath $outputRelativePath -DependencyFingerprint $dependencyFingerprint `
+        -DependencyRecords $dependencyRecords -BuildKey $buildKey -BuildVersion $BuildVersion
+
+    if (-not $DisableDdc) {
+        $ddcWrittenBytes += Store-DdcFile -SourcePath $finalOutputPath -CachePath $ddcPayloadPath
     }
-    Write-BuildMeta -Meta $meta -MetaPath $metaPath
     $convertedCount++
 }
 
 Write-Host "[BuildMeshes] Completed. Converted=$convertedCount UpToDate=$upToDateCount Failed=$failedCount"
-exit 0
+Write-Host "[BuildMeshes] DDC Hits=$ddcHitCount Misses=$ddcMissCount Restored=$(Format-ByteSize $ddcRestoredBytes) Written=$(Format-ByteSize $ddcWrittenBytes) Disabled=$DisableDdc"
+exit $(if ($failedCount -gt 0) { 1 } else { 0 })
