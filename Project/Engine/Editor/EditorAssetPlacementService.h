@@ -10,8 +10,11 @@
 #include <ActorWorld.h>
 #include <BaseScene.h>
 #include <CameraManager.h>
+#include <ColliderComponent.h>
+#include <LightComponent.h>
 #include <Matrix4x4.h>
 #include <ModelComponent.h>
+#include <PhysicsCollisionLayer.h>
 #include <SceneComponent.h>
 #include <SceneManager.h>
 #include <Vector2.h>
@@ -29,6 +32,20 @@
 
 namespace Ken4lowEngine
 {
+	class EditorPlacedEmptyActor final : public Actor
+	{
+	public:
+		explicit EditorPlacedEmptyActor(const Vector3& worldPosition)
+		{
+			SceneComponent& root = CreateRootComponent<SceneComponent>();
+			root.SetName("Root Scene Component");
+			root.SetLocalPosition(worldPosition);
+			root.RefreshWorldTransform();
+		}
+
+		std::string GetClassTypeName() const override { return "Actor"; }
+	};
+
 	class EditorPlacedModelActor final : public Actor
 	{
 	public:
@@ -43,6 +60,47 @@ namespace Ken4lowEngine
 			model.SetName("Model Component");
 			model.SetModelPath(modelPath);
 			model.AttachTo(&root);
+		}
+
+		std::string GetClassTypeName() const override { return "Actor"; }
+	};
+
+	class EditorPlacedLightActor final : public Actor
+	{
+	public:
+		EditorPlacedLightActor(LightComponent::LightType lightType, const Vector3& worldPosition)
+		{
+			LightComponent& light = CreateRootComponent<LightComponent>();
+			light.SetName("Light Component");
+			light.SetLocalPosition(worldPosition);
+			light.SetLightType(lightType);
+			light.RefreshWorldTransform();
+		}
+
+		std::string GetClassTypeName() const override { return "Actor"; }
+	};
+
+	class EditorPlacedTriggerActor final : public Actor
+	{
+	public:
+		EditorPlacedTriggerActor(ECollisionShapeType shapeType, const Vector3& worldPosition)
+		{
+			ColliderComponent& collider = CreateRootComponent<ColliderComponent>();
+			collider.SetName("Trigger Collider Component");
+			collider.SetLocalPosition(worldPosition);
+			collider.SetShapeType(shapeType);
+			collider.SetCollisionLayer(PhysicsCollisionLayer::Default);
+			collider.SetIsTrigger(true);
+			collider.SetCollisionTag("Trigger");
+			if (shapeType == ECollisionShapeType::Sphere)
+			{
+				collider.SetRadius(1.0f);
+			}
+			else
+			{
+				collider.SetHalfSize({ 1.0f, 1.0f, 1.0f });
+			}
+			collider.RefreshWorldTransform();
 		}
 
 		std::string GetClassTypeName() const override { return "Actor"; }
@@ -99,6 +157,69 @@ namespace Ken4lowEngine
 			return true;
 		}
 
+		static EditorAssetPlacementResult PlaceActor(SceneManager* sceneManager, const EditorPlacementRequest& request, const Vector3& worldPosition)
+		{
+			return PlaceActor(sceneManager ? sceneManager->GetCurrentScene() : nullptr, request, worldPosition);
+		}
+
+		static EditorAssetPlacementResult PlaceActor(BaseScene* scene, const EditorPlacementRequest& request, const Vector3& worldPosition)
+		{
+			EditorAssetPlacementResult result{};
+			ActorWorld* actorWorld = ResolveEditorActorWorld(scene, result);
+			if (!actorWorld) return result;
+			if (!request.pending || request.type == EditorPlaceableType::None)
+			{
+				result.message = "配置するActorが選択されていません。";
+				return result;
+			}
+
+			switch (request.type)
+			{
+			case EditorPlaceableType::EmptyActor:
+				result.spawnedActor = &actorWorld->SpawnActor<EditorPlacedEmptyActor>(worldPosition);
+				break;
+			case EditorPlaceableType::Cube:
+				result.spawnedActor = &actorWorld->SpawnActor<EditorPlacedModelActor>("Sample/cube.gltf", worldPosition);
+				break;
+			case EditorPlaceableType::Sphere:
+				result.spawnedActor = &actorWorld->SpawnActor<EditorPlacedModelActor>("Sample/sphere.gltf", worldPosition);
+				break;
+			case EditorPlaceableType::Plane:
+				result.spawnedActor = &actorWorld->SpawnActor<EditorPlacedModelActor>("Sample/plane.gltf", worldPosition);
+				break;
+			case EditorPlaceableType::DirectionalLight:
+				result.spawnedActor = &actorWorld->SpawnActor<EditorPlacedLightActor>(LightComponent::LightType::Directional, worldPosition);
+				break;
+			case EditorPlaceableType::PointLight:
+				result.spawnedActor = &actorWorld->SpawnActor<EditorPlacedLightActor>(LightComponent::LightType::Point, worldPosition);
+				break;
+			case EditorPlaceableType::SpotLight:
+				result.spawnedActor = &actorWorld->SpawnActor<EditorPlacedLightActor>(LightComponent::LightType::Spot, worldPosition);
+				break;
+			case EditorPlaceableType::TriggerBox:
+				result.spawnedActor = &actorWorld->SpawnActor<EditorPlacedTriggerActor>(ECollisionShapeType::AABB, worldPosition);
+				break;
+			case EditorPlaceableType::TriggerSphere:
+				result.spawnedActor = &actorWorld->SpawnActor<EditorPlacedTriggerActor>(ECollisionShapeType::Sphere, worldPosition);
+				break;
+			default:
+				result.message = "このPlace Actors項目は配置に対応していません。";
+				return result;
+			}
+
+			if (!result.spawnedActor)
+			{
+				result.message = "Actorの生成に失敗しました。";
+				return result;
+			}
+
+			result.spawnedActor->SetName(MakeUniqueActorName(*actorWorld, request.displayName));
+			result.succeeded = true;
+			result.message = request.displayName + " を配置しました。";
+			FinalizePlacement(*scene, *actorWorld, *result.spawnedActor, worldPosition);
+			return result;
+		}
+
 		static EditorAssetPlacementResult PlaceAsset(SceneManager* sceneManager, const EditorAssetDragDropPayload& payload, const Vector3& worldPosition)
 		{
 			return PlaceAsset(sceneManager ? sceneManager->GetCurrentScene() : nullptr, payload, worldPosition);
@@ -107,18 +228,8 @@ namespace Ken4lowEngine
 		static EditorAssetPlacementResult PlaceAsset(BaseScene* scene, const EditorAssetDragDropPayload& payload, const Vector3& worldPosition)
 		{
 			EditorAssetPlacementResult result{};
-			if (!scene)
-			{
-				result.message = "現在のシーンが存在しないため、アセットを配置できません。";
-				return result;
-			}
-
-			ActorWorld* actorWorld = scene->GetEditorActorWorld();
-			if (!actorWorld)
-			{
-				result.message = "現在のシーンはEditor用ActorWorldを公開していません。";
-				return result;
-			}
+			ActorWorld* actorWorld = ResolveEditorActorWorld(scene, result);
+			if (!actorWorld) return result;
 
 			const EditorAssetType assetType = GetPayloadAssetType(payload);
 			const std::filesystem::path relativePath(payload.relativePath.data());
@@ -159,20 +270,42 @@ namespace Ken4lowEngine
 
 			if (result.succeeded && result.spawnedActor)
 			{
-				if (SceneComponent* root = result.spawnedActor->GetRootComponent())
-				{
-					root->Detach();
-					root->SetLocalPosition(worldPosition);
-					root->RefreshWorldTransform();
-				}
-				SelectSpawnedActor(*scene, *result.spawnedActor);
-				RecordPlacementCommand(*scene, *actorWorld, *result.spawnedActor);
-				EditorContext::GetInstance()->MarkLevelDirty();
+				FinalizePlacement(*scene, *actorWorld, *result.spawnedActor, worldPosition);
 			}
 			return result;
 		}
 
 	private:
+		static ActorWorld* ResolveEditorActorWorld(BaseScene* scene, EditorAssetPlacementResult& result)
+		{
+			if (!scene)
+			{
+				result.message = "現在のシーンが存在しないため、配置できません。";
+				return nullptr;
+			}
+
+			ActorWorld* actorWorld = scene->GetEditorActorWorld();
+			if (!actorWorld)
+			{
+				result.message = "現在のシーンはEditor用ActorWorldを公開していません。";
+				return nullptr;
+			}
+			return actorWorld;
+		}
+
+		static void FinalizePlacement(BaseScene& scene, ActorWorld& actorWorld, Actor& actor, const Vector3& worldPosition)
+		{
+			if (SceneComponent* root = actor.GetRootComponent())
+			{
+				root->Detach();
+				root->SetLocalPosition(worldPosition);
+				root->RefreshWorldTransform();
+			}
+			SelectSpawnedActor(scene, actor);
+			RecordPlacementCommand(scene, actorWorld, actor);
+			EditorContext::GetInstance()->MarkLevelDirty();
+		}
+
 		static void RecordPlacementCommand(BaseScene& scene, ActorWorld& actorWorld, Actor& actor)
 		{
 			static std::atomic_uint64_t serial = 0;
@@ -181,7 +314,7 @@ namespace Ken4lowEngine
 
 			auto actorState = std::make_shared<Actor*>(&actor);
 			EditorCommandHistory::GetInstance()->PushExecuted(std::make_unique<EditorLambdaCommand>(
-				"アセット配置",
+				"Actor配置",
 				[&scene, &actorWorld, actorState, snapshotPath]()
 				{
 					*actorState = actorWorld.SpawnActorFromJson(snapshotPath);
