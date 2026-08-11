@@ -11,6 +11,7 @@
 #include "SRVManager.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -91,32 +92,50 @@ namespace Ken4lowEngine
 			float padding[1];
 		};
 
-		size_t UploadSourceInstancesForEditorPicking();		
+		enum class InstanceStreamUsage : uint32_t
+		{
+			Main = 0,
+			Shadow,
+			Picking,
+			Count
+		};
+
+		static constexpr size_t kInstanceStreamCount = static_cast<size_t>(InstanceStreamUsage::Count);
+
+		struct InstanceStreamBuffer
+		{
+			ComPtr<ID3D12Resource> resource;
+			InstanceData* mappedInstances = nullptr;
+			uint32_t srvIndex = UINT32_MAX;
+		};
+
+		struct InstanceFrameBuffers
+		{
+			std::array<InstanceStreamBuffer, kInstanceStreamCount> streams{};
+		};
+
+		size_t UploadSourceInstancesForEditorPicking();
+		uint32_t GetCurrentFrameIndex() const;
+		InstanceStreamBuffer* GetInstanceStream(InstanceStreamUsage usage);
+		const InstanceStreamBuffer* GetInstanceStream(InstanceStreamUsage usage) const;
 
 		DirectXCommon* dxCommon_ = nullptr;
 		std::shared_ptr<Model> model_;
 		Material material_{};
 		MaterialTextureSlots materialTextureSlots_{};
-		ComPtr<ID3D12Resource> instanceResource_;
-		InstanceData* mappedInstances_ = nullptr;
-		uint32_t instanceSrvIndex_ = UINT32_MAX;
+		std::vector<InstanceFrameBuffers> instanceFrameBuffers_{};
 		size_t maxInstanceCount_ = 0;
 		size_t instanceCount_ = 0;
-		ComPtr<ID3D12Resource> perViewResource_;
-		PerViewData* perViewData_ = nullptr;
-		ComPtr<ID3D12Resource> cameraResource_;
-		CameraForGPU* cameraData_ = nullptr;
-		ComPtr<ID3D12Resource> dissolveResource_;
-		DissolveSetting* dissolveData_ = nullptr;
-		ComPtr<ID3D12Resource> shadowParameterResource_;
-		ShadowParameterForGPU* shadowParameterData_ = nullptr;
+		PerViewData perViewData_{};
+		CameraForGPU cameraData_{};
+		DissolveSetting dissolveData_{};
+		ShadowParameterForGPU shadowParameterData_{};
 		std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> materialSRVs_;
 		std::vector<bool> materialUsePointSampling_;
 		D3D12_GPU_DESCRIPTOR_HANDLE environmentMapHandle_{};
 		D3D12_GPU_DESCRIPTOR_HANDLE dissolveMaskHandle_{};
 		bool initialized_ = false;
 		std::vector<InstanceData> sourceInstances_{};
-		bool instanceBufferDirty_ = false;
 		bool frustumCullingEnabled_ = false;
 		uint64_t debugIndexBudget_ = 50'000'000ull;
 		uint64_t estimatedDrawIndexCount_ = 0;
