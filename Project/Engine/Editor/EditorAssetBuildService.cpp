@@ -205,6 +205,8 @@ namespace Ken4lowEngine
 		case EditorAssetBuildKind::Incremental:
 			// Incremental build lets the dependency snapshot choose only the cooker categories that changed.
 			return projectDir_ / "Tools" / "Scripts" / "RunBuildIncrementalAssets.bat";
+		case EditorAssetBuildKind::Packages:
+			return projectDir_ / "Tools" / "Scripts" / "RunBuildAssetPackages.bat";
 		default:
 			return {};
 		}
@@ -214,8 +216,8 @@ namespace Ken4lowEngine
 	{
 		if (kind == EditorAssetBuildKind::All)
 		{
-			// Phase 8では変換完了後にManifestを確定し、依存関係と出力欠落を一度に検証する。
-			return { EditorAssetBuildKind::Textures, EditorAssetBuildKind::Meshes, EditorAssetBuildKind::Fonts, EditorAssetBuildKind::Manifest };
+			// Full build seals deterministic cooked outputs into chunk packages only after the manifest is valid.
+			return { EditorAssetBuildKind::Textures, EditorAssetBuildKind::Meshes, EditorAssetBuildKind::Fonts, EditorAssetBuildKind::Manifest, EditorAssetBuildKind::Packages };
 		}
 		return { kind };
 	}
@@ -234,6 +236,8 @@ namespace Ken4lowEngine
 			return "Build Asset Manifest";
 		case EditorAssetBuildKind::Incremental:
 			return "Build Incremental Assets";
+		case EditorAssetBuildKind::Packages:
+			return "Build Asset Packages";
 		case EditorAssetBuildKind::All:
 			return "Build All Assets";
 		default:
