@@ -94,6 +94,37 @@ namespace Ken4lowEngine
 			return true;
 		}
 
+		bool EmitAliasing(
+			ID3D12GraphicsCommandList* commandList,
+			RenderGraph::ResourceHandle beforeResource,
+			RenderGraph::ResourceHandle afterResource,
+			std::string* outError = nullptr) const
+		{
+			if (outError) outError->clear();
+			if (!commandList)
+			{
+				if (outError) *outError = "D3D12 CommandListがありません。";
+				return false;
+			}
+
+			ID3D12Resource* before = ResolveResource(beforeResource);
+			ID3D12Resource* after = ResolveResource(afterResource);
+			if (!before || !after)
+			{
+				if (outError) *outError = "Aliasing対象のRenderGraph ResourceがD3D12 ResourceへBindされていません。";
+				return false;
+			}
+
+			D3D12_RESOURCE_BARRIER barrier{};
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.Aliasing.pResourceBefore = before;
+			barrier.Aliasing.pResourceAfter = after;
+			// 同一Transient Heap Slotの所有権切替を明示し、別Placed Resourceとして安全に再利用する。
+			commandList->ResourceBarrier(1, &barrier);
+			return true;
+		}
+
 		static bool TryMapResourceState(
 			RenderGraph::ResourceState state,
 			D3D12_RESOURCE_STATES& outState)
