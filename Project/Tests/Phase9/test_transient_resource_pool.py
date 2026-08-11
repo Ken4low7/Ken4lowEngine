@@ -24,7 +24,7 @@ class TransientResourcePoolContractTests(unittest.TestCase):
         self.assertIn("graph.GetCompiledPassHandle", self.pool)
         self.assertIn("GetCompiledPassHandle", self.graph)
         self.assertIn("lifetime->firstPass", self.pool)
-        self.assertIn("lifetime->lastPass", self.pool)
+        self.assertIn("request.lifetime.lastPass", self.pool)
 
     def test_imported_resources_are_not_transient(self) -> None:
         self.assertIn("if (lifetime->imported)", self.pool)
