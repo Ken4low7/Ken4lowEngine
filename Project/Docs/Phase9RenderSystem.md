@@ -115,18 +115,21 @@ Persistent allocation is prevented from entering the transient range even when t
 
 Transient allocation supports contiguous ranges rather than one descriptor at a time. This allows a future RenderGraph pass to reserve an entire descriptor table with one allocation and receive the first CPU/GPU handles plus the descriptor count.
 
-Transient ranges are retired against the GPU fence value that will represent the command list currently being recorded. `AllocateTransient` records `currentFence + 1`, and reclamation only returns that range to the free list when `GetCompletedValue()` reaches the retire value. This makes descriptor reuse independent from CPU frame timing and prevents a descriptor from being overwritten while an older frame can still reference it.
+The transient region is partitioned by `DX12CommandManager` Frame Resource count. Each frame receives its own bump-allocation segment. `DX12CommandManager::GetFrameFenceValue` is exposed as that Frame Resource's generation identifier; a segment is reset only after the same frame index returns with a newer submitted fence generation. Because `PrepareFrame` / `WaitAndPrepareFrame` wait before making that Frame Resource current again, the reset occurs only after GPU use of the previous generation is safe.
 
-Reclaimed ranges are sorted and merged before reuse so adjacent retired allocations do not permanently fragment the transient region. Allocation remains contiguous and fails explicitly when no sufficiently large range exists.
+`AllocateTransient` also rejects requests while the command list is in the submitted/closed window. This prevents an allocator call between submission and the next safe Frame Resource preparation from accidentally treating a newly written fence generation as reusable memory.
+
+This generation-based design is intentionally stronger than guessing that `currentFence + 1` will always correspond to the command list being recorded. Mid-frame `ExecuteAndWait` or other synchronization paths may advance the global fence, while the per-Frame Resource fence remains the authoritative owner generation for the descriptor segment.
 
 Descriptor diagnostics now expose:
 
 - persistent capacity / currently in-use descriptors
 - persistent high-water mark
-- transient capacity / descriptors still in flight
+- total transient capacity and minimum capacity per Frame Resource
+- transient descriptors currently retained by frame segments
 - transient high-water mark
-- pending transient range count
-- transient allocation and reclamation counts
+- transient allocation / reclamation counts
+- Frame Resource recycle count
 - allocator exhaustion count
 
 The heap was expanded while preserving index 0 as reserved. Existing `Allocate` / `Free` users remain on the persistent path, so TextureManager, ImGui, existing render targets, and other owner-managed systems do not need to migrate in the same change. `GpuDeferredReleaseQueue` continues to protect persistent asset descriptors until their retire fence completes.
@@ -154,13 +157,13 @@ The visualizer is diagnostic and must not become a second source of scheduling t
 
 ## Compatibility strategy
 
-The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking, barrier planning, culling roots, transient allocation planning, alias ownership, and fence-safe transient descriptors can therefore be validated before removing conservative dependencies or replacing owner-managed resources.
+The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking, barrier planning, culling roots, transient allocation planning, alias ownership, and Frame Resource-safe transient descriptors can therefore be validated before removing conservative dependencies or replacing owner-managed resources.
 
 Once barrier generation and pass-side-effect declarations are stable, explicit chains can be relaxed incrementally and the graph scheduler can expose real parallelism/reordering opportunities. Transient resources can then migrate individually from committed ownership into the shared placed-resource pool and request descriptor tables from the transient SRV range without requiring a renderer-wide switch.
 
 ## Validation
 
-Phase 9 tests are added under `Tests/Phase9` and run in TeamDevelopmentCI. C++ Debug/Release translation-unit compilation remains required after every graph API change. Descriptor contract tests verify persistent/transient range separation, fence retirement, contiguous allocation, double-free rejection, range merging, and pressure diagnostics.
+Phase 9 tests are added under `Tests/Phase9` and run in TeamDevelopmentCI. C++ Debug/Release translation-unit compilation remains required after every graph API change. Descriptor contract tests verify persistent/transient range separation, Frame Resource fence-generation reuse, submitted-command-list rejection, contiguous allocation, double-free rejection, per-frame capacity partitioning, and pressure diagnostics.
 
 ## Boundary with later phases
 
