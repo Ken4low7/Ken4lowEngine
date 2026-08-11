@@ -88,8 +88,9 @@ The generated report records:
 - affected `AssetId` / `BuildKey` / logical keys
 - required cooker categories
 - changed source paths that were not yet represented by the manifest
+- whether package regeneration is required
 
-When `--execute` is used, only those cooker categories are launched. Each existing cooker still performs its own per-asset metadata/DDC check, so unchanged assets inside the selected category remain cheap skips. After successful cooking the Asset Manifest is regenerated and a new dependency snapshot is committed atomically to the generated workspace.
+When `--execute` is used, only those cooker categories are launched. Each existing cooker still performs its own per-asset metadata/DDC check, so unchanged assets inside the selected category remain cheap skips. After successful cooking the Asset Manifest is regenerated, required packages are refreshed, and a new dependency snapshot is committed to the generated workspace.
 
 Example planning-only commands:
 
@@ -104,22 +105,63 @@ Normal Windows execution uses:
 Tools\Scripts\RunBuildIncrementalAssets.bat
 ```
 
-`EditorAssetBuildService` now has an `Incremental` build kind backed by this entry point, allowing editor UI surfaces to opt into dependency-driven cooking without duplicating the planner logic.
+`EditorAssetBuildService` has an `Incremental` build kind backed by this entry point, allowing editor UI surfaces to opt into dependency-driven cooking without duplicating the planner logic.
 
-### 8.4 Package / Chunk — next
+### 8.4 Package / Chunk — implemented
 
-After deterministic build products are stable:
+`BuildAssetPackages.py` turns the validated Asset Manifest into deterministic runtime-only `.kpak` chunk archives under:
 
-- assign cooked assets to chunks
-- write chunk manifests
-- package runtime-only files
-- connect World Partition/SubLevel cells to chunk dependencies
+`Generated/Packages/Chunks`
 
-Package generation must not make runtime `AssetId` depend on physical package location.
+Package policy is declared in:
 
-### 8.5 Deterministic cook validation
+`Config/AssetChunks.json`
 
-Final Phase 8 validation will build the same input twice and compare manifest/build keys and cooked hashes. The goal is reproducible runtime content from identical source data.
+The configuration supports:
+
+- a default chunk
+- ordered rules matching `AssetId`, `AssetType`, logical-key prefixes, or output-path prefixes
+- explicit chunk-to-chunk dependencies
+- generic `OwnerBindings` for future World Partition/SubLevel ownership without changing runtime `AssetId`
+
+The current default policy keeps general content in `core`, UI/font content in `ui`, and stage meshes in `world`. `ui` and `world` depend on `core`.
+
+Each chunk produces:
+
+- `<chunk>.kpak` — deterministic ZIP-compatible runtime package using fixed entry timestamps/order
+- `<chunk>.manifest.json` — chunk identity, dependencies, assets, file hashes, and byte counts
+
+The package archive contains only cooked outputs under `Content/...` plus `ChunkManifest.json`; source assets and `.buildmeta.json` files are not packaged. Every payload file is recorded with SHA-256 and size so later runtime/package validation can verify integrity.
+
+A global `Generated/Packages/PackageManifest.json` records:
+
+- chunk package SHA-256 and size
+- chunk dependency graph
+- `AssetId -> ChunkId`
+- total cooked/package byte counts
+- optional owner-to-chunk bindings
+
+`AssetId` is copied from the Asset Manifest and is never recomputed from package location. Moving an asset between `core`, `ui`, or `world` therefore does not change its runtime identity.
+
+`Build All Assets` now runs:
+
+```text
+Textures -> Meshes -> Fonts -> Asset Manifest -> Asset Packages
+```
+
+`BuildIncrementalAssets.py` also fingerprints `Config/AssetChunks.json`. A chunk-policy-only edit causes repackaging without unnecessarily running Texture/Mesh/Font converters, while a successful content cook refreshes packages after the new manifest is written.
+
+The Windows entry point is:
+
+```text
+Tools\Scripts\RunBuildAssetPackages.bat
+```
+
+`EditorAssetBuildService` exposes a `Packages` build kind and includes it in the full build sequence.
+
+### 8.5 Deterministic cook validation — next
+
+Final Phase 8 validation will build the same input twice and compare manifest/build keys, cooked hashes, chunk manifests, and package hashes. The goal is reproducible runtime content from identical source data.
 
 ## Boundary with later phases
 
