@@ -17,6 +17,7 @@ namespace Ken4lowEngine
 		Textures,
 		Meshes,
 		Fonts,
+		Manifest,
 		All
 	};
 
