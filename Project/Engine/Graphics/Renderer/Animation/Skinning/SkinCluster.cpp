@@ -192,17 +192,27 @@ void SkinCluster::UpdatePaletteMatrix(Skeleton& skeleton)
 		mappedPalette_[jointIndex].skeletonSpaceInverceTransposeMatrix = Matrix4x4::Transpose(Matrix4x4::Inverse(mappedPalette_[jointIndex].skeletonSpaceMatrix));
 	}
 
-	// 毎フレ：UPLOAD → DEFAULT へ Copy（既存どおりでOK）
 	auto* dxCommon = DirectXCommon::GetInstance();
-	auto* commandLisht = dxCommon->GetCommandManager()->GetCommandList();
+	auto* commandList = dxCommon->GetCommandManager()->GetCommandList();
+	const UINT64 bytes = UINT64(sizeof(WellForGPU)) * UINT64(joints.size());
+	FrameUploadArena::Allocation paletteUpload = dxCommon->GetFrameUploadArena().Allocate(static_cast<std::size_t>(bytes), alignof(WellForGPU));
+	if (!paletteUpload.IsValid())
+	{
+		return;
+	}
+	std::memcpy(paletteUpload.cpuAddress, mappedPalette_.data(), static_cast<std::size_t>(bytes)); // 前フレームが参照中のUpload元を上書きせず、現在Frame専用領域へパレットを複製する。
 
 	// 書き込み用に遷移
 	dxCommon->ResourceTransition(paletteResourceDefault_.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST);
 	paletteResourceDefault_->SetName(L"SkinCluster_PaletteResource_DEFAULT_Update");
 
-	// コピー
-	const UINT64 bytes = UINT64(sizeof(WellForGPU)) * UINT64(joints.size());
-	commandLisht->CopyBufferRegion(paletteResourceDefault_.Get(), 0, paletteResource_.Get(), 0, bytes);
+	// Frame専用UPLOAD → DEFAULT へコピー
+	commandList->CopyBufferRegion(
+		paletteResourceDefault_.Get(),
+		0,
+		paletteUpload.resource,
+		static_cast<UINT64>(paletteUpload.resourceOffsetBytes),
+		bytes);
 
 	// 読み取り用に遷移
 	dxCommon->ResourceTransition(paletteResourceDefault_.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
