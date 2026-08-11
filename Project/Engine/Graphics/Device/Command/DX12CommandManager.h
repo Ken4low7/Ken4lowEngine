@@ -56,6 +56,13 @@ public:
 	const PerformanceTiming& GetPerformanceTiming() const { return performanceTiming_; }
 	uint32_t GetFrameResourceCount() const { return static_cast<uint32_t>(frameResources_.size()); }
 	uint32_t GetCurrentFrameIndex() const { return currentFrameIndex_; }
+	bool IsCommandListSubmitted() const { return commandListSubmitted_; }
+
+	/// Frame fence値をDescriptor Arenaの世代番号として公開し、安全化済みFrameだけを再利用する。
+	UINT64 GetFrameFenceValue(uint32_t frameIndex) const
+	{
+		return IsValidFrameIndex(frameIndex) ? frameResources_[frameIndex].fenceValue : 0;
+	}
 
 private:
 	struct FrameResource
