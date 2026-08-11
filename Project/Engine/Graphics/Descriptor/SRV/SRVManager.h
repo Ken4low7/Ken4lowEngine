@@ -25,9 +25,9 @@ namespace Ken4lowEngine
 		{
 			uint32_t firstIndex = UINT32_MAX;
 			uint32_t count = 0;
+			uint32_t frameIndex = UINT32_MAX;
 			D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle{};
 			D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle{};
-			UINT64 retireFenceValue = 0;
 
 			[[nodiscard]] bool IsValid() const { return firstIndex != UINT32_MAX && count > 0; }
 		};
@@ -38,92 +38,51 @@ namespace Ken4lowEngine
 			uint32_t persistentInUse = 0;
 			uint32_t persistentHighWater = 0;
 			uint32_t transientCapacity = 0;
-			uint32_t transientInFlight = 0;
+			uint32_t transientCapacityPerFrame = 0;
+			uint32_t transientInUse = 0;
 			uint32_t transientHighWater = 0;
-			uint32_t pendingTransientRangeCount = 0;
+			uint32_t currentFrameIndex = 0;
 			uint64_t transientAllocationCount = 0;
 			uint64_t transientReclaimedCount = 0;
+			uint64_t transientFrameRecycleCount = 0;
 			uint64_t exhaustionCount = 0;
 		};
 
 	public: /// ---------- メンバ関数 ---------- ///
 
-		/// <summary>
-		/// SRVManager のシングルトンインスタンスを取得します。
-		/// </summary>
-		/// <returns>SRVManager の唯一のインスタンス</returns>
 		static SRVManager* GetInstance();
 
 		/// <summary>
-		/// SRV 用ディスクリプタヒープを初期化します。<br/>
-		/// Persistent領域とFence安全なTransient領域を同一Shader Visible Heap内で分離します。
+		/// SRV 用ディスクリプタヒープを初期化し、Persistent領域とFrame Transient領域を分離します。
 		/// </summary>
-		/// <param name="dxCommon">デバイスやコマンドリスト取得に使用する DirectXCommon</param>
 		void Initialize(DirectXCommon* dxCommon);
-
-		/// <summary>
-		/// SRV 用ディスクリプタヒープの終了処理を行います。
-		/// </summary>
 		void Finalize();
 
-		/// <summary>
-		/// Texture2D 用の SRV を作成します。
-		/// </summary>
 		void CreateSRVForTexture2D(uint32_t srvIndex, ID3D12Resource* pResource, DXGI_FORMAT Format, UINT MipLevels);
-
-		/// <summary>
-		/// Structured Buffer 用の SRV を作成します。
-		/// </summary>
 		void CreateSRVForStructureBuffer(uint32_t srvIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride);
-
 		void CreateSRVForShadowMap(uint32_t srvIndex, ID3D12Resource* shadowMap);
-
-		/// <summary>CSM用の深度Texture2DArray SRVを作成します。</summary>
 		void CreateSRVForShadowMapArray(uint32_t srvIndex, ID3D12Resource* shadowMapArray, uint32_t arraySize);
-
-		/// <summary>Point Light Cube Shadow用の深度TextureCube SRVを作成します。</summary>
 		void CreateSRVForShadowCube(uint32_t srvIndex, ID3D12Resource* shadowCube);
-
-		/// <summary>
-		/// 描画前に、この SRV ヒープをコマンドリストへセットします。
-		/// </summary>
 		void PreDraw();
-
-		/// <summary>
-		/// 指定したルートパラメータに、SRV テーブルをセットします。
-		/// </summary>
 		void SetGraphicsRootDescriptorTable(UINT RootParameterIndex, uint32_t srvIndex);
-
-		/// <summary>
-		/// 深度バッファを Shader Resource として参照するための SRV を作成します。
-		/// </summary>
 		void CreateSRVForDepthBuffer(uint32_t srvIndex, ID3D12Resource* depthBuffer);
 
-		/// <summary>
-		/// Persistent用途のディスクリプタを1つ確保します。Texture / ImGui / 長寿命Bufferはこの経路を使用します。
-		/// </summary>
+		/// <summary>Texture / ImGui / 長寿命Buffer用のPersistent Descriptorを確保します。</summary>
 		uint32_t Allocate();
 
-		/// <summary>
-		/// Persistent用途のディスクリプタを解放します。GPU参照中のAssetはGpuDeferredReleaseQueue経由で呼び出してください。
-		/// </summary>
+		/// <summary>Persistent Descriptorを解放します。GPU参照中AssetはGpuDeferredReleaseQueue経由で解放してください。</summary>
 		void Free(uint32_t srvIndex);
 
 		/// <summary>
-		/// RenderGraph / Pass向けに連続した一時ディスクリプタを確保します。
-		/// 現在記録中CommandListに対応する次回Fence完了までは自動的に再利用されません。
+		/// 現在記録中Frame Resource専用領域から連続Descriptor Rangeを確保します。
+		/// 同じFrame indexがFence安全化されて再利用されたときだけArena先頭へ戻ります。
 		/// </summary>
 		TransientDescriptorAllocation AllocateTransient(uint32_t count = 1);
-
-		/// <summary>完了Fenceまで到達したTransient Descriptor Rangeを再利用可能領域へ戻します。</summary>
-		void CollectTransient();
 
 	public: /// ---------- ゲッター ---------- ///
 
 		ID3D12DescriptorHeap* GetDescriptorHeap() const { return descriptorHeap_.Get(); }
-
 		ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shadervisible);
-
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(uint32_t index);
 		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(uint32_t index);
 
@@ -136,20 +95,17 @@ namespace Ken4lowEngine
 
 	private: /// ---------- 内部型 ---------- ///
 
-		struct DescriptorRange
+		struct FrameTransientState
 		{
 			uint32_t firstIndex = 0;
-			uint32_t count = 0;
+			uint32_t capacity = 0;
+			uint32_t cursor = 0;
+			uint32_t highWater = 0;
+			UINT64 observedFrameFenceValue = 0;
+			bool initialized = false;
 		};
 
-		struct PendingTransientRange
-		{
-			DescriptorRange range{};
-			UINT64 retireFenceValue = 0;
-		};
-
-		void CollectTransientLocked();
-		void InsertFreeTransientRangeLocked(DescriptorRange range);
+		void RefreshTransientFrameLocked(uint32_t frameIndex);
 
 	private: /// ---------- メンバ変数 ---------- ///
 
@@ -167,8 +123,7 @@ namespace Ken4lowEngine
 		mutable std::mutex allocationMutex;
 		std::queue<uint32_t> freeIndices;
 		std::vector<uint8_t> persistentAllocated_;
-		std::vector<DescriptorRange> freeTransientRanges_;
-		std::vector<PendingTransientRange> pendingTransientRanges_;
+		std::vector<FrameTransientState> transientFrameStates_;
 		DescriptorStats descriptorStats_{};
 
 	private: /// ---------- コピー禁止 ---------- ///
