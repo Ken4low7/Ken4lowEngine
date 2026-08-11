@@ -13,7 +13,7 @@ SPEC.loader.exec_module(MODULE)
 
 
 class AssetManifestTests(unittest.TestCase):
-    def make_project(self, root: Path, create_output: bool = True) -> Path:
+    def make_project(self, root: Path, create_output: bool = True, build_key: str | None = None) -> Path:
         project = root / "Project"
         source = project / "Resources" / "Models" / "Sources" / "Sample" / "cube.gltf"
         output = project / "Resources" / "Models" / "Compiled" / "Sample" / "cube.kmesh"
@@ -39,6 +39,8 @@ class AssetManifestTests(unittest.TestCase):
                 }
             ],
         }
+        if build_key is not None:
+            build_meta["BuildKey"] = build_key
         meta.write_text(json.dumps(build_meta), encoding="utf-8")
         return project
 
@@ -71,6 +73,19 @@ class AssetManifestTests(unittest.TestCase):
                 manifest["Assets"][0]["MissingOutputs"],
                 ["Resources/Models/Compiled/Sample/cube.kmesh"],
             )
+
+    def test_declared_ddc_build_key_is_preserved(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            expected = "ab" * 32
+            project = self.make_project(Path(temporary), build_key=expected)
+            manifest = MODULE.build_manifest(project)
+            self.assertEqual(manifest["Assets"][0]["BuildKey"], expected)
+
+    def test_invalid_declared_build_key_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = self.make_project(Path(temporary), build_key="not-a-sha256")
+            with self.assertRaises(ValueError):
+                MODULE.build_manifest(project)
 
 
 if __name__ == "__main__":
