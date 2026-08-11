@@ -35,22 +35,37 @@ namespace Ken4lowEngine
 		if (!model_) { throw std::runtime_error("InstancedObject3DRenderer failed to load model"); }
 
 		maxInstanceCount_ = maxInstanceCount;
-		instanceResource_ = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(InstanceData) * maxInstanceCount_);
-		instanceResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedInstances_));
-		instanceResource_->SetName(L"InstancedObject3DRenderer.InstanceBuffer");
+		const uint32_t frameCount = (std::max)(1u, dxCommon_->GetCommandManager()->GetFrameResourceCount());
+		instanceFrameBuffers_.resize(frameCount);
 
 		auto* srvManager = SRVManager::GetInstance();
-		instanceSrvIndex_ = srvManager->Allocate();
-		srvManager->CreateSRVForStructureBuffer(instanceSrvIndex_, instanceResource_.Get(), static_cast<UINT>(maxInstanceCount_), sizeof(InstanceData));
+		for (uint32_t frameIndex = 0; frameIndex < frameCount; ++frameIndex)
+		{
+			for (size_t streamIndex = 0; streamIndex < kInstanceStreamCount; ++streamIndex)
+			{
+				InstanceStreamBuffer& stream = instanceFrameBuffers_[frameIndex].streams[streamIndex];
+				stream.resource = ResourceManager::CreateBufferResource(
+					dxCommon_->GetDevice(),
+					sizeof(InstanceData) * maxInstanceCount_);
+				if (!stream.resource)
+				{
+					throw std::runtime_error("InstancedObject3DRenderer failed to create frame instance buffer");
+				}
 
-		perViewResource_ = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(PerViewData));
-		perViewResource_->Map(0, nullptr, reinterpret_cast<void**>(&perViewData_));
-		cameraResource_ = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(CameraForGPU));
-		cameraResource_->Map(0, nullptr, reinterpret_cast<void**>(&cameraData_));
-		dissolveResource_ = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(DissolveSetting));
-		dissolveResource_->Map(0, nullptr, reinterpret_cast<void**>(&dissolveData_));
-		shadowParameterResource_ = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(ShadowParameterForGPU));
-		shadowParameterResource_->Map(0, nullptr, reinterpret_cast<void**>(&shadowParameterData_));
+				const HRESULT mapResult = stream.resource->Map(0, nullptr, reinterpret_cast<void**>(&stream.mappedInstances));
+				if (FAILED(mapResult) || !stream.mappedInstances)
+				{
+					throw std::runtime_error("InstancedObject3DRenderer failed to map frame instance buffer");
+				}
+
+				stream.srvIndex = srvManager->Allocate();
+				srvManager->CreateSRVForStructureBuffer(
+					stream.srvIndex,
+					stream.resource.Get(),
+					static_cast<UINT>(maxInstanceCount_),
+					sizeof(InstanceData));
+			}
+		}
 
 		material_.Initialize();
 		materialTextureSlots_.Reset();
@@ -61,37 +76,41 @@ namespace Ken4lowEngine
 		TextureManager::GetInstance()->LoadTexture("Effects/Masks/noise.dds");
 		dissolveMaskHandle_ = TextureManager::GetInstance()->GetSrvHandleGPU("Effects/Masks/noise.dds");
 
-		dissolveData_->threshold = 1.0f;
-		dissolveData_->edgeThickness = 0.0f;
-		dissolveData_->padding[0] = dissolveData_->padding[1] = 0.0f;
-		dissolveData_->edgeColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-		shadowParameterData_->lightViewProjection = Matrix4x4::MakeIdentity();
-		shadowParameterData_->shadowBias = 0.0f;
-		shadowParameterData_->normalBias = 0.0f;
-		shadowParameterData_->shadowStrength = 0.0f;
-		shadowParameterData_->shadowMode = 0;
-		shadowParameterData_->shadowDebugMode = 0;
-		shadowParameterData_->padding[0] = 0.0f;
+		dissolveData_.threshold = 1.0f;
+		dissolveData_.edgeThickness = 0.0f;
+		dissolveData_.padding[0] = dissolveData_.padding[1] = 0.0f;
+		dissolveData_.edgeColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+		shadowParameterData_.lightViewProjection = Matrix4x4::MakeIdentity();
+		shadowParameterData_.shadowBias = 0.0f;
+		shadowParameterData_.normalBias = 0.0f;
+		shadowParameterData_.shadowStrength = 0.0f;
+		shadowParameterData_.shadowMode = 0;
+		shadowParameterData_.shadowDebugMode = 0;
+		shadowParameterData_.padding[0] = 0.0f;
 		initialized_ = true;
 	}
 
 	void InstancedObject3DRenderer::Finalize()
 	{
-		if (instanceSrvIndex_ != UINT32_MAX)
+		auto* srvManager = SRVManager::GetInstance();
+		for (InstanceFrameBuffers& frame : instanceFrameBuffers_)
 		{
-			SRVManager::GetInstance()->Free(instanceSrvIndex_);
-			instanceSrvIndex_ = UINT32_MAX;
+			for (InstanceStreamBuffer& stream : frame.streams)
+			{
+				if (stream.resource && stream.mappedInstances)
+				{
+					stream.resource->Unmap(0, nullptr);
+				}
+				stream.mappedInstances = nullptr;
+				stream.resource.Reset();
+				if (stream.srvIndex != UINT32_MAX)
+				{
+					srvManager->Free(stream.srvIndex);
+					stream.srvIndex = UINT32_MAX;
+				}
+			}
 		}
-		instanceResource_.Reset();
-		perViewResource_.Reset();
-		cameraResource_.Reset();
-		dissolveResource_.Reset();
-		shadowParameterResource_.Reset();
-		mappedInstances_ = nullptr;
-		perViewData_ = nullptr;
-		cameraData_ = nullptr;
-		dissolveData_ = nullptr;
-		shadowParameterData_ = nullptr;
+		instanceFrameBuffers_.clear();
 		model_.reset();
 		materialTextureSlots_.Clear();
 		materialSRVs_.clear();
@@ -99,7 +118,6 @@ namespace Ken4lowEngine
 		maxInstanceCount_ = 0;
 		instanceCount_ = 0;
 		sourceInstances_.clear();
-		instanceBufferDirty_ = false;
 		frustumCullingEnabled_ = false;
 		estimatedDrawIndexCount_ = 0;
 		drawSkippedByBudget_ = false;
@@ -116,14 +134,7 @@ namespace Ken4lowEngine
 	{
 		if (!initialized_ || instances.size() > maxInstanceCount_) { return false; }
 		sourceInstances_ = instances;
-		instanceBufferDirty_ = true;
-		if (frustumCullingEnabled_) { instanceCount_ = 0; }
-		if (!frustumCullingEnabled_)
-		{
-			std::copy(sourceInstances_.begin(), sourceInstances_.end(), mappedInstances_);
-			instanceCount_ = sourceInstances_.size();
-			instanceBufferDirty_ = false;
-		}
+		instanceCount_ = frustumCullingEnabled_ ? 0 : sourceInstances_.size();
 		return true;
 	}
 
@@ -204,28 +215,57 @@ namespace Ken4lowEngine
 	{
 		if (frustumCullingEnabled_ == enabled) { return; }
 		frustumCullingEnabled_ = enabled;
-		instanceBufferDirty_ = true;
+	}
+
+	uint32_t InstancedObject3DRenderer::GetCurrentFrameIndex() const
+	{
+		return dxCommon_ && dxCommon_->GetCommandManager()
+			? dxCommon_->GetCommandManager()->GetCurrentFrameIndex()
+			: 0u;
+	}
+
+	InstancedObject3DRenderer::InstanceStreamBuffer* InstancedObject3DRenderer::GetInstanceStream(InstanceStreamUsage usage)
+	{
+		if (instanceFrameBuffers_.empty()) return nullptr;
+		const uint32_t frameIndex = GetCurrentFrameIndex() % static_cast<uint32_t>(instanceFrameBuffers_.size());
+		const size_t streamIndex = static_cast<size_t>(usage);
+		if (streamIndex >= kInstanceStreamCount) return nullptr;
+		return &instanceFrameBuffers_[frameIndex].streams[streamIndex];
+	}
+
+	const InstancedObject3DRenderer::InstanceStreamBuffer* InstancedObject3DRenderer::GetInstanceStream(InstanceStreamUsage usage) const
+	{
+		if (instanceFrameBuffers_.empty()) return nullptr;
+		const uint32_t frameIndex = GetCurrentFrameIndex() % static_cast<uint32_t>(instanceFrameBuffers_.size());
+		const size_t streamIndex = static_cast<size_t>(usage);
+		if (streamIndex >= kInstanceStreamCount) return nullptr;
+		return &instanceFrameBuffers_[frameIndex].streams[streamIndex];
 	}
 
 	size_t InstancedObject3DRenderer::UploadSourceInstancesForEditorPicking()
 	{
-		if (!initialized_ || !dxCommon_ || !model_ || !mappedInstances_ || sourceInstances_.empty()) return 0;
+		InstanceStreamBuffer* stream = GetInstanceStream(InstanceStreamUsage::Picking);
+		if (!initialized_ || !dxCommon_ || !model_ || !stream || !stream->mappedInstances || sourceInstances_.empty()) return 0;
 		const size_t count = std::min(sourceInstances_.size(), maxInstanceCount_);
-		std::copy_n(sourceInstances_.begin(), count, mappedInstances_);
+		std::copy_n(sourceInstances_.begin(), count, stream->mappedInstances);
 		instanceCount_ = count;
-		return count; // カリングで順番を詰め替えず、SV_InstanceIDと個別編集Indexを一致させる。
+		return count; // Picking専用Streamへ書き込み、Main/ShadowのGPU読み取り内容を上書きしない。
 	}
 
 	void InstancedObject3DRenderer::UpdateVisibleInstances(const Matrix4x4& viewProjection)
 	{
+		InstanceStreamBuffer* stream = GetInstanceStream(InstanceStreamUsage::Main);
+		if (!stream || !stream->mappedInstances)
+		{
+			instanceCount_ = 0;
+			return;
+		}
+
 		if (!frustumCullingEnabled_)
 		{
-			if (instanceBufferDirty_)
-			{
-				std::copy(sourceInstances_.begin(), sourceInstances_.end(), mappedInstances_);
-				instanceCount_ = sourceInstances_.size();
-				instanceBufferDirty_ = false;
-			}
+			const size_t count = std::min(sourceInstances_.size(), maxInstanceCount_);
+			std::copy_n(sourceInstances_.begin(), count, stream->mappedInstances);
+			instanceCount_ = count;
 			return;
 		}
 
@@ -247,21 +287,20 @@ namespace Ken4lowEngine
 				worldBounds.radius = localBounds.radius * std::max({ scaleX, scaleY, scaleZ });
 				visible = frustum.Intersects(worldBounds);
 			}
-			if (visible)
+			if (visible && instanceCount_ < maxInstanceCount_)
 			{
-				mappedInstances_[instanceCount_++] = instance;
+				stream->mappedInstances[instanceCount_++] = instance;
 			}
 		}
-		instanceBufferDirty_ = false;
 	}
 
 	void InstancedObject3DRenderer::Draw()
 	{
 		if (!initialized_ || !model_ || sourceInstances_.empty()) { return; }
 
-		perViewData_->viewProjection = CameraManager::GetInstance()->GetActiveViewProjectionMatrix();
-		// CPU側でObject3Dを大量生成せず、可視なInstanceDataだけをGPUへ詰めてまとめて描画する。
-		UpdateVisibleInstances(perViewData_->viewProjection);
+		perViewData_.viewProjection = CameraManager::GetInstance()->GetActiveViewProjectionMatrix();
+		// Main描画は現在FrameのMain専用Instance Streamだけへ可視データを書き込む。
+		UpdateVisibleInstances(perViewData_.viewProjection);
 
 		if (instanceCount_ == 0)
 		{
@@ -273,44 +312,55 @@ namespace Ken4lowEngine
 		const uint64_t modelIndexCount = model_->GetTotalIndexCount();
 		estimatedDrawIndexCount_ = modelIndexCount * static_cast<uint64_t>(instanceCount_);
 
-		// 高ポリゴンモデルを大量インスタンス描画してGPUがTDRで停止しないようにする。
 		if (debugIndexBudget_ > 0 && estimatedDrawIndexCount_ > debugIndexBudget_)
 		{
 			drawSkippedByBudget_ = true;
-			return;
+			return; // 高ポリゴンモデルの極端なInstanced DrawによるTDRを防ぐ。
 		}
 
 		drawSkippedByBudget_ = false;
 
 		const Vector3 cameraPosition = CameraManager::GetInstance()->GetActiveCameraPosition();
-		cameraData_->x = cameraPosition.x;
-		cameraData_->y = cameraPosition.y;
-		cameraData_->z = cameraPosition.z;
-		cameraData_->padding = 0.0f;
+		cameraData_.x = cameraPosition.x;
+		cameraData_.y = cameraPosition.y;
+		cameraData_.z = cameraPosition.z;
+		cameraData_.padding = 0.0f;
 		const auto* lightManager = LightManager::GetInstance();
-		shadowParameterData_->lightViewProjection = lightManager->BuildShadowLightViewProjection(cameraPosition);
-		shadowParameterData_->shadowBias = lightManager->GetShadowBias();
-		shadowParameterData_->normalBias = lightManager->GetNormalBias();
-		shadowParameterData_->shadowStrength = lightManager->GetShadowStrength();
-		shadowParameterData_->shadowMode = lightManager->GetShadowReceiverMode();
-		shadowParameterData_->shadowDebugMode = lightManager->IsShadowMapDebugEnabled() ? 1u : (lightManager->IsShadowFactorDebugEnabled() ? 2u : 0u);
+		shadowParameterData_.lightViewProjection = lightManager->BuildShadowLightViewProjection(cameraPosition);
+		shadowParameterData_.shadowBias = lightManager->GetShadowBias();
+		shadowParameterData_.normalBias = lightManager->GetNormalBias();
+		shadowParameterData_.shadowStrength = lightManager->GetShadowStrength();
+		shadowParameterData_.shadowMode = lightManager->GetShadowReceiverMode();
+		shadowParameterData_.shadowDebugMode = lightManager->IsShadowMapDebugEnabled() ? 1u : (lightManager->IsShadowFactorDebugEnabled() ? 2u : 0u);
 		material_.Update();
+
+		FrameUploadArena& frameUploadArena = dxCommon_->GetFrameUploadArena();
+		const FrameUploadArena::Allocation perViewAllocation = frameUploadArena.AllocateConstant(perViewData_);
+		const FrameUploadArena::Allocation cameraAllocation = frameUploadArena.AllocateConstant(cameraData_);
+		const FrameUploadArena::Allocation dissolveAllocation = frameUploadArena.AllocateConstant(dissolveData_);
+		const FrameUploadArena::Allocation shadowParameterAllocation = frameUploadArena.AllocateConstant(shadowParameterData_);
+		InstanceStreamBuffer* stream = GetInstanceStream(InstanceStreamUsage::Main);
+		if (!stream || stream->srvIndex == UINT32_MAX ||
+			!perViewAllocation.IsValid() || !cameraAllocation.IsValid() ||
+			!dissolveAllocation.IsValid() || !shadowParameterAllocation.IsValid())
+		{
+			return;
+		}
 
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		SRVManager::GetInstance()->PreDraw();
 		Object3DCommon::GetInstance()->SetInstancedRenderSetting();
 		material_.SetPipeline(0);
-		commandList->SetGraphicsRootConstantBufferView(1, perViewResource_->GetGPUVirtualAddress());
-		commandList->SetGraphicsRootConstantBufferView(3, cameraResource_->GetGPUVirtualAddress());
+		commandList->SetGraphicsRootConstantBufferView(1, perViewAllocation.gpuAddress);
+		commandList->SetGraphicsRootConstantBufferView(3, cameraAllocation.gpuAddress);
 		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 4, environmentMapHandle_);
-		commandList->SetGraphicsRootConstantBufferView(7, dissolveResource_->GetGPUVirtualAddress());
+		commandList->SetGraphicsRootConstantBufferView(7, dissolveAllocation.gpuAddress);
 		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 8, dissolveMaskHandle_);
-		commandList->SetGraphicsRootConstantBufferView(9, shadowParameterResource_->GetGPUVirtualAddress());
+		commandList->SetGraphicsRootConstantBufferView(9, shadowParameterAllocation.gpuAddress);
 		commandList->SetGraphicsRootDescriptorTable(10, dxCommon_->GetShadowMapSrvHandleGPU());
-		SRVManager::GetInstance()->SetGraphicsRootDescriptorTable(12, instanceSrvIndex_);
+		SRVManager::GetInstance()->SetGraphicsRootDescriptorTable(12, stream->srvIndex);
 		materialTextureSlots_.BindAdditionalSlots(commandList, 13, 14, 15, 16); // t6:MR t7:Normal t8:AO t9:Emissive
 
-		// 同一Modelの各サブメッシュを、全インスタンス分まとめて少数のDrawIndexedInstancedで描画する。
 		auto& meshes = model_->GetMeshes();
 		for (size_t i = 0; i < meshes.size(); ++i)
 		{
