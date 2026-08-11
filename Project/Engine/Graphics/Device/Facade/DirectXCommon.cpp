@@ -181,7 +181,7 @@ namespace Ken4lowEngine
 		}
 		else
 		{
-			commandManager_->WaitAndReset();
+			commandManager_->WaitAndPrepareFrame(nextFrameIndex); // 完全待機中も次BackBufferと同じFrameResourceへ進め、ON切替時の一時的なindex不一致を防ぐ。
 		}
 
 		backBufferIndex_ = nextFrameIndex;
