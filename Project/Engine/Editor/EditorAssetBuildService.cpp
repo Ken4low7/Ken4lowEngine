@@ -207,6 +207,8 @@ namespace Ken4lowEngine
 			return projectDir_ / "Tools" / "Scripts" / "RunBuildIncrementalAssets.bat";
 		case EditorAssetBuildKind::Packages:
 			return projectDir_ / "Tools" / "Scripts" / "RunBuildAssetPackages.bat";
+		case EditorAssetBuildKind::Determinism:
+			return projectDir_ / "Tools" / "Scripts" / "RunValidateDeterministicCook.bat";
 		default:
 			return {};
 		}
@@ -216,8 +218,8 @@ namespace Ken4lowEngine
 	{
 		if (kind == EditorAssetBuildKind::All)
 		{
-			// Full build seals deterministic cooked outputs into chunk packages only after the manifest is valid.
-			return { EditorAssetBuildKind::Textures, EditorAssetBuildKind::Meshes, EditorAssetBuildKind::Fonts, EditorAssetBuildKind::Manifest, EditorAssetBuildKind::Packages };
+			// Font atlases feed Texture cooking, so full builds preserve the dependency order before packaging.
+			return { EditorAssetBuildKind::Fonts, EditorAssetBuildKind::Textures, EditorAssetBuildKind::Meshes, EditorAssetBuildKind::Manifest, EditorAssetBuildKind::Packages };
 		}
 		return { kind };
 	}
@@ -238,6 +240,8 @@ namespace Ken4lowEngine
 			return "Build Incremental Assets";
 		case EditorAssetBuildKind::Packages:
 			return "Build Asset Packages";
+		case EditorAssetBuildKind::Determinism:
+			return "Validate Deterministic Cook";
 		case EditorAssetBuildKind::All:
 			return "Build All Assets";
 		default:
