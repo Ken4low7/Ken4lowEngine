@@ -36,7 +36,7 @@ Read/Read access is intentionally not ordered by the resource graph. Explicit pa
 
 Compile statistics now separately count RAW/WAR/WAW hazards while `dependencyCount` continues to represent unique graph edges.
 
-### 9.2 D3D12 Barrier Generation — implemented foundation
+### 9.2 D3D12 Barrier Generation — implemented
 
 The graph compiler now creates a deterministic barrier plan after topological sorting. Resources can declare both an initial and final `ResourceState`, while each pass declares the state required for each resource access.
 
@@ -51,9 +51,9 @@ The generated plan contains:
 
 Unknown state is handled conservatively. The graph never invents a D3D12 transition from an unknown state; an unknown-state access invalidates graph-side state knowledge until a later explicitly declared state establishes a new known state. Conflicting known states for the same resource inside one pass fail graph compilation.
 
-`RenderGraph::Execute(BarrierCallback, ...)` provides an execution hook that emits planned barriers immediately before the owning pass and final transitions after the graph. The plan itself stays API-independent so the D3D12 backend can translate `ResourceState` to native `D3D12_RESOURCE_STATES` without duplicating scheduling logic.
+`RenderGraph::Execute(BarrierCallback, ...)` emits planned records immediately before the owning pass and final transitions after the graph. `RenderGraphD3D12BarrierEmitter` is the D3D12 backend adapter: it binds a logical `ResourceHandle` to an `ID3D12Resource`, converts every known graph state into `D3D12_RESOURCE_STATES`, and emits either a transition or UAV `ResourceBarrier` on the supplied graphics command list.
 
-The existing render targets still contain manual D3D12 transitions. Those resources are intentionally left on the legacy `Unknown` state path for now, so Phase 9 does not emit a second transition on top of an owner-managed barrier. Physical ownership will migrate resource-by-resource once a target is bound to the graph barrier callback. This preserves the current rendering result while establishing the automatic barrier source of truth.
+Physical emission is opt-in per bound resource. The existing render targets still contain manual D3D12 transitions and remain on the legacy `Unknown` state path, so Phase 9 never emits a second transition on top of an owner-managed barrier. Physical ownership can now migrate resource-by-resource by binding that target to the graph emitter and removing its old local transition at the same time.
 
 ### 9.3 Pass Culling — next
 
