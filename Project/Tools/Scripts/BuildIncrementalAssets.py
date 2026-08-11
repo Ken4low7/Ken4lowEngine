@@ -7,15 +7,16 @@ import hashlib
 import json
 import os
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any, Iterable
 
 import BuildAssetManifest
+import BuildAssetPackages
 
 SNAPSHOT_VERSION = 1
 REPORT_VERSION = 1
 COOKER_ORDER = ("Font", "Texture", "Mesh")
+PACKAGE_CONFIG_PATH = "Config/AssetChunks.json"
 SOURCE_ROOTS = (
     ("Resources/Fonts/Sources", "Font"),
     ("Resources/Fonts/Charsets", "Font"),
@@ -80,6 +81,9 @@ def discover_source_paths(project_dir: Path) -> set[str]:
         for path in root.rglob("*"):
             if path.is_file():
                 paths.add(normalize_path(path.relative_to(project_dir).as_posix()))
+    package_config = project_dir / PACKAGE_CONFIG_PATH
+    if package_config.is_file():
+        paths.add(PACKAGE_CONFIG_PATH)
     return paths
 
 
@@ -167,6 +171,7 @@ def build_plan(manifest: dict[str, Any], changed_paths: Iterable[str]) -> dict[s
 
     cooker_types = {str(asset.get("AssetType", "")) for asset in affected_assets}
     untracked_changed: list[str] = []
+    package_config_changed = PACKAGE_CONFIG_PATH in normalized_changed
     for path in normalized_changed:
         direct_ids = manifest.get("DependencyGraph", {}).get("Reverse", {}).get(path, [])
         if direct_ids:
@@ -195,6 +200,8 @@ def build_plan(manifest: dict[str, Any], changed_paths: Iterable[str]) -> dict[s
             )
         ],
         "Cookers": cookers,
+        "PackageConfigChanged": package_config_changed,
+        "RequiresPackaging": bool(cookers) or package_config_changed,
         "UntrackedChangedPaths": sorted(untracked_changed, key=str.lower),
     }
 
@@ -203,8 +210,7 @@ def load_or_build_manifest(project_dir: Path, manifest_path: Path) -> dict[str, 
     manifest = load_json(manifest_path)
     if manifest is not None:
         return manifest
-    manifest = BuildAssetManifest.write_manifest(project_dir, manifest_path)
-    return manifest
+    return BuildAssetManifest.write_manifest(project_dir, manifest_path)
 
 
 def run_batch(project_dir: Path, configuration: str, batch_name: str) -> None:
@@ -226,6 +232,14 @@ def execute_plan(project_dir: Path, configuration: str, plan: dict[str, Any]) ->
             raise RuntimeError(f"Unsupported cooker type: {cooker}")
         print(f"[IncrementalAssets] Run cooker: {cooker}")
         run_batch(project_dir, configuration, batch_name)
+
+
+def rebuild_packages(project_dir: Path, manifest: dict[str, Any]) -> dict[str, Any]:
+    config_path = project_dir / PACKAGE_CONFIG_PATH
+    config = BuildAssetPackages.load_chunk_config(config_path)
+    output_root = project_dir.parent / "Generated" / "Packages"
+    # Incremental cook keeps distributable chunks synchronized with the newly written manifest.
+    return BuildAssetPackages.build_packages(project_dir, manifest, config, output_root)
 
 
 def parse_args() -> argparse.Namespace:
@@ -259,9 +273,18 @@ def main() -> int:
     plan["DetectedChangedPaths"] = detected_changed
     plan["ExplicitChangedPaths"] = sorted(set(explicit_changed), key=str.lower)
     plan["SnapshotWasMissing"] = previous_snapshot is None
+    package_manifest_path = project_dir.parent / "Generated" / "Packages" / "PackageManifest.json"
+    if not package_manifest_path.is_file():
+        plan["RequiresPackaging"] = True
+        plan["PackageOutputWasMissing"] = True
+    else:
+        plan["PackageOutputWasMissing"] = False
     write_json(report_path, plan)
 
-    print(f"[IncrementalAssets] Changed={len(changed_paths)} AffectedAssets={plan['AffectedAssetCount']} Cookers={','.join(plan['Cookers']) or 'none'}")
+    print(
+        f"[IncrementalAssets] Changed={len(changed_paths)} AffectedAssets={plan['AffectedAssetCount']} "
+        f"Cookers={','.join(plan['Cookers']) or 'none'} Package={plan['RequiresPackaging']}"
+    )
     for path in changed_paths:
         print(f"[IncrementalAssets] Changed: {path}")
     for asset in plan["AffectedAssets"]:
@@ -271,6 +294,9 @@ def main() -> int:
         execute_plan(project_dir, args.configuration, plan)
         # Rebuild topology after cook because generated outputs can introduce downstream dependencies.
         manifest = BuildAssetManifest.write_manifest(project_dir, manifest_path)
+        if plan["RequiresPackaging"]:
+            package_manifest = rebuild_packages(project_dir, manifest)
+            print(f"[IncrementalAssets] Packages rebuilt: {package_manifest['ChunkCount']} chunks")
         current_snapshot = build_snapshot(project_dir, manifest)
         write_json(snapshot_path, current_snapshot)
         print(f"[IncrementalAssets] Snapshot updated: {snapshot_path}")
