@@ -13,91 +13,64 @@
 namespace Ken4lowEngine
 {
 
-	/// -------------------------------------------------------------
-	///						　初期化処理
-	/// -------------------------------------------------------------
 	void AbsorbEffect::Initialize(DirectXCommon* dxCommon, PostEffectPipelineBuilder* builder)
 	{
-		// DirectX共通クラスのセット
 		dxCommon_ = dxCommon;
-
-		// ルートシグネチャの生成
 		rootSignature_ = builder->CreateRootSignature();
-
-		// パイプラインの生成
 		graphicsPipelineState_ = builder->CreateGraphicsPipeline(PostEffectGraphicsShaderId::AbsorbPS, rootSignature_.Get(), false);
-
-		// リソースの生成
 		constantBuffer_ = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(AbsorbSetting));
-
-		// データの設定
 		constantBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&absorbSetting_));
-
-		// 吸収の設定
-		absorbSetting_->time = 0.0f; // 時間
-		absorbSetting_->strength = 1.0f; // 吸収の強さ
+		absorbSetting_->time = 0.0f;
+		absorbSetting_->strength = 1.0f;
 	}
 
 	void AbsorbEffect::Finalize()
 	{
-		// Mapしているポインタを無効化（Unmapは安全のため）
-		if (constantBuffer_) {
+		if (constantBuffer_)
+		{
 			constantBuffer_->Unmap(0, nullptr);
 		}
 		absorbSetting_ = nullptr;
-
-		// D3Dリソース解放
 		constantBuffer_.Reset();
 		graphicsPipelineState_.Reset();
 		rootSignature_.Reset();
-
-		// 借り物参照を切る（所有してない）
 		dxCommon_ = nullptr;
 	}
 
-
-	/// -------------------------------------------------------------
-	///							更新処理
-	/// -------------------------------------------------------------
 	void AbsorbEffect::Update()
 	{
-		// 時間の更新
+		if (!absorbSetting_) return;
 		absorbSetting_->time += absorbParams_.timestepPerFrame;
-
-		// 時間のリセット
 		if (absorbSetting_->time > absorbParams_.loopDuration)
 		{
-			absorbSetting_->time = 0.0f; // リセット
+			absorbSetting_->time = 0.0f;
 		}
 	}
 
-
-	/// -------------------------------------------------------------
-	///						　適用処理
-	/// -------------------------------------------------------------
 	void AbsorbEffect::Apply(ID3D12GraphicsCommandList* commandList, uint32_t srvIndex, uint32_t uavIndex, uint32_t dsvIndex)
 	{
-		(void)uavIndex; // 未使用
-		(void)dsvIndex; // 未使用
+		(void)uavIndex;
+		(void)dsvIndex;
+		if (!commandList || !dxCommon_ || !absorbSetting_) return;
 
-		// 描画コマンド
-		commandList->SetGraphicsRootSignature(rootSignature_.Get()); // ルートシグネチャの設定
-		commandList->SetPipelineState(graphicsPipelineState_.Get()); // パイプラインステートの設定
-		commandList->SetGraphicsRootDescriptorTable(0, SRVManager::GetInstance()->GetGPUDescriptorHandle(srvIndex)); // SRVの設定
-		commandList->SetGraphicsRootConstantBufferView(1, constantBuffer_->GetGPUVirtualAddress());					 // 定数バッファの設定
-		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);									 // プリミティブトポロジーの設定
-		commandList->DrawInstanced(3, 1, 0, 0);																		 // フルスクリーンクアッドを描画
+		const FrameUploadArena::Allocation settingAllocation = dxCommon_->GetFrameUploadArena().AllocateConstant(*absorbSetting_);
+		if (!settingAllocation.IsValid()) return;
+
+		commandList->SetGraphicsRootSignature(rootSignature_.Get());
+		commandList->SetPipelineState(graphicsPipelineState_.Get());
+		commandList->SetGraphicsRootDescriptorTable(0, SRVManager::GetInstance()->GetGPUDescriptorHandle(srvIndex));
+		commandList->SetGraphicsRootConstantBufferView(1, settingAllocation.gpuAddress); // 毎フレーム進むtime値をFrame専用CBへ複製し、GPU読取中の上書きを防ぐ。
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		commandList->DrawInstanced(3, 1, 0, 0);
 	}
 
-
-	/// -------------------------------------------------------------
-	///						　ImGui描画処理
-	/// -------------------------------------------------------------
 	void AbsorbEffect::DrawImGui()
 	{
 #ifdef USE_IMGUI
-		// 吸収の強さ
-		ImGui::SliderFloat("Absorb Strength", &absorbSetting_->strength, 0.0f, 5.0f);
+		if (absorbSetting_)
+		{
+			ImGui::SliderFloat("Absorb Strength", &absorbSetting_->strength, 0.0f, 5.0f);
+		}
 #endif // USE_IMGUI
 	}
 

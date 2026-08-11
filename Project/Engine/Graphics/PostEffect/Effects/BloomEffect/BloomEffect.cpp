@@ -56,14 +56,18 @@ namespace Ken4lowEngine
 		assert(computeRootSignature_ != nullptr);
 		assert(computePipelineState_ != nullptr);
 		assert(constantBuffer_ != nullptr);
+		if (!dxCommon_ || !bloomSetting_) return;
+
+		const FrameUploadArena::Allocation settingAllocation = dxCommon_->GetFrameUploadArena().AllocateConstant(*bloomSetting_);
+		if (!settingAllocation.IsValid()) return;
 
 		commandList->SetComputeRootSignature(computeRootSignature_.Get());
 		commandList->SetPipelineState(computePipelineState_.Get());
 
-		// BrightExtract/Blur/Compositeを1パスに閉じ、今回は追加RTやBarrier順序の変更を避ける。
+		// GPUには現在Frame専用CBを渡し、ImGui用の永続Map stagingを前フレームと共有しない。
 		commandList->SetComputeRootDescriptorTable(0, UAVManager::GetInstance()->GetGPUDescriptorHandle(srvIndex));
 		commandList->SetComputeRootDescriptorTable(1, UAVManager::GetInstance()->GetGPUDescriptorHandle(uavIndex));
-		commandList->SetComputeRootConstantBufferView(2, constantBuffer_->GetGPUVirtualAddress());
+		commandList->SetComputeRootConstantBufferView(2, settingAllocation.gpuAddress);
 
 		const uint32_t threadGroupSizeX = 8;
 		const uint32_t threadGroupSizeY = 8;

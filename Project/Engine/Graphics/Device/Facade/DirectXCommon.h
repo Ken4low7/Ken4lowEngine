@@ -63,6 +63,7 @@ namespace Ken4lowEngine
 		/// 単一Upload Buffer更新が残る間は既定OFFとし、Per-Frame GPU Buffer移行後に常用する。
 		void SetFramesInFlightEnabled(bool enabled) { requestedFramesInFlightEnabled_ = enabled; }
 		bool IsFramesInFlightEnabled() const { return requestedFramesInFlightEnabled_; }
+		bool IsFramesInFlightActive() const { return framesInFlightEnabled_; } // UI要求値ではなくフレーム境界で実際に適用済みの同期モードを返す。
 
 		ID3D12Device* GetDevice() const { return device_->GetDevice(); }
 		DX12SwapChain* GetSwapChain() { return swapChain_.get(); }
