@@ -38,6 +38,7 @@ namespace Ken4lowEngine
 		clientHeight_ = height;
 		endDrawPerformanceTiming_ = {};
 		framesInFlightEnabled_ = false;
+		requestedFramesInFlightEnabled_ = false;
 
 		InitializeCoreObjects();
 		InitializeCoreSystems(winApp, width, height);
@@ -174,7 +175,8 @@ namespace Ken4lowEngine
 		endDrawPerformanceTiming_.presentMs = ToMilliseconds(presentBegin);
 		const uint32_t nextFrameIndex = swapChain_->GetSwapChain()->GetCurrentBackBufferIndex();
 
-		if (framesInFlightEnabled_)
+		const bool activeFramesInFlight = framesInFlightEnabled_;
+		if (activeFramesInFlight)
 		{
 			commandManager_->SignalCurrentFrame(submittedFrameIndex);
 			commandManager_->PrepareFrame(nextFrameIndex);
@@ -182,6 +184,15 @@ namespace Ken4lowEngine
 		else
 		{
 			commandManager_->WaitAndPrepareFrame(nextFrameIndex); // 完全待機中も次BackBufferと同じFrameResourceへ進め、ON切替時の一時的なindex不一致を防ぐ。
+		}
+
+		if (requestedFramesInFlightEnabled_ != framesInFlightEnabled_)
+		{
+			if (framesInFlightEnabled_ && !requestedFramesInFlightEnabled_)
+			{
+				WaitForGpuIdle();
+			}
+			framesInFlightEnabled_ = requestedFramesInFlightEnabled_; // 同期方式の変更はCommandList送信・次Frame準備が完了した境界でだけ反映する。
 		}
 
 		backBufferIndex_ = nextFrameIndex;
