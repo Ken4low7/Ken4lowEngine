@@ -42,7 +42,7 @@ jobs:
         run: |
           python -m unittest discover -s Tests/Phase5 -p "test_*.py" -v
           python -m unittest discover -s Tests/Phase7 -p "test_*.py" -v # Frames in Flightの危険な単一Upload再導入をCIで防ぐ。
-          python -m unittest discover -s Tests/Phase8 -p "test_*.py" -v # Content Manifestの決定性と依存逆引きをCIで保証する。
+          python -m unittest discover -s Tests/Phase8 -p "test_*.py" -v # Content Pipelineの決定性・依存関係・DDC契約をCIで保証する。
 
   compile:
     name: Compile ${{ matrix.configuration }}
@@ -64,6 +64,25 @@ jobs:
         uses: microsoft/setup-msbuild@v3
         with:
           msbuild-architecture: x64
+
+      - name: Validate Content Pipeline PowerShell
+        shell: pwsh
+        run: |
+          $scripts = @(
+            "Project/Tools/Scripts/BuildAssetCommon.ps1",
+            "Project/Tools/Scripts/BuildTextures.ps1",
+            "Project/Tools/Scripts/BuildMeshes.ps1",
+            "Project/Tools/Scripts/BuildFonts.ps1"
+          )
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error ("{0}: {1}" -f $script, $_.Message) }
+              exit 1
+            }
+          }
 
       - name: Compile C++
         shell: pwsh
