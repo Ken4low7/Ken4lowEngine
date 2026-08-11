@@ -3,7 +3,6 @@
 #include "DirectXCommon.h"
 #include "CameraManager.h"
 #include "DebugCamera.h"
-#include "ResourceManager.h"
 
 #include <algorithm>
 #include <cmath>
@@ -28,10 +27,7 @@ namespace Ken4lowEngine
 		pipelineSet_.Initialize(dxCommon_->GetPipelineFactory(), dxCommon_->GetDXCCompilerManager(), DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_D24_UNORM_S8_UINT);
 		instancedPipelineSet_.Initialize(dxCommon_->GetPipelineFactory(), dxCommon_->GetDXCCompilerManager(), DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_D24_UNORM_S8_UINT);
 		shadowCasterPipelineSet_.Initialize(dxCommon_->GetPipelineFactory(), dxCommon_->GetDXCCompilerManager());
-
-		pointShadowPassResource_ = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(PointShadowPassGPU));
-		pointShadowPassResource_->Map(0, nullptr, reinterpret_cast<void**>(&pointShadowPassData_));
-		pointShadowPassData_->lightPositionAndFar = { 0.0f, 0.0f, 0.0f, 1.0f };
+		pointShadowPassData_.lightPositionAndFar = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 		LightManager::GetInstance()->Initialize(dxCommon_);
 	}
@@ -39,12 +35,6 @@ namespace Ken4lowEngine
 	void Object3DCommon::Finalize()
 	{
 		LightManager::GetInstance()->Finalize();
-		if (pointShadowPassResource_)
-		{
-			pointShadowPassResource_->Unmap(0, nullptr);
-		}
-		pointShadowPassData_ = nullptr;
-		pointShadowPassResource_.Reset();
 		shadowCasterPipelineSet_.Finalize();
 		pipelineSet_.Finalize();
 		instancedPipelineSet_.Finalize();
@@ -145,23 +135,18 @@ namespace Ken4lowEngine
 
 	void Object3DCommon::UpdatePointShadowPassData()
 	{
-		if (!pointShadowPassData_)
-		{
-			return;
-		}
-
 		int32_t lightIndex = -1;
 		LightManager::PunctualLightGPU light{};
 		LightManager::ShadowCasterType casterType = LightManager::ShadowCasterType::None;
 		if (!LightManager::GetInstance()->TryGetActiveShadowCasterLightInfo(lightIndex, light, casterType) ||
 			(casterType != LightManager::ShadowCasterType::Point && casterType != LightManager::ShadowCasterType::Spot))
 		{
-			pointShadowPassData_->lightPositionAndFar = { 0.0f, 0.0f, 0.0f, 1.0f };
+			pointShadowPassData_.lightPositionAndFar = { 0.0f, 0.0f, 0.0f, 1.0f };
 			return;
 		}
 
 		const float farZ = std::max({ std::fabs(light.radius), std::fabs(light.distance), 1.0f });
-		pointShadowPassData_->lightPositionAndFar = { light.position.x, light.position.y, light.position.z, farZ };
+		pointShadowPassData_.lightPositionAndFar = { light.position.x, light.position.y, light.position.z, farZ };
 	}
 
 	void Object3DCommon::SetShadowMapRenderSetting()
@@ -176,10 +161,14 @@ namespace Ken4lowEngine
 		commandList->SetGraphicsRootSignature(pipeline.rootSignature.Get());
 		commandList->SetPipelineState(pipeline.pipelineState.Get());
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		if (isLocalLinearShadow && pointShadowPassResource_)
+		if (isLocalLinearShadow)
 		{
 			UpdatePointShadowPassData();
-			commandList->SetGraphicsRootConstantBufferView(1, pointShadowPassResource_->GetGPUVirtualAddress()); // SpotとPointは同じ線形距離Depth契約を使う。
+			const FrameUploadArena::Allocation allocation = dxCommon_->GetFrameUploadArena().AllocateConstant(pointShadowPassData_);
+			if (allocation.IsValid())
+			{
+				commandList->SetGraphicsRootConstantBufferView(1, allocation.gpuAddress); // Shadow Passごとに固有CBを確保し、後続Lightによる上書きを防ぐ。
+			}
 		}
 	}
 
@@ -195,10 +184,14 @@ namespace Ken4lowEngine
 		commandList->SetGraphicsRootSignature(pipeline.rootSignature.Get());
 		commandList->SetPipelineState(pipeline.pipelineState.Get());
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		if (isLocalLinearShadow && pointShadowPassResource_)
+		if (isLocalLinearShadow)
 		{
 			UpdatePointShadowPassData();
-			commandList->SetGraphicsRootConstantBufferView(2, pointShadowPassResource_->GetGPUVirtualAddress()); // Instancing用Rootのt0を避けてb1をIndex 2へ束縛する。
+			const FrameUploadArena::Allocation allocation = dxCommon_->GetFrameUploadArena().AllocateConstant(pointShadowPassData_);
+			if (allocation.IsValid())
+			{
+				commandList->SetGraphicsRootConstantBufferView(2, allocation.gpuAddress); // Instancing ShadowもPass固有CBでb1を束縛する。
+			}
 		}
 	}
 } // namespace Ken4lowEngine
