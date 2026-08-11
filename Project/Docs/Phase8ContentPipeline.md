@@ -31,7 +31,7 @@ Phase 8 therefore formalizes the build side instead of replacing the runtime ass
 Each asset record contains:
 
 - stable `AssetId` derived from type + logical source key
-- `BuildKey` derived from deterministic build metadata
+- `BuildKey` derived from deterministic build inputs
 - source/dependency records
 - cooked output paths
 - missing-output diagnostics
@@ -40,20 +40,39 @@ The manifest also contains both forward and reverse dependency maps. Reverse loo
 
 `Build All Assets` now runs the manifest step after Texture → Mesh → Font conversion. A missing cooked output makes the manifest step fail instead of silently shipping an incomplete asset set.
 
-### 8.2 Derived Data Cache — next
+### 8.2 Derived Data Cache — implemented
 
-Add a cache keyed by `BuildKey`:
+The primary cookers now share a local content-addressed cache rooted at:
 
-- local cache root under `Generated/DerivedDataCache`
-- restore output when the key already exists
-- populate cache after successful conversion
-- cache statistics: hit / miss / restored bytes / written bytes
+`Generated/DerivedDataCache`
 
-The cache must be optional and disposable; deleting it must never lose source content.
+Texture, Mesh, and Font builds calculate a pre-conversion SHA-256 `BuildKey` from source/dependency fingerprints, build version, platform/configuration, and relevant converter settings. The same key is written into `.buildmeta.json` and reused by the Asset Manifest, so the cook pipeline and manifest no longer have separate build identities.
 
-### 8.3 Incremental dependency invalidation
+On a required rebuild the cooker performs:
+
+1. calculate `BuildKey`
+2. check the DDC entry
+3. on hit, restore cooked output and regenerate current build metadata
+4. on miss, run the converter and store the successful output in DDC
+
+Single-file Texture/Mesh products use atomic temporary-file replacement when populating the cache. Font variants cache their multi-file texture/metadata outputs as one BuildKey-scoped entry.
+
+Each cooker reports:
+
+- DDC hits
+- DDC misses
+- restored bytes
+- written bytes
+
+`-DisableDdc` bypasses cache lookup/storage, while `-Force` deliberately rebuilds from source and refreshes the matching cache entry. The cache is disposable: source files and runtime outputs remain outside `Generated/DerivedDataCache`, so deleting the cache never removes source content.
+
+CI statically validates the DDC contract on all three cookers and parses the PowerShell scripts on Windows before compiling C++.
+
+### 8.3 Incremental dependency invalidation — next
 
 Use `DependencyGraph.Reverse` to identify exactly which assets are affected by a changed source file. This will replace broad rebuild decisions with dependency-driven rebuild requests.
+
+The first implementation should support both explicit changed paths and a saved dependency snapshot, then resolve affected `AssetId`/`BuildKey` records before deciding which cooker needs to run.
 
 ### 8.4 Package / Chunk
 
