@@ -39,7 +39,9 @@ jobs:
         run: python Tools/Scripts/CheckBrokenReferences.py
 
       - name: Run Automated Tests
-        run: python -m unittest discover -s Tests/Phase5 -p "test_*.py" -v
+        run: |
+          python -m unittest discover -s Tests/Phase5 -p "test_*.py" -v
+          python -m unittest discover -s Tests/Phase7 -p "test_*.py" -v # Frames in Flightの危険な単一Upload再導入をCIで防ぐ。
 
   compile:
     name: Compile ${{ matrix.configuration }}
@@ -71,5 +73,5 @@ jobs:
       - name: Explain compile-only validation
         shell: pwsh
         run: |
-          Write-Host "Phase 5 CI validates every C++ translation unit in ${{ matrix.configuration }}."
+          Write-Host "Phase 5/7 CI validates every C++ translation unit in ${{ matrix.configuration }}."
           Write-Host "The full Debug link is intentionally separate because the hosted runner does not provide the repository's assimp-vc143-mtd.lib binary."
