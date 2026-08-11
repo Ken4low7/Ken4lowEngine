@@ -10,20 +10,12 @@ namespace Ken4lowEngine
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 
-
-	/// -------------------------------------------------------------
-	///				　	シングルトンインスタンス
-	/// -------------------------------------------------------------
 	SRVManager* SRVManager::GetInstance()
 	{
 		static SRVManager instance;
 		return &instance;
 	}
 
-
-	/// -------------------------------------------------------------
-	///						　初期化処理
-	/// -------------------------------------------------------------
 	void SRVManager::Initialize(DirectXCommon* dxCommon)
 	{
 		dxCommon_ = dxCommon;
@@ -50,17 +42,39 @@ namespace Ken4lowEngine
 			freeIndices.pop();
 		}
 		persistentAllocated_.assign(kTransientBeginIndex, uint8_t{ 0 });
-		freeTransientRanges_.clear();
-		freeTransientRanges_.push_back({ kTransientBeginIndex, kTransientSRVCount });
-		pendingTransientRanges_.clear();
+		transientFrameStates_.clear();
+
+		const uint32_t frameCount = dxCommon_->GetCommandManager()
+			? (std::max)(1u, dxCommon_->GetCommandManager()->GetFrameResourceCount())
+			: 1u;
+		if (frameCount > kTransientSRVCount)
+		{
+			throw std::runtime_error("Frame resource count exceeds transient SRV descriptor capacity");
+		}
+
+		transientFrameStates_.resize(frameCount);
+		const uint32_t descriptorsPerFrame = kTransientSRVCount / frameCount;
+		const uint32_t remainder = kTransientSRVCount % frameCount;
+		uint32_t nextTransientIndex = kTransientBeginIndex;
+		uint32_t minimumFrameCapacity = kTransientSRVCount;
+		for (uint32_t frameIndex = 0; frameIndex < frameCount; ++frameIndex)
+		{
+			FrameTransientState& state = transientFrameStates_[frameIndex];
+			state.firstIndex = nextTransientIndex;
+			state.capacity = descriptorsPerFrame + (frameIndex < remainder ? 1u : 0u);
+			minimumFrameCapacity = (std::min)(minimumFrameCapacity, state.capacity);
+			nextTransientIndex += state.capacity;
+		}
+
 		descriptorStats_ = {};
 		descriptorStats_.persistentCapacity = kTransientBeginIndex - 1;
 		descriptorStats_.transientCapacity = kTransientSRVCount;
+		descriptorStats_.transientCapacityPerFrame = minimumFrameCapacity;
+		descriptorStats_.currentFrameIndex = dxCommon_->GetCommandManager()
+			? dxCommon_->GetCommandManager()->GetCurrentFrameIndex()
+			: 0u;
 	}
 
-	/// -------------------------------------------------------------
-	///					　		終了処理
-	/// -------------------------------------------------------------
 	void SRVManager::Finalize()
 	{
 		std::lock_guard<std::mutex> lock(allocationMutex);
@@ -73,16 +87,11 @@ namespace Ken4lowEngine
 			freeIndices.pop();
 		}
 		persistentAllocated_.clear();
-		freeTransientRanges_.clear();
-		pendingTransientRanges_.clear();
+		transientFrameStates_.clear();
 		descriptorStats_ = {};
 		dxCommon_ = nullptr;
 	}
 
-
-	/// -------------------------------------------------------------
-	///						　スプライト用のSRV生成
-	/// -------------------------------------------------------------
 	void SRVManager::CreateSRVForTexture2D(uint32_t srvIndex, ID3D12Resource* pResource, DXGI_FORMAT Format, UINT MipLevels)
 	{
 		if (!pResource)
@@ -99,14 +108,9 @@ namespace Ken4lowEngine
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MipLevels = MipLevels;
-
 		dxCommon_->GetDevice()->CreateShaderResourceView(pResource, &srvDesc, GetCPUDescriptorHandle(srvIndex));
 	}
 
-
-	/// -------------------------------------------------------------
-	///					ストラクチャバッファ用のSRV生成
-	/// -------------------------------------------------------------
 	void SRVManager::CreateSRVForStructureBuffer(uint32_t srvIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride)
 	{
 		if (!pResource)
@@ -126,7 +130,6 @@ namespace Ken4lowEngine
 		srvDesc.Buffer.NumElements = numElements;
 		srvDesc.Buffer.StructureByteStride = structureByteStride;
 		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-
 		dxCommon_->GetDevice()->CreateShaderResourceView(pResource, &srvDesc, GetCPUDescriptorHandle(srvIndex));
 	}
 
@@ -145,7 +148,6 @@ namespace Ken4lowEngine
 		srvDesc.Texture2D.MostDetailedMip = 0;
 		srvDesc.Texture2D.MipLevels = 1;
 		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-
 		dxCommon_->GetDevice()->CreateShaderResourceView(shadowMap, &srvDesc, GetCPUDescriptorHandle(srvIndex));
 	}
 
@@ -188,29 +190,17 @@ namespace Ken4lowEngine
 		dxCommon_->GetDevice()->CreateShaderResourceView(shadowCube, &srvDesc, GetCPUDescriptorHandle(srvIndex));
 	}
 
-
-	/// -------------------------------------------------------------
-	///						ヒープセットコマンド
-	/// -------------------------------------------------------------
 	void SRVManager::PreDraw()
 	{
 		ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeap_.Get() };
 		dxCommon_->GetCommandManager()->GetCommandList()->SetDescriptorHeaps(1, descriptorHeaps);
 	}
 
-
-	/// -------------------------------------------------------------
-	///						SRVセットコマンド
-	/// -------------------------------------------------------------
 	void SRVManager::SetGraphicsRootDescriptorTable(UINT RootParameterIndex, uint32_t srvIndex)
 	{
 		dxCommon_->GetCommandManager()->GetCommandList()->SetGraphicsRootDescriptorTable(RootParameterIndex, GetGPUDescriptorHandle(srvIndex));
 	}
 
-
-	/// -------------------------------------------------------------
-	///						深度バッファのSRVを作成
-	/// -------------------------------------------------------------
 	void SRVManager::CreateSRVForDepthBuffer(uint32_t srvIndex, ID3D12Resource* depthBuffer)
 	{
 		if (srvIndex >= kMaxSRVCount)
@@ -230,10 +220,6 @@ namespace Ken4lowEngine
 		dxCommon_->GetDevice()->CreateShaderResourceView(depthBuffer, &srvDesc, srvHandle);
 	}
 
-
-	/// -------------------------------------------------------------
-	///						Persistent Descriptor確保
-	/// -------------------------------------------------------------
 	uint32_t SRVManager::Allocate()
 	{
 		std::lock_guard<std::mutex> lock(allocationMutex);
@@ -265,10 +251,6 @@ namespace Ken4lowEngine
 		return index;
 	}
 
-
-	/// -------------------------------------------------------------
-	///						Persistent Descriptor解放
-	/// -------------------------------------------------------------
 	void SRVManager::Free(uint32_t srvIndex)
 	{
 		std::lock_guard<std::mutex> lock(allocationMutex);
@@ -290,133 +272,77 @@ namespace Ken4lowEngine
 		}
 	}
 
-
-	/// -------------------------------------------------------------
-	///						Transient Descriptor確保
-	/// -------------------------------------------------------------
 	SRVManager::TransientDescriptorAllocation SRVManager::AllocateTransient(uint32_t count)
 	{
 		if (count == 0)
 		{
 			throw std::runtime_error("Transient descriptor allocation count must be greater than zero");
 		}
-
-		std::lock_guard<std::mutex> lock(allocationMutex);
-		CollectTransientLocked();
-
-		if (!dxCommon_ || !dxCommon_->GetFenceManager())
+		if (!dxCommon_ || !dxCommon_->GetCommandManager())
 		{
-			throw std::runtime_error("Transient descriptor allocation requires an initialized fence manager");
+			throw std::runtime_error("Transient descriptor allocation requires an initialized command manager");
+		}
+		if (dxCommon_->GetCommandManager()->IsCommandListSubmitted())
+		{
+			throw std::runtime_error("Transient descriptors cannot be allocated while the command list is submitted");
 		}
 
-		for (std::size_t rangeIndex = 0; rangeIndex < freeTransientRanges_.size(); ++rangeIndex)
+		std::lock_guard<std::mutex> lock(allocationMutex);
+		const uint32_t frameIndex = dxCommon_->GetCommandManager()->GetCurrentFrameIndex();
+		RefreshTransientFrameLocked(frameIndex);
+
+		FrameTransientState& state = transientFrameStates_[frameIndex];
+		if (count > state.capacity - state.cursor)
 		{
-			DescriptorRange& freeRange = freeTransientRanges_[rangeIndex];
-			if (freeRange.count < count)
-			{
-				continue;
-			}
-
-			const uint32_t firstIndex = freeRange.firstIndex;
-			freeRange.firstIndex += count;
-			freeRange.count -= count;
-			if (freeRange.count == 0)
-			{
-				freeTransientRanges_.erase(freeTransientRanges_.begin() + static_cast<std::ptrdiff_t>(rangeIndex));
-			}
-
-			const UINT64 retireFenceValue = dxCommon_->GetFenceManager()->GetCurrentValue() + 1;
-			pendingTransientRanges_.push_back({ { firstIndex, count }, retireFenceValue });
-			descriptorStats_.transientInFlight += count;
-			descriptorStats_.transientHighWater = (std::max)(descriptorStats_.transientHighWater, descriptorStats_.transientInFlight);
-			descriptorStats_.pendingTransientRangeCount = static_cast<uint32_t>(pendingTransientRanges_.size());
-			++descriptorStats_.transientAllocationCount;
-
-			TransientDescriptorAllocation allocation{};
-			allocation.firstIndex = firstIndex;
-			allocation.count = count;
-			allocation.cpuHandle = GetCPUDescriptorHandle(firstIndex);
-			allocation.gpuHandle = GetGPUDescriptorHandle(firstIndex);
-			allocation.retireFenceValue = retireFenceValue;
-			return allocation;
+			++descriptorStats_.exhaustionCount;
+			throw std::runtime_error("No contiguous transient SRV descriptor range is available for the current frame");
 		}
 
-		++descriptorStats_.exhaustionCount;
-		throw std::runtime_error("No contiguous transient SRV descriptor range is available");
+		const uint32_t firstIndex = state.firstIndex + state.cursor;
+		state.cursor += count;
+		state.highWater = (std::max)(state.highWater, state.cursor);
+
+		descriptorStats_.currentFrameIndex = frameIndex;
+		descriptorStats_.transientInUse += count;
+		descriptorStats_.transientHighWater = (std::max)(descriptorStats_.transientHighWater, descriptorStats_.transientInUse);
+		++descriptorStats_.transientAllocationCount;
+
+		TransientDescriptorAllocation allocation{};
+		allocation.firstIndex = firstIndex;
+		allocation.count = count;
+		allocation.frameIndex = frameIndex;
+		allocation.cpuHandle = GetCPUDescriptorHandle(firstIndex);
+		allocation.gpuHandle = GetGPUDescriptorHandle(firstIndex);
+		return allocation;
 	}
 
-	void SRVManager::CollectTransient()
+	void SRVManager::RefreshTransientFrameLocked(uint32_t frameIndex)
 	{
-		std::lock_guard<std::mutex> lock(allocationMutex);
-		CollectTransientLocked();
-	}
+		if (!dxCommon_ || !dxCommon_->GetCommandManager() || frameIndex >= transientFrameStates_.size())
+		{
+			throw std::runtime_error("Invalid frame index for transient descriptor allocation");
+		}
 
-	void SRVManager::CollectTransientLocked()
-	{
-		if (!dxCommon_ || !dxCommon_->GetFenceManager())
+		FrameTransientState& state = transientFrameStates_[frameIndex];
+		const UINT64 frameFenceValue = dxCommon_->GetCommandManager()->GetFrameFenceValue(frameIndex);
+		if (state.initialized && state.observedFrameFenceValue == frameFenceValue)
 		{
 			return;
 		}
 
-		const UINT64 completedFenceValue = dxCommon_->GetFenceManager()->GetCompletedValue();
-		for (auto it = pendingTransientRanges_.begin(); it != pendingTransientRanges_.end();)
+		if (state.initialized && state.cursor > 0)
 		{
-			if (completedFenceValue < it->retireFenceValue)
-			{
-				++it;
-				continue;
-			}
-
-			const uint32_t reclaimedCount = it->range.count;
-			InsertFreeTransientRangeLocked(it->range);
-			if (descriptorStats_.transientInFlight >= reclaimedCount)
-			{
-				descriptorStats_.transientInFlight -= reclaimedCount;
-			}
+			const uint32_t reclaimedCount = state.cursor;
+			descriptorStats_.transientInUse = descriptorStats_.transientInUse >= reclaimedCount
+				? descriptorStats_.transientInUse - reclaimedCount
+				: 0u;
 			descriptorStats_.transientReclaimedCount += reclaimedCount;
-			it = pendingTransientRanges_.erase(it);
-		}
-		descriptorStats_.pendingTransientRangeCount = static_cast<uint32_t>(pendingTransientRanges_.size());
-	}
-
-	void SRVManager::InsertFreeTransientRangeLocked(DescriptorRange range)
-	{
-		if (range.count == 0)
-		{
-			return;
+			++descriptorStats_.transientFrameRecycleCount;
 		}
 
-		freeTransientRanges_.push_back(range);
-		std::sort(
-			freeTransientRanges_.begin(), freeTransientRanges_.end(),
-			[](const DescriptorRange& left, const DescriptorRange& right)
-			{
-				return left.firstIndex < right.firstIndex;
-			});
-
-		std::vector<DescriptorRange> merged;
-		merged.reserve(freeTransientRanges_.size());
-		for (const DescriptorRange& candidate : freeTransientRanges_)
-		{
-			if (merged.empty())
-			{
-				merged.push_back(candidate);
-				continue;
-			}
-
-			DescriptorRange& back = merged.back();
-			const uint64_t backEnd = static_cast<uint64_t>(back.firstIndex) + back.count;
-			const uint64_t candidateEnd = static_cast<uint64_t>(candidate.firstIndex) + candidate.count;
-			if (candidate.firstIndex > backEnd)
-			{
-				merged.push_back(candidate);
-				continue;
-			}
-
-			const uint64_t mergedEnd = (std::max)(backEnd, candidateEnd);
-			back.count = static_cast<uint32_t>(mergedEnd - back.firstIndex);
-		}
-		freeTransientRanges_ = std::move(merged); // Fence完了後だけRangeを戻し、GPU使用中Descriptorの上書きを防ぐ。
+		state.cursor = 0;
+		state.observedFrameFenceValue = frameFenceValue;
+		state.initialized = true; // Frame fence世代が変わった時だけArenaを戻し、GPU使用中Descriptorの上書きを防ぐ。
 	}
 
 	SRVManager::DescriptorStats SRVManager::GetDescriptorStats() const
@@ -425,10 +351,6 @@ namespace Ken4lowEngine
 		return descriptorStats_;
 	}
 
-
-	/// -------------------------------------------------------------
-	///				デスクリプタヒープを生成する
-	/// -------------------------------------------------------------
 	ComPtr<ID3D12DescriptorHeap> SRVManager::CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shadervisible)
 	{
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap;
@@ -438,14 +360,9 @@ namespace Ken4lowEngine
 		descriptorHeapDesc.Flags = shadervisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		HRESULT hr = device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&descriptorHeap));
 		assert(SUCCEEDED(hr));
-
 		return descriptorHeap;
 	}
 
-
-	/// -------------------------------------------------------------
-	///				　CPUデスクリプタヒープを取得する
-	/// -------------------------------------------------------------
 	D3D12_CPU_DESCRIPTOR_HANDLE SRVManager::GetCPUDescriptorHandle(uint32_t index)
 	{
 		if (!descriptorHeap_ || index >= kMaxSRVCount)
@@ -457,10 +374,6 @@ namespace Ken4lowEngine
 		return handle;
 	}
 
-
-	/// -------------------------------------------------------------
-	///				　GPUデスクリプタヒープを取得する
-	/// -------------------------------------------------------------
 	D3D12_GPU_DESCRIPTOR_HANDLE SRVManager::GetGPUDescriptorHandle(uint32_t index)
 	{
 		if (!descriptorHeap_ || index >= kMaxSRVCount)
