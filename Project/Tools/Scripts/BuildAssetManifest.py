@@ -88,7 +88,6 @@ def collect_outputs(meta: dict[str, Any]) -> list[str]:
 
 
 def logical_key(meta_path: Path, meta: dict[str, Any], project_dir: Path) -> str:
-    asset_type = str(meta.get("AssetType", "Unknown"))
     if meta.get("SourcePath"):
         base = normalize_path(str(meta["SourcePath"]))
     elif meta.get("FontPath"):
@@ -100,6 +99,16 @@ def logical_key(meta_path: Path, meta: dict[str, Any], project_dir: Path) -> str
     return f"{base}#{variant}" if variant else base
 
 
+def resolve_build_key(meta: dict[str, Any], fallback_payload: dict[str, Any]) -> str:
+    declared = str(meta.get("BuildKey", "")).strip().lower()
+    if declared:
+        if len(declared) != 64 or any(character not in "0123456789abcdef" for character in declared):
+            raise ValueError(f"Invalid BuildKey in build metadata: {declared}")
+        return declared
+
+    return canonical_sha256(fallback_payload)
+
+
 def build_asset_record(project_dir: Path, meta_path: Path, meta: dict[str, Any]) -> dict[str, Any]:
     asset_type = str(meta.get("AssetType", "Unknown"))
     key = logical_key(meta_path, meta, project_dir)
@@ -107,7 +116,7 @@ def build_asset_record(project_dir: Path, meta_path: Path, meta: dict[str, Any])
     outputs = collect_outputs(meta)
 
     missing_outputs = [path for path in outputs if not (project_dir / path).is_file()]
-    build_key_payload = {
+    fallback_build_key_payload = {
         "AssetType": asset_type,
         "BuildVersion": int(meta.get("BuildVersion", 0)),
         "LogicalKey": key,
@@ -115,13 +124,15 @@ def build_asset_record(project_dir: Path, meta_path: Path, meta: dict[str, Any])
         "Outputs": outputs,
         "BuildMeta": meta,
     }
+    # New cook scripts publish the pre-conversion key so the DDC and manifest share one identity.
+    build_key = resolve_build_key(meta, fallback_build_key_payload)
 
     return {
         "AssetId": fnv1a64(f"{asset_type.lower()}:{key.lower()}"),
         "AssetType": asset_type,
         "LogicalKey": key,
         "BuildVersion": int(meta.get("BuildVersion", 0)),
-        "BuildKey": canonical_sha256(build_key_payload),
+        "BuildKey": build_key,
         "MetaPath": normalize_path(meta_path.relative_to(project_dir).as_posix()),
         "Dependencies": dependencies,
         "OutputPaths": outputs,
