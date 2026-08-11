@@ -38,11 +38,11 @@ Each asset record contains:
 
 The manifest also contains both forward and reverse dependency maps. Reverse lookup is the basis for incremental rebuild invalidation.
 
-`Build All Assets` now runs the manifest step after Texture → Mesh → Font conversion. A missing cooked output makes the manifest step fail instead of silently shipping an incomplete asset set.
+`Build All Assets` seals the manifest only after Font -> Texture -> Mesh cooking has completed. A missing cooked output makes the manifest step fail instead of silently shipping an incomplete asset set.
 
 ### 8.2 Derived Data Cache — implemented
 
-The primary cookers now share a local content-addressed cache rooted at:
+The primary cookers share a local content-addressed cache rooted at:
 
 `Generated/DerivedDataCache`
 
@@ -146,8 +146,10 @@ A global `Generated/Packages/PackageManifest.json` records:
 `Build All Assets` now runs:
 
 ```text
-Textures -> Meshes -> Fonts -> Asset Manifest -> Asset Packages
+Fonts -> Textures -> Meshes -> Asset Manifest -> Asset Packages
 ```
+
+Font is intentionally first because generated font atlas PNG files are Texture source assets. `RunBuildAssets.bat` and `EditorAssetBuildService` use the same dependency order.
 
 `BuildIncrementalAssets.py` also fingerprints `Config/AssetChunks.json`. A chunk-policy-only edit causes repackaging without unnecessarily running Texture/Mesh/Font converters, while a successful content cook refreshes packages after the new manifest is written.
 
@@ -159,9 +161,56 @@ Tools\Scripts\RunBuildAssetPackages.bat
 
 `EditorAssetBuildService` exposes a `Packages` build kind and includes it in the full build sequence.
 
-### 8.5 Deterministic cook validation — next
+### 8.5 Deterministic cook validation — implemented
 
-Final Phase 8 validation will build the same input twice and compare manifest/build keys, cooked hashes, chunk manifests, and package hashes. The goal is reproducible runtime content from identical source data.
+`ValidateDeterministicCook.py` performs a real two-pass full cook and compares the runtime identity/content produced by both passes.
+
+Each pass deliberately bypasses DDC and forces the primary converters in dependency order:
+
+```text
+Fonts -Force -DisableDdc
+  -> Textures -Force -DisableDdc
+  -> Meshes -Force -DisableDdc
+  -> Asset Manifest
+  -> Asset Packages
+```
+
+By bypassing DDC, a pass cannot accidentally prove only that cached bytes are stable; the converters must reproduce the same output from the same source inputs.
+
+After each pass the validator captures:
+
+- complete `AssetManifest.json` SHA-256
+- every `AssetId`
+- every `BuildKey`
+- every cooked output size and SHA-256
+- `PackageManifest.json` SHA-256
+- every chunk manifest SHA-256
+- every `.kpak` size and SHA-256
+- one canonical whole-pipeline signature SHA-256
+
+The two signatures are recursively compared. Any changed BuildKey, cooked byte, manifest byte, chunk manifest, or package byte fails validation with exit code `2` and records the exact difference path.
+
+Generated diagnostics are:
+
+```text
+Generated/AssetPipeline/DeterminismPass1.json
+Generated/AssetPipeline/DeterminismPass2.json
+Generated/AssetPipeline/DeterminismReport.json
+```
+
+Normal Windows execution uses:
+
+```text
+Tools\Scripts\RunValidateDeterministicCook.bat
+```
+
+The validation is intentionally separate from normal `Build All Assets` because it executes two full forced cooks. `EditorAssetBuildService` exposes a `Determinism` build kind for editor-side tooling without making every ordinary build pay the two-pass cost.
+
+Phase 8 automated tests validate signature stability, cooked-byte mismatch detection, BuildKey mismatch detection, deterministic package bytes, manifest dependency behavior, DDC contracts, and incremental invalidation logic. The final project-level acceptance run still requires a Windows machine with the real converter executables so both forced cook passes can be executed.
+
+## Phase 8 completion criteria
+
+The Phase 8 implementation is complete when all automated tests/compilation pass. The branch is ready to merge after one local `RunValidateDeterministicCook.bat` run reports `DETERMINISTIC COOK PASSED` with zero differences.
 
 ## Boundary with later phases
 
