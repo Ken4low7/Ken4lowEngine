@@ -172,21 +172,34 @@ namespace Ken4lowEngine
 
 	void DX12CommandManager::WaitAndReset()
 	{
-		if (!commandListSubmitted_ || !fenceManager_) return;
+		WaitAndPrepareFrame(currentFrameIndex_);
+	}
+
+	void DX12CommandManager::WaitAndPrepareFrame(uint32_t frameIndex)
+	{
+		if (!commandListSubmitted_ || !fenceManager_)
+		{
+			return;
+		}
+
+		const uint32_t submittedFrameIndex = currentFrameIndex_;
+		const uint32_t nextFrameIndex = IsValidFrameIndex(frameIndex) ? frameIndex : submittedFrameIndex;
 
 		const auto signalBegin = Clock::now();
 		const UINT64 fenceValue = fenceManager_->SignalAndGetValue(commandQueue_.Get());
 		performanceTiming_.fenceSignalMs = ToMilliseconds(signalBegin);
 
-		if (IsValidFrameIndex(currentFrameIndex_))
+		if (IsValidFrameIndex(submittedFrameIndex))
 		{
-			frameResources_[currentFrameIndex_].fenceValue = fenceValue;
+			frameResources_[submittedFrameIndex].fenceValue = fenceValue;
 		}
 
 		const auto waitBegin = Clock::now();
 		fenceManager_->WaitForValue(fenceValue);
 		performanceTiming_.fenceWaitMs = ToMilliseconds(waitBegin);
 
+		FrameResource& nextFrame = frameResources_[nextFrameIndex];
+		commandAllocator_ = nextFrame.commandAllocator;
 		const auto allocatorResetBegin = Clock::now();
 		const HRESULT allocatorResult = commandAllocator_->Reset();
 		performanceTiming_.allocatorResetMs = ToMilliseconds(allocatorResetBegin);
@@ -197,7 +210,10 @@ namespace Ken4lowEngine
 		const HRESULT commandListResult = commandList_->Reset(commandAllocator_.Get(), nullptr);
 		performanceTiming_.commandListResetMs = ToMilliseconds(commandListResetBegin);
 		assert(SUCCEEDED(commandListResult));
-		if (SUCCEEDED(commandListResult)) commandListSubmitted_ = false;
+		if (FAILED(commandListResult)) return;
+
+		currentFrameIndex_ = nextFrameIndex;
+		commandListSubmitted_ = false; // 完全待機モードでも次BackBufferと同じFrameResourceへ切り替える。
 	}
 
 } // namespace Ken4lowEngine
