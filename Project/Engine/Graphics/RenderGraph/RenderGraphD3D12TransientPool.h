@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Ken4lowEngine
@@ -117,7 +118,7 @@ namespace Ken4lowEngine
 
 				physicalSlot.heap->SetName(L"RenderGraph Transient Heap");
 				physicalHeapBytes_ += heapSize;
-				heapSlots_.push_back(std::move(physicalSlot));
+				heapSlots_.push_back(std::move(physicalSlot)); // Heap所有権をSlotへ移して再構築時まで保持する。
 			}
 			return true;
 		}
