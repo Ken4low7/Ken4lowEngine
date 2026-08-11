@@ -200,6 +200,8 @@ namespace Ken4lowEngine
 			return projectDir_ / "Tools" / "Scripts" / "RunBuildMeshes.bat";
 		case EditorAssetBuildKind::Fonts:
 			return projectDir_ / "Tools" / "Scripts" / "RunBuildFonts.bat";
+		case EditorAssetBuildKind::Manifest:
+			return projectDir_ / "Tools" / "Scripts" / "RunBuildAssetManifest.bat";
 		default:
 			return {};
 		}
@@ -209,8 +211,8 @@ namespace Ken4lowEngine
 	{
 		if (kind == EditorAssetBuildKind::All)
 		{
-			// Build All Assetsは変換依存を見やすくするためTextures→Meshes→Fontsで固定実行する。
-			return { EditorAssetBuildKind::Textures, EditorAssetBuildKind::Meshes, EditorAssetBuildKind::Fonts };
+			// Phase 8では変換完了後にManifestを確定し、依存関係と出力欠落を一度に検証する。
+			return { EditorAssetBuildKind::Textures, EditorAssetBuildKind::Meshes, EditorAssetBuildKind::Fonts, EditorAssetBuildKind::Manifest };
 		}
 		return { kind };
 	}
@@ -225,6 +227,8 @@ namespace Ken4lowEngine
 			return "Build Meshes";
 		case EditorAssetBuildKind::Fonts:
 			return "Build Fonts";
+		case EditorAssetBuildKind::Manifest:
+			return "Build Asset Manifest";
 		case EditorAssetBuildKind::All:
 			return "Build All Assets";
 		default:
