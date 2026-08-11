@@ -13,7 +13,7 @@ namespace Ken4lowEngine
 {
 	/// <summary>
 	/// CPU側のPass依存関係を宣言・検証・並べ替えする軽量Render Graph。
-	/// D3D12 Resource所有は既存Managerへ残し、Phase 6では実行順とResource lifetimeを管理する。
+	/// Phase 9ではResource access stateとhazard依存をGraph自身が保持する。
 	/// </summary>
 	class RenderGraph
 	{
@@ -34,6 +34,50 @@ namespace Ken4lowEngine
 			friend bool operator==(PassHandle left, PassHandle right) { return left.id == right.id; }
 		};
 
+		enum class AccessType : uint8_t
+		{
+			Read,
+			Write,
+			ReadWrite,
+		};
+
+		enum class ResourceState : uint8_t
+		{
+			Unknown,
+			Common,
+			RenderTarget,
+			DepthWrite,
+			DepthRead,
+			ShaderResource,
+			UnorderedAccess,
+			CopySource,
+			CopyDestination,
+			Present,
+		};
+
+		enum class HazardType : uint8_t
+		{
+			Explicit,
+			ReadAfterWrite,
+			WriteAfterRead,
+			WriteAfterWrite,
+		};
+
+		struct ResourceAccess
+		{
+			ResourceHandle resource{};
+			AccessType access = AccessType::Read;
+			ResourceState state = ResourceState::Unknown;
+		};
+
+		struct DependencyRecord
+		{
+			PassHandle before{};
+			PassHandle after{};
+			ResourceHandle resource{};
+			HazardType hazard = HazardType::Explicit;
+		};
+
 		struct ResourceLifetime
 		{
 			std::size_t firstPass = (std::numeric_limits<std::size_t>::max)();
@@ -47,12 +91,19 @@ namespace Ken4lowEngine
 			std::size_t resourceCount = 0;
 			std::size_t dependencyCount = 0;
 			std::size_t transientResourceCount = 0;
+			std::size_t rawHazardCount = 0;
+			std::size_t warHazardCount = 0;
+			std::size_t wawHazardCount = 0;
 		};
 
 		using ExecuteCallback = std::function<void()>;
 
 		void Reset();
 		ResourceHandle CreateResource(std::string name, bool imported = false);
+		PassHandle AddPass(
+			std::string name,
+			std::vector<ResourceAccess> accesses,
+			ExecuteCallback execute);
 		PassHandle AddPass(
 			std::string name,
 			std::vector<ResourceHandle> reads,
@@ -70,6 +121,9 @@ namespace Ken4lowEngine
 
 		[[nodiscard]] const CompileStats& GetCompileStats() const { return compileStats_; }
 		[[nodiscard]] const ResourceLifetime* GetResourceLifetime(ResourceHandle handle) const;
+		[[nodiscard]] const std::vector<ResourceAccess>* GetPassAccesses(PassHandle handle) const;
+		[[nodiscard]] const std::vector<DependencyRecord>& GetDependencies() const { return dependencyRecords_; }
+		[[nodiscard]] std::string_view GetResourceName(ResourceHandle handle) const;
 		[[nodiscard]] std::string_view GetPassName(PassHandle handle) const;
 		[[nodiscard]] std::size_t GetCompiledPassCount() const { return compiledOrder_.size(); }
 
@@ -83,8 +137,7 @@ namespace Ken4lowEngine
 		struct PassNode
 		{
 			std::string name;
-			std::vector<ResourceHandle> reads;
-			std::vector<ResourceHandle> writes;
+			std::vector<ResourceAccess> accesses;
 			std::vector<uint32_t> explicitDependencies;
 			ExecuteCallback execute;
 		};
@@ -94,6 +147,7 @@ namespace Ken4lowEngine
 		std::vector<ResourceNode> resources_;
 		std::vector<PassNode> passes_;
 		std::vector<uint32_t> compiledOrder_;
+		std::vector<DependencyRecord> dependencyRecords_;
 		CompileStats compileStats_{};
 		bool compiled_ = false;
 	};
