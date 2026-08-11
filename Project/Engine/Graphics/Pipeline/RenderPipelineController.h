@@ -8,6 +8,8 @@
 #include <functional>
 #include <vector>
 #include <Engine/Graphics/RenderGraph/RenderGraph.h>
+#include <Engine/Graphics/RenderGraph/RenderGraphTransientPool.h>
+#include <Engine/Graphics/RenderGraph/RenderGraphD3D12TransientPool.h> // Phase 9.4のheader-only allocation/backendを通常C++ buildでも検証する。
 
 namespace Ken4lowEngine
 {
