@@ -13,7 +13,7 @@ namespace Ken4lowEngine
 {
 	/// <summary>
 	/// CPU側のPass依存関係を宣言・検証・並べ替えする軽量Render Graph。
-	/// Phase 9ではResource access stateとhazard依存、Barrier計画をGraph自身が保持する。
+	/// Phase 9ではResource access state、hazard依存、Barrier計画、Pass CullingをGraph自身が保持する。
 	/// </summary>
 	class RenderGraph
 	{
@@ -110,6 +110,10 @@ namespace Ken4lowEngine
 		struct CompileStats
 		{
 			std::size_t passCount = 0;
+			std::size_t executedPassCount = 0;
+			std::size_t culledPassCount = 0;
+			std::size_t sideEffectPassCount = 0;
+			std::size_t outputResourceCount = 0;
 			std::size_t resourceCount = 0;
 			std::size_t dependencyCount = 0;
 			std::size_t transientResourceCount = 0;
@@ -147,6 +151,10 @@ namespace Ken4lowEngine
 			ExecuteCallback execute);
 		bool AddDependency(PassHandle before, PassHandle after);
 
+		// Output ResourceとSide Effect Passを明示するとCompile時に不要Passを後方到達解析で除外する。
+		bool MarkResourceOutput(ResourceHandle resource);
+		bool MarkPassSideEffect(PassHandle pass);
+
 		bool Compile(std::string* outError = nullptr);
 		bool Execute(std::string* outError = nullptr);
 		bool Execute(const BarrierCallback& barrierCallback, std::string* outError = nullptr);
@@ -156,6 +164,7 @@ namespace Ken4lowEngine
 		[[nodiscard]] const std::vector<ResourceAccess>* GetPassAccesses(PassHandle handle) const;
 		[[nodiscard]] const std::vector<DependencyRecord>& GetDependencies() const { return dependencyRecords_; }
 		[[nodiscard]] const std::vector<BarrierRecord>& GetBarrierPlan() const { return barrierPlan_; }
+		[[nodiscard]] bool IsPassCulled(PassHandle handle) const;
 		[[nodiscard]] std::string_view GetResourceName(ResourceHandle handle) const;
 		[[nodiscard]] std::string_view GetPassName(PassHandle handle) const;
 		[[nodiscard]] std::size_t GetCompiledPassCount() const { return compiledOrder_.size(); }
@@ -167,6 +176,7 @@ namespace Ken4lowEngine
 			ResourceLifetime lifetime{};
 			ResourceState initialState = ResourceState::Unknown;
 			ResourceState finalState = ResourceState::Unknown;
+			bool output = false;
 		};
 
 		struct PassNode
@@ -175,14 +185,18 @@ namespace Ken4lowEngine
 			std::vector<ResourceAccess> accesses;
 			std::vector<uint32_t> explicitDependencies;
 			ExecuteCallback execute;
+			bool sideEffect = false;
 		};
 
+		void ApplyPassCulling();
+		void RebuildResourceLifetimes();
 		bool BuildBarrierPlan(std::string* outError);
 		bool ValidateResourceHandle(ResourceHandle handle) const;
 
 		std::vector<ResourceNode> resources_;
 		std::vector<PassNode> passes_;
 		std::vector<uint32_t> compiledOrder_;
+		std::vector<uint8_t> livePassMask_;
 		std::vector<DependencyRecord> dependencyRecords_;
 		std::vector<BarrierRecord> barrierPlan_;
 		CompileStats compileStats_{};
