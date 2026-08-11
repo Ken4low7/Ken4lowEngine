@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "227526cea7907d90b16aaa581be4206787586ce2b233cdd36bcdddf06fd02ea4",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage2/crystal.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/crystal.dds",

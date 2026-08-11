@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "02336f7de4d96c89838f5fbea96f0d657d30189532eaf6369faf44bde50a9a74",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Common/ui_click_hint.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Common/ui_click_hint.dds",

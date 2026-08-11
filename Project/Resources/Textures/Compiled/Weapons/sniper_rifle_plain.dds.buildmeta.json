@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "29319f1e703ed9e271a8fa3321b2f764f48a322eb65925b2309b721dedc5c520",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Weapons/sniper_rifle_plain.png",
     "OutputPath":  "Resources/Textures/Compiled/Weapons/sniper_rifle_plain.dds",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "81355097df8d5fb38f382930783b13a745f218344162f8e22924fb2b6c9a0f50",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/wall_gray.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/wall_gray.dds",

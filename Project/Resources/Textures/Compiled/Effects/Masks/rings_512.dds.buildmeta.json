@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "f463caaf64a50eba11e2eeba50bc7d00a8f63eaa76f680ed80fe3e7c754d6fcf",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/Masks/rings_512.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/Masks/rings_512.dds",

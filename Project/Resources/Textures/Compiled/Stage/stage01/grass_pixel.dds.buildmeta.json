@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "b633f188b6ad714fd7462d73db640c705e6422920dcc919478354d2611291d68",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage01/grass_pixel.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/grass_pixel.dds",

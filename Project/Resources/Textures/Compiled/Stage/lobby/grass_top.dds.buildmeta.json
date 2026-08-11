@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "8086d1977d491c37ab32a7a2bf74572955c60ae3037451adf6b10f189623d852",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/grass_top.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/grass_top.dds",

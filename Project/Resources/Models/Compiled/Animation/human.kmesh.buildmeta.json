@@ -1,9 +1,10 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Mesh",
+    "BuildKey":  "e91291714d717ad78ded46f632cfd04e53ec7f05e0eb935a1623f9d154765579",
     "SourcePath":  "Resources/Models/Sources/Animation/human.gltf",
     "OutputPath":  "Resources/Models/Compiled/Animation/human.kmesh",
-    "DependencyFingerprint":  "5673a86ac367a55a82b9cbac8e9dc7c9226b0e917fc9369883262639f63f7f1f",
+    "DependencyFingerprint":  "a266b0fc05b6a6a796b7d9c287e61eb66edacd4a7a68cf6074654d93899e27b9",
     "Dependencies":  [
                          {
                              "Path":  "Resources/Models/Sources/Animation/human.bin",
@@ -12,8 +13,8 @@
                          },
                          {
                              "Path":  "Resources/Models/Sources/Animation/human.gltf",
-                             "SizeBytes":  96325,
-                             "Sha256":  "0b5910101fcd0d7ca3bd86138c20da408d8fc5730f4c66389d4d5eaf4c6f8cce"
+                             "SizeBytes":  90169,
+                             "Sha256":  "99c4f04e1aafb4c159d0c42f1ef8a248084df1efd5f4377e842d98e74024ddaf"
                          }
                      ]
 }

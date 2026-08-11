@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "3fa604fd6397941a20e56d423019fe8907351d4f071b3f038ded0412710ae8ad",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/yellow.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/yellow.dds",

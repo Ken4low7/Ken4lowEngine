@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Mesh",
+    "BuildKey":  "262e1d5270a58e05fba34cdb31277a1e2c789b5dd299b7ac4e2ba43e2f172c1c",
     "SourcePath":  "Resources/Models/Sources/Weapons/special_launcher.gltf",
     "OutputPath":  "Resources/Models/Compiled/Weapons/special_launcher.kmesh",
     "DependencyFingerprint":  "0639cf03c1a41ccc654613a21cdea0a5cbc6cd516503b91aecd6694713fa0099",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "355305c8be3aca1b2a491706d9b5be3d15ca9e9dad6f4b0c8410876b5b897e87",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Reticles/crosshair-white.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/crosshair-white.dds",

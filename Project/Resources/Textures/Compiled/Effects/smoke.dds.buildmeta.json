@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "9454600c3013213cef5c76eadc2f76f9e12480ed96d95c7348cf0cff43c31838",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/smoke.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/smoke.dds",

@@ -1,9 +1,10 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Mesh",
+    "BuildKey":  "dca0dbad76d2c39022c416faa8eeb29b697ac7d93f1d9d4f17de614ff8dee580",
     "SourcePath":  "Resources/Models/Sources/Characters/left_arm.gltf",
     "OutputPath":  "Resources/Models/Compiled/Characters/left_arm.kmesh",
-    "DependencyFingerprint":  "2ae675eebb8a5075679f4e4e3093d28b607588d9f786fc7af5d32e6846e46ef2",
+    "DependencyFingerprint":  "b49e53673850a8361e8146d864a227b10fe8f2c01d8e8884717855e9c64d18e5",
     "Dependencies":  [
                          {
                              "Path":  "Resources/Models/Sources/Characters/left_arm.bin",
@@ -12,8 +13,8 @@
                          },
                          {
                              "Path":  "Resources/Models/Sources/Characters/left_arm.gltf",
-                             "SizeBytes":  1893,
-                             "Sha256":  "27287800a3046b32797acd5700868d7a2fbbf9993d386b31c33547f82dbb7289"
+                             "SizeBytes":  1756,
+                             "Sha256":  "146f07170d68fa206dc5d345aaed4782d696e80c4dcdbe128628cefc48f6838b"
                          }
                      ]
 }

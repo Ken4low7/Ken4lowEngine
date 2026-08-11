@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "9f996ece539447caf28ef64a8216a5364daf63e1c9fc737c4b6d029885b3f387",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage2/torch.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/torch.dds",

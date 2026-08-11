@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "359c946f277bad1fa939ee499b94d8b895cc3d307cc29637d3bd9d516ba6927c",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Sample/uvChecker.png",
     "OutputPath":  "Resources/Textures/Compiled/Sample/uvChecker.dds",

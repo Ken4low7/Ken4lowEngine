@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "dbacd7b978a727e1a896ac639a5cf91c64a2b8b85719778ac3091c7986c3d388",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage01/leaf_pixel.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/leaf_pixel.dds",

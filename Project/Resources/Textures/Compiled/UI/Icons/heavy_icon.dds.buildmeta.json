@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "078ea7d6b8dd8e0fd119a487d15c34a78792d69b4b85d415b5fc6b92276998d6",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/heavy_icon.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/heavy_icon.dds",

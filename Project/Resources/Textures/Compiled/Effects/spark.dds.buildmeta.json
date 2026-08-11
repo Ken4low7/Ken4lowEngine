@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "3c14df7699e9ddc76770215199df40121b5eb9df3c6274299d90a410e9399bad",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/spark.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/spark.dds",

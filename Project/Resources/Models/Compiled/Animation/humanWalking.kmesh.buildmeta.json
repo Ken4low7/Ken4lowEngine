@@ -1,9 +1,10 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Mesh",
+    "BuildKey":  "d5902a84a998281afc987dba90bb841cfca19c525936357392d70d5937855bbd",
     "SourcePath":  "Resources/Models/Sources/Animation/humanWalking.gltf",
     "OutputPath":  "Resources/Models/Compiled/Animation/humanWalking.kmesh",
-    "DependencyFingerprint":  "35f1b1f05e743b5c748a2611db42a9793698f7288847d3a0b59df77e27a528d2",
+    "DependencyFingerprint":  "2c642fa29f4da51f5b4e218814be5a090a163974bde668bd7150dc680b5cff46",
     "Dependencies":  [
                          {
                              "Path":  "Resources/Models/Sources/Animation/humanWalking.bin",
@@ -12,8 +13,8 @@
                          },
                          {
                              "Path":  "Resources/Models/Sources/Animation/humanWalking.gltf",
-                             "SizeBytes":  96496,
-                             "Sha256":  "ed22647298bd09c98ae085cc166bea3f99448e71f00e99f82c3e61bc4d9ed6b5"
+                             "SizeBytes":  90331,
+                             "Sha256":  "5083dd37b3288d4e50af5c86ad5f0322cdc5d15301ef1618f49f6b22c361e441"
                          }
                      ]
 }

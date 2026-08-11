@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "5058e7c4fb229a34d1350ec32b1bba067499cb54a8fe18d28e78ce0f6cb1b728",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/sniper_icon.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/sniper_icon.dds",

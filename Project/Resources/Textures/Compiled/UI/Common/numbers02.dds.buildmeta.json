@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "eb05ef4ac131b69c47e7924621a96f4fdc863aba800a288faeed45acc1656250",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Common/numbers02.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Common/numbers02.dds",

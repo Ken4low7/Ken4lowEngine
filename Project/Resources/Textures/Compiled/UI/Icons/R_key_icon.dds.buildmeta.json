@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "9b457b7f7f4c7ec941e7075f796d3d2a4bb0cb80d0dfb7831cb6a953b183e8e5",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/R_key_icon.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/R_key_icon.dds",

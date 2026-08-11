@@ -1,9 +1,10 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Mesh",
+    "BuildKey":  "560f788261032b9f5b6dbe84df99a7f5954409ea302253d2dd0acabf228634cd",
     "SourcePath":  "Resources/Models/Sources/Sample/cube.gltf",
     "OutputPath":  "Resources/Models/Compiled/Sample/cube.kmesh",
-    "DependencyFingerprint":  "109bea0c865ec009821580990ef857badb59d02161f78ecc651ded60cf415c30",
+    "DependencyFingerprint":  "cecd784b81642265747161788d2c9ca80a10eeb93ab70bbfa2f62356bdbd9fea",
     "Dependencies":  [
                          {
                              "Path":  "Resources/Models/Sources/Sample/cube.bin",
@@ -12,8 +13,8 @@
                          },
                          {
                              "Path":  "Resources/Models/Sources/Sample/cube.gltf",
-                             "SizeBytes":  1877,
-                             "Sha256":  "9aa73e19884bb986631ad22e4361facad08257aa26de568b3b341666316a7ea8"
+                             "SizeBytes":  1740,
+                             "Sha256":  "73701a6206c841e0489f06c43495947ea6203ccc8923c364c81ef84982d32039"
                          }
                      ]
 }

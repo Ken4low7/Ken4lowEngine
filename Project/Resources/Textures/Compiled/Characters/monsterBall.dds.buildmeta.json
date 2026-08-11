@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "26228ba09922b4b91d472316eeeea78cd9f4527c74386f6591a3f4f3e3a34aef",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Characters/monsterBall.png",
     "OutputPath":  "Resources/Textures/Compiled/Characters/monsterBall.dds",

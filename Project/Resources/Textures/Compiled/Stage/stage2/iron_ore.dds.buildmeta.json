@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "82c1725668a69b56f4f30dad282f0a864a6a36441ce171c7045cc06ebeb24da1",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage2/iron_ore.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/iron_ore.dds",

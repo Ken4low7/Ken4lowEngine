@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "42866260fde4da35438d8c982c9d4cdc39f37f9e8647aa90fd3c0630d040194c",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/gradationLine.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/gradationLine.dds",

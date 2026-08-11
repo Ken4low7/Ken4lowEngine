@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "3278db3189374c5219530920e31de63683947fb1b0d65bf443f4fbe6503ef6bf",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/ammo_icon.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/ammo_icon.dds",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "3e7d5b625a5e67acbd2d81d930e38692d99d718b8c801a71aa41051b23ab8512",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Characters/steve.png",
     "OutputPath":  "Resources/Textures/Compiled/Characters/steve.dds",

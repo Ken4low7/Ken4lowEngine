@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "92973bb3bdb5bbbbe4677b677d9df4c6a08067c4619134fbe40b0b799480121e",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/heart_half.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/heart_half.dds",

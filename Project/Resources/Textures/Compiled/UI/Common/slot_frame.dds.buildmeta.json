@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "c383bf6e21a10e9db153cf44a4a0d6cc84fce50b6a45e541c0468686fdd360bb",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Common/slot_frame.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Common/slot_frame.dds",

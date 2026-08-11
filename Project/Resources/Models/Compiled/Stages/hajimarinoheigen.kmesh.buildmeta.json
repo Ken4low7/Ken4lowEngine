@@ -1,9 +1,10 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Mesh",
+    "BuildKey":  "0ab3466b8b864606cb9c314deb1adb697a481b9da269d28e474046346fb235c6",
     "SourcePath":  "Resources/Models/Sources/Stages/hajimarinoheigen.gltf",
     "OutputPath":  "Resources/Models/Compiled/Stages/hajimarinoheigen.kmesh",
-    "DependencyFingerprint":  "e426d3d1a05ea84a0d4d8e17a1edd0c4f55afcc5f94fa037156b79682356687b",
+    "DependencyFingerprint":  "b89d282298de90efa18cdd46a75d9031161bbff5be8899667c680a73955eb7d3",
     "Dependencies":  [
                          {
                              "Path":  "Resources/Models/Sources/Stages/hajimarinoheigen.bin",
@@ -12,8 +13,8 @@
                          },
                          {
                              "Path":  "Resources/Models/Sources/Stages/hajimarinoheigen.gltf",
-                             "SizeBytes":  717651,
-                             "Sha256":  "84045e17605496c9081e07d6cbc0b5be6505009085194682ee9291df433d10d0"
+                             "SizeBytes":  672734,
+                             "Sha256":  "1609cfb4b8a638746d100b7bdbf74155463475feaa0419a8fdc0ca0d001bc490"
                          }
                      ]
 }

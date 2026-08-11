@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "6adf7b30982ee6ec9e8572e57c01889e1afdb59081bd6bd1f6e513a1a962210d",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Reticles/kill_center_flash_core_no_logo.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/kill_center_flash_core_no_logo.dds",

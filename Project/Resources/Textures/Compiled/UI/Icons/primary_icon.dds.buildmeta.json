@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "89e0bf51cec09092e2691e5e3cb1b97e59068cbc2be0b30f2360ff51fd98e6d5",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/primary_icon.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/primary_icon.dds",

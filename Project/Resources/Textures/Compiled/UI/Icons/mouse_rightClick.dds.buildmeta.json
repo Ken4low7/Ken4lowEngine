@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "b63795cb27733c367016972ae4fbcf94f2913b7c470cb493464c2b3ea81b3741",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/mouse_rightClick.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/mouse_rightClick.dds",

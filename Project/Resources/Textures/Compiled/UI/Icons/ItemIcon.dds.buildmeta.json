@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "7659a8f5d0112f8409e2e60d986ffc09ec89c7dc5324a869a4c84cd93211940f",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/ItemIcon.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/ItemIcon.dds",

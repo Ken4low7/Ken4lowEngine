@@ -1,11 +1,12 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Font",
+    "BuildKey":  "b14da54ea80d6c35b1d7ed735090cecf10154c674ff7f830984f56a3f89a353e",
     "Variant":  "JP",
     "FontPath":  "Resources/Fonts/Sources/DotGothic16-Regular.ttf",
     "CharsetPath":  "Resources/Fonts/Charsets/JPCharset.txt",
     "FontSha256":  "ff706ab702fd4446207c70af564f68b62205c9972f1917f68ba739c61bb6aa18",
-    "CharsetSha256":  "256dc8d0a93fe5ad24427419382a258fa7b329c91912ae97bbd6c38ae8aea190",
+    "CharsetSha256":  "ea717da506808ba1626c071e36852d7347f376dfa79bf79493898c39f7f8ea56",
     "FontSize":  48,
     "AtlasWidth":  1024,
     "AtlasHeight":  1024,

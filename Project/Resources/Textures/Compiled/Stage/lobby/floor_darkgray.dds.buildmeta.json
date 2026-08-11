@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "a1db50a9bbe8bcab8976c3ccf7064b88a9937364044ab5475610d00c62527832",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/floor_darkgray.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/floor_darkgray.dds",

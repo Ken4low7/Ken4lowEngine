@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "d51bf1871d444ca178adf7e41616f10cab9b9aef7310f05ceb050b9a8617fad4",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Common/logo_rittai_sensen.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Common/logo_rittai_sensen.dds",

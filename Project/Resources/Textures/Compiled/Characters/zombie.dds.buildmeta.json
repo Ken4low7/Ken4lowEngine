@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "a9c5d35414966028d7d323cd1fbfada6e1ac5de4026214594dfdec22786a4e61",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Characters/zombie.png",
     "OutputPath":  "Resources/Textures/Compiled/Characters/zombie.dds",

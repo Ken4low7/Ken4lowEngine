@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "b6b3df16979780cf6138908b605d2db0ac532bdb966f5c747bc6629710857869",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage01/Block_Flower.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/Block_Flower.dds",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "33cd75f6a28232590429a097a91280c98a2d589f90464e58f5a38ebae203fbfc",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Weapons/melee_knife_plain.png",
     "OutputPath":  "Resources/Textures/Compiled/Weapons/melee_knife_plain.dds",

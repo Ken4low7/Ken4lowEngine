@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "1b508d5658ccf75e71019c195d840c6203f1143c0f55c56db56a9151a76ffdae",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage2/black.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/black.dds",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "766d3f6a36e1f879a2056008113e79c6941f7cfe8347000128fbf92c470c52c8",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/SkyBox/Cloud.png",
     "OutputPath":  "Resources/Textures/Compiled/SkyBox/Cloud.dds",

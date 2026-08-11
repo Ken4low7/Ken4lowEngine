@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "fc31704cfb3e75a75866aa6577792c84ca5f108e425b7b8824c9233ed5f1f6a4",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Font/JP/DotGothic16-Regular_atlas.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Font/JP/DotGothic16-Regular_atlas.dds",

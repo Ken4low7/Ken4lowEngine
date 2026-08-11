@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "95581ca2504d32e8e1cd1994508eda436cc82a942ea042d75d7bd7ac24017559",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Reticles/hitmarker.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/hitmarker.dds",

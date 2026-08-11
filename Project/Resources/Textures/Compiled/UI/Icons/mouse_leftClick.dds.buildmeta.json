@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "6bb13401bb46ed689b21b957b6a7460fd2e3bfbbebf47decddb32775c5ca6442",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/mouse_leftClick.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/mouse_leftClick.dds",

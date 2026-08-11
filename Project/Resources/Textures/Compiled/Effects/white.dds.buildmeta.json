@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "7b723c938e4e19563bb597683c3bb4f2d6fa8729dd7f80c0a9b06847ef6c03f7",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/white.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/white.dds",

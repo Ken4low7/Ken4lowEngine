@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "cd829dd06d77c78b8a211f63ce71ac4d9289dd4afb286d4d29602f764496175b",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Reticles/reticle_kill_m4a1.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/reticle_kill_m4a1.dds",

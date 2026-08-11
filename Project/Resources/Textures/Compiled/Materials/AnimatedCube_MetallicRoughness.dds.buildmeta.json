@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "745585f93a9958d3081c6620625cafa2d1e1bdb5b3963f1f1a5bd99c3b5da1a9",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Materials/AnimatedCube_MetallicRoughness.png",
     "OutputPath":  "Resources/Textures/Compiled/Materials/AnimatedCube_MetallicRoughness.dds",

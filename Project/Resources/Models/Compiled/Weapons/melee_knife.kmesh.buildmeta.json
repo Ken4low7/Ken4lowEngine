@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Mesh",
+    "BuildKey":  "f1c320e6fde85ddbfecb9ce3fa113538884dd6665c48ee4f1d503a447884b7da",
     "SourcePath":  "Resources/Models/Sources/Weapons/melee_knife.gltf",
     "OutputPath":  "Resources/Models/Compiled/Weapons/melee_knife.kmesh",
     "DependencyFingerprint":  "d5eba469ceaf8f3f5c0607c3e91ba6bb2c0cca348ce94c0465020b855c27e327",

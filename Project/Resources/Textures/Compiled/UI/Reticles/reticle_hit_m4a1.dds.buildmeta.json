@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "7edfcc2f97853e17700e62679a73f8ef95d1261ca7345faa686987a920b47558",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Reticles/reticle_hit_m4a1.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/reticle_hit_m4a1.dds",

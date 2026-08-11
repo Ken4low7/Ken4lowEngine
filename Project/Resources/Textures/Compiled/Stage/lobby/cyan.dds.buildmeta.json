@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "e6523325a83675824a325543ba58eedd5bd73eeb52491f7db59f313653ddb36b",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/cyan.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/cyan.dds",

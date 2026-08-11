@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "f055670ce8031ac461f08ec6dae1ef55e82da3ca7fcebe6fe4e828a00a5e802b",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Reticles/crosshair_plus_glow.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/crosshair_plus_glow.dds",

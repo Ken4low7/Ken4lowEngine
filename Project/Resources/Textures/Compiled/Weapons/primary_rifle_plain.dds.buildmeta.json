@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "32fe7fcf0af5a6f038637ca9aad9d225b850181315534abc88f7e1ec63f062f5",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Weapons/primary_rifle_plain.png",
     "OutputPath":  "Resources/Textures/Compiled/Weapons/primary_rifle_plain.dds",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "8838cd501bc680443556bfac28b406ca05ef432484bbebd4f2176d29971929c1",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Misc/button_green.png",
     "OutputPath":  "Resources/Textures/Compiled/Misc/button_green.dds",

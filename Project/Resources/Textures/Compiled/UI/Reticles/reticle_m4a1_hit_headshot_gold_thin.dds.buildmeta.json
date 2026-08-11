@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "0ae23ed88ee34c59437366c4ea9b0633dcc27b4c6dbe3e2629c0e99cadce8105",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Reticles/reticle_m4a1_hit_headshot_gold_thin.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/reticle_m4a1_hit_headshot_gold_thin.dds",

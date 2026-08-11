@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "d9e43b84cdbb451b08522ef871ace3b0473a8dd9e7e81ef6a32f274933797b1a",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Reticles/hitmarker_arrows_glow.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/hitmarker_arrows_glow.dds",

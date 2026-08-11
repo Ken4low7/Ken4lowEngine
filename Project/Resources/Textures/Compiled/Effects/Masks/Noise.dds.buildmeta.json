@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "c255d3610e4e48783fa92bf1a614ef85b41819285f2ed85ee0b61d73444f90a0",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/Masks/Noise.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/Masks/Noise.dds",

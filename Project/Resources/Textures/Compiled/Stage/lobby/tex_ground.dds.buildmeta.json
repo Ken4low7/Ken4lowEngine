@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "12e43140a2739ee82dab7195b7a75f6edd3bdaa24cfd0ad946bb6c273daff4aa",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/tex_ground.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/tex_ground.dds",

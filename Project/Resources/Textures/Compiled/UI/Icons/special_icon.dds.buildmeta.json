@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "a3ce2e20a4b3525239f85483c620aff2cb2cda6d28829c4cf2167bae523d17b9",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/special_icon.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/special_icon.dds",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "9b017fd4ca958a857236274e1a45c432b4e173cc07ee17d099c969bfea71e16f",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage01/bark_pixel.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/bark_pixel.dds",

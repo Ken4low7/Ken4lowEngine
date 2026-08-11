@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "5f47eedba6953dfccd945131ed95fc614434e808d72cba0e070f7340709ff464",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/wood.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/wood.dds",

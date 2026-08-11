@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "ab2352dc09fedc0aaf83fb6934904dc8320039a00ca13b67c2ecd8a6802b203f",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/flash.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/flash.dds",

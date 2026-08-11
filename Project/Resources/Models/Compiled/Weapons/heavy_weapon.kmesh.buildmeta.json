@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Mesh",
+    "BuildKey":  "39f282881c6cea5ea0c1a1df2764ac3ab37d88b17da60bfee579b5e98f38869a",
     "SourcePath":  "Resources/Models/Sources/Weapons/heavy_weapon.gltf",
     "OutputPath":  "Resources/Models/Compiled/Weapons/heavy_weapon.kmesh",
     "DependencyFingerprint":  "621fab8d38b582a4e4ccbd114e8ab9bde8150e0eabed8a5de02685368553ef54",

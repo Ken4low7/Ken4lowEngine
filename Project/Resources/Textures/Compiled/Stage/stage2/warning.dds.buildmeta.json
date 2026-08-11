@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "e7c541f0202e9d954c8ffb528f32430a8ad862f4e3e6164b1f02b9ded27da345",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage2/warning.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/warning.dds",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "c9686ae0213f065bf2fa6f9f845d04de0a29791ce63621d7a474b2b6f43a0ac0",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/black.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/black.dds",

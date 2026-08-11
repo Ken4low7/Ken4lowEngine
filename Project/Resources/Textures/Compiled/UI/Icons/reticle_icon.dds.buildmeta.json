@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "9239e3becaa44b16243ffe99b57867f988d55934626dadbb9416a1bad644cf7d",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/reticle_icon.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/reticle_icon.dds",

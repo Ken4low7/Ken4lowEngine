@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "513f41914fa94c906875e1fb841ea623e871612109835d4ac4af422ac61b7e04",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage01/Block_Grass.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/Block_Grass.dds",

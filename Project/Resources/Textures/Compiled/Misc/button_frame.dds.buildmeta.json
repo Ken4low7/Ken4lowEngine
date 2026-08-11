@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "35db9b0922f6cf618968ac11e450305fed0d69fdf9fe3725fcb6ffb56f0d53b6",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Misc/button_frame.png",
     "OutputPath":  "Resources/Textures/Compiled/Misc/button_frame.dds",

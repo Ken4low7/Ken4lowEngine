@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Mesh",
+    "BuildKey":  "371c7fcbdd78470a758258ef28893b5b6e1b07fbeeefe2c659a8c6bcdee5a083",
     "SourcePath":  "Resources/Models/Sources/Weapons/sniper_rifle.gltf",
     "OutputPath":  "Resources/Models/Compiled/Weapons/sniper_rifle.kmesh",
     "DependencyFingerprint":  "f3da4ae5ad9e577ac90e1216887a81a5fdbe0b1068f96a6d195c51486f164ffa",

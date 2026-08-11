@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "1f2016990e669d0763a0a306bd02961dc4ce9e6625e3af058dd8ae45c6a6475d",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Font/font_ascii.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Font/font_ascii.dds",

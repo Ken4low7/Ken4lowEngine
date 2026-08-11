@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Mesh",
+    "BuildKey":  "cb518365e29533375ca5e1543116fd228f472ef96b13c15292d07e354488d553",
     "SourcePath":  "Resources/Models/Sources/Weapons/primary_rifle.gltf",
     "OutputPath":  "Resources/Models/Compiled/Weapons/primary_rifle.kmesh",
     "DependencyFingerprint":  "68c4b7d0f7e940fbcad4639f7776aa2bd88aec273bae968e7fe074ff34f24120",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "2c1296da5d607069fbf8f8abc1a4f6113bc720db5778a9ae73caa5dabb03af8c",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage2/rail.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/rail.dds",

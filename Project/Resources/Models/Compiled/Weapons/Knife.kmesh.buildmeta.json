@@ -1,9 +1,10 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Mesh",
+    "BuildKey":  "0910c8bf3afcf07975198efaab11b13929db0fc0ea2cecf9e4156739d3d6434d",
     "SourcePath":  "Resources/Models/Sources/Weapons/Knife.gltf",
     "OutputPath":  "Resources/Models/Compiled/Weapons/Knife.kmesh",
-    "DependencyFingerprint":  "8929494757c88abef4612d3486dd30d84b6a788106a4d188748abfbd629008f9",
+    "DependencyFingerprint":  "4449941fac29e9e40b2fb477d4a0c5335b6457a7c0317b765c0df1eec18410ec",
     "Dependencies":  [
                          {
                              "Path":  "Resources/Models/Sources/Weapons/Knife.bin",
@@ -12,8 +13,8 @@
                          },
                          {
                              "Path":  "Resources/Models/Sources/Weapons/Knife.gltf",
-                             "SizeBytes":  1994,
-                             "Sha256":  "97a016ae634868bb4e5b6f74f4965e1d0e3e77cef48eb60f295b635b038ff61e"
+                             "SizeBytes":  1852,
+                             "Sha256":  "b6b44c4233ec0823a137321fb74db1d8e24d76e394219009b9378a5eccd3bee4"
                          }
                      ]
 }

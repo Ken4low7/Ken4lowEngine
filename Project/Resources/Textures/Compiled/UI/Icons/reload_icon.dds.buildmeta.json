@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "6008e2572689c4e9ca367ee7f9d527cf999184dde85c91e778414b9334c69983",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/reload_icon.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/reload_icon.dds",

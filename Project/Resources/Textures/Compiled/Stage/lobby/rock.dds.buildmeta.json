@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "94b9928b9a9715489fe4eab162a0303eda6fd23c32c18c5ef48511d6dec58e55",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/rock.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/rock.dds",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "2e33c1b1f9da2286be56e971295b55161bb7204f47d59701089a5f37dc9278c5",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Sample/Image_0.png",
     "OutputPath":  "Resources/Textures/Compiled/Sample/Image_0.dds",

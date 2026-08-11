@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "9386dd65954c869f3214a66cd79049aa282c7ed806df98ea6392424071b77a81",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Common/reload-circle.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Common/reload-circle.dds",

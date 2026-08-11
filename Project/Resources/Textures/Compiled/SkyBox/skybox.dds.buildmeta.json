@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "0c91aa8033fc139fed882599f63625128f719dd261be16c36a493cc003a292ed",
     "Operation":  "Copy",
     "SourcePath":  "Resources/Textures/Sources/SkyBox/skybox.dds",
     "OutputPath":  "Resources/Textures/Compiled/SkyBox/skybox.dds",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "a5e11443b3135cbbbe2fb3991e178bba4cc3e80406d1b21eb1de53dbe8b1542b",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/heart_death.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/heart_death.dds",

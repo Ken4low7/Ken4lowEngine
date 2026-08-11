@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "0dfb85fcb80dc7c196daff824d4ff3b0a0c59d3636059090ac332d2cc54c2a81",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Reticles/reticle_m4a1_kill_confirm_red_thin.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/reticle_m4a1_kill_confirm_red_thin.dds",

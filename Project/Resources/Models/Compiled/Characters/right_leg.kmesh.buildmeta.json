@@ -1,9 +1,10 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Mesh",
+    "BuildKey":  "2890ede3cf53171b0b5fc266bcba00c21b237e16c04660d30b57fc138d2afd70",
     "SourcePath":  "Resources/Models/Sources/Characters/right_leg.gltf",
     "OutputPath":  "Resources/Models/Compiled/Characters/right_leg.kmesh",
-    "DependencyFingerprint":  "8f83859ee9c67ac39251e75b47a2243b911398eceb28017774975d228d544e8d",
+    "DependencyFingerprint":  "fec68526e69e332de741dbea9e03ece3235dd9805a0e54f4f1cd49dadac2835c",
     "Dependencies":  [
                          {
                              "Path":  "Resources/Models/Sources/Characters/right_leg.bin",
@@ -12,8 +13,8 @@
                          },
                          {
                              "Path":  "Resources/Models/Sources/Characters/right_leg.gltf",
-                             "SizeBytes":  1894,
-                             "Sha256":  "332592b18fc997fe561764f931be347ea85460672eb553bbe8fcd4a9945c0b05"
+                             "SizeBytes":  1757,
+                             "Sha256":  "87eebd7b9fa478c28b41d87b8a2fedd762a3535fcf0dc8cd59d77711b85b8339"
                          }
                      ]
 }

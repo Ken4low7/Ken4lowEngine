@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "eda34b66609066ea216d7063fcf8745919340a8ebeaafd32dc9a56e5edd0082b",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/StageSelect/stage02_preview.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/StageSelect/stage02_preview.dds",

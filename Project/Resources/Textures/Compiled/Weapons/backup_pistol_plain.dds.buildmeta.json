@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "20eedd8c739bc42c2f1434190b72dabec85377ea1f75078641720a554a0d887a",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Weapons/backup_pistol_plain.png",
     "OutputPath":  "Resources/Textures/Compiled/Weapons/backup_pistol_plain.dds",

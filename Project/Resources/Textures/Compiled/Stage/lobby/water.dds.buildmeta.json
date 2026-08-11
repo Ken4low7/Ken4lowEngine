@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "3dc5feedeccf25bc4a8e484cc311204cab3582afa87498f34884fbe752b48d49",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/water.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/water.dds",

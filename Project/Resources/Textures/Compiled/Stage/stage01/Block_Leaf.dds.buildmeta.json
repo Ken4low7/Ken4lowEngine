@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "8af505861f9622923a1150154de1f4eb78fb7793ade9d9670c8beb5ac1eb330f",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage01/Block_Leaf.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/Block_Leaf.dds",

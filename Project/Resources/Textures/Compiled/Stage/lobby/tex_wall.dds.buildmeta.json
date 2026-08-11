@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "e0ffb2f7d5f9f297194b1aca7876c5f8de49fb4e6b7c5c63b47139a4ea52e54a",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/tex_wall.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/tex_wall.dds",

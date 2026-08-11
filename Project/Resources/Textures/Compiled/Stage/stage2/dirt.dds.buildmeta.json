@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "e105fadc81754e32cefb1858e9a6d2725bbd8deda7f1b009a8c2cd54dea42029",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage2/dirt.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/dirt.dds",

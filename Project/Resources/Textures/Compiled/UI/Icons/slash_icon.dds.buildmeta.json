@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "70812340accda3be1e35359c998dc7f02de5c0ba96af1857c0100bfcf811979c",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/slash_icon.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/slash_icon.dds",

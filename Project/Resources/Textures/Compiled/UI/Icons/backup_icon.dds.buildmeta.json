@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "993938f466d97f3eb20047871aa73aa2d6ef889f7d3c67bc5d209c2f77959b64",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/backup_icon.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/backup_icon.dds",

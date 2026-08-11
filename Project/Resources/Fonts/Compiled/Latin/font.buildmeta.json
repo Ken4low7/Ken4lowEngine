@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Font",
+    "BuildKey":  "5b29964139f9dad935db912a78d7cb7051442fd50911ba094461ffed98dae750",
     "Variant":  "Latin",
     "FontPath":  "Resources/Fonts/Sources/DotGothic16-Regular.ttf",
     "CharsetPath":  "Resources/Fonts/Charsets/LatinCharset.txt",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "0a1a9026dbef989e65a2c5461691bb943671fcdfe81380fb9af7547dfcf639fa",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage01/Block_Dirt.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/Block_Dirt.dds",

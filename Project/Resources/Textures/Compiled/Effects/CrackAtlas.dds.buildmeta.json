@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "bab8b9d5135b2ada09faba0cceaad8143adc8805fafd1b8e2d9c219841ca8b94",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/CrackAtlas.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/CrackAtlas.dds",

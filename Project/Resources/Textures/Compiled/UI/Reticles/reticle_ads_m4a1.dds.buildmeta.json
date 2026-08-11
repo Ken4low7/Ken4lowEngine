@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "565c1a8365c367d6346a61dab30aa39bd70a8058ae4ef78a2c50e4360324aec6",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Reticles/reticle_ads_m4a1.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/reticle_ads_m4a1.dds",

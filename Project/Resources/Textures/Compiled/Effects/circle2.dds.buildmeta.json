@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "aa7dd9a6b6326746bbe0e6be7c2e16fa34a459f5b8210915d05296a56ba699c0",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/circle2.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/circle2.dds",

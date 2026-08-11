@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "b4e38db836c42011121d6fbf7219b9ffaaad56284c643aee22441e8de71357d4",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage2/lava.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/lava.dds",

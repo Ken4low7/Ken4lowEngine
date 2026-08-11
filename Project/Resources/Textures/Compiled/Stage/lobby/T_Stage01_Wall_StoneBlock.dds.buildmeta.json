@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "87143cecfa2ee0a96d97b7113a5bc06c98a05300cb95ea0e44e68d69cefd2b22",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/T_Stage01_Wall_StoneBlock.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/T_Stage01_Wall_StoneBlock.dds",

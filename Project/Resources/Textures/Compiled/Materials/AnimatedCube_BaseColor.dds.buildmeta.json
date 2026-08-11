@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "817d54d075c2b97cab8143c0178712ae1cf35bc87e0f331fb489bdaf5448abc6",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Materials/AnimatedCube_BaseColor.png",
     "OutputPath":  "Resources/Textures/Compiled/Materials/AnimatedCube_BaseColor.dds",

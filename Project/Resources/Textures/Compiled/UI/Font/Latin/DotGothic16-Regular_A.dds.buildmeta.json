@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "cf0bb7365ee3dab7af23e2700f56dcdc8648c2822b08dc44d93bc03ae0cdd3bf",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Font/Latin/DotGothic16-Regular_A.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Font/Latin/DotGothic16-Regular_A.dds",

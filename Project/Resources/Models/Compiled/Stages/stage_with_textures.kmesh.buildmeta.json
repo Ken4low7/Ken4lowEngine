@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  1,
     "AssetType":  "Mesh",
+    "BuildKey":  "507cb24b9d6eba5f8521ff03a1d756cafd9accd1ed55fc34a60c6e34fdf4fadd",
     "SourcePath":  "Resources/Models/Sources/Stages/stage_with_textures.gltf",
     "OutputPath":  "Resources/Models/Compiled/Stages/stage_with_textures.kmesh",
     "DependencyFingerprint":  "0eaaa74f7be408de19851380cd61e6b7a5408730c0d3cdd6aceaf28750cadb8a",

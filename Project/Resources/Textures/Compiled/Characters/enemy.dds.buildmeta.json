@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "b9730d6cce166071c02f8d49eac275d9c7060ce81916c0fd5855a4bc4cac9a6d",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Characters/enemy.png",
     "OutputPath":  "Resources/Textures/Compiled/Characters/enemy.dds",

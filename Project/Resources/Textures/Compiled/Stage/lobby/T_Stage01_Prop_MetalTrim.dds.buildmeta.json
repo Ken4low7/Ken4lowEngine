@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "c9756cf9a28a82dc74658b3ddc74239166333241b22e0ebfd49c30298567af63",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/T_Stage01_Prop_MetalTrim.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/T_Stage01_Prop_MetalTrim.dds",

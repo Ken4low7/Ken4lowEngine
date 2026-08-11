@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "1a49a4f1828717cb5182505719fbc2b4101ac00e13a63f2eb996ef8c60960753",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Icons/melee_icon.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Icons/melee_icon.dds",

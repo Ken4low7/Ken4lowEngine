@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "63e7021d4963d8a9e40bc682c003135372c219282072620a55dab9f6b2ef9067",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage2/coal_ore.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/coal_ore.dds",

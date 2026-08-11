@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "6f86f35e5f5b2f10b6c5b1fd3ccb39a34cf63f9522603d462118dfa2bd8dd1e6",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/T_Stage01_Cover_WoodCrate.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/T_Stage01_Cover_WoodCrate.dds",

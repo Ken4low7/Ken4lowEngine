@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "ad1101d23be27153b2732b3827eaef21fd2ab12568498ca0352629dbba8a4a1f",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/DebrisAtlas.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/DebrisAtlas.dds",

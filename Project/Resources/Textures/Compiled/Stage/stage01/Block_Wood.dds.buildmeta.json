@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "65202389b4c9c9abcaa4ea39079cae08aaa7f3e559df653f8d32af6970b32da6",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage01/Block_Wood.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/Block_Wood.dds",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "c69c832246665dd64629d93de30d1f3cc3cf8783ed41a2ced248c717cdeab5f8",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/accent_blue.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/accent_blue.dds",

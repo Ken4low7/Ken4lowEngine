@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "3671576d0709a3ba0e78d12e80b76ba0a422209cbd42b8cabbef7b745004b318",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Reticles/crosshair_circle_dot.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Reticles/crosshair_circle_dot.dds",

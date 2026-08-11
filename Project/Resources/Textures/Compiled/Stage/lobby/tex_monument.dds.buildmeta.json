@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "500a7df2a5687c78fa811c07b9ba19955e1e6a1efa202332c1d0e852496d6d45",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/lobby/tex_monument.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/lobby/tex_monument.dds",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "f9a432fa2a084b092cd3e2d60c731687b89d2ef03446752e72acb19ad2a9edf3",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/UI/Common/lock.png",
     "OutputPath":  "Resources/Textures/Compiled/UI/Common/lock.dds",

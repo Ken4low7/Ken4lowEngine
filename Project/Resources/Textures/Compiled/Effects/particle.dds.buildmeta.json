@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "2ceadf86513e42a15cd12f2d0644bcf0d12b2fa038a6ae937af4c0d33a836613",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/particle.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/particle.dds",

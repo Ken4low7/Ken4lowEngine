@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "332ab57c11ac9da3c26512bcb92ab801735deee14697dfeac5b0d8575383d3db",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Materials/fps_competitive_sym_v5.png",
     "OutputPath":  "Resources/Textures/Compiled/Materials/fps_competitive_sym_v5.dds",

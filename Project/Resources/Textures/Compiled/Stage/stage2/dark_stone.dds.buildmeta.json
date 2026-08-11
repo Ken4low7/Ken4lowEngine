@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "4bdd8f2d5665fc6fc2c216c4772fee5cc22ae4f515ed153fab20eee383301059",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage2/dark_stone.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/dark_stone.dds",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "097f5b68d029c0e7cdada089361acf2144cdc7a91b7bbd98d626fb2c2e73e477",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage2/marker.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage2/marker.dds",

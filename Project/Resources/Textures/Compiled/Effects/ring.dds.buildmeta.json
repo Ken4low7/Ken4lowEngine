@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "516ee2397e1269188a9b12e5a1f08a7e76744ff43bf2817bb06640d2f81b3857",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Effects/ring.png",
     "OutputPath":  "Resources/Textures/Compiled/Effects/ring.dds",

@@ -1,6 +1,7 @@
 ﻿{
     "BuildVersion":  3,
     "AssetType":  "Texture",
+    "BuildKey":  "e644e2f557b413bb8c0d5c58b50da7efd7eddf37b2e2285f3a28676406d5e3c4",
     "Operation":  "Convert",
     "SourcePath":  "Resources/Textures/Sources/Stage/stage01/Block_Stone.png",
     "OutputPath":  "Resources/Textures/Compiled/Stage/stage01/Block_Stone.dds",
