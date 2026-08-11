@@ -36,19 +36,26 @@ Read/Read access is intentionally not ordered by the resource graph. Explicit pa
 
 Compile statistics now separately count RAW/WAR/WAW hazards while `dependencyCount` continues to represent unique graph edges.
 
-### 9.2 D3D12 Barrier Generation — next
+### 9.2 D3D12 Barrier Generation — implemented foundation
 
-Use declared `ResourceState` values and compiled pass order to generate a transition plan:
+The graph compiler now creates a deterministic barrier plan after topological sorting. Resources can declare both an initial and final `ResourceState`, while each pass declares the state required for each resource access.
 
-- imported resource initial/final states
-- transition barriers between incompatible states
-- UAV ordering barriers where required
-- validation for unknown state declarations
-- graph diagnostics before executing D3D12 commands
+The generated plan contains:
 
-Physical barriers will initially be emitted on the graphics command list without changing queue scheduling.
+- transition barriers before passes when the previous known state differs from the requested state
+- UAV ordering barriers for consecutive unordered-access usage when either access writes
+- final-state transitions after the graph
+- the target resource/pass and before/after state for every barrier
 
-### 9.3 Pass Culling
+`CompileStats` records transition count, UAV barrier count, and accesses whose physical state is still unknown.
+
+Unknown state is handled conservatively. The graph never invents a D3D12 transition from an unknown state; an unknown-state access invalidates graph-side state knowledge until a later explicitly declared state establishes a new known state. Conflicting known states for the same resource inside one pass fail graph compilation.
+
+`RenderGraph::Execute(BarrierCallback, ...)` provides an execution hook that emits planned barriers immediately before the owning pass and final transitions after the graph. The plan itself stays API-independent so the D3D12 backend can translate `ResourceState` to native `D3D12_RESOURCE_STATES` without duplicating scheduling logic.
+
+The existing render targets still contain manual D3D12 transitions. Those resources are intentionally left on the legacy `Unknown` state path for now, so Phase 9 does not emit a second transition on top of an owner-managed barrier. Physical ownership will migrate resource-by-resource once a target is bound to the graph barrier callback. This preserves the current rendering result while establishing the automatic barrier source of truth.
+
+### 9.3 Pass Culling — next
 
 Mark graph outputs/side-effect passes, walk dependencies backwards, and skip passes whose outputs cannot contribute to a required sink.
 
@@ -91,7 +98,7 @@ The visualizer is diagnostic and must not become a second source of scheduling t
 
 ## Compatibility strategy
 
-The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking can therefore be validated before removing conservative dependencies.
+The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking and barrier planning can therefore be validated before removing conservative dependencies or replacing owner-managed resource transitions.
 
 Once barrier generation and pass-side-effect declarations are stable, explicit chains can be relaxed incrementally and the graph scheduler can expose real parallelism/reordering opportunities.
 
