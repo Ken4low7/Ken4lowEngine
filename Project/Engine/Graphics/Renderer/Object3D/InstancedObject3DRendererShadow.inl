@@ -24,7 +24,7 @@ namespace Ken4lowEngine
 			return;
 		}
 
-		const size_t shadowInstanceCount = std::min(sourceInstances_.size(), maxInstanceCount_);
+		const size_t shadowInstanceCount = (std::min)(sourceInstances_.size(), maxInstanceCount_); // Windowsのminマクロ展開を避けて標準関数を確実に呼ぶ。
 		const uint64_t shadowIndexCount = model_->GetTotalIndexCount() * static_cast<uint64_t>(shadowInstanceCount);
 		if (debugIndexBudget_ > 0 && shadowIndexCount > debugIndexBudget_)
 		{
