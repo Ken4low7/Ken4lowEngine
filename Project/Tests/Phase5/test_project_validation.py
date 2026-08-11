@@ -45,7 +45,10 @@ class ProjectValidationTests(unittest.TestCase):
             list(validation._visit_level_prefabs(document)),
             ["Resources/ActorPrefabs/TestActor.json"])
 
-    def test_repository_project_settings_is_valid(self) -> None:
+    def test_repository_project_settings_is_valid_when_present(self) -> None:
+        # The legacy scene configuration became optional after the project resource cleanup.
+        if not validation.SETTINGS_PATH.is_file():
+            self.skipTest("Legacy ProjectSettings.json is not used by this repository layout.")
         self.assertEqual(validation.validate_project_settings(), [])
 
 
