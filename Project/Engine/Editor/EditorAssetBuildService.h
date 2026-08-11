@@ -18,6 +18,7 @@ namespace Ken4lowEngine
 		Meshes,
 		Fonts,
 		Manifest,
+		Incremental,
 		All
 	};
 
