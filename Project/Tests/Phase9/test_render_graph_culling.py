@@ -5,6 +5,7 @@ import unittest
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 HEADER_PATH = PROJECT_ROOT / "Engine" / "Graphics" / "RenderGraph" / "RenderGraph.h"
 SOURCE_PATH = PROJECT_ROOT / "Engine" / "Graphics" / "RenderGraph" / "RenderGraph.cpp"
+PIPELINE_PATH = PROJECT_ROOT / "Engine" / "Graphics" / "Pipeline" / "RenderPipelineController.cpp"
 
 
 class RenderGraphCullingContractTests(unittest.TestCase):
@@ -12,6 +13,7 @@ class RenderGraphCullingContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.header = HEADER_PATH.read_text(encoding="utf-8")
         cls.source = SOURCE_PATH.read_text(encoding="utf-8")
+        cls.pipeline = PIPELINE_PATH.read_text(encoding="utf-8")
 
     def test_output_and_side_effect_roots_are_explicit(self) -> None:
         self.assertIn("MarkResourceOutput", self.header)
@@ -50,6 +52,18 @@ class RenderGraphCullingContractTests(unittest.TestCase):
         self.assertIn("scheduleIndex < compiledOrder_.size()", self.source)
         self.assertIn("resource.lifetime.firstPass = (std::min)(resource.lifetime.firstPass, scheduleIndex)", self.source)
         self.assertIn("resource.lifetime.lastPass = (std::max)(resource.lifetime.lastPass, scheduleIndex)", self.source)
+
+    def test_pipeline_marks_visible_output_and_editor_side_effects(self) -> None:
+        self.assertIn("renderGraph_.MarkResourceOutput(backBuffer)", self.pipeline)
+        self.assertIn("renderGraph_.MarkPassSideEffect(beginDrawPass)", self.pipeline)
+        self.assertIn("renderGraph_.MarkPassSideEffect(editorUiBuildPass)", self.pipeline)
+        self.assertIn("renderGraph_.MarkPassSideEffect(editorPickingPass)", self.pipeline)
+
+    def test_performance_ui_reports_culling_counts(self) -> None:
+        self.assertIn("graphStats.executedPassCount", self.pipeline)
+        self.assertIn("graphStats.culledPassCount", self.pipeline)
+        self.assertIn("graphStats.outputResourceCount", self.pipeline)
+        self.assertIn("graphStats.sideEffectPassCount", self.pipeline)
 
 
 if __name__ == "__main__":
