@@ -87,8 +87,7 @@ namespace Ken4lowEngine
 		Object3DPipelineSet pipelineSet_{};
 		InstancedObject3DPipelineSet instancedPipelineSet_{};
 		ShadowCasterPipelineSet shadowCasterPipelineSet_{};
-		ComPtr<ID3D12Resource> pointShadowPassResource_{};
-		PointShadowPassGPU* pointShadowPassData_ = nullptr;
+		PointShadowPassGPU pointShadowPassData_{};
 
 		FrustumCullingSystem frustumCullingSystem_{};
 		CullingCameraMode cullingCameraMode_ = CullingCameraMode::MainCamera;
