@@ -168,6 +168,11 @@ namespace Ken4lowEngine
 		[[nodiscard]] std::string_view GetResourceName(ResourceHandle handle) const;
 		[[nodiscard]] std::string_view GetPassName(PassHandle handle) const;
 		[[nodiscard]] std::size_t GetCompiledPassCount() const { return compiledOrder_.size(); }
+		// Transient allocation側がCulling後のschedule indexを元のPass Handleへ安全に戻すために公開する。
+		[[nodiscard]] PassHandle GetCompiledPassHandle(std::size_t scheduleIndex) const
+		{
+			return scheduleIndex < compiledOrder_.size() ? PassHandle{ compiledOrder_[scheduleIndex] } : PassHandle{};
+		}
 
 	private:
 		struct ResourceNode
