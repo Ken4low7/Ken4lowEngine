@@ -1,5 +1,4 @@
 import importlib.util
-import json
 import sys
 import tempfile
 import unittest
@@ -65,18 +64,27 @@ class IncrementalInvalidationTests(unittest.TestCase):
         plan = MODULE.build_plan(self.make_manifest(), ["Resources/Fonts/Sources/Test.ttf"])
         self.assertEqual([asset["AssetId"] for asset in plan["AffectedAssets"]], ["font01", "texture01"])
         self.assertEqual(plan["Cookers"], ["Font", "Texture"])
+        self.assertTrue(plan["RequiresPackaging"])
 
     def test_external_mesh_dependency_invalidates_mesh(self):
         plan = MODULE.build_plan(self.make_manifest(), ["Resources/Models/Sources/Stage/albedo.png"])
         self.assertEqual(plan["AffectedAssetCount"], 1)
         self.assertEqual(plan["AffectedAssets"][0]["AssetId"], "mesh01")
         self.assertEqual(plan["Cookers"], ["Mesh"])
+        self.assertTrue(plan["RequiresPackaging"])
 
     def test_new_untracked_source_selects_cooker_without_manifest_record(self):
         plan = MODULE.build_plan(self.make_manifest(), ["Resources/Textures/Sources/New/new.png"])
         self.assertEqual(plan["AffectedAssetCount"], 0)
         self.assertEqual(plan["Cookers"], ["Texture"])
         self.assertEqual(plan["UntrackedChangedPaths"], ["Resources/Textures/Sources/New/new.png"])
+
+    def test_chunk_config_change_repackages_without_running_cookers(self):
+        plan = MODULE.build_plan(self.make_manifest(), [MODULE.PACKAGE_CONFIG_PATH])
+        # Chunk policy changes only the package layout, so no source converter should run.
+        self.assertEqual(plan["Cookers"], [])
+        self.assertTrue(plan["PackageConfigChanged"])
+        self.assertTrue(plan["RequiresPackaging"])
 
     def test_snapshot_detects_content_change_and_removed_file(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -98,6 +106,15 @@ class IncrementalInvalidationTests(unittest.TestCase):
             removed = MODULE.build_snapshot(project, manifest)
             changed_removed = MODULE.diff_snapshots(current, removed)
             self.assertEqual(changed_removed, ["Resources/Models/Sources/Stage/albedo.png"])
+
+    def test_snapshot_tracks_chunk_configuration(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "Project"
+            config = project / MODULE.PACKAGE_CONFIG_PATH
+            config.parent.mkdir(parents=True, exist_ok=True)
+            config.write_text('{"ChunkConfigVersion":1,"DefaultChunk":"core"}', encoding="utf-8")
+            snapshot = MODULE.build_snapshot(project, self.make_manifest())
+            self.assertIn(MODULE.PACKAGE_CONFIG_PATH, snapshot["Files"])
 
     def test_missing_snapshot_marks_all_current_tracked_inputs_changed(self):
         with tempfile.TemporaryDirectory() as temporary:
