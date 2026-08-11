@@ -202,6 +202,9 @@ namespace Ken4lowEngine
 			return projectDir_ / "Tools" / "Scripts" / "RunBuildFonts.bat";
 		case EditorAssetBuildKind::Manifest:
 			return projectDir_ / "Tools" / "Scripts" / "RunBuildAssetManifest.bat";
+		case EditorAssetBuildKind::Incremental:
+			// Incremental build lets the dependency snapshot choose only the cooker categories that changed.
+			return projectDir_ / "Tools" / "Scripts" / "RunBuildIncrementalAssets.bat";
 		default:
 			return {};
 		}
@@ -229,6 +232,8 @@ namespace Ken4lowEngine
 			return "Build Fonts";
 		case EditorAssetBuildKind::Manifest:
 			return "Build Asset Manifest";
+		case EditorAssetBuildKind::Incremental:
+			return "Build Incremental Assets";
 		case EditorAssetBuildKind::All:
 			return "Build All Assets";
 		default:
