@@ -1,7 +1,9 @@
 #pragma once
 
 #include "EditorAssetDragDrop.h"
+#include "EditorAssetPlacementService.h"
 #include "EditorAssetRegistryV2.h"
+#include "EditorContext.h"
 #include "EditorGpuPickingManager.h"
 #include "EditorPlayController.h"
 #include "EditorTexturePreviewCache.h"
@@ -73,7 +75,7 @@ namespace Ken4lowEngine
 #endif
 		}
 
-		/// <summary>Gizmo判定後のMain ViewportクリックをObject-ID Pickingへ渡します。</summary>
+		/// <summary>Gizmo判定後のMain ViewportクリックをActor配置またはObject-ID Pickingへ渡します。</summary>
 		void UpdateViewportPicking()
 		{
 #ifdef USE_IMGUI
@@ -97,6 +99,16 @@ namespace Ken4lowEngine
 #ifdef USE_IMGUI
 		void UpdateViewportPickingInternal()
 		{
+			EditorContext* editorContext = EditorContext::GetInstance();
+			EditorWindowManager* windowManager = EditorWindowManager::GetInstance();
+			if (editorContext->HasPendingPlacement() &&
+				(ImGui::IsKeyPressed(ImGuiKey_Escape) || ImGui::IsMouseClicked(ImGuiMouseButton_Right)))
+			{
+				editorContext->ClearPlacementRequest();
+				windowManager->AddOutputLog(EditorLogLevel::Info, "Place Actorsの配置をキャンセルしました。");
+				return;
+			}
+
 			auto* viewportController = EditorViewportController::GetInstance();
 			const EditorTransformGizmo* transformGizmo = EditorTransformGizmo::GetInstance();
 			if (!viewportController->IsEditorDisplay() || transformGizmo->IsOver() || transformGizmo->IsUsing() ||
@@ -106,10 +118,10 @@ namespace Ken4lowEngine
 				return;
 			}
 
-			const EditorViewportRect& viewportRect = EditorWindowManager::GetInstance()->GetMainViewportRect();
+			const EditorViewportRect& viewportRect = windowManager->GetMainViewportRect();
 			if (!viewportRect.valid || !viewportRect.isHovered || viewportRect.imageSize.x <= 1.0f || viewportRect.imageSize.y <= 1.0f)
 			{
-				return; // 他のEditorウィンドウに遮られたクリックをMain Viewport Pickingへ流さない。
+				return; // 他のEditorウィンドウに遮られたクリックをMain Viewport操作へ流さない。
 			}
 
 			const ImVec2 mouse = ImGui::GetMousePos();
@@ -119,6 +131,35 @@ namespace Ken4lowEngine
 			const bool insideToolbar = mouse.y <= viewportRect.screenMin.y + 58.0f;
 			if (!insideViewport || insideToolbar)
 			{
+				return;
+			}
+
+			if (editorContext->HasPendingPlacement())
+			{
+				Vector3 worldPosition{};
+				const bool positionResolved = EditorAssetPlacementService::CalculateDropPosition(
+					{ mouse.x, mouse.y },
+					viewportRect.screenMin,
+					viewportRect.imageSize,
+					worldPosition);
+				if (!positionResolved)
+				{
+					windowManager->AddOutputLog(EditorLogLevel::Error, "Place Actorsの配置位置をワールド座標へ変換できませんでした。");
+					return;
+				}
+
+				const EditorPlacementRequest request = editorContext->GetPlacementRequest();
+				const EditorAssetPlacementResult result = EditorAssetPlacementService::PlaceActor(
+					windowManager->GetSceneManager(),
+					request,
+					worldPosition);
+				windowManager->AddOutputLog(
+					result.succeeded ? EditorLogLevel::Info : EditorLogLevel::Error,
+					result.message);
+				if (result.succeeded)
+				{
+					editorContext->ClearPlacementRequest(); // 1クリック1Actorにして通常の選択操作へ自動で戻す。
+				}
 				return;
 			}
 
