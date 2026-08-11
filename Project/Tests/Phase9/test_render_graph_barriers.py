@@ -5,6 +5,7 @@ import unittest
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 HEADER_PATH = PROJECT_ROOT / "Engine" / "Graphics" / "RenderGraph" / "RenderGraph.h"
 SOURCE_PATH = PROJECT_ROOT / "Engine" / "Graphics" / "RenderGraph" / "RenderGraph.cpp"
+D3D12_ADAPTER_PATH = PROJECT_ROOT / "Engine" / "Graphics" / "RenderGraph" / "RenderGraphD3D12Barrier.h"
 
 
 class RenderGraphBarrierContractTests(unittest.TestCase):
@@ -12,6 +13,7 @@ class RenderGraphBarrierContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.header = HEADER_PATH.read_text(encoding="utf-8")
         cls.source = SOURCE_PATH.read_text(encoding="utf-8")
+        cls.adapter = D3D12_ADAPTER_PATH.read_text(encoding="utf-8")
 
     def test_barrier_plan_types_are_exposed(self) -> None:
         self.assertIn("enum class BarrierType", self.header)
@@ -49,6 +51,21 @@ class RenderGraphBarrierContractTests(unittest.TestCase):
         self.assertIn("BarrierPlacement::BeforePass", self.source)
         self.assertIn("BarrierPlacement::AfterGraph", self.source)
         self.assertIn("barrierCallback(barrier)", self.source)
+
+    def test_d3d12_adapter_maps_and_emits_native_barriers(self) -> None:
+        self.assertIn("class RenderGraphD3D12BarrierEmitter", self.adapter)
+        self.assertIn("D3D12_RESOURCE_BARRIER_TYPE_TRANSITION", self.adapter)
+        self.assertIn("D3D12_RESOURCE_BARRIER_TYPE_UAV", self.adapter)
+        self.assertIn("D3D12_RESOURCE_STATE_RENDER_TARGET", self.adapter)
+        self.assertIn("D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE", self.adapter)
+        self.assertIn("D3D12_RESOURCE_STATE_PRESENT", self.adapter)
+        self.assertIn("commandList->ResourceBarrier(1, &barrier)", self.adapter)
+
+    def test_d3d12_adapter_requires_explicit_resource_binding(self) -> None:
+        self.assertIn("BindResource", self.adapter)
+        self.assertIn("ResolveResource", self.adapter)
+        self.assertIn("ResourceにD3D12 ResourceがBindされていません", self.adapter)
+        self.assertIn("legacy owner-managed barriers are never duplicated accidentally", self.adapter)
 
     def test_debug_fill_uses_exact_uint8_type(self) -> None:
         self.assertNotIn("std::fill(accessMasks.begin(), accessMasks.end(), 0u)", self.source)
