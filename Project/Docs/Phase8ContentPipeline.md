@@ -31,7 +31,7 @@ Phase 8 therefore formalizes the build side instead of replacing the runtime ass
 Each asset record contains:
 
 - stable `AssetId` derived from type + logical source key
-- `BuildKey` derived from deterministic build inputs
+- `BuildKey` derived from deterministic build metadata
 - source/dependency records
 - cooked output paths
 - missing-output diagnostics
@@ -68,13 +68,45 @@ Each cooker reports:
 
 CI statically validates the DDC contract on all three cookers and parses the PowerShell scripts on Windows before compiling C++.
 
-### 8.3 Incremental dependency invalidation — next
+### 8.3 Incremental dependency invalidation — implemented
 
-Use `DependencyGraph.Reverse` to identify exactly which assets are affected by a changed source file. This will replace broad rebuild decisions with dependency-driven rebuild requests.
+`BuildIncrementalAssets.py` combines the manifest reverse dependency graph with a saved content snapshot:
 
-The first implementation should support both explicit changed paths and a saved dependency snapshot, then resolve affected `AssetId`/`BuildKey` records before deciding which cooker needs to run.
+- snapshot: `Generated/AssetPipeline/DependencySnapshot.json`
+- report: `Generated/AssetPipeline/IncrementalBuildReport.json`
+- entry point: `Tools/Scripts/RunBuildIncrementalAssets.bat`
 
-### 8.4 Package / Chunk
+Every tracked dependency and source-root file is fingerprinted by SHA-256 and size. The next incremental run compares that snapshot against the current filesystem, merges any explicit `--changed` paths, then resolves affected assets through `DependencyGraph.Reverse`.
+
+Invalidation is transitive across cooked outputs. If an affected Font asset produces a PNG that is itself a Texture dependency, the Texture asset is also marked affected. This keeps generated-content chains correct without turning every source edit into `Build All Assets`.
+
+New source files that do not exist in the previous manifest are still classified by source root (`Font`, `Texture`, or `Mesh`) so the corresponding cooker is selected. Removed dependencies are detected because the saved snapshot retains the previous file state.
+
+The generated report records:
+
+- detected and explicit changed paths
+- affected `AssetId` / `BuildKey` / logical keys
+- required cooker categories
+- changed source paths that were not yet represented by the manifest
+
+When `--execute` is used, only those cooker categories are launched. Each existing cooker still performs its own per-asset metadata/DDC check, so unchanged assets inside the selected category remain cheap skips. After successful cooking the Asset Manifest is regenerated and a new dependency snapshot is committed atomically to the generated workspace.
+
+Example planning-only commands:
+
+```text
+python Tools/Scripts/BuildIncrementalAssets.py --project-dir .
+python Tools/Scripts/BuildIncrementalAssets.py --project-dir . --changed Resources/Models/Sources/Stage/stage.gltf
+```
+
+Normal Windows execution uses:
+
+```text
+Tools\Scripts\RunBuildIncrementalAssets.bat
+```
+
+`EditorAssetBuildService` now has an `Incremental` build kind backed by this entry point, allowing editor UI surfaces to opt into dependency-driven cooking without duplicating the planner logic.
+
+### 8.4 Package / Chunk — next
 
 After deterministic build products are stable:
 
