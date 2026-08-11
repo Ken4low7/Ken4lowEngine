@@ -43,6 +43,7 @@ jobs:
           python -m unittest discover -s Tests/Phase5 -p "test_*.py" -v
           python -m unittest discover -s Tests/Phase7 -p "test_*.py" -v # Frames in Flightの危険な単一Upload再導入をCIで防ぐ。
           python -m unittest discover -s Tests/Phase8 -p "test_*.py" -v # Content Pipelineの決定性・依存関係・DDC契約をCIで保証する。
+          python -m unittest discover -s Tests/Phase9 -p "test_*.py" -v # RenderGraphのResource access/hazard契約をCIで固定する。
 
   compile:
     name: Compile ${{ matrix.configuration }}
@@ -111,5 +112,5 @@ jobs:
       - name: Explain compile-only validation
         shell: pwsh
         run: |
-          Write-Host "Phase 5/7/8 CI validates every C++ translation unit in ${{ matrix.configuration }}."
+          Write-Host "Phase 5/7/8/9 CI validates every C++ translation unit in ${{ matrix.configuration }}."
           Write-Host "The full Debug link is intentionally separate because the hosted runner does not provide the repository's assimp-vc143-mtd.lib binary."
