@@ -55,13 +55,25 @@ Unknown state is handled conservatively. The graph never invents a D3D12 transit
 
 Physical emission is opt-in per bound resource. The existing render targets still contain manual D3D12 transitions and remain on the legacy `Unknown` state path, so Phase 9 never emits a second transition on top of an owner-managed barrier. Physical ownership can now migrate resource-by-resource by binding that target to the graph emitter and removing its old local transition at the same time.
 
-### 9.3 Pass Culling — next
+### 9.3 Pass Culling — implemented
 
-Mark graph outputs/side-effect passes, walk dependencies backwards, and skip passes whose outputs cannot contribute to a required sink.
+`RenderGraph` now supports explicit graph sinks through `MarkResourceOutput` and external side effects through `MarkPassSideEffect`. When at least one sink exists, compilation walks required predecessors backwards and removes passes that cannot contribute to a required result.
 
-Editor UI, readback/picking, Present, and other external side effects must be explicitly preserved.
+Culling intentionally distinguishes data requirements from execution-order hazards:
 
-### 9.4 Transient Resource Pool + Resource Aliasing
+- RAW predecessors stay alive because the surviving reader needs their produced data
+- explicit dependencies stay alive because they may represent externally declared ordering/side effects
+- WAR and WAW only order passes that already survive; they do not keep overwritten/dead work alive by themselves
+
+Resources with an explicit final state also act as roots because their end-of-graph state is externally observable. For backward compatibility, graphs that declare no output, side-effect pass, or final-state contract keep every pass exactly as before.
+
+After culling, logical resource lifetimes are rebuilt from the surviving compiled schedule rather than declaration order. This is required for Phase 9.4 because transient allocation and aliasing must reason about the actual executable lifetime, not a pass that was removed before execution.
+
+`CompileStats` now exposes declared/executed/culled pass counts plus output-resource and side-effect-root counts, and `IsPassCulled` makes the decision available to the future RenderGraph visualizer.
+
+The current `RenderPipelineController` still uses a conservative explicit chain while graph-side scheduling infrastructure is being hardened. That chain intentionally prevents aggressive removal of earlier passes until the pipeline's implicit side effects are migrated into explicit resource/side-effect declarations. Synthetic Phase 9 tests validate the culling contract independently before that ordering is relaxed.
+
+### 9.4 Transient Resource Pool + Resource Aliasing — next
 
 Convert logical transient lifetimes into reusable D3D12 allocations:
 
@@ -98,7 +110,7 @@ The visualizer is diagnostic and must not become a second source of scheduling t
 
 ## Compatibility strategy
 
-The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking and barrier planning can therefore be validated before removing conservative dependencies or replacing owner-managed resource transitions.
+The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking, barrier planning, and culling metadata can therefore be validated before removing conservative dependencies or replacing owner-managed resource transitions.
 
 Once barrier generation and pass-side-effect declarations are stable, explicit chains can be relaxed incrementally and the graph scheduler can expose real parallelism/reordering opportunities.
 
