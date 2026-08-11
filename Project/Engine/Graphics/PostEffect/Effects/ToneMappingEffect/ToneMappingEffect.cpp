@@ -56,14 +56,18 @@ namespace Ken4lowEngine
 		assert(computeRootSignature_ != nullptr);
 		assert(computePipelineState_ != nullptr);
 		assert(constantBuffer_ != nullptr);
+		if (!dxCommon_ || !toneMappingSetting_) return;
+
+		const FrameUploadArena::Allocation settingAllocation = dxCommon_->GetFrameUploadArena().AllocateConstant(*toneMappingSetting_);
+		if (!settingAllocation.IsValid()) return;
 
 		commandList->SetComputeRootSignature(computeRootSignature_.Get());
 		commandList->SetPipelineState(computePipelineState_.Get());
 
-		// 既存Compute PostEffectと同じt0/u0/b0順にして、ResourceBarrierとHeap切替の責務をManager側へ残す。
+		// ToneMapping設定は現在Frame専用CBへ複製し、前フレームのCompute読み取りとCPU編集を競合させない。
 		commandList->SetComputeRootDescriptorTable(0, UAVManager::GetInstance()->GetGPUDescriptorHandle(srvIndex));
 		commandList->SetComputeRootDescriptorTable(1, UAVManager::GetInstance()->GetGPUDescriptorHandle(uavIndex));
-		commandList->SetComputeRootConstantBufferView(2, constantBuffer_->GetGPUVirtualAddress());
+		commandList->SetComputeRootConstantBufferView(2, settingAllocation.gpuAddress);
 
 		const uint32_t threadGroupSizeX = 8;
 		const uint32_t threadGroupSizeY = 8;
