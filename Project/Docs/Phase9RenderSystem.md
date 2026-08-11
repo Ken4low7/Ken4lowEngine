@@ -104,13 +104,36 @@ Transient diagnostics now expose:
 
 The existing Scene/PostEffect render targets are still owner-managed committed resources and are intentionally not switched to placed transient resources in the same change. Physical migration remains opt-in per resource, just like Phase 9.2 barrier migration, so current rendering output stays the regression baseline while the pool/aliasing backend is validated.
 
-### 9.5 Descriptor Management — next
+### 9.5 Descriptor Management — implemented foundation
 
-Centralize transient/pass descriptor allocation and lifetime tracking instead of growing ad-hoc descriptor ownership in individual render paths.
+`SRVManager` now divides one shader-visible CBV/SRV/UAV heap into two non-overlapping ownership domains:
 
-The descriptor allocator should distinguish persistent asset descriptors from frame/transient descriptors, recycle only after the owning GPU frame is safe, expose high-water/exhaustion diagnostics, and provide deterministic ownership to RenderGraph-managed resources.
+- persistent descriptors for textures, ImGui, long-lived buffers, and asset-owned views
+- transient descriptors reserved for RenderGraph/pass-local descriptor tables
 
-### 9.6 Shader Cache + PSO Cache
+Persistent allocation is prevented from entering the transient range even when the persistent free list is empty. Persistent indices also track their allocated state so double-free and invalid-range frees fail immediately instead of silently inserting duplicate entries into the free queue.
+
+Transient allocation supports contiguous ranges rather than one descriptor at a time. This allows a future RenderGraph pass to reserve an entire descriptor table with one allocation and receive the first CPU/GPU handles plus the descriptor count.
+
+Transient ranges are retired against the GPU fence value that will represent the command list currently being recorded. `AllocateTransient` records `currentFence + 1`, and reclamation only returns that range to the free list when `GetCompletedValue()` reaches the retire value. This makes descriptor reuse independent from CPU frame timing and prevents a descriptor from being overwritten while an older frame can still reference it.
+
+Reclaimed ranges are sorted and merged before reuse so adjacent retired allocations do not permanently fragment the transient region. Allocation remains contiguous and fails explicitly when no sufficiently large range exists.
+
+Descriptor diagnostics now expose:
+
+- persistent capacity / currently in-use descriptors
+- persistent high-water mark
+- transient capacity / descriptors still in flight
+- transient high-water mark
+- pending transient range count
+- transient allocation and reclamation counts
+- allocator exhaustion count
+
+The heap was expanded while preserving index 0 as reserved. Existing `Allocate` / `Free` users remain on the persistent path, so TextureManager, ImGui, existing render targets, and other owner-managed systems do not need to migrate in the same change. `GpuDeferredReleaseQueue` continues to protect persistent asset descriptors until their retire fence completes.
+
+The current implementation centralizes shader-visible CBV/SRV/UAV lifetime management first. RTV/DSV heaps remain owner-managed CPU-visible descriptor heaps; they can adopt the same transient ownership model when Phase 9.4 placed render targets begin migrating into normal frame execution.
+
+### 9.6 Shader Cache + PSO Cache — next
 
 Cache shader bytecode and graphics/compute PSOs from deterministic keys derived from shader inputs and pipeline state. Cache invalidation must remain explicit and observable in Debug builds.
 
@@ -125,18 +148,19 @@ Expose compiled graph state in the editor:
 - culled passes
 - generated barriers
 - transient allocation/alias ownership
+- descriptor ownership / pressure
 
 The visualizer is diagnostic and must not become a second source of scheduling truth.
 
 ## Compatibility strategy
 
-The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking, barrier planning, culling roots, transient allocation planning, and alias ownership can therefore be validated before removing conservative dependencies or replacing owner-managed resources.
+The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking, barrier planning, culling roots, transient allocation planning, alias ownership, and fence-safe transient descriptors can therefore be validated before removing conservative dependencies or replacing owner-managed resources.
 
-Once barrier generation and pass-side-effect declarations are stable, explicit chains can be relaxed incrementally and the graph scheduler can expose real parallelism/reordering opportunities. Transient resources can then migrate individually from committed ownership into the shared placed-resource pool without requiring a renderer-wide switch.
+Once barrier generation and pass-side-effect declarations are stable, explicit chains can be relaxed incrementally and the graph scheduler can expose real parallelism/reordering opportunities. Transient resources can then migrate individually from committed ownership into the shared placed-resource pool and request descriptor tables from the transient SRV range without requiring a renderer-wide switch.
 
 ## Validation
 
-Phase 9 tests are added under `Tests/Phase9` and run in TeamDevelopmentCI. C++ Debug/Release translation-unit compilation remains required after every graph API change. The transient pool headers are included by the normal render-pipeline build so allocator/backend syntax is also compiled by CI rather than being checked only by text-contract tests.
+Phase 9 tests are added under `Tests/Phase9` and run in TeamDevelopmentCI. C++ Debug/Release translation-unit compilation remains required after every graph API change. Descriptor contract tests verify persistent/transient range separation, fence retirement, contiguous allocation, double-free rejection, range merging, and pressure diagnostics.
 
 ## Boundary with later phases
 
