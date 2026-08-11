@@ -19,6 +19,7 @@ namespace Ken4lowEngine
 		Fonts,
 		Manifest,
 		Incremental,
+		Packages,
 		All
 	};
 
