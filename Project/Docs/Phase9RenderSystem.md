@@ -71,7 +71,9 @@ After culling, logical resource lifetimes are rebuilt from the surviving compile
 
 `CompileStats` now exposes declared/executed/culled pass counts plus output-resource and side-effect-root counts, and `IsPassCulled` makes the decision available to the future RenderGraph visualizer.
 
-The current `RenderPipelineController` still uses a conservative explicit chain while graph-side scheduling infrastructure is being hardened. That chain intentionally prevents aggressive removal of earlier passes until the pipeline's implicit side effects are migrated into explicit resource/side-effect declarations. Synthetic Phase 9 tests validate the culling contract independently before that ordering is relaxed.
+`RenderPipelineController` now marks the BackBuffer as the visible graph output and explicitly preserves `BeginDraw`, `EditorUiBuild`, and `EditorPicking` as side-effect roots. The Performance window reports declared/executed/culled pass counts and the active culling-root counts.
+
+The current controller still uses the conservative explicit pass chain to preserve legacy rendering order, so the normal frame may intentionally report zero culled passes until more implicit ordering is converted into explicit resource/side-effect declarations. The culling algorithm itself is validated independently by Phase 9 contract tests, and future chain relaxation can now be measured without changing the culling source of truth.
 
 ### 9.4 Transient Resource Pool + Resource Aliasing — next
 
@@ -110,7 +112,7 @@ The visualizer is diagnostic and must not become a second source of scheduling t
 
 ## Compatibility strategy
 
-The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking, barrier planning, and culling metadata can therefore be validated before removing conservative dependencies or replacing owner-managed resource transitions.
+The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking, barrier planning, culling roots, and culling metadata can therefore be validated before removing conservative dependencies or replacing owner-managed resource transitions.
 
 Once barrier generation and pass-side-effect declarations are stable, explicit chains can be relaxed incrementally and the graph scheduler can expose real parallelism/reordering opportunities.
 
