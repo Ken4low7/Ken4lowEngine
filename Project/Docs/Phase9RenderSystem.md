@@ -75,22 +75,40 @@ After culling, logical resource lifetimes are rebuilt from the surviving compile
 
 The current controller still uses the conservative explicit pass chain to preserve legacy rendering order, so the normal frame may intentionally report zero culled passes until more implicit ordering is converted into explicit resource/side-effect declarations. The culling algorithm itself is validated independently by Phase 9 contract tests, and future chain relaxation can now be measured without changing the culling source of truth.
 
-### 9.4 Transient Resource Pool + Resource Aliasing — next
+### 9.4 Transient Resource Pool + Resource Aliasing — implemented foundation
 
-Convert logical transient lifetimes into reusable D3D12 allocations:
+`RenderGraphTransientPool` converts the culling-adjusted `ResourceLifetime` intervals into reusable physical allocation slots. A transient registration supplies:
 
-- transient resource descriptors
-- lifetime interval analysis
-- reusable heap blocks
-- alias-compatible allocation
-- aliasing barriers
-- high-water/fragmentation diagnostics
+- required allocation size
+- required alignment
+- a compatibility key for resources allowed to share physical memory
+- whether aliasing is allowed for that resource
 
-Imported resources remain externally owned.
+Imported resources are rejected by the transient planner and remain externally owned. Culled or otherwise unused logical resources have no executable lifetime and therefore receive no physical allocation.
 
-### 9.5 Descriptor Management
+The planner sorts active resources by the compiled schedule and reuses a slot only when the previous lifetime ended strictly before the next lifetime begins, the compatibility key matches, the slot is large enough, and both sides permit aliasing. Best-fit selection prefers the smallest compatible reusable slot. Every reuse emits an `AliasingRecord` containing the old resource, new resource, physical slot, and the compiled pass before which ownership changes.
+
+Transient diagnostics now expose:
+
+- registered and active logical resource counts
+- physical slot count
+- aliasing reuse count
+- logical bytes versus physical slot bytes
+- peak simultaneously live bytes
+- bytes saved relative to one allocation per logical resource
+- physical-slot fragmentation above the theoretical peak-live requirement
+
+`RenderGraphD3D12TransientPool` is the physical backend. `DescribeResource` uses `ID3D12Device::GetResourceAllocationInfo` so the graph receives the real D3D12 allocation size/alignment. `BuildHeaps` materializes one reusable D3D12 heap for each planned physical slot, and `CreatePlacedResource` creates every logical resource in that slot at offset zero. This makes non-overlapping logical resources truly share the same heap storage instead of merely sharing bookkeeping.
+
+`RenderGraphD3D12BarrierEmitter::EmitAliasing` emits a native `D3D12_RESOURCE_BARRIER_TYPE_ALIASING` between the old and new placed resources when ownership of a transient slot changes. The planner exposes the exact pass handle for that transition through the culling-adjusted compiled schedule.
+
+The existing Scene/PostEffect render targets are still owner-managed committed resources and are intentionally not switched to placed transient resources in the same change. Physical migration remains opt-in per resource, just like Phase 9.2 barrier migration, so current rendering output stays the regression baseline while the pool/aliasing backend is validated.
+
+### 9.5 Descriptor Management — next
 
 Centralize transient/pass descriptor allocation and lifetime tracking instead of growing ad-hoc descriptor ownership in individual render paths.
+
+The descriptor allocator should distinguish persistent asset descriptors from frame/transient descriptors, recycle only after the owning GPU frame is safe, expose high-water/exhaustion diagnostics, and provide deterministic ownership to RenderGraph-managed resources.
 
 ### 9.6 Shader Cache + PSO Cache
 
@@ -112,13 +130,13 @@ The visualizer is diagnostic and must not become a second source of scheduling t
 
 ## Compatibility strategy
 
-The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking, barrier planning, culling roots, and culling metadata can therefore be validated before removing conservative dependencies or replacing owner-managed resource transitions.
+The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking, barrier planning, culling roots, transient allocation planning, and alias ownership can therefore be validated before removing conservative dependencies or replacing owner-managed resources.
 
-Once barrier generation and pass-side-effect declarations are stable, explicit chains can be relaxed incrementally and the graph scheduler can expose real parallelism/reordering opportunities.
+Once barrier generation and pass-side-effect declarations are stable, explicit chains can be relaxed incrementally and the graph scheduler can expose real parallelism/reordering opportunities. Transient resources can then migrate individually from committed ownership into the shared placed-resource pool without requiring a renderer-wide switch.
 
 ## Validation
 
-Phase 9 tests are added under `Tests/Phase9` and run in TeamDevelopmentCI. C++ Debug/Release translation-unit compilation remains required after every graph API change.
+Phase 9 tests are added under `Tests/Phase9` and run in TeamDevelopmentCI. C++ Debug/Release translation-unit compilation remains required after every graph API change. The transient pool headers are included by the normal render-pipeline build so allocator/backend syntax is also compiled by CI rather than being checked only by text-contract tests.
 
 ## Boundary with later phases
 
