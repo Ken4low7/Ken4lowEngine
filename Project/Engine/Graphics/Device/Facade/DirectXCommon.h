@@ -61,8 +61,8 @@ namespace Ken4lowEngine
 		void SetShadowMapSize(uint32_t width, uint32_t height);
 
 		/// 単一Upload Buffer更新が残る間は既定OFFとし、Per-Frame GPU Buffer移行後に常用する。
-		void SetFramesInFlightEnabled(bool enabled) { framesInFlightEnabled_ = enabled; }
-		bool IsFramesInFlightEnabled() const { return framesInFlightEnabled_; }
+		void SetFramesInFlightEnabled(bool enabled) { requestedFramesInFlightEnabled_ = enabled; }
+		bool IsFramesInFlightEnabled() const { return requestedFramesInFlightEnabled_; }
 
 		ID3D12Device* GetDevice() const { return device_->GetDevice(); }
 		DX12SwapChain* GetSwapChain() { return swapChain_.get(); }
@@ -132,6 +132,7 @@ namespace Ken4lowEngine
 		UINT backBufferIndex_ = 0;
 		EndDrawPerformanceTiming endDrawPerformanceTiming_{};
 		bool framesInFlightEnabled_ = false;
+		bool requestedFramesInFlightEnabled_ = false; // UI切替はフレーム境界まで保留し、記録中CommandListの同期方式を途中で変えない。
 
 	private:
 		DirectXCommon() = default;
