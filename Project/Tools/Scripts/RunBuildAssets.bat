@@ -5,11 +5,12 @@ rem Run Font before Texture because font atlas PNG files are texture source asse
 set "SCRIPT_DIR=%~dp0"
 set "PROJECT_DIR=%~1"
 set "CONFIGURATION=%~2"
+set "NO_PAUSE=%~3"
 
 if not defined PROJECT_DIR for %%I in ("%SCRIPT_DIR%..\..") do set "PROJECT_DIR=%%~fI"
 if not defined CONFIGURATION set "CONFIGURATION=Debug"
 
-for %%F in (BuildAssetCommon.ps1 BuildFonts.ps1 BuildTextures.ps1 BuildMeshes.ps1) do (
+for %%F in (BuildAssetCommon.ps1 BuildFonts.ps1 BuildTextures.ps1 BuildMeshes.ps1 BuildAssetManifest.py BuildAssetPackages.py) do (
     if not exist "%SCRIPT_DIR%%%F" (
         echo [RunBuildAssets] ERROR: %%F not found.
         echo Expected: %SCRIPT_DIR%%%F
@@ -44,6 +45,20 @@ if errorlevel 1 (
     goto :finish
 )
 
+call "%SCRIPT_DIR%RunBuildAssetManifest.bat" "%PROJECT_DIR%" "%CONFIGURATION%" --no-pause
+if errorlevel 1 (
+    set "EXIT_CODE=%ERRORLEVEL%"
+    echo [RunBuildAssets] Stopped at Asset Manifest build.
+    goto :finish
+)
+
+call "%SCRIPT_DIR%RunBuildAssetPackages.bat" "%PROJECT_DIR%" "%CONFIGURATION%" --no-pause
+if errorlevel 1 (
+    set "EXIT_CODE=%ERRORLEVEL%"
+    echo [RunBuildAssets] Stopped at Asset Packages build.
+    goto :finish
+)
+
 set "EXIT_CODE=0"
 
 :finish
@@ -53,5 +68,5 @@ if "%EXIT_CODE%"=="0" (
 ) else (
     echo [RunBuildAssets] FAILED. ExitCode=%EXIT_CODE%
 )
-pause
+if /I not "%NO_PAUSE%"=="--no-pause" pause
 exit /b %EXIT_CODE%
