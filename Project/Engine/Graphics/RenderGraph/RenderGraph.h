@@ -13,7 +13,7 @@ namespace Ken4lowEngine
 {
 	/// <summary>
 	/// CPU側のPass依存関係を宣言・検証・並べ替えする軽量Render Graph。
-	/// Phase 9ではResource access stateとhazard依存をGraph自身が保持する。
+	/// Phase 9ではResource access stateとhazard依存、Barrier計画をGraph自身が保持する。
 	/// </summary>
 	class RenderGraph
 	{
@@ -63,6 +63,18 @@ namespace Ken4lowEngine
 			WriteAfterWrite,
 		};
 
+		enum class BarrierType : uint8_t
+		{
+			Transition,
+			UnorderedAccess,
+		};
+
+		enum class BarrierPlacement : uint8_t
+		{
+			BeforePass,
+			AfterGraph,
+		};
+
 		struct ResourceAccess
 		{
 			ResourceHandle resource{};
@@ -76,6 +88,16 @@ namespace Ken4lowEngine
 			PassHandle after{};
 			ResourceHandle resource{};
 			HazardType hazard = HazardType::Explicit;
+		};
+
+		struct BarrierRecord
+		{
+			ResourceHandle resource{};
+			PassHandle pass{};
+			BarrierType type = BarrierType::Transition;
+			BarrierPlacement placement = BarrierPlacement::BeforePass;
+			ResourceState before = ResourceState::Unknown;
+			ResourceState after = ResourceState::Unknown;
 		};
 
 		struct ResourceLifetime
@@ -94,12 +116,21 @@ namespace Ken4lowEngine
 			std::size_t rawHazardCount = 0;
 			std::size_t warHazardCount = 0;
 			std::size_t wawHazardCount = 0;
+			std::size_t transitionBarrierCount = 0;
+			std::size_t uavBarrierCount = 0;
+			std::size_t unknownStateAccessCount = 0;
 		};
 
 		using ExecuteCallback = std::function<void()>;
+		using BarrierCallback = std::function<void(const BarrierRecord&)>;
 
 		void Reset();
 		ResourceHandle CreateResource(std::string name, bool imported = false);
+		ResourceHandle CreateResource(
+			std::string name,
+			bool imported,
+			ResourceState initialState,
+			ResourceState finalState = ResourceState::Unknown);
 		PassHandle AddPass(
 			std::string name,
 			std::vector<ResourceAccess> accesses,
@@ -118,11 +149,13 @@ namespace Ken4lowEngine
 
 		bool Compile(std::string* outError = nullptr);
 		bool Execute(std::string* outError = nullptr);
+		bool Execute(const BarrierCallback& barrierCallback, std::string* outError = nullptr);
 
 		[[nodiscard]] const CompileStats& GetCompileStats() const { return compileStats_; }
 		[[nodiscard]] const ResourceLifetime* GetResourceLifetime(ResourceHandle handle) const;
 		[[nodiscard]] const std::vector<ResourceAccess>* GetPassAccesses(PassHandle handle) const;
 		[[nodiscard]] const std::vector<DependencyRecord>& GetDependencies() const { return dependencyRecords_; }
+		[[nodiscard]] const std::vector<BarrierRecord>& GetBarrierPlan() const { return barrierPlan_; }
 		[[nodiscard]] std::string_view GetResourceName(ResourceHandle handle) const;
 		[[nodiscard]] std::string_view GetPassName(PassHandle handle) const;
 		[[nodiscard]] std::size_t GetCompiledPassCount() const { return compiledOrder_.size(); }
@@ -132,6 +165,8 @@ namespace Ken4lowEngine
 		{
 			std::string name;
 			ResourceLifetime lifetime{};
+			ResourceState initialState = ResourceState::Unknown;
+			ResourceState finalState = ResourceState::Unknown;
 		};
 
 		struct PassNode
@@ -142,12 +177,14 @@ namespace Ken4lowEngine
 			ExecuteCallback execute;
 		};
 
+		bool BuildBarrierPlan(std::string* outError);
 		bool ValidateResourceHandle(ResourceHandle handle) const;
 
 		std::vector<ResourceNode> resources_;
 		std::vector<PassNode> passes_;
 		std::vector<uint32_t> compiledOrder_;
 		std::vector<DependencyRecord> dependencyRecords_;
+		std::vector<BarrierRecord> barrierPlan_;
 		CompileStats compileStats_{};
 		bool compiled_ = false;
 	};
