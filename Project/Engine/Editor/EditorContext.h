@@ -69,7 +69,7 @@ namespace Ken4lowEngine
 			placementRequest_.displayName.assign(displayName.begin(), displayName.end());
 			placementRequest_.serial = ++placementSerial_;
 			placementRequest_.pending = type != EditorPlaceableType::None;
-			// Phase 6ではこの要求をViewportのRaycast位置へ生成するCommandへ接続する。
+			// Viewport左クリックがこの要求をワールド座標へ変換し、Editor用ActorWorldへ1体生成する。
 		}
 
 		const EditorPlacementRequest& GetPlacementRequest() const { return placementRequest_; }
