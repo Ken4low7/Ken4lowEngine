@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EditorAssetDragDrop.h"
+#include "EditorAssetGraph.h"
 #include "EditorAssetPlacementService.h"
 #include "EditorAssetRegistryV2.h"
 #include "EditorContext.h"
@@ -210,6 +211,7 @@ namespace Ken4lowEngine
 		void DrawAssetContextMenu(const EditorAssetData& asset);
 		void DrawPendingDialogs();
 		void DrawSelectedAssetDetails();
+		void DrawAssetGraphDetails(const EditorAssetData& asset);
 
 		std::vector<const EditorAssetData*> BuildVisibleEntries() const;
 		void OpenAsset(const EditorAssetData& asset) const;
@@ -233,6 +235,7 @@ namespace Ken4lowEngine
 
 	private:
 		EditorAssetRegistryV2 registry_{};
+		EditorAssetGraph assetGraph_{}; // Phase 8 cook manifestをContent Browserの依存・影響診断へ再利用する。
 		EditorTexturePreviewCache texturePreviewCache_{}; // 表示中のテクスチャだけをSRV化してサムネイルへ再利用する。
 		std::filesystem::path currentDirectory_{};
 		std::vector<std::filesystem::path> history_{};
