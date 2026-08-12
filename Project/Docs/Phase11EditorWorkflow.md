@@ -37,9 +37,43 @@ The history exposes additional read-only diagnostics (`GetHistorySize`, capacity
 
 The existing Editor shortcuts and command producers remain source-compatible; callers can migrate to transactions only where an operation truly contains multiple sub-edits.
 
-### 11.2 Prefab Diff — planned
+### 11.2 Prefab Diff — implemented semantic diff foundation
 
-Add a deterministic comparison layer between a prefab source and an instance/override state. The Editor should be able to show added, removed, and modified properties/components without rewriting unrelated serialized data.
+`EditorPrefabDiff` provides a deterministic, read-only comparison between a prefab base Actor JSON and the live serialized state of one prefab instance. The diff model is separate from `PrefabReferenceResolver`'s RFC 7396 persistence layer so the Editor can explain changes without mutating either source document or inventing a second runtime prefab representation.
+
+The semantic diff classifies changes into:
+
+- Actor property changes outside the `Components` array
+- Component additions
+- Component removals
+- Component property changes
+
+Components are matched by serialized component name instead of array position. This prevents harmless component-order changes from appearing as prefab overrides. Components without a name fall back to class + deterministic occurrence identity. Replacing the class of a same-name component is represented as Remove + Add rather than as a writable property change.
+
+Nested object properties are compared recursively and report dot-separated property paths such as `Settings.CastShadow`. Arrays and scalar values remain atomic values, matching the current serialized property model. Each entry records whether the value exists on the base and/or instance side, so a removed property is distinguishable from a property whose explicit JSON value is `null`.
+
+The Actor Details inspector now hosts a `Prefab Diff` section for actors tracked by `PrefabInstanceRegistry`. The panel loads the current prefab source through `PrefabReferenceResolver::LoadBaseActor`, serializes the selected live Actor, computes the semantic diff, and displays:
+
+- source prefab path
+- total/Actor/Added/Removed/Modified counts
+- each semantic diff entry
+- Before / After JSON previews
+
+The panel snapshots on selection change and provides `Refresh Prefab Diff` for explicit recomputation after edits. This keeps file I/O and Actor serialization out of every editor frame while still making the current override state inspectable.
+
+The panel is intentionally read-only in 11.2. Existing Level save/load compatibility remains unchanged: `LevelSerializer` still persists prefab overrides through the established JSON Merge Patch contract. A later prefab-apply/revert workflow can consume the semantic entries and Phase 11.1 transactions without changing how old Level files resolve.
+
+#### Validation
+
+`Tests/Phase11/test_prefab_diff.py` protects the source and inspector integration contract. When a portable C++20 compiler is available it builds `EditorPrefabDiffRuntimeTests.cpp` directly against the header-only diff model.
+
+Runtime coverage includes:
+
+- Actor property, Component add/remove, and Component property classification
+- component-order changes producing no false diff
+- nested property removal with explicit existence tracking
+- same-name Component class replacement becoming Remove + Add
+- deterministic semantic matching independent of serialized array position
 
 ### 11.3 World Partition Editor — planned
 
@@ -58,6 +92,8 @@ Expose the existing frame, render, job/system, descriptor/cache, and world diagn
 Editor workflow changes remain additive. Existing command producers continue working, Play-in-Editor keeps its current world isolation rules, and no editor command may silently mutate runtime-only state while replaying.
 
 Structural edits that recreate Components still need special care because older commands can contain raw Component references. Phase 11.1 does not pretend that lifetime problem is solved by transactions; later hardening should migrate those paths toward stable editor object identity or serialized targets before removing their conservative history invalidation.
+
+Prefab Diff is diagnostic in 11.2: it does not silently apply, revert, or rewrite instance data. Existing RFC 7396 Level override serialization remains the compatibility source of truth while the semantic layer explains the change at Actor/Component/property granularity.
 
 ## Boundary with Phase 12
 
