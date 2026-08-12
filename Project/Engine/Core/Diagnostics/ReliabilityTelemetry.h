@@ -1,9 +1,15 @@
 #pragma once
 
+#include <GameTimer.h>
+#include <Engine/Core/Streaming/StreamingManager.h>
+#include <Engine/Scene/Streaming/WorldPartitionManager.h>
+#include <Vector3.h>
+
 #include <Windows.h>
 #include <Psapi.h>
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -40,6 +46,7 @@ namespace Ken4lowEngine
 		void InitializeFromEnvironment()
 		{
 			Finalize();
+			initialized_ = true;
 			const char* csvPath = std::getenv("KEN4LOW_RELIABILITY_CSV");
 			const char* soakSeconds = std::getenv("KEN4LOW_SOAK_SECONDS");
 			const char* streamingStress = std::getenv("KEN4LOW_STREAMING_STRESS");
@@ -78,11 +85,47 @@ namespace Ken4lowEngine
 				stream_.flush();
 				stream_.close();
 			}
+			initialized_ = false;
 			enabled_ = false;
 			soakSeconds_ = 0.0;
 			streamingStressEnabled_ = false;
 			frameIndex_ = 0;
 			csvPath_.clear();
+		}
+
+		void RecordCurrentFrame(uint64_t frameAllocatedBytes)
+		{
+			if (!initialized_)
+			{
+				InitializeFromEnvironment();
+			}
+			if (!enabled_)
+			{
+				return;
+			}
+
+			StreamingManager* streaming = StreamingManager::GetInstance();
+			WorldPartitionManager* worldPartition = WorldPartitionManager::GetInstance();
+			RecordFrame(
+				static_cast<double>(GameTimer::GetInstance()->GetDeltaTime()) * 1000.0,
+				frameAllocatedBytes,
+				streaming->GetPendingRequestCount(),
+				streaming->GetQueuedCompletionCount(),
+				worldPartition->GetLoadedSubLevelCount());
+
+			if (streamingStressEnabled_ && worldPartition->IsConfigured() && worldPartition->IsEnabled())
+			{
+				const auto [offsetX, offsetZ] = GetStreamingStressOffset(worldPartition->GetSettings().cellSize);
+				Vector3 source = worldPartition->GetStreamingSourcePosition();
+				source.x += offsetX;
+				source.z += offsetZ;
+				worldPartition->Update(source);
+			}
+
+			if (ShouldStopSoak())
+			{
+				PostQuitMessage(0);
+			}
 		}
 
 		void RecordFrame(
@@ -185,6 +228,7 @@ namespace Ken4lowEngine
 			return static_cast<double>(counters.WorkingSetSize) / kBytesPerMegabyte;
 		}
 
+		bool initialized_ = false;
 		bool enabled_ = false;
 		bool streamingStressEnabled_ = false;
 		double soakSeconds_ = 0.0;
