@@ -11,6 +11,7 @@
 #include <PhysicsDebugDraw.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -73,8 +74,16 @@ public:
 	void DrawImGui() override;
 
 private:
+	struct TransformFinalizeStats
+	{
+		std::size_t rootCount = 0;
+		std::size_t dirtyComponentCount = 0;
+		std::size_t recomputedComponentCount = 0;
+	};
+
 	void UpdateDebug();
 	void SetupWorldSystemSchedule();
+	TransformFinalizeStats FinalizeDirtyWorldTransforms();
 	void ProcessActorWorldValidationRequests();
 	void RunActorWorldValidation();
 	void DrawActorWorldValidationImGui();
@@ -156,6 +165,8 @@ private:
 	K4E::PhysicsWorld actorPhysicsWorld_;
 	K4E::PhysicsDebugDraw actorPhysicsDebugDraw_;
 	K4E::SystemScheduler worldSystemScheduler_; // Play中のWorld phaseをread/write依存DAGとして保持する。
+	TransformFinalizeStats prePhysicsTransformStats_{};
+	TransformFinalizeStats postPhysicsTransformStats_{};
 
 	struct ActorWorldValidationState
 	{
