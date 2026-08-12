@@ -14,7 +14,7 @@ class GraphicsShutdownOrderTests(unittest.TestCase):
 
         self.assertNotIn("SRVManager::GetInstance()->Finalize();", framework)
         self.assertIn("dxCommon_->Finalize();", framework)
-        self.assertIn("srvManager_->Free(srvIndex_);", shadow)
+        self.assertIn("srvManager->Free(shadowMapSrvIndex_);", shadow)
 
         shadow_finalize = directx.index("shadowMapRenderTarget_->Finalize();")
         srv_finalize = directx.index("SRVManager::GetInstance()->Finalize();")
