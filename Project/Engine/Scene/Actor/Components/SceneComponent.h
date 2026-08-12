@@ -2,6 +2,8 @@
 #include "ActorComponent.h"
 #include "Vector3.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 #include <json.hpp>
 
@@ -36,8 +38,18 @@ namespace Ken4lowEngine
 		/// </summary>
 		void RefreshWorldTransform()
 		{
-			UpdateWorldTransform(); // 物理補正後のLocalTransformを同フレーム中にWorldTransformへ反映する
+			RefreshWorldTransformHierarchy(); // 物理補正後のLocalTransformを同フレーム中にWorldTransformへ反映する。
 		}
+
+		/// Dirtyな自身/子階層だけを再計算し、実際に再計算したComponent数を返す。
+		std::size_t RefreshWorldTransformHierarchy();
+
+		/// LocalTransformまたは親階層の変更をWorldTransform dirtyとして記録する。
+		void MarkTransformDirty();
+
+		[[nodiscard]] bool IsWorldTransformDirty() const { return worldTransformDirty_; }
+		[[nodiscard]] bool IsTransformHierarchyDirty() const { return subtreeTransformDirty_; }
+		[[nodiscard]] std::uint64_t GetWorldTransformRevision() const { return worldTransformRevision_; }
 
 		/// <summary>
 		/// SceneComponentのImGui描画処理。
@@ -83,28 +95,50 @@ namespace Ken4lowEngine
 
 		void SetLocalPosition(const Vector3& position)
 		{
+			if (localPosition_ == position) return;
 			localPosition_ = position;
+			MarkTransformDirty();
 		}
 
 		void SetLocalRotation(const Vector3& rotation)
 		{
+			if (localRotation_ == rotation) return;
 			localRotation_ = rotation;
+			MarkTransformDirty();
 		}
 
 		void SetLocalScale(const Vector3& scale)
 		{
+			if (localScale_ == scale) return;
 			localScale_ = scale;
+			MarkTransformDirty();
 		}
 
 	public: /// ---------- Mutable Access ---------- ///
 
-		Vector3& LocalPosition() { return localPosition_; }
-		Vector3& LocalRotation() { return localRotation_; }
-		Vector3& LocalScale() { return localScale_; }
+		Vector3& LocalPosition()
+		{
+			MarkTransformDirty();
+			return localPosition_; // 既存の参照APIでも変更前にdirty化して追跡漏れを防ぐ。
+		}
+
+		Vector3& LocalRotation()
+		{
+			MarkTransformDirty();
+			return localRotation_;
+		}
+
+		Vector3& LocalScale()
+		{
+			MarkTransformDirty();
+			return localScale_;
+		}
 
 	private: /// ---------- 内部処理 ---------- ///
 
-		void UpdateWorldTransform();
+		std::size_t UpdateWorldTransform();
+		void MarkWorldTransformDirtyRecursive();
+		void MarkSubtreeDirtyUpward();
 		void RemoveChild(SceneComponent* child);
 
 	private: /// ---------- メンバ変数 ---------- ///
@@ -119,5 +153,10 @@ namespace Ken4lowEngine
 		Vector3 worldPosition_{ 0.0f, 0.0f, 0.0f };
 		Vector3 worldRotation_{ 0.0f, 0.0f, 0.0f };
 		Vector3 worldScale_{ 1.0f, 1.0f, 1.0f };
+
+		bool worldTransformDirty_ = true;
+		bool subtreeTransformDirty_ = true;
+		std::uint64_t worldTransformRevision_ = 0;
+		std::uint64_t lastParentWorldTransformRevision_ = 0;
 	};
 } // namespace Ken4lowEngine
