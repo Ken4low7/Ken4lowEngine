@@ -112,6 +112,9 @@ namespace Ken4lowEngine
 		void SetPerformanceOverlayVisible(bool visible) { showPerformanceOverlay_ = visible; }
 		bool IsPerformanceOverlayVisible() const { return showPerformanceOverlay_; }
 
+		/// Phase 11.5 Profilerは既にEditorがsample済みのMonitorを共有し、CPU/Memory/Asset counterを二重計測しない。
+		const PerformanceMonitor& GetPerformanceMonitor() const { return outputLogPerformanceMonitor_; }
+
 		bool StartAllAssetBuild() { return assetBuildService_.StartBuild(EditorAssetBuildKind::All); }
 		bool IsAssetBuildRunning() const { return assetBuildService_.IsRunning(); }
 
