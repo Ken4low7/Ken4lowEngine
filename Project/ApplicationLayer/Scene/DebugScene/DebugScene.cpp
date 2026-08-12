@@ -12,6 +12,7 @@
 #include <ActorJsonSerializer.h>
 #include <ColliderComponent.h>
 #include <RigidbodyComponent.h>
+#include <SceneComponent.h>
 
 #include <algorithm>
 #include <limits>
@@ -29,10 +30,11 @@ using namespace Ken4lowEngine;
 namespace
 {
 	constexpr K4E::SystemResourceId kWorldObjectState = 1;
-	constexpr K4E::SystemResourceId kTransformState = 2;
-	constexpr K4E::SystemResourceId kPhysicsRegistry = 3;
-	constexpr K4E::SystemResourceId kPhysicsState = 4;
-	constexpr K4E::SystemResourceId kRenderState = 5;
+	constexpr K4E::SystemResourceId kLocalTransformState = 2;
+	constexpr K4E::SystemResourceId kWorldTransformState = 3;
+	constexpr K4E::SystemResourceId kPhysicsRegistry = 4;
+	constexpr K4E::SystemResourceId kPhysicsState = 5;
+	constexpr K4E::SystemResourceId kRenderState = 6;
 }
 
 DebugScene::DebugScene() = default;
@@ -73,7 +75,7 @@ void DebugScene::BeginEditorPlay()
 void DebugScene::EndEditorPlay()
 {
 #ifdef USE_IMGUI
-	K4E::EditorPlayController::GetInstance()->ReleaseGameInput(); // Stop時はEditorへ入力を返し、カーソル固定を解除する。
+	K4E::EditorPlayController::GetInstance()->ReleaseGameInput(); // Stop後はEditorへ入力を返し、カーソル固定を解除する。
 #endif
 	if (input_)
 	{
@@ -121,11 +123,24 @@ void DebugScene::SetupWorldSystemSchedule()
 		},
 		std::vector<Access>{
 			{ kWorldObjectState, AccessType::ReadWrite },
-			{ kTransformState, AccessType::ReadWrite },
+			{ kLocalTransformState, AccessType::ReadWrite },
+			{ kWorldTransformState, AccessType::ReadWrite },
 			{ kPhysicsRegistry, AccessType::ReadWrite },
 			{ kRenderState, AccessType::Write },
 		},
 		Policy::MainThread);
+
+	worldSystemScheduler_.AddSystem(
+		"ActorWorld.FinalizePrePhysicsTransforms",
+		[this](float)
+		{
+			prePhysicsTransformStats_ = FinalizeDirtyWorldTransforms();
+		},
+		std::vector<Access>{
+			{ kLocalTransformState, AccessType::Read },
+			{ kWorldTransformState, AccessType::Write },
+		},
+		Policy::MainThread); // Physicsへ渡す直前にdirtyなWorldTransformだけを確定する。
 
 	worldSystemScheduler_.AddSystem(
 		"PhysicsWorld.Update",
@@ -137,10 +152,11 @@ void DebugScene::SetupWorldSystemSchedule()
 		},
 		std::vector<Access>{
 			{ kWorldObjectState, AccessType::ReadWrite },
+			{ kWorldTransformState, AccessType::Read },
 			{ kPhysicsRegistry, AccessType::Read },
 			{ kPhysicsState, AccessType::ReadWrite },
 		},
-		Policy::MainThread); // Physics event callbackはActor/Componentへ戻るため、10.2ではMainThread affinityを維持する。
+		Policy::MainThread); // Physics event callbackはActor/Componentへ戻るため、10.3でもMainThread affinityを維持する。
 
 	worldSystemScheduler_.AddSystem(
 		"ActorWorld.PostPhysicsUpdate",
@@ -153,15 +169,47 @@ void DebugScene::SetupWorldSystemSchedule()
 		std::vector<Access>{
 			{ kWorldObjectState, AccessType::ReadWrite },
 			{ kPhysicsState, AccessType::Read },
-			{ kTransformState, AccessType::ReadWrite },
+			{ kLocalTransformState, AccessType::ReadWrite },
+			{ kWorldTransformState, AccessType::ReadWrite },
 			{ kRenderState, AccessType::Write },
 		},
 		Policy::MainThread);
+
+	worldSystemScheduler_.AddSystem(
+		"ActorWorld.FinalizePostPhysicsTransforms",
+		[this](float)
+		{
+			postPhysicsTransformStats_ = FinalizeDirtyWorldTransforms();
+		},
+		std::vector<Access>{
+			{ kLocalTransformState, AccessType::Read },
+			{ kWorldTransformState, AccessType::Write },
+			{ kRenderState, AccessType::Write },
+		},
+		Policy::MainThread); // 物理補正後に残ったdirtyだけを描画前の確定状態へ反映する。
 
 	if (!worldSystemScheduler_.Compile())
 	{
 		throw std::logic_error("DebugScene world system schedule contains a dependency cycle.");
 	}
+}
+
+DebugScene::TransformFinalizeStats DebugScene::FinalizeDirtyWorldTransforms()
+{
+	TransformFinalizeStats stats{};
+	for (const auto& actor : actorWorld_.GetActors())
+	{
+		if (!actor || actor->IsPendingDestroy() || !actor->IsActive()) continue;
+		for (const auto& component : actor->GetComponents())
+		{
+			auto* sceneComponent = dynamic_cast<K4E::SceneComponent*>(component.get());
+			if (!sceneComponent || !sceneComponent->IsActiveInHierarchy()) continue;
+			if (!sceneComponent->GetParent()) ++stats.rootCount;
+			if (sceneComponent->IsWorldTransformDirty()) ++stats.dirtyComponentCount;
+			stats.recomputedComponentCount += sceneComponent->RefreshWorldTransformHierarchy();
+		}
+	}
+	return stats; // 既にcleanなComponentはRefresh側のsubtree fast-pathで行列計算を行わない。
 }
 
 void DebugScene::UpdateEditor(float deltaTime)
@@ -231,6 +279,8 @@ void DebugScene::Finalize()
 	}
 
 	worldSystemScheduler_.Reset();
+	prePhysicsTransformStats_ = {};
+	postPhysicsTransformStats_ = {};
 	actorWorld_.Finalize();
 	input_ = nullptr;
 }
@@ -419,6 +469,14 @@ void DebugScene::DrawActorWorldValidationImGui()
 		scheduleStats.dependencyCount,
 		scheduleStats.mainThreadSystemCount,
 		scheduleStats.workerSystemCount);
+	ImGui::Text("Dirty Transform PrePhysics: Dirty=%zu / Recomputed=%zu / Roots=%zu",
+		prePhysicsTransformStats_.dirtyComponentCount,
+		prePhysicsTransformStats_.recomputedComponentCount,
+		prePhysicsTransformStats_.rootCount);
+	ImGui::Text("Dirty Transform PostPhysics: Dirty=%zu / Recomputed=%zu / Roots=%zu",
+		postPhysicsTransformStats_.dirtyComponentCount,
+		postPhysicsTransformStats_.recomputedComponentCount,
+		postPhysicsTransformStats_.rootCount);
 	ImGui::TextColored(validation.lastSucceeded ? ImVec4(0.35f, 1.0f, 0.45f, 1.0f) : ImVec4(1.0f, 0.4f, 0.35f, 1.0f),
 		"%s", validation.lastMessage.c_str());
 
