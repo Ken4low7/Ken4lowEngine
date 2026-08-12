@@ -7,7 +7,9 @@
 #include "OcclusionCullingSystem.h"
 #include "StageChunkManager.h"
 #include "StageInstancingManager.h"
+#include "StageSpatialQueryIndex.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -18,6 +20,15 @@ class CollisionManager;
 
 namespace Ken4lowEngine
 {
+	struct StageSpatialQueryStats final
+	{
+		StageSpatialQueryIndex::Stats world{};
+		StageSpatialQueryIndex::Stats floor{};
+		StageSpatialQueryIndex::Stats wallObstacle{};
+		StageSpatialQueryIndex::Stats navigationObstacle{};
+		StageSpatialQueryIndex::Stats ladder{};
+	};
+
 	/// -------------------------------------------------------------
 	///				ステージ実行時クラス
 	///	--------------------------------------------------------------
@@ -115,6 +126,15 @@ namespace Ken4lowEngine
 		const std::vector<Collider*>& GetLadderColliders() const { return ladderColliders_; }
 		const std::vector<AABB>& GetLadderAABBs() const { return ladderAABBs_; }
 		const std::vector<OBB>& GetLadderOBBs() const { return ladderOBBs_; }
+
+		/// Static StageのXZ Uniform Gridから近傍候補だけを返す。最終形状判定は呼び出し側で行う。
+		void QueryWorldAabbCandidates(const AABB& queryBounds, std::vector<std::size_t>& outIndices) const;
+		void QueryFloorAabbCandidates(const AABB& queryBounds, std::vector<std::size_t>& outIndices) const;
+		void QueryWallObstacleAabbCandidates(const AABB& queryBounds, std::vector<std::size_t>& outIndices) const;
+		void QueryNavigationObstacleAabbCandidates(const AABB& queryBounds, std::vector<std::size_t>& outIndices) const;
+		void QueryLadderAabbCandidates(const AABB& queryBounds, std::vector<std::size_t>& outIndices) const;
+		StageSpatialQueryStats GetSpatialQueryStats() const;
+
 		// Playerの問い合わせAABBがいずれかのStatic Ladder Triggerへ入っているかを返す。
 		bool CheckLadderOverlap(const AABB& playerAABB) const;
 
@@ -124,6 +144,9 @@ namespace Ken4lowEngine
 		void RegisterColliders(CollisionManager* collisionManager);
 
 		const LevelData* GetLevelData() const { return levelData_ ? levelData_.get() : nullptr; }
+
+	private:
+		void RebuildSpatialQueryIndices();
 
 	private: /// ---------- メンバ変数 ---------- ///
 
@@ -144,6 +167,11 @@ namespace Ken4lowEngine
 		std::vector<Collider*> ladderColliders_;              // worldColliders_所有のStatic Triggerを参照する梯子一覧
 		std::vector<AABB> ladderAABBs_;                       // Playerとの直接Overlap問い合わせに使う梯子AABB
 		std::vector<OBB> ladderOBBs_;                         // 通常壁と別色表示する梯子Trigger OBB
+		StageSpatialQueryIndex worldSpatialIndex_{};
+		StageSpatialQueryIndex floorSpatialIndex_{};
+		StageSpatialQueryIndex wallObstacleSpatialIndex_{};
+		StageSpatialQueryIndex navigationObstacleSpatialIndex_{};
+		StageSpatialQueryIndex ladderSpatialIndex_{};          // Build後は不変で、各Queryが独自out配列を使うため並列read可能。
 		Vector3 offset_ = { 0.0f, 0.0f, 0.0f };              // ステージ全体オフセット
 		bool stageInstancingEnabled_ = true;
 		bool useNormalStageDraw_ = true;
