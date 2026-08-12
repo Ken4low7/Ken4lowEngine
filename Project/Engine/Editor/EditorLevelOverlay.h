@@ -6,6 +6,7 @@
 #include "EditorLevelService.h"
 #include "EditorPlayController.h"
 #include "EditorPlaySessionManager.h"
+#include "EditorProfilerPanel.h"
 #include "EditorWindowManager.h"
 
 #include <string>
@@ -20,9 +21,10 @@ namespace Ken4lowEngine
 	/// <summary>Level操作と現在のEditor / PIE World状態をMain Viewport右上へ表示します。</summary>
 	inline void DrawEditorLevelOverlay()
 	{
-		EditorDiagnosticsPanel::GetInstance()->Draw(); // Phase 12のLog / Profiler / Error統合PanelをEditor中は毎フレーム更新する。
-
 		EditorWindowManager* windowManager = EditorWindowManager::GetInstance();
+		EditorDiagnosticsPanel::GetInstance()->Draw(); // Phase 12のLog / Profiler / Error統合PanelをEditor中は毎フレーム更新する。
+		EditorProfilerPanel::GetInstance()->Draw(windowManager->GetSceneManager(), &windowManager->GetPerformanceMonitor()); // Phase 11.5は既存Subsystem診断値だけをF11 Profilerへ集約する。
+
 		EditorLevelService* levelService = EditorLevelService::GetInstance();
 		EditorLevelDeferredController* deferredController = EditorLevelDeferredController::GetInstance();
 		EditorPlayController* playController = EditorPlayController::GetInstance();
