@@ -1,6 +1,9 @@
 #include "JobSystem.h"
 
 #include <algorithm>
+#include <queue>
+#include <stdexcept>
+#include <unordered_map>
 
 namespace Ken4lowEngine
 {
@@ -151,6 +154,13 @@ namespace Ken4lowEngine
 		}
 
 		EnqueueTasksAfterDependencies(std::move(tasks), dependencies, priority);
+		return JobHandle(std::move(state));
+	}
+
+	JobHandle JobSystem::CreateCompletedHandle()
+	{
+		auto state = std::make_shared<JobState>();
+		state->remaining.store(0, std::memory_order_release); // MainThread systemもJob dependency graph上では完了済みHandleとして表現する。
 		return JobHandle(std::move(state));
 	}
 
@@ -337,5 +347,307 @@ namespace Ken4lowEngine
 		const unsigned int hardwareThreads = std::thread::hardware_concurrency();
 		if (hardwareThreads <= 1) return 1;
 		return static_cast<std::size_t>(hardwareThreads - 1);
+	}
+
+	SystemHandle SystemScheduler::AddSystem(
+		std::string name,
+		SystemJob job,
+		std::vector<SystemResourceAccess> accesses,
+		SystemExecutionPolicy executionPolicy,
+		JobPriority priority)
+	{
+		if (!job) return {};
+
+		SystemEntry entry{};
+		entry.name = std::move(name);
+		entry.job = std::move(job);
+		entry.accesses = NormalizeAccesses(std::move(accesses));
+		entry.executionPolicy = executionPolicy;
+		entry.priority = priority;
+
+		const SystemHandle handle{ systems_.size() };
+		systems_.push_back(std::move(entry));
+		compiled_ = false;
+		return handle;
+	}
+
+	bool SystemScheduler::AddDependency(SystemHandle before, SystemHandle after)
+	{
+		if (!IsValidHandle(before) || !IsValidHandle(after) || before == after) return false;
+		auto& prerequisites = systems_[after.index].explicitPrerequisites;
+		if (std::find(prerequisites.begin(), prerequisites.end(), before) == prerequisites.end())
+		{
+			prerequisites.push_back(before);
+		}
+		compiled_ = false;
+		return true;
+	}
+
+	bool SystemScheduler::Compile()
+	{
+		compiledOrder_.clear();
+		dependencyRecords_.clear();
+		stats_ = {};
+		stats_.systemCount = systems_.size();
+
+		for (SystemEntry& system : systems_)
+		{
+			system.compiledPrerequisites.clear();
+			if (system.executionPolicy == SystemExecutionPolicy::Worker) ++stats_.workerSystemCount;
+			else ++stats_.mainThreadSystemCount;
+		}
+
+		for (std::size_t afterIndex = 0; afterIndex < systems_.size(); ++afterIndex)
+		{
+			const SystemHandle after{ afterIndex };
+			for (SystemHandle before : systems_[afterIndex].explicitPrerequisites)
+			{
+				AddCompiledDependency(before, after, SystemDependencyType::Explicit, 0);
+			}
+		}
+
+		struct ResourceTracker
+		{
+			SystemHandle lastWriter{};
+			std::vector<SystemHandle> readers;
+		};
+		std::unordered_map<SystemResourceId, ResourceTracker> resourceTrackers;
+
+		for (std::size_t systemIndex = 0; systemIndex < systems_.size(); ++systemIndex)
+		{
+			const SystemHandle current{ systemIndex };
+			for (const SystemResourceAccess& access : systems_[systemIndex].accesses)
+			{
+				ResourceTracker& tracker = resourceTrackers[access.resource];
+				if (access.access == SystemAccessType::Read)
+				{
+					if (tracker.lastWriter.IsValid())
+					{
+						AddCompiledDependency(
+							tracker.lastWriter,
+							current,
+							SystemDependencyType::ReadAfterWrite,
+							access.resource);
+					}
+					tracker.readers.push_back(current);
+					continue;
+				}
+
+				if (tracker.lastWriter.IsValid())
+				{
+					if (access.access == SystemAccessType::ReadWrite)
+					{
+						AddCompiledDependency(
+							tracker.lastWriter,
+							current,
+							SystemDependencyType::ReadAfterWrite,
+							access.resource);
+					}
+					AddCompiledDependency(
+						tracker.lastWriter,
+						current,
+						SystemDependencyType::WriteAfterWrite,
+						access.resource);
+				}
+
+				for (SystemHandle reader : tracker.readers)
+				{
+					AddCompiledDependency(
+						reader,
+						current,
+						SystemDependencyType::WriteAfterRead,
+						access.resource);
+				}
+				tracker.readers.clear();
+				tracker.lastWriter = current;
+			}
+		}
+
+		std::vector<std::size_t> indegree(systems_.size(), 0);
+		std::vector<std::vector<std::size_t>> outgoing(systems_.size());
+		for (std::size_t afterIndex = 0; afterIndex < systems_.size(); ++afterIndex)
+		{
+			for (SystemHandle before : systems_[afterIndex].compiledPrerequisites)
+			{
+				if (!IsValidHandle(before)) continue;
+				++indegree[afterIndex];
+				outgoing[before.index].push_back(afterIndex);
+			}
+			stats_.dependencyCount += systems_[afterIndex].compiledPrerequisites.size();
+		}
+
+		std::priority_queue<std::size_t, std::vector<std::size_t>, std::greater<std::size_t>> ready;
+		for (std::size_t index = 0; index < indegree.size(); ++index)
+		{
+			if (indegree[index] == 0) ready.push(index);
+		}
+
+		while (!ready.empty())
+		{
+			const std::size_t current = ready.top();
+			ready.pop();
+			compiledOrder_.push_back({ current });
+			for (std::size_t dependent : outgoing[current])
+			{
+				if (--indegree[dependent] == 0) ready.push(dependent);
+			}
+		}
+
+		compiled_ = compiledOrder_.size() == systems_.size();
+		if (!compiled_) compiledOrder_.clear();
+		return compiled_;
+	}
+
+	void SystemScheduler::ExecuteAndWait(float deltaTime, JobSystem* jobSystem)
+	{
+		if (!compiled_ && !Compile())
+		{
+			throw std::logic_error("SystemScheduler dependency graph contains a cycle.");
+		}
+		if (systems_.empty()) return;
+
+		jobSystem = jobSystem ? jobSystem : JobSystem::GetInstance();
+		if (!jobSystem->IsInitialized()) jobSystem->Initialize();
+
+		std::vector<JobHandle> systemJobs(systems_.size());
+		std::exception_ptr firstException;
+		for (SystemHandle handle : compiledOrder_)
+		{
+			SystemEntry& system = systems_[handle.index];
+			std::vector<JobHandle> prerequisites;
+			prerequisites.reserve(system.compiledPrerequisites.size());
+			for (SystemHandle prerequisite : system.compiledPrerequisites)
+			{
+				if (!IsValidHandle(prerequisite)) continue;
+				const JobHandle& dependencyJob = systemJobs[prerequisite.index];
+				if (dependencyJob.IsValid()) prerequisites.push_back(dependencyJob);
+			}
+
+			if (system.executionPolicy == SystemExecutionPolicy::Worker)
+			{
+				SystemJob job = system.job;
+				systemJobs[handle.index] = jobSystem->DispatchAfter(
+					prerequisites,
+					[job = std::move(job), deltaTime]()
+					{
+						job(deltaTime);
+					},
+					system.priority);
+				continue;
+			}
+
+			// MainThread systemは依存先だけを待ち、無関係なWorker systemとは並行できる余地を残す。
+			for (const JobHandle& dependencyJob : prerequisites) jobSystem->Wait(dependencyJob);
+			try
+			{
+				system.job(deltaTime);
+			}
+			catch (...)
+			{
+				if (!firstException) firstException = std::current_exception();
+			}
+			systemJobs[handle.index] = jobSystem->CreateCompletedHandle();
+		}
+
+		for (const JobHandle& job : systemJobs)
+		{
+			if (!job.IsValid()) continue;
+			jobSystem->Wait(job);
+			if (firstException || !job.HasFailed()) continue;
+			try
+			{
+				job.RethrowIfFailed();
+			}
+			catch (...)
+			{
+				firstException = std::current_exception();
+			}
+		}
+
+		if (firstException) std::rethrow_exception(firstException);
+	}
+
+	void SystemScheduler::Reset()
+	{
+		systems_.clear();
+		compiledOrder_.clear();
+		dependencyRecords_.clear();
+		stats_ = {};
+		compiled_ = false;
+	}
+
+	std::string_view SystemScheduler::GetSystemName(SystemHandle handle) const
+	{
+		return IsValidHandle(handle) ? std::string_view{ systems_[handle.index].name } : std::string_view{};
+	}
+
+	SystemExecutionPolicy SystemScheduler::GetExecutionPolicy(SystemHandle handle) const
+	{
+		return IsValidHandle(handle)
+			? systems_[handle.index].executionPolicy
+			: SystemExecutionPolicy::MainThread;
+	}
+
+	bool SystemScheduler::IsValidHandle(SystemHandle handle) const
+	{
+		return handle.IsValid() && handle.index < systems_.size();
+	}
+
+	void SystemScheduler::AddCompiledDependency(
+		SystemHandle before,
+		SystemHandle after,
+		SystemDependencyType type,
+		SystemResourceId resource)
+	{
+		if (!IsValidHandle(before) || !IsValidHandle(after) || before == after) return;
+
+		auto& prerequisites = systems_[after.index].compiledPrerequisites;
+		if (std::find(prerequisites.begin(), prerequisites.end(), before) == prerequisites.end())
+		{
+			prerequisites.push_back(before);
+		}
+
+		const auto duplicate = std::find_if(
+			dependencyRecords_.begin(),
+			dependencyRecords_.end(),
+			[before, after, type, resource](const SystemDependencyRecord& record)
+			{
+				return record.before == before && record.after == after && record.type == type && record.resource == resource;
+			});
+		if (duplicate != dependencyRecords_.end()) return;
+
+		dependencyRecords_.push_back({ before, after, resource, type });
+		switch (type)
+		{
+		case SystemDependencyType::Explicit: ++stats_.explicitDependencyCount; break;
+		case SystemDependencyType::ReadAfterWrite: ++stats_.rawHazardCount; break;
+		case SystemDependencyType::WriteAfterRead: ++stats_.warHazardCount; break;
+		case SystemDependencyType::WriteAfterWrite: ++stats_.wawHazardCount; break;
+		}
+	}
+
+	std::vector<SystemResourceAccess> SystemScheduler::NormalizeAccesses(std::vector<SystemResourceAccess> accesses)
+	{
+		std::vector<SystemResourceAccess> normalized;
+		normalized.reserve(accesses.size());
+		for (const SystemResourceAccess& access : accesses)
+		{
+			auto found = std::find_if(
+				normalized.begin(),
+				normalized.end(),
+				[access](const SystemResourceAccess& existing)
+				{
+					return existing.resource == access.resource;
+				});
+			if (found == normalized.end())
+			{
+				normalized.push_back(access);
+				continue;
+			}
+
+			if (found->access == access.access) continue;
+			found->access = SystemAccessType::ReadWrite; // 同一SystemのRead+Write宣言は一つのReadWrite ownershipへ正規化する。
+		}
+		return normalized;
 	}
 } // namespace Ken4lowEngine
