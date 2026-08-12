@@ -75,9 +75,53 @@ Runtime coverage includes:
 - same-name Component class replacement becoming Remove + Add
 - deterministic semantic matching independent of serialized array position
 
-### 11.3 World Partition Editor — planned
+### 11.3 World Partition Editor — implemented shared-grid foundation
 
-Build tooling around world-cell ownership, visibility/loading state, and spatial editing. Runtime streaming decisions and editor visualization should share stable cell identity rather than maintaining separate spatial truth.
+Phase 11.3 adds editor tooling around the existing `WorldPartitionManager` and `SubLevelManager` instead of introducing a separate editor-only spatial model.
+
+`WorldPartitionGrid` is now the shared pure calculation layer for both runtime streaming and editor diagnostics. It owns:
+
+- world X/Z to stable integer cell conversion
+- negative-coordinate floor behavior
+- sanitized cell size and load/unload radii
+- Chebyshev cell distance
+- Load / Retain / Unload hysteresis decisions
+- Always Loaded classification
+
+`WorldPartitionManager::Update` now uses that same grid helper and stores the latest streaming-source world position and source cell. This means the editor displays the exact cell identity used by runtime residency decisions rather than recomputing a parallel approximation.
+
+The manager also exposes non-destructive editor update paths:
+
+- `ApplyEditorSettings` updates Enabled, Cell Size, and Load/Unload Radius values, sanitizes them, and immediately re-evaluates the current streaming source
+- `UpdateSubLevelEditorMetadata` updates Cell X/Z, Priority, and Always Loaded metadata
+- `SubLevelManager::UpdateReferenceMetadata` changes only reference metadata and preserves current load state, in-flight request generation, and streamed Actor handles
+
+The `World Partition` inspector section shows:
+
+- current streaming-source position and source cell
+- loaded SubLevel count
+- current Load / Retain / Unload radius policy
+- each SubLevel's Cell X/Z and Chebyshev distance
+- real `SubLevelState` (`Unloaded`, `Loading`, `Loaded`, `Failed`)
+- the residency decision produced by `WorldPartitionGrid`
+- editable Cell X/Z, Priority, and Always Loaded values
+- manual Load / Unload / Retry controls for diagnostics
+- streaming errors from `SubLevelManager`
+
+Persistent metadata edits mark the Level dirty, so the existing `LevelSerializer::CaptureWorld` path saves the manager's updated settings and SubLevel metadata. Manual Load/Unload buttons are explicitly diagnostic and are not serialized; automatic streaming may override them on the next residency evaluation.
+
+#### Validation
+
+`Tests/Phase11/test_world_partition_editor.py` checks that runtime and editor use the same grid helper, editor metadata changes do not reset `SubLevelManager`, and the panel reads real runtime state instead of maintaining a duplicate load-state cache.
+
+When a portable C++20 compiler is available, `WorldPartitionGridRuntimeTests.cpp` verifies:
+
+- positive and negative cell boundaries
+- invalid/zero cell size sanitization
+- non-finite world-coordinate handling
+- Chebyshev distance
+- Always Loaded / Load / Retain / Unload decisions
+- radius sanitization and hysteresis behavior
 
 ### 11.4 Asset Graph — planned
 
@@ -94,6 +138,8 @@ Editor workflow changes remain additive. Existing command producers continue wor
 Structural edits that recreate Components still need special care because older commands can contain raw Component references. Phase 11.1 does not pretend that lifetime problem is solved by transactions; later hardening should migrate those paths toward stable editor object identity or serialized targets before removing their conservative history invalidation.
 
 Prefab Diff is diagnostic in 11.2: it does not silently apply, revert, or rewrite instance data. Existing RFC 7396 Level override serialization remains the compatibility source of truth while the semantic layer explains the change at Actor/Component/property granularity.
+
+World Partition editing in 11.3 reuses the runtime manager state and Level capture path. It does not create editor-only cell ownership or a second load-state machine. Path/Id authoring is intentionally left unchanged; the editor foundation only changes safe cell/priority/always-loaded metadata while preserving live SubLevel state.
 
 ## Boundary with Phase 12
 
