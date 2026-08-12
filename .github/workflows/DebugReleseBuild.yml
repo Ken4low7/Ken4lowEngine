@@ -46,6 +46,7 @@ jobs:
           python -m unittest discover -s Tests/Phase9 -p "test_*.py" -v # RenderGraphのResource access/hazard契約をCIで固定する。
           python -m unittest discover -s Tests/Phase10 -p "test_*.py" -v # Job依存関係のfan-in/fan-outと実行順を実ランタイムで検証する。
           python -m unittest discover -s Tests/Phase11 -p "test_*.py" -v # Editor Undo/Redoのtransaction・履歴整合性を実ランタイムで検証する。
+          python -m unittest discover -s Tests/Phase12 -p "test_*.py" -v # Crash/Replay/Migration/Stress/Shipping契約をCIで検証する。
 
   compile:
     name: Compile ${{ matrix.configuration }}
@@ -68,14 +69,16 @@ jobs:
         with:
           msbuild-architecture: x64
 
-      - name: Validate Content Pipeline PowerShell
+      - name: Validate Content and Shipping PowerShell
         shell: pwsh
         run: |
           $scripts = @(
             "Project/Tools/Scripts/BuildAssetCommon.ps1",
             "Project/Tools/Scripts/BuildTextures.ps1",
             "Project/Tools/Scripts/BuildMeshes.ps1",
-            "Project/Tools/Scripts/BuildFonts.ps1"
+            "Project/Tools/Scripts/BuildFonts.ps1",
+            "Project/Tools/Scripts/PackageRelease.ps1",
+            "Project/Tools/Scripts/RunSoakTest.ps1"
           )
           foreach ($script in $scripts) {
             $tokens = $null
@@ -105,6 +108,10 @@ jobs:
           }
           Remove-Item -LiteralPath $smokeRoot -Recurse -Force
 
+          # Release packaging stays testable in CI without requiring the unavailable full-link binary.
+          & "Project/Tools/Scripts/PackageRelease.ps1" -ProjectRoot (Resolve-Path "Project").Path -DryRun
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Compile C++
         shell: pwsh
         run: |
@@ -114,5 +121,5 @@ jobs:
       - name: Explain compile-only validation
         shell: pwsh
         run: |
-          Write-Host "Phase 5/7/8/9/10/11 CI validates every C++ translation unit in ${{ matrix.configuration }}."
+          Write-Host "Phase 5/7/8/9/10/11/12 CI validates every C++ translation unit in ${{ matrix.configuration }}."
           Write-Host "The full Debug link is intentionally separate because the hosted runner does not provide the repository's assimp-vc143-mtd.lib binary."
