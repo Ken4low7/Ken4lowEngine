@@ -1,0 +1,11 @@
+{
+  "min_frames": 300,
+  "max_p95_frame_ms": 33.333,
+  "max_p99_frame_ms": 50.0,
+  "max_memory_growth_mb": 64.0,
+  "max_memory_slope_mb_per_minute": 8.0,
+  "max_pending_streaming": 256,
+  "max_queued_completions": 256,
+  "soak_min_seconds": 1800.0,
+  "streaming_min_loaded_transitions": 8
+}
