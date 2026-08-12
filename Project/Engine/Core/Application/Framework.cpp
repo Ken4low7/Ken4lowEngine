@@ -4,7 +4,6 @@
 #include <DirectXCommon.h>
 #include <DSVManager.h>
 #include <RTVManager.h>
-#include <SRVManager.h>
 #include <UAVManager.h>
 #include <TextureManager.h>
 #include <AssetSystem.h>
@@ -303,10 +302,7 @@ namespace Ken4lowEngine
 		ImGuiManager::GetInstance()->Finalize();
 #endif // USE_IMGUI
 
-		// SRVManagerの終了処理
-		SRVManager::GetInstance()->Finalize();
-
-		// DirectX共通クラスの終了処理
+		// Main/Shadow RenderTargetがDescriptorを返却した後にHeapを破棄するため、RTV/DSV/SRVの終了処理はDirectXCommonへ一元化する。
 		dxCommon_->Finalize();
 
 		// ウィンドウアプリケーションの終了処理
