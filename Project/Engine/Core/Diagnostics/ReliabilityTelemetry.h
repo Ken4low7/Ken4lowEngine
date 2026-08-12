@@ -47,22 +47,22 @@ namespace Ken4lowEngine
 		{
 			Finalize();
 			initialized_ = true;
-			const char* csvPath = std::getenv("KEN4LOW_RELIABILITY_CSV");
-			const char* soakSeconds = std::getenv("KEN4LOW_SOAK_SECONDS");
-			const char* streamingStress = std::getenv("KEN4LOW_STREAMING_STRESS");
+			const std::optional<std::string> csvPath = ReadEnvironmentVariable("KEN4LOW_RELIABILITY_CSV");
+			const std::optional<std::string> soakSeconds = ReadEnvironmentVariable("KEN4LOW_SOAK_SECONDS");
+			const std::optional<std::string> streamingStress = ReadEnvironmentVariable("KEN4LOW_STREAMING_STRESS");
 
-			soakSeconds_ = ParsePositiveDouble(soakSeconds).value_or(0.0);
-			streamingStressEnabled_ = streamingStress != nullptr && std::string(streamingStress) != "0";
+			soakSeconds_ = ParsePositiveDouble(soakSeconds ? soakSeconds->c_str() : nullptr).value_or(0.0);
+			streamingStressEnabled_ = streamingStress.has_value() && *streamingStress != "0";
 			startTime_ = Clock::now();
 			frameIndex_ = 0;
 
-			if (csvPath == nullptr || *csvPath == '\0')
+			if (!csvPath || csvPath->empty())
 			{
 				enabled_ = soakSeconds_ > 0.0 || streamingStressEnabled_;
 				return;
 			}
 
-			csvPath_ = std::filesystem::path(csvPath);
+			csvPath_ = std::filesystem::path(*csvPath);
 			std::error_code error;
 			if (csvPath_.has_parent_path())
 			{
@@ -200,6 +200,24 @@ namespace Ken4lowEngine
 		[[nodiscard]] double GetElapsedSeconds() const
 		{
 			return std::chrono::duration<double>(Clock::now() - startTime_).count();
+		}
+
+		[[nodiscard]] static std::optional<std::string> ReadEnvironmentVariable(const char* name)
+		{
+			const DWORD requiredSize = GetEnvironmentVariableA(name, nullptr, 0);
+			if (requiredSize == 0)
+			{
+				return std::nullopt;
+			}
+
+			std::string value(requiredSize, '\0');
+			const DWORD written = GetEnvironmentVariableA(name, value.data(), requiredSize);
+			if (written == 0 || written >= requiredSize)
+			{
+				return std::nullopt;
+			}
+			value.resize(written);
+			return value;
 		}
 
 		[[nodiscard]] static std::optional<double> ParsePositiveDouble(const char* text)
