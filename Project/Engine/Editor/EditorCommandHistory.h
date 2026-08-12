@@ -105,6 +105,38 @@ namespace Ken4lowEngine
 		Apply apply_;
 	};
 
+	/// <summary>複数のEditor操作を一つのUndo / Redo単位として扱うCommandです。</summary>
+	class EditorCompositeCommand final : public IEditorCommand
+	{
+	public:
+		EditorCompositeCommand(std::string name, std::vector<std::unique_ptr<IEditorCommand>> commands)
+			: name_(std::move(name)), commands_(std::move(commands)) {}
+
+		void Execute() override
+		{
+			for (const std::unique_ptr<IEditorCommand>& command : commands_)
+			{
+				if (command) command->Execute();
+			}
+		}
+
+		void Undo() override
+		{
+			// Transactionは実行順と逆順に戻し、複数Property編集でも一つの原子的な履歴として扱う。
+			for (auto it = commands_.rbegin(); it != commands_.rend(); ++it)
+			{
+				if (*it) (*it)->Undo();
+			}
+		}
+
+		const std::string& GetName() const override { return name_; }
+		std::size_t GetCommandCount() const { return commands_.size(); }
+
+	private:
+		std::string name_;
+		std::vector<std::unique_ptr<IEditorCommand>> commands_;
+	};
+
 	/// <summary>Editor全体のCommand履歴とUndo / Redo位置を管理します。</summary>
 	class EditorCommandHistory
 	{
@@ -119,32 +151,77 @@ namespace Ken4lowEngine
 		{
 			if (!command || isReplaying_) return;
 			command->Execute();
-			PushInternal(std::move(command));
+			AppendExecutedCommand(std::move(command));
 		}
 
 		void PushExecuted(std::unique_ptr<IEditorCommand> command)
 		{
 			if (!command || isReplaying_) return;
-			PushInternal(std::move(command)); // 既に画面へ反映済みのドラッグ操作は再実行せず履歴だけ追加する。
+			AppendExecutedCommand(std::move(command)); // 既に画面へ反映済みのドラッグ操作は再実行せず履歴だけ追加する。
+		}
+
+		bool BeginTransaction(std::string name)
+		{
+			if (isReplaying_ || transactionActive_) return false;
+			transactionActive_ = true;
+			transactionName_ = name.empty() ? "Editor Transaction" : std::move(name);
+			transactionCommands_.clear();
+			return true;
+		}
+
+		bool CommitTransaction()
+		{
+			if (!transactionActive_ || isReplaying_) return false;
+
+			std::string name = std::move(transactionName_);
+			std::vector<std::unique_ptr<IEditorCommand>> commands = std::move(transactionCommands_);
+			ResetTransaction();
+			if (commands.empty()) return false;
+
+			PushInternal(std::make_unique<EditorCompositeCommand>(std::move(name), std::move(commands)));
+			return true;
+		}
+
+		bool CancelTransaction()
+		{
+			if (!transactionActive_ || isReplaying_) return false;
+
+			std::vector<std::unique_ptr<IEditorCommand>> commands = std::move(transactionCommands_);
+			ResetTransaction();
+			ReplayScope replayScope{ *this };
+			for (auto it = commands.rbegin(); it != commands.rend(); ++it)
+			{
+				if (*it) (*it)->Undo();
+			}
+			return true;
 		}
 
 		bool Undo()
 		{
 			if (!CanUndo()) return false;
-			isReplaying_ = true;
+
+			const std::size_t previousCursor = cursor_;
+			ReplayScope replayScope{ *this };
 			--cursor_;
-			commands_[cursor_]->Undo();
-			isReplaying_ = false;
+			try
+			{
+				commands_[cursor_]->Undo();
+			}
+			catch (...)
+			{
+				cursor_ = previousCursor; // 失敗したUndoを履歴上だけ成功扱いにしない。
+				throw;
+			}
 			return true;
 		}
 
 		bool Redo()
 		{
 			if (!CanRedo()) return false;
-			isReplaying_ = true;
+
+			ReplayScope replayScope{ *this };
 			commands_[cursor_]->Execute();
 			++cursor_;
-			isReplaying_ = false;
 			return true;
 		}
 
@@ -152,6 +229,7 @@ namespace Ken4lowEngine
 		{
 			commands_.clear();
 			cursor_ = 0;
+			ResetTransaction();
 		}
 
 		void DiscardDependentRedoCommands()
@@ -162,11 +240,16 @@ namespace Ken4lowEngine
 			// 構造変更前のComponentを参照する後続Redoだけを捨て、構造Command自身は再実行できるように残す。
 		}
 
-		bool CanUndo() const { return cursor_ > 0 && cursor_ <= commands_.size(); }
-		bool CanRedo() const { return cursor_ < commands_.size(); }
+		bool CanUndo() const { return !transactionActive_ && cursor_ > 0 && cursor_ <= commands_.size(); }
+		bool CanRedo() const { return !transactionActive_ && cursor_ < commands_.size(); }
 		bool IsReplaying() const { return isReplaying_; }
+		bool IsTransactionActive() const { return transactionActive_; }
 		std::size_t GetUndoCount() const { return cursor_; }
 		std::size_t GetRedoCount() const { return commands_.size() - cursor_; }
+		std::size_t GetHistorySize() const { return commands_.size(); }
+		std::size_t GetTransactionCommandCount() const { return transactionCommands_.size(); }
+		std::size_t GetCapacity() const { return capacity_; }
+		const std::string& GetTransactionName() const { return transactionName_; }
 
 		const char* GetUndoName() const
 		{
@@ -185,7 +268,37 @@ namespace Ken4lowEngine
 		}
 
 	private:
+		class ReplayScope final
+		{
+		public:
+			explicit ReplayScope(EditorCommandHistory& history) : history_(history)
+			{
+				history_.isReplaying_ = true;
+			}
+
+			~ReplayScope()
+			{
+				history_.isReplaying_ = false;
+			}
+
+			ReplayScope(const ReplayScope&) = delete;
+			ReplayScope& operator=(const ReplayScope&) = delete;
+
+		private:
+			EditorCommandHistory& history_;
+		};
+
 		EditorCommandHistory() = default;
+
+		void AppendExecutedCommand(std::unique_ptr<IEditorCommand> command)
+		{
+			if (transactionActive_)
+			{
+				transactionCommands_.push_back(std::move(command));
+				return;
+			}
+			PushInternal(std::move(command));
+		}
 
 		void PushInternal(std::unique_ptr<IEditorCommand> command)
 		{
@@ -206,9 +319,19 @@ namespace Ken4lowEngine
 			cursor_ = cursor_ > removeCount ? cursor_ - removeCount : 0;
 		}
 
+		void ResetTransaction()
+		{
+			transactionCommands_.clear();
+			transactionName_.clear();
+			transactionActive_ = false;
+		}
+
 		std::vector<std::unique_ptr<IEditorCommand>> commands_;
+		std::vector<std::unique_ptr<IEditorCommand>> transactionCommands_;
+		std::string transactionName_;
 		std::size_t cursor_ = 0;
 		std::size_t capacity_ = 256;
 		bool isReplaying_ = false;
+		bool transactionActive_ = false;
 	};
 } // namespace Ken4lowEngine
