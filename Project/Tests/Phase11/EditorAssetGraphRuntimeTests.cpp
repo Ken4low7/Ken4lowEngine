@@ -117,6 +117,11 @@ int main()
 	const EditorAssetGraphSelection unknown = graph.BuildSelection("Resources/ActorPrefabs/NotCooked.json");
 	assert(!unknown.HasRelations());
 
+	const nlohmann::json invalidManifest = { { "ManifestVersion", 1 } };
+	assert(!graph.LoadFromJson(invalidManifest));
+	assert(!graph.IsLoaded()); // Failed reload must not expose stale relationships from the previous manifest.
+	assert(graph.GetAssets().empty());
+
 	std::cout << "Editor Asset Graph runtime tests passed\n";
 	return 0;
 }
