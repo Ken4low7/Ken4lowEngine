@@ -174,9 +174,32 @@ Runtime coverage includes:
 - optional `AssetToChunk` impact aggregation
 - unregistered resource paths producing no false relation
 
-### 11.5 Profiler UI — planned
+### 11.5 Profiler UI — implemented unified read-only diagnostics
 
-Expose the existing frame, render, job/system, descriptor/cache, and world diagnostics in a unified editor-facing profiler. Phase 11 should consume existing instrumentation rather than creating duplicate counters.
+`EditorProfilerPanel` adds one editor-facing F11 surface for the diagnostics that already exist across the engine. The panel intentionally owns no frame-history, render schedule, descriptor allocator, shader cache, PSO cache, SystemScheduler, or World Partition mirror.
+
+The profiler reads directly from:
+
+- `GameTimer::GetCompletedFrameTiming` for the last completed frame
+- the `PerformanceMonitor` already sampled by `EditorWindowManager` for CPU, process CPU, memory, and tracked asset memory
+- `RenderPipelineController` / `RenderGraph` / `RenderGraphTransientPool` for pass, hazard, barrier, transient-aliasing, and GPU-frame diagnostics
+- `JobSystem` for worker and pending-job state
+- the current scene's optional `SystemScheduler` diagnostic view for compiled order and dependency/hazard counters
+- `SRVManager` for persistent/transient descriptor pressure and exhaustion counters
+- `DXCCompilerManager` and `PipelineFactory` for Shader/PSO cache request, hit/miss, compile/create, and entry counts
+- `WorldPartitionManager` for current source cell, loaded SubLevel count, and streaming radii
+
+`BaseScene::GetEditorSystemScheduler` is an optional read-only hook. Scenes that do not own a scheduler return `nullptr`; `DebugScene` exposes its real `worldSystemScheduler_`, so the profiler never reconstructs a second system DAG from names or timing events.
+
+RenderGraph details stay owned by the existing `RenderGraphVisualizer`. The unified profiler shows the high-level graph/transient counters and provides a button that opens the detailed visualizer for pass order, resource lifetime, hazards, and barriers.
+
+The panel is registered from `EditorLevelOverlay` every editor frame and is hidden by default. F11 toggles it without affecting runtime state.
+
+#### Validation
+
+`Tests/Phase11/test_profiler_ui.py` protects the read-only integration contract. It verifies that the panel consumes the real subsystem getters, shares the existing editor `PerformanceMonitor`, obtains the scene scheduler through the optional base-scene hook, and does not call RenderGraph/SystemScheduler/World Partition mutation APIs.
+
+With 11.5 complete, the planned Phase 11 Editor Workflow items are implemented.
 
 ## Compatibility strategy
 
@@ -189,6 +212,8 @@ Prefab Diff is diagnostic in 11.2: it does not silently apply, revert, or rewrit
 World Partition editing in 11.3 reuses the runtime manager state and Level capture path. It does not create editor-only cell ownership or a second load-state machine. Path/Id authoring is intentionally left unchanged; the editor foundation only changes safe cell/priority/always-loaded metadata while preserving live SubLevel state.
 
 Asset Graph in 11.4 is read-only and derives its state from generated Phase 8 manifests. It does not rewrite build metadata, package assignments, or source dependencies, and it reports missing/stale generated manifests rather than silently synthesizing replacement dependency data.
+
+Profiler UI in 11.5 is diagnostic-only. It reads the existing frame/render/job/system/descriptor/cache/world state and does not schedule work, allocate descriptors, compile graphs, mutate streaming settings, or maintain a second schedule/lifetime representation.
 
 ## Boundary with Phase 12
 
