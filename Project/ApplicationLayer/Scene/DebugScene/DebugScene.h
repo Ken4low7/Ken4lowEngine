@@ -6,6 +6,7 @@
 
 #include <ActorWorld.h>
 #include <Editor/ActorWorldEditorBridge.h>
+#include <Engine/Core/Concurrency/JobSystem.h>
 #include <PhysicsWorld.h>
 #include <PhysicsDebugDraw.h>
 
@@ -73,6 +74,7 @@ public:
 
 private:
 	void UpdateDebug();
+	void SetupWorldSystemSchedule();
 	void ProcessActorWorldValidationRequests();
 	void RunActorWorldValidation();
 	void DrawActorWorldValidationImGui();
@@ -153,6 +155,7 @@ private:
 	K4E::ActorWorld actorWorld_;
 	K4E::PhysicsWorld actorPhysicsWorld_;
 	K4E::PhysicsDebugDraw actorPhysicsDebugDraw_;
+	K4E::SystemScheduler worldSystemScheduler_; // Play中のWorld phaseをread/write依存DAGとして保持する。
 
 	struct ActorWorldValidationState
 	{
