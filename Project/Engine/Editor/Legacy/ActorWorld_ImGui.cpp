@@ -4,6 +4,7 @@
 #include "ComponentFactory.h"
 #include <Editor/EditorCommandHistory.h>
 #include <Editor/EditorContext.h>
+#include <Editor/EditorPrefabDiffPanel.h>
 
 #include <atomic>
 #include <cstdint>
@@ -182,6 +183,7 @@ namespace Ken4lowEngine
 			}
 
 			if (!lastActorJsonSaveMessage_.empty()) ImGui::TextWrapped("%s", lastActorJsonSaveMessage_.c_str());
+			DrawEditorPrefabDiffPanel(saveTargetActor); // 選択ActorがPrefab instanceならSourceとの差分をInspector内で確認できる。
 			ImGui::Separator();
 		}
 
