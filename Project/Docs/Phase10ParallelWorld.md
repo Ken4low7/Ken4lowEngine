@@ -162,9 +162,47 @@ The ActorWorld validation window reports the number of dirty SceneComponents obs
 
 Debug/Release translation-unit compilation remains the authoritative C++ integration check for the full SceneComponent/Actor/Editor dependency surface.
 
-### 10.4 Spatial Query Optimization — planned
+### 10.4 Spatial Query Optimization — implemented static-stage foundation
 
-Use the stabilized scheduled/dirty world data to reduce broad spatial-query cost. Candidate work includes persistent spatial partitions, batched queries, and parallel read-only query phases. Correctness and deterministic ownership come before changing the spatial structure.
+Static Stage collision data now owns persistent spatial indices instead of forcing every gameplay query to scan complete AABB arrays. `StageSpatialQueryIndex` is an XZ uniform grid built once after `StageCollisionBuilder` finishes producing static collision data.
+
+The Stage keeps separate indices for:
+
+- all World AABBs
+- Floor AABBs
+- Wall/Obstacle AABBs
+- Navigation obstacle AABBs
+- Ladder trigger AABBs
+
+Keeping the indices separate preserves the existing array ownership and index mapping. A query returns original array indices rather than copied AABBs, so callers can still pair Wall AABBs with walkable flags or perform a more precise test against another shape without introducing a second source of truth.
+
+Each AABB is registered into every XZ cell it overlaps. Querying an AABB visits only overlapping cells, gathers candidate indices, sorts them, and removes duplicates. The resulting candidate order is deterministic even when an object spans several cells. The grid is broad phase only: Y overlap, segment intersection, OBB tests, trigger logic, and other exact checks remain with the caller.
+
+The index is immutable after Stage initialization until the next `Clear`/`Initialize`. Query functions are `const` and use caller-owned output vectors rather than shared mutable scratch. This means independent read-only Stage queries can safely execute concurrently once a later `SystemScheduler` phase proves that its caller is worker-safe.
+
+`StageSpatialQueryStats` exposes the cell size, indexed item count, occupied cell count, total cell references, and maximum cell occupancy for each static query layer. These values describe index quality without putting mutable per-query counters on the concurrent read path.
+
+#### First hot-path migrations
+
+Two existing full scans now use the persistent grid before their existing exact checks:
+
+1. `Stage::CheckLadderOverlap` queries only Ladder cells touched by the player's AABB, then performs the existing AABB collision test on those candidates.
+2. `CharacterMovementComponent::TryStartAutomaticObstacleTraversal` builds a swept/expanded AABB covering the current-to-look-ahead movement region, queries nearby Wall/Floor candidates, then keeps the existing walkable filtering and segment-versus-expanded-AABB test.
+
+This preserves gameplay behavior while removing Stage-size-dependent full traversal from these repeated queries. Other systems can migrate to the same candidate-query API incrementally rather than changing every spatial consumer in one step.
+
+#### Validation
+
+`Tests/Phase10/test_spatial_queries.py` protects the persistent-grid and integration contract. When a portable C++20 compiler is available it builds and runs `StageSpatialQueryRuntimeTests.cpp`, which validates:
+
+- nearby candidate pruning and far-query rejection
+- sorted/deduplicated deterministic results
+- build statistics and malformed non-finite bounds handling
+- repeated concurrent read-only queries from multiple threads with independent output buffers
+
+Full Debug/Release translation-unit compilation remains the integration check for `Stage`, Character movement, and the Windows/DirectX application surface.
+
+With 10.4 in place, all planned Phase 10 foundations are implemented: dependency-aware jobs, data-owned system scheduling, transform dirty tracking, and persistent static-world spatial queries. Further spatial structures such as BVH/octree variants or additional hot-path migrations can be measured and added later without changing these ownership contracts.
 
 ## Compatibility strategy
 
