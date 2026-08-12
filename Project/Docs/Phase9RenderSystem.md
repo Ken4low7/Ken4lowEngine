@@ -136,11 +136,40 @@ The heap was expanded while preserving index 0 as reserved. Existing `Allocate` 
 
 The current implementation centralizes shader-visible CBV/SRV/UAV lifetime management first. RTV/DSV heaps remain owner-managed CPU-visible descriptor heaps; they can adopt the same transient ownership model when Phase 9.4 placed render targets begin migrating into normal frame execution.
 
-### 9.6 Shader Cache + PSO Cache — next
+### 9.6 Shader Cache + PSO Cache — implemented foundation
 
-Cache shader bytecode and graphics/compute PSOs from deterministic keys derived from shader inputs and pipeline state. Cache invalidation must remain explicit and observable in Debug builds.
+`DXCCompilerManager` now owns a memory-resident DXIL cache. `ShaderCompiler` asks the cache before invoking DXC and stores only successfully compiled shader blobs.
 
-### 9.7 RenderGraph Visualizer
+The shader cache key is derived from data that changes compiled output rather than object identity:
+
+- normalized project shader path
+- entry point
+- shader profile
+- the current DXC option set
+- root HLSL source bytes
+- recursively discovered quoted/angle local include source bytes
+
+Include traversal uses the include path relative to the including source file, records missing inputs deterministically, and stops repeated/cyclic traversal. Because source and local `.hlsli` contents participate directly in the key, editing either automatically creates a cache miss without relying on file timestamps. `InvalidateShader` and `ClearShaderCache` remain available for explicit editor/hot-reload invalidation and teardown.
+
+Shader diagnostics expose request, hit, miss, successful compile, invalidation, clear, and live entry counts.
+
+`PipelineFactory` now caches the complete graphics `PipelineBundle` so a cache hit reuses both the `ID3D12RootSignature` and `ID3D12PipelineState`. The PSO key is structural and deliberately excludes COM pointer addresses. It includes:
+
+- serialized RootSignature bytes
+- VS / PS / GS / HS / DS bytecode bytes
+- every input-layout semantic and numeric field
+- Blend state
+- Rasterizer state
+- Depth/Stencil state
+- RTV/DSV formats
+- primitive topology type
+- sample mask/count
+
+The key is built before creating the D3D12 RootSignature/PSO, so a hit skips both expensive D3D12 object creations. `ClearCache` and `Finalize` explicitly release cached bundles, while cache diagnostics expose request/hit/miss/create/clear/live-entry counts.
+
+Both caches are currently process-memory caches rather than disk caches. Phase 8 already owns deterministic cooked-data persistence; Phase 9.6 intentionally starts with runtime/editor reuse without adding another persistent cache format. A future persistent PSO cache can layer on top of the same structural inputs without changing call-site ownership.
+
+### 9.7 RenderGraph Visualizer — next
 
 Expose compiled graph state in the editor:
 
@@ -152,18 +181,21 @@ Expose compiled graph state in the editor:
 - generated barriers
 - transient allocation/alias ownership
 - descriptor ownership / pressure
+- shader / PSO cache hit pressure
 
 The visualizer is diagnostic and must not become a second source of scheduling truth.
 
 ## Compatibility strategy
 
-The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking, barrier planning, culling roots, transient allocation planning, alias ownership, and Frame Resource-safe transient descriptors can therefore be validated before removing conservative dependencies or replacing owner-managed resources.
+The existing `RenderPipelineController` still explicitly chains passes to preserve rendering order while Phase 9 infrastructure is introduced. Hazard tracking, barrier planning, culling roots, transient allocation planning, alias ownership, Frame Resource-safe transient descriptors, and shader/PSO caches can therefore be validated before removing conservative dependencies or replacing owner-managed resources.
+
+Existing shader and pipeline creation call sites keep their current APIs. Cache reuse is internal to `ShaderCompiler`/`DXCCompilerManager` and `PipelineFactory`, so individual renderers do not need to adopt a new ownership model at the same time.
 
 Once barrier generation and pass-side-effect declarations are stable, explicit chains can be relaxed incrementally and the graph scheduler can expose real parallelism/reordering opportunities. Transient resources can then migrate individually from committed ownership into the shared placed-resource pool and request descriptor tables from the transient SRV range without requiring a renderer-wide switch.
 
 ## Validation
 
-Phase 9 tests are added under `Tests/Phase9` and run in TeamDevelopmentCI. C++ Debug/Release translation-unit compilation remains required after every graph API change. Descriptor contract tests verify persistent/transient range separation, Frame Resource fence-generation reuse, submitted-command-list rejection, contiguous allocation, double-free rejection, per-frame capacity partitioning, and pressure diagnostics.
+Phase 9 tests are added under `Tests/Phase9` and run in TeamDevelopmentCI. C++ Debug/Release translation-unit compilation remains required after every graph API change. Descriptor contract tests verify persistent/transient range separation, Frame Resource fence-generation reuse, submitted-command-list rejection, contiguous allocation, double-free rejection, per-frame capacity partitioning, and pressure diagnostics. Shader/PSO cache contracts verify content-based shader keys, recursive local include dependency tracking, cache-before-compile behavior, explicit invalidation, pointer-independent PSO keys, and cache lookup before D3D12 object creation.
 
 ## Boundary with later phases
 
