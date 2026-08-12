@@ -1,9 +1,11 @@
 #pragma once
 
+#include "WorldPartitionGrid.h"
 #include <Engine/Scene/Level/LevelDocument.h>
 #include <Vector3.h>
 
 #include <cstddef>
+#include <string_view>
 #include <vector>
 
 namespace Ken4lowEngine
@@ -27,11 +29,17 @@ namespace Ken4lowEngine
 		void Reset();
 		void Update(const Vector3& streamingSourcePosition);
 
+		/// Editorから設定だけを更新し、現在のStreaming SourceでResidencyを再評価する。
+		void ApplyEditorSettings(const LevelWorldPartitionSettings& settings);
+		bool UpdateSubLevelEditorMetadata(std::string_view id, int cellX, int cellZ, int priority, bool alwaysLoaded);
+
 		[[nodiscard]] bool IsConfigured() const { return actorWorld_ != nullptr; }
 		[[nodiscard]] bool IsEnabled() const { return settings_.enabled; }
 		[[nodiscard]] bool IsConfiguredFor(const ActorWorld* actorWorld) const { return actorWorld_ == actorWorld; }
 		[[nodiscard]] const LevelWorldPartitionSettings& GetSettings() const { return settings_; }
 		[[nodiscard]] const std::vector<LevelSubLevelReference>& GetSubLevels() const { return subLevels_; }
+		[[nodiscard]] const Vector3& GetStreamingSourcePosition() const { return lastStreamingSourcePosition_; }
+		[[nodiscard]] WorldPartitionCell GetStreamingSourceCell() const { return lastStreamingSourceCell_; }
 		[[nodiscard]] std::size_t GetLoadedSubLevelCount() const;
 		[[nodiscard]] bool IsStreamingActor(const Actor* actor) const;
 
@@ -40,8 +48,12 @@ namespace Ken4lowEngine
 		WorldPartitionManager(const WorldPartitionManager&) = delete;
 		WorldPartitionManager& operator=(const WorldPartitionManager&) = delete;
 
+		void SanitizeSettings();
+
 		ActorWorld* actorWorld_ = nullptr;
 		LevelWorldPartitionSettings settings_{};
 		std::vector<LevelSubLevelReference> subLevels_;
+		Vector3 lastStreamingSourcePosition_{};
+		WorldPartitionCell lastStreamingSourceCell_{};
 	};
 } // namespace Ken4lowEngine
