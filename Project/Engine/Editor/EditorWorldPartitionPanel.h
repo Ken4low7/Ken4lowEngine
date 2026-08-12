@@ -13,8 +13,6 @@
 
 namespace Ken4lowEngine
 {
-	class ActorWorld;
-
 	namespace EditorWorldPartitionPanelDetail
 	{
 		inline const char* StateLabel(SubLevelState state)
@@ -42,15 +40,15 @@ namespace Ken4lowEngine
 		}
 	}
 
-	inline void DrawEditorWorldPartitionPanel(ActorWorld* actorWorld)
+	inline void DrawEditorWorldPartitionPanel()
 	{
 		using namespace EditorWorldPartitionPanelDetail;
 		if (!ImGui::CollapsingHeader("World Partition##WorldPartitionEditor")) return;
 
 		WorldPartitionManager* partition = WorldPartitionManager::GetInstance();
-		if (!partition->IsConfiguredFor(actorWorld))
+		if (!partition->IsConfigured())
 		{
-			ImGui::TextDisabled("Current ActorWorldにはWorld Partition設定がありません。");
+			ImGui::TextDisabled("Current WorldにはWorld Partition設定がありません。");
 			return;
 		}
 
