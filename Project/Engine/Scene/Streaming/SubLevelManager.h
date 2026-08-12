@@ -40,6 +40,7 @@ namespace Ken4lowEngine
 		bool RequestLoad(std::string_view id);
 		bool RequestUnload(std::string_view id);
 		bool Retry(std::string_view id);
+		bool UpdateReferenceMetadata(const LevelSubLevelReference& reference);
 
 		[[nodiscard]] SubLevelState GetState(std::string_view id) const;
 		[[nodiscard]] const std::string& GetLastError(std::string_view id) const;
