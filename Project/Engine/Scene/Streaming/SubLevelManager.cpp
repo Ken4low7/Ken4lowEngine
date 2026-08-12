@@ -188,6 +188,21 @@ namespace Ken4lowEngine
 		return RequestLoad(id);
 	}
 
+	bool SubLevelManager::UpdateReferenceMetadata(const LevelSubLevelReference& reference)
+	{
+		const auto found = entries_.find(reference.id);
+		if (found == entries_.end()) return false;
+
+		for (LevelSubLevelReference& storedReference : references_)
+		{
+			if (storedReference.id != reference.id) continue;
+			storedReference = reference;
+			found->second.reference = reference; // Load状態とActor追跡は保持し、次回Requestだけ新しいEditor metadataを使う。
+			return true;
+		}
+		return false;
+	}
+
 	SubLevelState SubLevelManager::GetState(std::string_view id) const
 	{
 		const auto found = entries_.find(std::string(id));
