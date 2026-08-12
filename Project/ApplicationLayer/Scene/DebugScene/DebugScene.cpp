@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <limits>
 #include <sstream>
+#include <stdexcept>
 
 #ifdef USE_IMGUI
 #include <Editor/EditorPlayController.h>
@@ -24,6 +25,15 @@
 #endif // USE_IMGUI
 
 using namespace Ken4lowEngine;
+
+namespace
+{
+	constexpr K4E::SystemResourceId kWorldObjectState = 1;
+	constexpr K4E::SystemResourceId kTransformState = 2;
+	constexpr K4E::SystemResourceId kPhysicsRegistry = 3;
+	constexpr K4E::SystemResourceId kPhysicsState = 4;
+	constexpr K4E::SystemResourceId kRenderState = 5;
+}
 
 DebugScene::DebugScene() = default;
 DebugScene::~DebugScene() = default;
@@ -45,6 +55,7 @@ void DebugScene::Initialize()
 	validationGround.SetLayer("DebugValidation");
 
 	actorWorld_.Initialize();
+	SetupWorldSystemSchedule();
 }
 
 void DebugScene::BeginEditorPlay()
@@ -62,7 +73,7 @@ void DebugScene::BeginEditorPlay()
 void DebugScene::EndEditorPlay()
 {
 #ifdef USE_IMGUI
-	K4E::EditorPlayController::GetInstance()->ReleaseGameInput(); // Stop後はEditor操作へ確実に戻す。
+	K4E::EditorPlayController::GetInstance()->ReleaseGameInput(); // Stop時はEditorへ入力を返し、カーソル固定を解除する。
 #endif
 	if (input_)
 	{
@@ -83,26 +94,74 @@ void DebugScene::Update()
 	const float deltaTime = K4E::GameTimer::GetInstance()->GetDeltaTime();
 	performancePhaseValidation_.BeginFrame(deltaTime);
 	ProcessActorWorldValidationRequests();
-	
-	performancePhaseValidation_.BeginPhase(PerformancePhaseValidation::Phase::ActorWorldUpdate);
-	actorWorld_.Update(deltaTime);
-	performancePhaseValidation_.EndPhase(PerformancePhaseValidation::Phase::ActorWorldUpdate);
 
-	// ActorComponent由来のCollider同士を判定・イベント更新する
-	performancePhaseValidation_.BeginPhase(PerformancePhaseValidation::Phase::PhysicsWorldUpdate);
-	actorPhysicsWorld_.Update(deltaTime);
-	performancePhaseValidation_.EndPhase(PerformancePhaseValidation::Phase::PhysicsWorldUpdate);
-
-	// PhysicsWorldの結果をActor/Component側のTransformへ反映する
-	performancePhaseValidation_.BeginPhase(PerformancePhaseValidation::Phase::PostPhysicsUpdate);
-	actorWorld_.PostPhysicsUpdate(deltaTime);
-	performancePhaseValidation_.EndPhase(PerformancePhaseValidation::Phase::PostPhysicsUpdate);
+	worldSystemScheduler_.ExecuteAndWait(deltaTime); // World phase間の待機はSystemSchedulerがread/write dependencyから解決する。
 
 	performancePhaseValidation_.SetPhysicsState(
 		actorWorld_.GetActors().size(),
 		actorPhysicsWorld_.GetColliderCount(),
 		actorPhysicsWorld_.GetContactCount(),
 		actorPhysicsWorld_.GetLastSubStepCount());
+}
+
+void DebugScene::SetupWorldSystemSchedule()
+{
+	using Access = K4E::SystemResourceAccess;
+	using AccessType = K4E::SystemAccessType;
+	using Policy = K4E::SystemExecutionPolicy;
+
+	worldSystemScheduler_.Reset();
+	worldSystemScheduler_.AddSystem(
+		"ActorWorld.Update",
+		[this](float deltaTime)
+		{
+			performancePhaseValidation_.BeginPhase(PerformancePhaseValidation::Phase::ActorWorldUpdate);
+			actorWorld_.Update(deltaTime);
+			performancePhaseValidation_.EndPhase(PerformancePhaseValidation::Phase::ActorWorldUpdate);
+		},
+		std::vector<Access>{
+			{ kWorldObjectState, AccessType::ReadWrite },
+			{ kTransformState, AccessType::ReadWrite },
+			{ kPhysicsRegistry, AccessType::ReadWrite },
+			{ kRenderState, AccessType::Write },
+		},
+		Policy::MainThread);
+
+	worldSystemScheduler_.AddSystem(
+		"PhysicsWorld.Update",
+		[this](float deltaTime)
+		{
+			performancePhaseValidation_.BeginPhase(PerformancePhaseValidation::Phase::PhysicsWorldUpdate);
+			actorPhysicsWorld_.Update(deltaTime);
+			performancePhaseValidation_.EndPhase(PerformancePhaseValidation::Phase::PhysicsWorldUpdate);
+		},
+		std::vector<Access>{
+			{ kWorldObjectState, AccessType::ReadWrite },
+			{ kPhysicsRegistry, AccessType::Read },
+			{ kPhysicsState, AccessType::ReadWrite },
+		},
+		Policy::MainThread); // Physics event callbackはActor/Componentへ戻るため、10.2ではMainThread affinityを維持する。
+
+	worldSystemScheduler_.AddSystem(
+		"ActorWorld.PostPhysicsUpdate",
+		[this](float deltaTime)
+		{
+			performancePhaseValidation_.BeginPhase(PerformancePhaseValidation::Phase::PostPhysicsUpdate);
+			actorWorld_.PostPhysicsUpdate(deltaTime);
+			performancePhaseValidation_.EndPhase(PerformancePhaseValidation::Phase::PostPhysicsUpdate);
+		},
+		std::vector<Access>{
+			{ kWorldObjectState, AccessType::ReadWrite },
+			{ kPhysicsState, AccessType::Read },
+			{ kTransformState, AccessType::ReadWrite },
+			{ kRenderState, AccessType::Write },
+		},
+		Policy::MainThread);
+
+	if (!worldSystemScheduler_.Compile())
+	{
+		throw std::logic_error("DebugScene world system schedule contains a dependency cycle.");
+	}
 }
 
 void DebugScene::UpdateEditor(float deltaTime)
@@ -171,6 +230,7 @@ void DebugScene::Finalize()
 		input_->SetCursorVisible(true);
 	}
 
+	worldSystemScheduler_.Reset();
 	actorWorld_.Finalize();
 	input_ = nullptr;
 }
@@ -353,6 +413,12 @@ void DebugScene::DrawActorWorldValidationImGui()
 	ImGui::Text("Actor数: %zu", actorWorld_.GetActors().size());
 	ImGui::Text("Collider登録数: %zu", actorPhysicsWorld_.GetColliderCount());
 	ImGui::Text("Rigidbody登録数: %zu", actorPhysicsWorld_.GetRigidbodies().size());
+	const K4E::SystemScheduleStats& scheduleStats = worldSystemScheduler_.GetStats();
+	ImGui::Text("World Schedule: System=%zu / Dependency=%zu / Main=%zu / Worker=%zu",
+		scheduleStats.systemCount,
+		scheduleStats.dependencyCount,
+		scheduleStats.mainThreadSystemCount,
+		scheduleStats.workerSystemCount);
 	ImGui::TextColored(validation.lastSucceeded ? ImVec4(0.35f, 1.0f, 0.45f, 1.0f) : ImVec4(1.0f, 0.4f, 0.35f, 1.0f),
 		"%s", validation.lastMessage.c_str());
 
