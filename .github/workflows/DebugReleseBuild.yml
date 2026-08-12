@@ -45,6 +45,7 @@ jobs:
           python -m unittest discover -s Tests/Phase8 -p "test_*.py" -v # Content Pipelineの決定性・依存関係・DDC契約をCIで保証する。
           python -m unittest discover -s Tests/Phase9 -p "test_*.py" -v # RenderGraphのResource access/hazard契約をCIで固定する。
           python -m unittest discover -s Tests/Phase10 -p "test_*.py" -v # Job依存関係のfan-in/fan-outと実行順を実ランタイムで検証する。
+          python -m unittest discover -s Tests/Phase11 -p "test_*.py" -v # Editor Undo/Redoのtransaction・履歴整合性を実ランタイムで検証する。
 
   compile:
     name: Compile ${{ matrix.configuration }}
@@ -96,8 +97,8 @@ jobs:
           $buildKey = Get-DerivedDataBuildKey -AssetType "Smoke" -BuildVersion 1 -Inputs @("Content=Ken4low-DDC-Smoke")
           $entry = Get-DdcEntryDirectory -GeneratedRoot $smokeRoot -AssetType "Smoke" -BuildKey $buildKey
           $cachePath = Join-Path $entry "payload.bin"
-          [int64]$written = Store-DdcFile -SourcePath $sourcePath -CachePath $cachePath
-          $restored = Restore-DdcFile -CachePath $cachePath -OutputPath $outputPath
+          [int64]$written = Store-DdcFile -SourcePath $sourcePath -CachePath $cachePath -BuildKey $buildKey
+          $restored = Restore-DdcFile -CachePath $cachePath -OutputPath $outputPath -ExpectedBuildKey $buildKey
           if (-not $restored.Hit -or $written -le 0 -or (Get-FileSha256 $sourcePath) -ne (Get-FileSha256 $outputPath)) {
             Write-Error "Derived Data Cache smoke test failed."
             exit 1
@@ -113,5 +114,5 @@ jobs:
       - name: Explain compile-only validation
         shell: pwsh
         run: |
-          Write-Host "Phase 5/7/8/9/10 CI validates every C++ translation unit in ${{ matrix.configuration }}."
+          Write-Host "Phase 5/7/8/9/10/11 CI validates every C++ translation unit in ${{ matrix.configuration }}."
           Write-Host "The full Debug link is intentionally separate because the hosted runner does not provide the repository's assimp-vc143-mtd.lib binary."
