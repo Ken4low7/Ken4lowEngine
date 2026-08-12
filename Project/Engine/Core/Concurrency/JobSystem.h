@@ -31,6 +31,7 @@ namespace Ken4lowEngine
 		std::mutex mutex;
 		std::condition_variable completionCv;
 		std::exception_ptr firstException;
+		std::vector<std::function<void()>> completionCallbacks;
 	};
 
 	class JobHandle
@@ -64,7 +65,21 @@ namespace Ken4lowEngine
 		void Finalize();
 
 		JobHandle Dispatch(Job job, JobPriority priority = JobPriority::Normal);
+		JobHandle DispatchAfter(
+			const JobHandle& dependency,
+			Job job,
+			JobPriority priority = JobPriority::Normal);
+		JobHandle DispatchAfter(
+			const std::vector<JobHandle>& dependencies,
+			Job job,
+			JobPriority priority = JobPriority::Normal);
 		JobHandle ParallelFor(
+			std::size_t itemCount,
+			std::size_t grainSize,
+			IndexedJob job,
+			JobPriority priority = JobPriority::Normal);
+		JobHandle ParallelForAfter(
+			const std::vector<JobHandle>& dependencies,
 			std::size_t itemCount,
 			std::size_t grainSize,
 			IndexedJob job,
@@ -84,6 +99,15 @@ namespace Ken4lowEngine
 			std::shared_ptr<JobState> state;
 		};
 
+		struct DependencyBatch
+		{
+			std::vector<Task> tasks;
+			JobPriority priority = JobPriority::Normal;
+			std::atomic_size_t remainingDependencies{ 0 };
+			std::atomic_bool registrationComplete{ false };
+			std::atomic_bool enqueued{ false };
+		};
+
 		JobSystem() = default;
 		~JobSystem();
 		JobSystem(const JobSystem&) = delete;
@@ -93,6 +117,14 @@ namespace Ken4lowEngine
 		bool HasQueuedTaskLocked() const;
 		Task PopTaskLocked();
 		void EnqueueTask(Task task, JobPriority priority);
+		void EnqueueTasksAfterDependencies(
+			std::vector<Task> tasks,
+			const std::vector<JobHandle>& dependencies,
+			JobPriority priority);
+		void TryEnqueueDependencyBatch(const std::shared_ptr<DependencyBatch>& batch);
+		static bool RegisterCompletionCallback(
+			const std::shared_ptr<JobState>& state,
+			std::function<void()> callback);
 		static void CompleteTask(const std::shared_ptr<JobState>& state, std::exception_ptr exception);
 		static std::size_t ResolveWorkerCount(std::size_t requestedWorkerCount);
 
