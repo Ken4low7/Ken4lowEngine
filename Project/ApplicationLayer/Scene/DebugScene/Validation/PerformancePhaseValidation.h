@@ -4,6 +4,7 @@
 #include <GameTimer.h>
 #include <PhysicsWorld.h>
 #include <RenderPipelineController.h>
+#include <Engine/Graphics/RenderGraph/RenderGraphVisualizer.h>
 
 #include <algorithm>
 #include <array>
@@ -88,6 +89,8 @@ public:
 		if (Ken4lowEngine::RenderPipelineController* renderPipeline = Ken4lowEngine::RenderPipelineController::GetActiveController())
 		{
 			renderPipeline->DrawPerformanceImGui();
+			// Phase 9.7 Visualizerも同じcompile済みControllerを読み、F10で表示切替する。
+			Ken4lowEngine::RenderGraphVisualizer::GetInstance()->Draw(*renderPipeline);
 		}
 
 		if (!ImGui::Begin("Performance Phase 検証"))
