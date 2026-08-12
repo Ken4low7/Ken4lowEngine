@@ -44,6 +44,12 @@ class TransformDirtyTrackingContractTests(unittest.TestCase):
         self.assertIn("component = component->parent_", self.source)
         self.assertIn("ancestor == this", self.source)
 
+    def test_refresh_starts_from_hierarchy_root_before_recalculating_children(self) -> None:
+        self.assertIn("SceneComponent* hierarchyRoot = this", self.source)
+        self.assertIn("while (hierarchyRoot->parent_)", self.source)
+        self.assertIn("return hierarchyRoot->UpdateWorldTransform()", self.source)
+        self.assertIn("lastParentWorldTransformRevision_ != parentRevision", self.source)
+
     def test_clean_transform_hierarchy_skips_recalculation(self) -> None:
         self.assertIn("if (!subtreeTransformDirty_ && !worldTransformDirty_ && !parentChanged)", self.source)
         self.assertIn("return 0;", self.source)
@@ -68,9 +74,14 @@ class TransformDirtyTrackingContractTests(unittest.TestCase):
         self.assertIn("kLocalTransformState", self.debug_source)
         self.assertIn("kWorldTransformState", self.debug_source)
 
-    def test_debug_diagnostics_expose_actual_recompute_counts(self) -> None:
+    def test_debug_diagnostics_snapshot_dirty_count_before_flush(self) -> None:
         self.assertIn("dirtyComponentCount", self.debug_header)
         self.assertIn("recomputedComponentCount", self.debug_header)
+        self.assertIn("std::vector<K4E::SceneComponent*> sceneComponents", self.debug_source)
+        self.assertLess(
+            self.debug_source.index("if (sceneComponent->IsWorldTransformDirty()) ++stats.dirtyComponentCount"),
+            self.debug_source.index("for (K4E::SceneComponent* sceneComponent : sceneComponents)"),
+        )
         self.assertIn("RefreshWorldTransformHierarchy()", self.debug_source)
         self.assertIn("Dirty Transform PrePhysics", self.debug_source)
         self.assertIn("Dirty Transform PostPhysics", self.debug_source)
