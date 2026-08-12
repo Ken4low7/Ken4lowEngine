@@ -316,6 +316,7 @@ namespace Ken4lowEngine
 		ladderColliders_ = std::move(collisionResult.ladderColliders);
 		ladderAABBs_ = std::move(collisionResult.ladderAABBs);
 		ladderOBBs_ = std::move(collisionResult.ladderOBBs);
+		RebuildSpatialQueryIndices(); // Static collision完成時に一度だけGridを構築し、フレーム中の全走査を避ける。
 		occlusionCullingSystem_.BuildAutoOccludersFromWorldAABBs(worldAABBs_);
 	}
 
@@ -326,6 +327,11 @@ namespace Ken4lowEngine
 		stageInstancingManager_.Clear();
 		stageChunkManager_.Clear();
 		occlusionCullingSystem_.ClearOccluders();
+		worldSpatialIndex_.Clear();
+		floorSpatialIndex_.Clear();
+		wallObstacleSpatialIndex_.Clear();
+		navigationObstacleSpatialIndex_.Clear();
+		ladderSpatialIndex_.Clear();
 		worldAABBs_.clear();
 		floorAABBs_.clear();
 		wallObstacleAABBs_.clear();
@@ -422,6 +428,51 @@ namespace Ken4lowEngine
 		stageChunkManager_.Rebuild(stageModel_.get(), stageChunkManager_.GetChunkSize());
 	}
 
+	void Stage::RebuildSpatialQueryIndices()
+	{
+		worldSpatialIndex_.Build(worldAABBs_);
+		floorSpatialIndex_.Build(floorAABBs_);
+		wallObstacleSpatialIndex_.Build(wallObstacleAABBs_);
+		navigationObstacleSpatialIndex_.Build(navigationObstacleAABBs_);
+		ladderSpatialIndex_.Build(ladderAABBs_); // Build完了後はQuery側から内部Gridを変更しない。
+	}
+
+	void Stage::QueryWorldAabbCandidates(const AABB& queryBounds, std::vector<std::size_t>& outIndices) const
+	{
+		worldSpatialIndex_.Query(queryBounds, outIndices);
+	}
+
+	void Stage::QueryFloorAabbCandidates(const AABB& queryBounds, std::vector<std::size_t>& outIndices) const
+	{
+		floorSpatialIndex_.Query(queryBounds, outIndices);
+	}
+
+	void Stage::QueryWallObstacleAabbCandidates(const AABB& queryBounds, std::vector<std::size_t>& outIndices) const
+	{
+		wallObstacleSpatialIndex_.Query(queryBounds, outIndices);
+	}
+
+	void Stage::QueryNavigationObstacleAabbCandidates(const AABB& queryBounds, std::vector<std::size_t>& outIndices) const
+	{
+		navigationObstacleSpatialIndex_.Query(queryBounds, outIndices);
+	}
+
+	void Stage::QueryLadderAabbCandidates(const AABB& queryBounds, std::vector<std::size_t>& outIndices) const
+	{
+		ladderSpatialIndex_.Query(queryBounds, outIndices);
+	}
+
+	StageSpatialQueryStats Stage::GetSpatialQueryStats() const
+	{
+		return {
+			worldSpatialIndex_.GetStats(),
+			floorSpatialIndex_.GetStats(),
+			wallObstacleSpatialIndex_.GetStats(),
+			navigationObstacleSpatialIndex_.GetStats(),
+			ladderSpatialIndex_.GetStats(),
+		};
+	}
+
 	void Stage::RegisterColliders(CollisionManager* collisionManager)
 	{
 		(void)collisionManager;
@@ -430,9 +481,11 @@ namespace Ken4lowEngine
 
 	bool Stage::CheckLadderOverlap(const AABB& playerAABB) const
 	{
-		for (const AABB& ladderAABB : ladderAABBs_)
+		std::vector<std::size_t> candidates;
+		QueryLadderAabbCandidates(playerAABB, candidates);
+		for (std::size_t index : candidates)
 		{
-			if (CollisionUtility::IsCollision(playerAABB, ladderAABB)) return true;
+			if (index < ladderAABBs_.size() && CollisionUtility::IsCollision(playerAABB, ladderAABBs_[index])) return true;
 		}
 		return false;
 	}
