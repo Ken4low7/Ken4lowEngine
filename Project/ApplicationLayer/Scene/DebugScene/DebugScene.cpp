@@ -197,6 +197,7 @@ void DebugScene::SetupWorldSystemSchedule()
 DebugScene::TransformFinalizeStats DebugScene::FinalizeDirtyWorldTransforms()
 {
 	TransformFinalizeStats stats{};
+	std::vector<K4E::SceneComponent*> sceneComponents;
 	for (const auto& actor : actorWorld_.GetActors())
 	{
 		if (!actor || actor->IsPendingDestroy() || !actor->IsActive()) continue;
@@ -204,12 +205,18 @@ DebugScene::TransformFinalizeStats DebugScene::FinalizeDirtyWorldTransforms()
 		{
 			auto* sceneComponent = dynamic_cast<K4E::SceneComponent*>(component.get());
 			if (!sceneComponent || !sceneComponent->IsActiveInHierarchy()) continue;
+			sceneComponents.push_back(sceneComponent);
 			if (!sceneComponent->GetParent()) ++stats.rootCount;
 			if (sceneComponent->IsWorldTransformDirty()) ++stats.dirtyComponentCount;
-			stats.recomputedComponentCount += sceneComponent->RefreshWorldTransformHierarchy();
 		}
 	}
-	return stats; // 既にcleanなComponentはRefresh側のsubtree fast-pathで行列計算を行わない。
+
+	// Dirty数を先にsnapshotしてからflushするため、Rootが子を先に更新しても診断値が過少にならない。
+	for (K4E::SceneComponent* sceneComponent : sceneComponents)
+	{
+		stats.recomputedComponentCount += sceneComponent->RefreshWorldTransformHierarchy();
+	}
+	return stats;
 }
 
 void DebugScene::UpdateEditor(float deltaTime)
