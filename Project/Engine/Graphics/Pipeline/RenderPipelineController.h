@@ -102,6 +102,9 @@ namespace Ken4lowEngine
 		const PerformanceMetric& GetGpuPerformanceMetric(PerformancePhase phase) const { return gpuPerformanceMetrics_[ToIndex(phase)]; }
 		const PerformanceMetric& GetGpuFrameMetric() const { return gpuFrameMetric_; }
 		const FrameTimingSummary& GetFrameTimingSummary() const { return frameTimingSummary_; }
+		const RenderGraph& GetRenderGraph() const { return renderGraph_; }
+		const RenderGraphTransientPool& GetRenderGraphTransientPool() const { return renderGraphTransientPool_; }
+		DirectXCommon* GetDirectXCommon() const { return dxCommon_; }
 
 		/// 現在GameApplicationが使用しているControllerをDebugSceneの診断UIから参照する。
 		static RenderPipelineController* GetActiveController() { return activeController_; }
@@ -159,6 +162,8 @@ namespace Ken4lowEngine
 		static RenderPipelineController* activeController_;
 		DirectXCommon* dxCommon_ = nullptr;
 		RenderGraph renderGraph_{};
+		// Visualizerは実際のTransient planner状態だけを読み、独自のaliasing推測を作らない。
+		RenderGraphTransientPool renderGraphTransientPool_{};
 		std::array<PerformanceMetric, kPerformancePhaseCount> performanceMetrics_{};
 		std::array<PerformanceMetric, kPerformancePhaseCount> gpuPerformanceMetrics_{};
 		PerformanceMetric gpuFrameMetric_{};
