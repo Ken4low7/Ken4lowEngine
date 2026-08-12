@@ -227,14 +227,29 @@ namespace Ken4lowEngine
 				selectedClimbHeight = climbHeight;
 			};
 
+		const float queryPadding = agentRadius + 0.08f;
+		const AABB traversalQuery{
+			{ std::min(current.x, lookAheadEnd.x) - queryPadding, footY - 0.5f, std::min(current.z, lookAheadEnd.z) - queryPadding },
+			{ std::max(current.x, lookAheadEnd.x) + queryPadding, footY + automaticObstacleMaxClimbHeight_ + 0.5f, std::max(current.z, lookAheadEnd.z) + queryPadding }
+		};
+		std::vector<std::size_t> wallCandidates;
+		std::vector<std::size_t> floorCandidates;
+		stage->QueryWallObstacleAabbCandidates(traversalQuery, wallCandidates);
+		stage->QueryFloorAabbCandidates(traversalQuery, floorCandidates); // 前方セルだけを調べ、Stage全障害物の毎フレーム走査を避ける。
+
 		const auto& wallObstacles = stage->GetWallObstacleAABBs();
 		const auto& walkableFlags = stage->GetWallObstacleWalkable();
-		for (size_t index = 0; index < wallObstacles.size(); ++index)
+		for (std::size_t index : wallCandidates)
 		{
-			if (index >= walkableFlags.size() || walkableFlags[index] == 0u) continue;
+			if (index >= wallObstacles.size() || index >= walkableFlags.size() || walkableFlags[index] == 0u) continue;
 			considerSurface(wallObstacles[index]); // 壁・木・柱は除外し、上面へ立てる低い遮蔽物だけを自動乗越の対象にする。
 		}
-		for (const AABB& floor : stage->GetFloorAABBs()) considerSurface(floor);
+
+		const auto& floors = stage->GetFloorAABBs();
+		for (std::size_t index : floorCandidates)
+		{
+			if (index < floors.size()) considerSurface(floors[index]);
+		}
 
 		if (selectedClimbHeight <= 0.0f) return false;
 		const float requiredJumpSpeed = std::sqrt(2.0f * kGravityAcceleration * (selectedClimbHeight + 0.45f));
