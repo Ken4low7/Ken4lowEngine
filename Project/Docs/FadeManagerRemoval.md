@@ -27,6 +27,10 @@ The Visual Studio project still contains old explicit FadeManager source entries
 
 `Tests/test_fade_manager_removal.py` prevents the application from reintroducing the FadeManager include/constructor, verifies the physical source and fade-only texture removal, and checks that the no-transition SceneManager path remains available.
 
-## Separate LevelLoader assertion
+## Retired FPS LevelData validation
 
-The `LevelLoader.cpp` assertion shown during this cleanup is not a FadeManager texture failure. It means a Level JSON path could not be opened. Removing FadeManager eliminates its texture loads, but a missing Level JSON reference must be diagnosed separately from the resolved `fullPath`.
+The assertion reported from `LevelLoader.cpp` was caused by `LevelDataValidation` automatically loading the deleted `Resources/JSON/stages/fps_stage00.json` when `DebugScene` was constructed. The old comparison tool has now been retired: its compatibility hook remains so `DebugScene` does not need an unrelated structural rewrite, but it performs no file I/O and no longer includes `LevelLoader` or `BlenderSceneLoader`.
+
+The current Phase 4 Level pipeline (`LevelDocument`, `LevelSerializer`, `TransactionalLevelLoader`, and the `SceneLevelLoader` facade) remains intact. This cleanup removes only the obsolete FPS validation path, not the engine's current Level loading system.
+
+`Tests/test_legacy_level_validation_retirement.py` prevents the deleted FPS JSON from being reintroduced into DebugScene startup and verifies that the transactional Level loader still exists.
