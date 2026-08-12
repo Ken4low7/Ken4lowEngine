@@ -8,8 +8,11 @@
 #include <deque>
 #include <exception>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <mutex>
+#include <string>
+#include <string_view>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -84,6 +87,7 @@ namespace Ken4lowEngine
 			std::size_t grainSize,
 			IndexedJob job,
 			JobPriority priority = JobPriority::Normal);
+		JobHandle CreateCompletedHandle();
 
 		void Wait(const JobHandle& handle) const;
 		void WaitIdle() const;
@@ -136,5 +140,118 @@ namespace Ken4lowEngine
 		std::atomic_size_t pendingTasks_{ 0 };
 		std::atomic_bool initialized_{ false };
 		bool stopping_ = false;
+	};
+
+	using SystemResourceId = uint32_t;
+
+	enum class SystemAccessType : uint8_t
+	{
+		Read,
+		Write,
+		ReadWrite,
+	};
+
+	enum class SystemExecutionPolicy : uint8_t
+	{
+		MainThread,
+		Worker,
+	};
+
+	enum class SystemDependencyType : uint8_t
+	{
+		Explicit,
+		ReadAfterWrite,
+		WriteAfterRead,
+		WriteAfterWrite,
+	};
+
+	struct SystemHandle
+	{
+		static constexpr std::size_t InvalidIndex = (std::numeric_limits<std::size_t>::max)();
+		std::size_t index = InvalidIndex;
+
+		[[nodiscard]] bool IsValid() const { return index != InvalidIndex; }
+		friend bool operator==(const SystemHandle&, const SystemHandle&) = default;
+	};
+
+	struct SystemResourceAccess
+	{
+		SystemResourceId resource = 0;
+		SystemAccessType access = SystemAccessType::Read;
+	};
+
+	struct SystemDependencyRecord
+	{
+		SystemHandle before{};
+		SystemHandle after{};
+		SystemResourceId resource = 0;
+		SystemDependencyType type = SystemDependencyType::Explicit;
+	};
+
+	struct SystemScheduleStats
+	{
+		std::size_t systemCount = 0;
+		std::size_t dependencyCount = 0;
+		std::size_t explicitDependencyCount = 0;
+		std::size_t rawHazardCount = 0;
+		std::size_t warHazardCount = 0;
+		std::size_t wawHazardCount = 0;
+		std::size_t mainThreadSystemCount = 0;
+		std::size_t workerSystemCount = 0;
+	};
+
+	/// <summary>
+	/// World/Systemのread-write宣言から依存DAGを構築し、既存JobSystemへ実行を委譲する。
+	/// MainThread指定はthread affinityを維持し、Worker指定だけが固定Worker Poolへ投入される。
+	/// </summary>
+	class SystemScheduler
+	{
+	public:
+		using SystemJob = std::function<void(float)>;
+
+		SystemHandle AddSystem(
+			std::string name,
+			SystemJob job,
+			std::vector<SystemResourceAccess> accesses = {},
+			SystemExecutionPolicy executionPolicy = SystemExecutionPolicy::MainThread,
+			JobPriority priority = JobPriority::Normal);
+		bool AddDependency(SystemHandle before, SystemHandle after);
+
+		bool Compile();
+		void ExecuteAndWait(float deltaTime, JobSystem* jobSystem = nullptr);
+		void Reset();
+
+		[[nodiscard]] bool IsCompiled() const { return compiled_; }
+		[[nodiscard]] const std::vector<SystemHandle>& GetCompiledOrder() const { return compiledOrder_; }
+		[[nodiscard]] const std::vector<SystemDependencyRecord>& GetDependencies() const { return dependencyRecords_; }
+		[[nodiscard]] const SystemScheduleStats& GetStats() const { return stats_; }
+		[[nodiscard]] std::string_view GetSystemName(SystemHandle handle) const;
+		[[nodiscard]] SystemExecutionPolicy GetExecutionPolicy(SystemHandle handle) const;
+
+	private:
+		struct SystemEntry
+		{
+			std::string name;
+			SystemJob job;
+			std::vector<SystemResourceAccess> accesses;
+			SystemExecutionPolicy executionPolicy = SystemExecutionPolicy::MainThread;
+			JobPriority priority = JobPriority::Normal;
+			std::vector<SystemHandle> explicitPrerequisites;
+			std::vector<SystemHandle> compiledPrerequisites;
+		};
+
+		bool IsValidHandle(SystemHandle handle) const;
+		void AddCompiledDependency(
+			SystemHandle before,
+			SystemHandle after,
+			SystemDependencyType type,
+			SystemResourceId resource);
+		static std::vector<SystemResourceAccess> NormalizeAccesses(std::vector<SystemResourceAccess> accesses);
+
+		std::vector<SystemEntry> systems_;
+		std::vector<SystemHandle> compiledOrder_;
+		std::vector<SystemDependencyRecord> dependencyRecords_;
+		SystemScheduleStats stats_{};
+		bool compiled_ = false;
 	};
 } // namespace Ken4lowEngine
