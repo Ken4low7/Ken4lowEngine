@@ -3,6 +3,7 @@
 #ifdef USE_IMGUI
 
 #include "EditorPrefabDiff.h"
+#include "EditorWorldPartitionPanel.h"
 
 #include <ActorJsonSerializer.h>
 #include <PrefabInstanceRegistry.h>
@@ -83,6 +84,8 @@ namespace Ken4lowEngine
 	inline void DrawEditorPrefabDiffPanel(const Actor* actor)
 	{
 		using namespace EditorPrefabDiffPanelDetail;
+		DrawEditorWorldPartitionPanel(); // Actor DetailsからRuntimeと同じWorld Partition cell/stateを編集・診断できる入口を置く。
+
 		State& state = GetState();
 		if (!state.refreshed || state.actor != actor) Refresh(actor);
 
