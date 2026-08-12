@@ -78,15 +78,15 @@ Execution keeps thread affinity explicit. `Worker` systems are submitted through
 
 #### First World migration
 
-`DebugScene` now registers the existing Play update path as three systems:
+`DebugScene` initially migrated the existing Play update path as three systems:
 
 1. `ActorWorld.Update`
 2. `PhysicsWorld.Update`
 3. `ActorWorld.PostPhysicsUpdate`
 
-The previous hard-coded phase calls in `DebugScene::Update` were replaced by one `worldSystemScheduler_.ExecuteAndWait(deltaTime)` call. The three systems declare ownership of World object state, transform state, Physics registration, Physics state, and render-facing state, so the Actor -> Physics -> PostPhysics ordering is generated from data hazards instead of manual waits.
+The previous hard-coded phase calls in `DebugScene::Update` were replaced by one `worldSystemScheduler_.ExecuteAndWait(deltaTime)` call. The systems declare ownership of World object state, transform state, Physics registration, Physics state, and render-facing state, so the Actor -> Physics -> PostPhysics ordering is generated from data hazards instead of manual waits.
 
-All three migrated systems intentionally remain `MainThread` in 10.2. Actor/Component update code can touch input, cameras, gameplay callbacks, Physics registration, and render-facing CPU state; Physics event dispatch also calls back into Actor/Component code. Moving these callbacks to workers before their thread-safety contracts are separated would create unsafe parallelism rather than useful parallelism.
+All migrated gameplay/Physics systems intentionally remain `MainThread`. Actor/Component update code can touch input, cameras, gameplay callbacks, Physics registration, and render-facing CPU state; Physics event dispatch also calls back into Actor/Component code. Moving these callbacks to workers before their thread-safety contracts are separated would create unsafe parallelism rather than useful parallelism.
 
 The scheduler therefore establishes the dependency and affinity boundary first. Later Phase 10 work can move individually proven CPU-only systems to `Worker` without changing the frame-level ownership model.
 
@@ -107,11 +107,60 @@ Runtime coverage includes:
 - explicit cycle rejection
 - failed worker prerequisite releasing its ordering dependent before the frame-boundary exception is rethrown
 
-### 10.3 Dirty Tracking — planned
+### 10.3 Dirty Tracking — implemented transform foundation
 
-Avoid recomputing transforms/bounds/derived world data for unchanged objects. Dirty propagation must integrate with the 10.2 schedule so readers depend on the job that finalizes the corresponding dirty data rather than observing stale state.
+`SceneComponent` now treats derived WorldTransform data as cached state rather than recomputing every hierarchy on every update.
 
-The first target should be transform-derived world state. A local transform edit should mark only the affected hierarchy dirty, and the system that finalizes world transforms should own the write phase consumed by Physics/render/spatial readers.
+Each SceneComponent tracks:
+
+- `worldTransformDirty_` — this component needs world position/rotation/scale recomputation
+- `subtreeTransformDirty_` — this component or one of its descendants contains dirty transform state
+- `worldTransformRevision_` — increments only when this component's WorldTransform is actually rebuilt
+- `lastParentWorldTransformRevision_` — detects a changed parent even if a caller reaches the child through a non-root path
+
+All normal local transform setters compare the incoming value and mark dirty only when the value changes. The legacy mutable-reference accessors remain source-compatible, but requesting a mutable `LocalPosition`, `LocalRotation`, or `LocalScale` reference marks the hierarchy dirty before the caller can mutate it. The SceneComponent ImGui transform fields also mark dirty only when a drag edit actually changes a value.
+
+Dirty propagation is directional:
+
+- changing a component marks that component and all descendants WorldTransform-dirty because parent-space changes affect descendants
+- the same change marks only the ancestor `subtreeTransformDirty_` flags upward, so unrelated sibling transforms are not invalidated
+
+`RefreshWorldTransformHierarchy()` walks only a dirty subtree. A completely clean component exits before doing transform arithmetic. A dirty component rebuilds its WorldTransform, updates the parent revision it observed, increments its own revision, and then visits affected children. After the hierarchy is clean, repeated per-frame SceneComponent updates retain compatibility but become cheap no-op checks instead of repeated transform recomputation.
+
+Attach/detach operations participate in the same invalidation path. `AttachTo` also rejects attempts to attach a component beneath one of its own descendants, preventing a cyclic hierarchy from causing recursive dirty propagation.
+
+#### Scheduled transform finalization
+
+Phase 10.3 splits the scheduler's old generic transform resource into LocalTransform and WorldTransform ownership. `DebugScene` now schedules five World phases:
+
+1. `ActorWorld.Update`
+2. `ActorWorld.FinalizePrePhysicsTransforms`
+3. `PhysicsWorld.Update`
+4. `ActorWorld.PostPhysicsUpdate`
+5. `ActorWorld.FinalizePostPhysicsTransforms`
+
+The pre-Physics finalizer reads LocalTransform state and owns the final WorldTransform write consumed by Physics. This catches local edits made late in Actor/Component update order even when the SceneComponent itself already ran earlier in the frame.
+
+The post-Physics finalizer performs the same dirty-only flush after collision/Physics callbacks. Components such as colliders may still call `RefreshWorldTransform()` immediately when same-function correctness requires it; the scheduled finalizer then sees that hierarchy as clean and does no duplicate transform arithmetic.
+
+These finalizers remain MainThread because SceneComponent hierarchy mutation is not yet a concurrent data structure. The important Phase 10.3 boundary is that Physics/render readers now depend on an explicit transform-finalization writer phase. A later parallel transform job can replace the implementation behind that phase without changing data ownership semantics.
+
+The ActorWorld validation window reports the number of dirty SceneComponents observed and the number actually recomputed in both pre-Physics and post-Physics finalization. This makes the optimization measurable: a stable frame should converge toward zero recomputed transforms even though the world still contains many SceneComponents.
+
+#### Validation
+
+`Tests/Phase10/test_transform_dirty_tracking.py` protects the transform dirty contract, including:
+
+- self/subtree dirty flags and revision tracking
+- setter, mutable-reference, and ImGui invalidation paths
+- downward descendant invalidation and upward subtree propagation
+- clean-hierarchy fast-path
+- parent revision tracking
+- pre-Physics and post-Physics finalizer placement in the SystemScheduler graph
+- separate LocalTransform/WorldTransform resource ownership
+- debug recomputation diagnostics
+
+Debug/Release translation-unit compilation remains the authoritative C++ integration check for the full SceneComponent/Actor/Editor dependency surface.
 
 ### 10.4 Spatial Query Optimization — planned
 
