@@ -8,7 +8,6 @@
 #include "PostEffectManager.h"
 #include <GpuParticleManager.h>
 #include <SceneManager.h>
-#include <FadeManager.h>
 #include <Input.h>
 #include <GameTimer.h>
 
@@ -61,8 +60,7 @@ namespace Ken4lowEngine
 		// SceneManagerを生成し、GameApplicationが所有権を持つ。
 		sceneManager_ = std::make_unique<SceneManager>();
 
-		// ゲーム固有の岩ブロック遷移演出をEngine側のSceneManagerへ注入する。
-		sceneManager_->SetSceneTransition(std::make_unique<FadeManager>());
+		// FadeManagerを注入しないため、SceneManagerは既存の即時Scene切替経路を使用する。
 		sceneManager_->Initialize();
 
 #ifdef USE_IMGUI
@@ -310,7 +308,7 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	void GameApplication::DrawCurrentScene2DOverlay()
 	{
-		// GamePlayScene::Draw2DSprites() 内で HUDManager / Reticle / Ammo / HP / Fade まで描画する。
+		// 現在Sceneが所有するHUD / UI / SpriteをPostEffect後のOverlayとして描画する。
 		sceneManager_->Draw2DSprites();
 	}
 
