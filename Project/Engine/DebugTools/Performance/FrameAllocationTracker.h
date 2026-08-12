@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Engine/Core/Diagnostics/ReliabilityTelemetry.h>
+
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -65,6 +67,7 @@ namespace Ken4lowEngine
 			_CrtSetAllocHook(previousHook_);
 			previousHook_ = nullptr;
 #endif // _DEBUG
+			ReliabilityTelemetry::GetInstance()->Finalize();
 			supported_ = false;
 			initialized_ = false;
 		}
@@ -83,26 +86,29 @@ namespace Ken4lowEngine
 
 		void EndFrame()
 		{
-			if (!supported_)
+			uint64_t allocationCount = 0;
+			uint64_t allocatedBytes = 0;
+			if (supported_)
 			{
-				return;
+				frameActive_.store(false, std::memory_order_release);
+
+				// Hook内で既に計測を開始したWorker Threadが完了してから値を確定する。
+				while (activeHookCalls_.load(std::memory_order_acquire) != 0)
+				{
+					std::this_thread::yield();
+				}
+
+				allocationCount = currentAllocationCount_.exchange(0, std::memory_order_relaxed);
+				allocatedBytes = currentAllocatedBytes_.exchange(0, std::memory_order_relaxed);
+				lastAllocationCount_.store(allocationCount, std::memory_order_relaxed);
+				lastAllocatedBytes_.store(allocatedBytes, std::memory_order_relaxed);
+
+				UpdatePeak(peakAllocationCount_, allocationCount);
+				UpdatePeak(peakAllocatedBytes_, allocatedBytes);
 			}
 
-			frameActive_.store(false, std::memory_order_release);
-
-			// Hook内で既に計測を開始したWorker Threadが完了してから値を確定する。
-			while (activeHookCalls_.load(std::memory_order_acquire) != 0)
-			{
-				std::this_thread::yield();
-			}
-
-			const uint64_t allocationCount = currentAllocationCount_.exchange(0, std::memory_order_relaxed);
-			const uint64_t allocatedBytes = currentAllocatedBytes_.exchange(0, std::memory_order_relaxed);
-			lastAllocationCount_.store(allocationCount, std::memory_order_relaxed);
-			lastAllocatedBytes_.store(allocatedBytes, std::memory_order_relaxed);
-
-			UpdatePeak(peakAllocationCount_, allocationCount);
-			UpdatePeak(peakAllocatedBytes_, allocatedBytes);
+			// ReleaseでもReliability telemetryを毎フレーム進め、Soak/Streaming stressの制御経路を共通化する。
+			ReliabilityTelemetry::GetInstance()->RecordCurrentFrame(allocatedBytes);
 		}
 
 		void ResetPeaks()
