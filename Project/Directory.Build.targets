@@ -1,0 +1,7 @@
+<Project>
+  <ItemGroup>
+    <!-- FadeManagerは廃止済みのため、旧vcxprojに残る明示Itemを評価後に除外する。 -->
+    <ClCompile Remove="ApplicationLayer\SceneManagement\FadeManager\FadeManager.cpp" />
+    <ClInclude Remove="ApplicationLayer\SceneManagement\FadeManager\FadeManager.h" />
+  </ItemGroup>
+</Project>
