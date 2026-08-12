@@ -167,8 +167,26 @@ namespace Ken4lowEngine
 		[[nodiscard]] bool IsPassCulled(PassHandle handle) const;
 		[[nodiscard]] std::string_view GetResourceName(ResourceHandle handle) const;
 		[[nodiscard]] std::string_view GetPassName(PassHandle handle) const;
+		[[nodiscard]] std::size_t GetResourceCount() const { return resources_.size(); }
+		[[nodiscard]] std::size_t GetPassCount() const { return passes_.size(); }
+		[[nodiscard]] bool IsResourceOutput(ResourceHandle handle) const
+		{
+			return ValidateResourceHandle(handle) && resources_[handle.id].output;
+		}
+		[[nodiscard]] bool IsPassSideEffect(PassHandle handle) const
+		{
+			return handle.IsValid() && handle.id < passes_.size() && passes_[handle.id].sideEffect;
+		}
+		[[nodiscard]] ResourceState GetResourceInitialState(ResourceHandle handle) const
+		{
+			return ValidateResourceHandle(handle) ? resources_[handle.id].initialState : ResourceState::Unknown;
+		}
+		[[nodiscard]] ResourceState GetResourceFinalState(ResourceHandle handle) const
+		{
+			return ValidateResourceHandle(handle) ? resources_[handle.id].finalState : ResourceState::Unknown;
+		}
 		[[nodiscard]] std::size_t GetCompiledPassCount() const { return compiledOrder_.size(); }
-		// Transient allocation側がCulling後のschedule indexを元のPass Handleへ安全に戻すために公開する。
+		// VisualizerとTransient allocationは同じCompile結果を読み、別のschedule mirrorを持たない。
 		[[nodiscard]] PassHandle GetCompiledPassHandle(std::size_t scheduleIndex) const
 		{
 			return scheduleIndex < compiledOrder_.size() ? PassHandle{ compiledOrder_[scheduleIndex] } : PassHandle{};
