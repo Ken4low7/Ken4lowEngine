@@ -46,6 +46,8 @@ namespace Ken4lowEngine
 		void UpdateAssetDragSource()
 		{
 #ifdef USE_IMGUI
+			DrawAssetGraphWindow();
+
 			const EditorAssetData* asset = registry_.FindById(selectedAssetId_);
 			if (!asset || asset->isDirectory || !IsViewportPlaceableAsset(asset->type))
 			{
@@ -98,6 +100,133 @@ namespace Ken4lowEngine
 		EditorContentBrowserPanel& operator=(const EditorContentBrowserPanel&) = delete;
 
 #ifdef USE_IMGUI
+		void DrawAssetGraphWindow()
+		{
+			const EditorAssetData* asset = registry_.FindById(selectedAssetId_);
+			if (!asset || asset->isDirectory) return;
+
+			if (!assetGraphLoadAttempted_)
+			{
+				assetGraphLoadAttempted_ = true;
+				assetGraph_.Load(registry_.GetProjectDirectory()); // Cook済みManifestを初回選択時だけ読み、毎FrameのJSON I/Oを避ける。
+			}
+
+			ImGui::SetNextWindowSize(ImVec2(620.0f, 520.0f), ImGuiCond_FirstUseEver);
+			if (!ImGui::Begin("Asset Graph###AssetGraph"))
+			{
+				ImGui::End();
+				return;
+			}
+
+			ImGui::Text("Selected: %s", asset->name.c_str());
+			ImGui::TextDisabled("Resources/%s", asset->relativePath.generic_string().c_str());
+			if (ImGui::Button("Reload Manifest"))
+			{
+				assetGraph_.Load(registry_.GetProjectDirectory());
+				assetGraphLoadAttempted_ = true;
+			}
+
+			if (!assetGraph_.IsLoaded())
+			{
+				ImGui::TextWrapped("Asset graph unavailable: %s", assetGraph_.GetLastError().c_str());
+				ImGui::TextDisabled("Build/Cookを実行して Generated/AssetPipeline/AssetManifest.json を生成してください。");
+				ImGui::End();
+				return;
+			}
+
+			ImGui::SameLine();
+			ImGui::TextDisabled(
+				"Assets %zu | Package %s",
+				assetGraph_.GetAssets().size(),
+				assetGraph_.IsPackageManifestLoaded() ? "loaded" : "not generated");
+
+			const std::string selectedPath = "Resources/" + asset->relativePath.generic_string();
+			const EditorAssetGraphSelection graphSelection = assetGraph_.BuildSelection(selectedPath);
+			if (!graphSelection.HasRelations())
+			{
+				ImGui::Separator();
+				ImGui::TextDisabled("このファイルは現在のAssetManifest dependency graphに登録されていません。");
+				ImGui::End();
+				return;
+			}
+
+			if (ImGui::CollapsingHeader("Matched Cook Assets", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				if (graphSelection.matchedAssetIds.empty()) ImGui::TextDisabled("直接対応するCook Assetはありません。");
+				for (const std::string& assetId : graphSelection.matchedAssetIds)
+				{
+					const EditorAssetGraphAsset* graphAsset = assetGraph_.FindAsset(assetId);
+					if (!graphAsset) continue;
+					ImGui::BulletText("%s | %s", graphAsset->assetType.c_str(), graphAsset->logicalKey.c_str());
+					if (!graphAsset->chunkId.empty())
+					{
+						ImGui::SameLine();
+						ImGui::TextDisabled("[chunk:%s]", graphAsset->chunkId.c_str());
+					}
+					if (!graphAsset->missingOutputs.empty())
+					{
+						ImGui::TextDisabled("  Missing outputs: %zu", graphAsset->missingOutputs.size());
+					}
+				}
+			}
+
+			if (ImGui::CollapsingHeader("Dependencies", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::TextDisabled("このCook Assetを再buildする入力");
+				if (graphSelection.dependencyPaths.empty()) ImGui::TextDisabled("なし");
+				for (const std::string& path : graphSelection.dependencyPaths) ImGui::BulletText("%s", path.c_str());
+			}
+
+			if (ImGui::CollapsingHeader("Direct Dependents", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::TextDisabled("このAsset/Outputを直接参照するCook Asset");
+				if (graphSelection.directDependentAssetIds.empty()) ImGui::TextDisabled("なし");
+				for (const std::string& assetId : graphSelection.directDependentAssetIds)
+				{
+					const EditorAssetGraphAsset* graphAsset = assetGraph_.FindAsset(assetId);
+					if (!graphAsset) continue;
+					ImGui::BulletText("%s | %s", graphAsset->assetType.c_str(), graphAsset->logicalKey.c_str());
+				}
+			}
+
+			if (ImGui::CollapsingHeader("Rebuild Impact", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::Text("Affected Assets: %zu", graphSelection.affectedAssetIds.size());
+				if (!graphSelection.affectedChunkIds.empty())
+				{
+					std::string chunks;
+					for (const std::string& chunk : graphSelection.affectedChunkIds)
+					{
+						if (!chunks.empty()) chunks += ", ";
+						chunks += chunk;
+					}
+					ImGui::TextWrapped("Affected Chunks: %s", chunks.c_str());
+				}
+				else if (!assetGraph_.IsPackageManifestLoaded())
+				{
+					ImGui::TextDisabled("Chunk impactはPackageManifest生成後に表示されます。");
+				}
+
+				if (ImGui::BeginChild("##AssetGraphImpact", ImVec2(0.0f, 180.0f), true))
+				{
+					for (const std::string& assetId : graphSelection.affectedAssetIds)
+					{
+						const EditorAssetGraphAsset* graphAsset = assetGraph_.FindAsset(assetId);
+						if (!graphAsset) continue;
+						ImGui::BulletText("%s | %s", graphAsset->assetType.c_str(), graphAsset->logicalKey.c_str());
+						if (!graphAsset->chunkId.empty())
+						{
+							ImGui::SameLine();
+							ImGui::TextDisabled("[%s]", graphAsset->chunkId.c_str());
+						}
+					}
+				}
+				ImGui::EndChild();
+			}
+
+			ImGui::End();
+		}
+
 		void UpdateViewportPickingInternal()
 		{
 			EditorContext* editorContext = EditorContext::GetInstance();
@@ -211,7 +340,6 @@ namespace Ken4lowEngine
 		void DrawAssetContextMenu(const EditorAssetData& asset);
 		void DrawPendingDialogs();
 		void DrawSelectedAssetDetails();
-		void DrawAssetGraphDetails(const EditorAssetData& asset);
 
 		std::vector<const EditorAssetData*> BuildVisibleEntries() const;
 		void OpenAsset(const EditorAssetData& asset) const;
@@ -247,6 +375,7 @@ namespace Ken4lowEngine
 		std::array<char, 260> renameBuffer_{};
 		float cellWidth_ = 128.0f;
 		bool initialized_ = false;
+		bool assetGraphLoadAttempted_ = false;
 		bool searchSubfolders_ = true;
 		bool showFolders_ = true;
 		bool sortAscending_ = true;
