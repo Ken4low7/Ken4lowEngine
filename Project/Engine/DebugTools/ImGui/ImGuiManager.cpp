@@ -31,6 +31,33 @@ namespace
 		return file.good();
 	}
 
+	void ReportImGuiDescriptorReleaseIssue(const char* message) noexcept
+	{
+#ifdef _DEBUG
+		OutputDebugStringA("[ImGuiManager] ");
+		OutputDebugStringA(message ? message : "Unknown descriptor release issue");
+		OutputDebugStringA("\n");
+#else
+		(void)message;
+#endif // _DEBUG
+	}
+
+	void FreePersistentSrvNoThrow(uint32_t srvIndex) noexcept
+	{
+		try
+		{
+			Ken4lowEngine::SRVManager::GetInstance()->Free(srvIndex);
+		}
+		catch (const std::exception& exception)
+		{
+			ReportImGuiDescriptorReleaseIssue(exception.what());
+		}
+		catch (...)
+		{
+			ReportImGuiDescriptorReleaseIssue("Unknown exception while releasing an ImGui SRV descriptor");
+		}
+	}
+
 	void ApplyUnrealInspiredStyle()
 	{
 		ImGui::StyleColorsDark();
@@ -228,21 +255,24 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	void ImGuiManager::FreeImGuiSrvDescriptor(ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle)
 	{
-		if (info == nullptr || info->UserData == nullptr || cpuHandle.ptr == 0 || gpuHandle.ptr == 0)
+		if (info == nullptr || info->UserData == nullptr || cpuHandle.ptr == 0)
 		{
-			throw std::runtime_error("Invalid ImGui DX12 SRV free request");
+			ReportImGuiDescriptorReleaseIssue("Invalid ImGui DX12 SRV free request");
+			return;
 		}
 
+		(void)gpuHandle;
 		auto* self = static_cast<ImGuiManager*>(info->UserData);
 		auto it = self->imguiSrvHandleToIndex_.find(cpuHandle.ptr);
 		if (it == self->imguiSrvHandleToIndex_.end())
 		{
-			throw std::runtime_error("Unknown ImGui DX12 SRV descriptor handle");
+			ReportImGuiDescriptorReleaseIssue("Unknown ImGui DX12 SRV descriptor handle");
+			return;
 		}
 
-		// ImGuiバックエンドから返却されたフォント/テクスチャ用SRVをSRVManagerへ戻す
-		SRVManager::GetInstance()->Free(it->second);
-		self->imguiSrvHandleToIndex_.erase(it);
+		const uint32_t srvIndex = it->second;
+		self->imguiSrvHandleToIndex_.erase(it); // Backendから同じ解放通知が再入しても二重解放へ進まないよう先に所有記録を外す。
+		FreePersistentSrvNoThrow(srvIndex);
 	}
 #endif // USE_IMGUI
 
@@ -434,10 +464,10 @@ namespace Ken4lowEngine
 
 		// ImGuiバックエンドとコンテキストの終了処理をManagerに集約する
 		ImGui_ImplDX12_Shutdown();
-		// DX12バックエンドから返却されなかったSRVがあればFinalize時に回収する
+		// DX12バックエンドから返却されなかったSRVは終了処理を例外境界にせず安全に回収する。
 		for (const auto& srvEntry : imguiSrvHandleToIndex_)
 		{
-			SRVManager::GetInstance()->Free(srvEntry.second);
+			FreePersistentSrvNoThrow(srvEntry.second);
 		}
 		ImGui_ImplWin32_Shutdown();
 		ImGui::DestroyContext();
