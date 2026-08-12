@@ -97,8 +97,8 @@ jobs:
           $buildKey = Get-DerivedDataBuildKey -AssetType "Smoke" -BuildVersion 1 -Inputs @("Content=Ken4low-DDC-Smoke")
           $entry = Get-DdcEntryDirectory -GeneratedRoot $smokeRoot -AssetType "Smoke" -BuildKey $buildKey
           $cachePath = Join-Path $entry "payload.bin"
-          [int64]$written = Store-DdcFile -SourcePath $sourcePath -CachePath $cachePath -BuildKey $buildKey
-          $restored = Restore-DdcFile -CachePath $cachePath -OutputPath $outputPath -ExpectedBuildKey $buildKey
+          [int64]$written = Store-DdcFile -SourcePath $sourcePath -CachePath $cachePath
+          $restored = Restore-DdcFile -CachePath $cachePath -OutputPath $outputPath
           if (-not $restored.Hit -or $written -le 0 -or (Get-FileSha256 $sourcePath) -ne (Get-FileSha256 $outputPath)) {
             Write-Error "Derived Data Cache smoke test failed."
             exit 1
