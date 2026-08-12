@@ -123,9 +123,56 @@ When a portable C++20 compiler is available, `WorldPartitionGridRuntimeTests.cpp
 - Always Loaded / Load / Retain / Unload decisions
 - radius sanitization and hysteresis behavior
 
-### 11.4 Asset Graph — planned
+### 11.4 Asset Graph — implemented Phase 8 manifest integration
 
-Visualize asset dependencies and reverse dependencies from the Phase 8 content pipeline. The graph should help answer why an asset rebuilds, what will be invalidated, and which runtime packages/chunks reference it.
+`EditorAssetGraph` consumes the deterministic Phase 8 `Generated/AssetPipeline/AssetManifest.json` instead of rescanning source files and rebuilding dependency truth inside the editor. When available, it also consumes `Generated/Packages/PackageManifest.json` so rebuild impact can be connected to runtime chunk ownership.
+
+The graph indexes each cook asset by:
+
+- AssetId
+- LogicalKey/source path, including variant-aware source matching
+- build metadata path
+- cooked output paths
+- dependency paths
+- optional runtime chunk id from `AssetToChunk`
+
+From those indexes the editor can answer both directions:
+
+- which source/dependency paths feed the selected cook asset
+- which cook assets directly depend on the selected source or cooked output
+- which downstream assets are transitively invalidated when produced outputs feed later assets
+- which runtime chunks contain the affected assets when a PackageManifest exists
+
+The transitive impact walk follows produced output paths into the reverse dependency index. It does not infer dependencies from file names or directory proximity, so the editor stays aligned with the same graph used by incremental build/package tooling.
+
+Content Browser selection now opens an `Asset Graph` diagnostic window for non-folder assets. The panel loads the manifest lazily on the first selection and exposes an explicit `Reload Manifest` action, keeping manifest JSON I/O out of every editor frame. It shows:
+
+- selected source/resource path
+- matched cook asset records
+- asset type and logical key
+- package chunk when available
+- missing-output diagnostics
+- direct dependency paths
+- direct dependent cook assets
+- transitive rebuild impact
+- affected runtime chunks
+
+Files that are valid runtime/editor resources but are not part of the Phase 8 cook manifest are reported as unregistered rather than being assigned invented graph edges. A missing PackageManifest only disables chunk impact; dependency inspection continues to work from the AssetManifest alone.
+
+#### Validation
+
+`Tests/Phase11/test_asset_graph.py` protects the manifest/package contract and Content Browser integration. When a portable C++20 compiler is available it builds `EditorAssetGraphRuntimeTests.cpp` directly against the header-only graph model.
+
+Runtime coverage includes:
+
+- source path and Windows-style slash normalization
+- variant LogicalKey selection
+- source -> cook asset -> cooked output transitive invalidation
+- direct dependent discovery
+- cooked output producer inspection without incorrectly rebuilding the producer
+- unrelated asset isolation
+- optional `AssetToChunk` impact aggregation
+- unregistered resource paths producing no false relation
 
 ### 11.5 Profiler UI — planned
 
@@ -140,6 +187,8 @@ Structural edits that recreate Components still need special care because older 
 Prefab Diff is diagnostic in 11.2: it does not silently apply, revert, or rewrite instance data. Existing RFC 7396 Level override serialization remains the compatibility source of truth while the semantic layer explains the change at Actor/Component/property granularity.
 
 World Partition editing in 11.3 reuses the runtime manager state and Level capture path. It does not create editor-only cell ownership or a second load-state machine. Path/Id authoring is intentionally left unchanged; the editor foundation only changes safe cell/priority/always-loaded metadata while preserving live SubLevel state.
+
+Asset Graph in 11.4 is read-only and derives its state from generated Phase 8 manifests. It does not rewrite build metadata, package assignments, or source dependencies, and it reports missing/stale generated manifests rather than silently synthesizing replacement dependency data.
 
 ## Boundary with Phase 12
 
