@@ -27,13 +27,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	}
 	catch (const std::exception& exception)
 	{
-		CrashReporter::WriteManualReport(exception.what());
+		// Crash report書き込み失敗時も元の例外終了を優先するため、ここでは戻り値を明示的に破棄する。
+		(void)CrashReporter::WriteManualReport(exception.what());
 		CrashReporter::Uninstall();
 		return -1;
 	}
 	catch (...)
 	{
-		CrashReporter::WriteManualReport("Unknown C++ exception escaped WinMain.");
+		(void)CrashReporter::WriteManualReport("Unknown C++ exception escaped WinMain.");
 		CrashReporter::Uninstall();
 		return -1;
 	}
