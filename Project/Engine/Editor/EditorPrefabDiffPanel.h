@@ -9,7 +9,6 @@
 #include <PrefabReferenceResolver.h>
 #include <imgui.h>
 
-#include <algorithm>
 #include <cstddef>
 #include <string>
 
@@ -112,29 +111,32 @@ namespace Ken4lowEngine
 			return;
 		}
 
-		if (!ImGui::BeginChild("PrefabDiffEntries", ImVec2(0.0f, 220.0f), ImGuiChildFlags_Borders)) return;
-		for (std::size_t index = 0; index < state.diff.entries.size(); ++index)
+		const bool childVisible = ImGui::BeginChild("PrefabDiffEntries", ImVec2(0.0f, 220.0f), true);
+		if (childVisible)
 		{
-			const EditorPrefabDiffEntry& entry = state.diff.entries[index];
-			std::string label = "[" + std::string(KindLabel(entry.kind)) + "] ";
-			if (!entry.componentName.empty()) label += entry.componentName;
-			if (!entry.componentClass.empty()) label += " (" + entry.componentClass + ")";
-			if (!entry.propertyPath.empty())
+			for (std::size_t index = 0; index < state.diff.entries.size(); ++index)
 			{
-				if (!entry.componentName.empty()) label += ".";
-				label += entry.propertyPath;
-			}
-			label += "##PrefabDiff" + std::to_string(index);
+				const EditorPrefabDiffEntry& entry = state.diff.entries[index];
+				std::string label = "[" + std::string(KindLabel(entry.kind)) + "] ";
+				if (!entry.componentName.empty()) label += entry.componentName;
+				if (!entry.componentClass.empty()) label += " (" + entry.componentClass + ")";
+				if (!entry.propertyPath.empty())
+				{
+					if (!entry.componentName.empty()) label += ".";
+					label += entry.propertyPath;
+				}
+				label += "##PrefabDiff" + std::to_string(index);
 
-			if (ImGui::TreeNode(label.c_str()))
-			{
-				const std::string before = JsonPreview(entry.baseValue, entry.baseExists);
-				const std::string after = JsonPreview(entry.instanceValue, entry.instanceExists);
-				ImGui::TextDisabled("Before");
-				ImGui::TextWrapped("%s", before.c_str());
-				ImGui::TextDisabled("After");
-				ImGui::TextWrapped("%s", after.c_str());
-				ImGui::TreePop();
+				if (ImGui::TreeNode(label.c_str()))
+				{
+					const std::string before = JsonPreview(entry.baseValue, entry.baseExists);
+					const std::string after = JsonPreview(entry.instanceValue, entry.instanceExists);
+					ImGui::TextDisabled("Before");
+					ImGui::TextWrapped("%s", before.c_str());
+					ImGui::TextDisabled("After");
+					ImGui::TextWrapped("%s", after.c_str());
+					ImGui::TreePop();
+				}
 			}
 		}
 		ImGui::EndChild();
