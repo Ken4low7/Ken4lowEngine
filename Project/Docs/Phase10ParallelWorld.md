@@ -47,15 +47,71 @@ Runtime coverage includes:
 
 TeamDevelopmentCI runs Phase 10 tests before Debug/Release translation-unit compilation.
 
-### 10.2 System Scheduling — planned
+### 10.2 System Scheduling — implemented
 
-Introduce a world/system scheduler that converts phase relationships into `JobHandle` dependencies instead of hard-coding waits between independent CPU systems. The first migration should preserve current frame semantics and make read/write ownership explicit before increasing concurrency.
+`SystemScheduler` now sits above the existing `JobSystem` and converts declared world/system ownership into a dependency DAG. It does not own threads and does not create another worker pool.
 
-Likely schedule boundaries include world pre-update, independent Actor/Component work, transform finalization, physics preparation/step, and post-physics consumers. GPU API calls and Editor UI stay outside worker execution.
+Each registered system declares:
+
+- a stable system name
+- a callback receiving frame `deltaTime`
+- `SystemResourceAccess` entries with `Read`, `Write`, or `ReadWrite`
+- `SystemExecutionPolicy::MainThread` or `Worker`
+- an optional `JobPriority`
+- optional explicit system dependencies for non-data ordering constraints
+
+The compiler tracks the last writer and active readers for each `SystemResourceId` and generates the same fundamental hazards used by the RenderGraph model:
+
+- RAW — Read After Write
+- WAR — Write After Read
+- WAW — Write After Write
+
+Read/Read access creates no dependency. Multiple accesses to the same resource inside one system are normalized, and a Read + Write combination becomes one `ReadWrite` ownership declaration.
+
+Explicit and resource-derived prerequisites are deduplicated into each system's compiled prerequisite list. A stable topological sort then produces the executable order; dependency cycles fail `Compile()` rather than becoming a runtime deadlock.
+
+Execution keeps thread affinity explicit. `Worker` systems are submitted through `JobSystem::DispatchAfter`, so independent worker systems can remain in flight concurrently while respecting the compiled DAG. `MainThread` systems wait only for their own worker prerequisites, execute on the caller thread, and publish a completed `JobHandle` through `JobSystem::CreateCompletedHandle`. This lets later systems use the same dependency representation without paying for a fake worker task.
+
+`ExecuteAndWait` is the frame boundary. Ordering dependencies remain ordering-only even when a worker prerequisite fails: downstream systems are released after completion, and the first captured exception is rethrown only after scheduled work has been joined. This preserves the Phase 10.1 failure contract while avoiding abandoned worker work.
+
+`SystemScheduleStats` and dependency records expose system count, unique dependency count, explicit dependency count, RAW/WAR/WAW counts, and MainThread/Worker counts for diagnostics.
+
+#### First World migration
+
+`DebugScene` now registers the existing Play update path as three systems:
+
+1. `ActorWorld.Update`
+2. `PhysicsWorld.Update`
+3. `ActorWorld.PostPhysicsUpdate`
+
+The previous hard-coded phase calls in `DebugScene::Update` were replaced by one `worldSystemScheduler_.ExecuteAndWait(deltaTime)` call. The three systems declare ownership of World object state, transform state, Physics registration, Physics state, and render-facing state, so the Actor -> Physics -> PostPhysics ordering is generated from data hazards instead of manual waits.
+
+All three migrated systems intentionally remain `MainThread` in 10.2. Actor/Component update code can touch input, cameras, gameplay callbacks, Physics registration, and render-facing CPU state; Physics event dispatch also calls back into Actor/Component code. Moving these callbacks to workers before their thread-safety contracts are separated would create unsafe parallelism rather than useful parallelism.
+
+The scheduler therefore establishes the dependency and affinity boundary first. Later Phase 10 work can move individually proven CPU-only systems to `Worker` without changing the frame-level ownership model.
+
+`DebugScene`'s ActorWorld validation window also reports the compiled System/Dependency/MainThread/Worker counts so the active schedule is visible during development.
+
+#### Validation
+
+`Tests/Phase10/test_system_scheduler.py` validates the scheduler contract and the DebugScene migration. When a portable C++20 compiler is present, it builds `SystemSchedulerRuntimeTests.cpp` with the real `JobSystem.cpp` and executes the resulting binary.
+
+Runtime coverage includes:
+
+- Read/Read independence
+- WAR fan-in from multiple readers to one writer
+- RAW ordering after a writer
+- MainThread affinity preservation
+- Worker dispatch through the fixed JobSystem pool
+- Main -> Worker -> Main dependency execution
+- explicit cycle rejection
+- failed worker prerequisite releasing its ordering dependent before the frame-boundary exception is rethrown
 
 ### 10.3 Dirty Tracking — planned
 
 Avoid recomputing transforms/bounds/derived world data for unchanged objects. Dirty propagation must integrate with the 10.2 schedule so readers depend on the job that finalizes the corresponding dirty data rather than observing stale state.
+
+The first target should be transform-derived world state. A local transform edit should mark only the affected hierarchy dirty, and the system that finalizes world transforms should own the write phase consumed by Physics/render/spatial readers.
 
 ### 10.4 Spatial Query Optimization — planned
 
@@ -63,7 +119,9 @@ Use the stabilized scheduled/dirty world data to reduce broad spatial-query cost
 
 ## Compatibility strategy
 
-Phase 10 remains incremental. Existing synchronous update paths stay the regression baseline while individual systems migrate to explicit dependency edges. No worker job may call GPU APIs or mutate Editor UI. Shared world data must have one clear writer phase or explicit synchronization before it is consumed in parallel.
+Phase 10 remains incremental. Existing synchronous update behavior remains the regression baseline while individual systems migrate to explicit dependency edges. MainThread systems preserve legacy thread affinity, and only systems with a proven CPU-only/thread-safe contract should opt into `Worker` execution.
+
+No worker job may call GPU APIs or mutate Editor UI. Shared world data must have one clear writer phase or explicit synchronization before it is consumed in parallel.
 
 ## Boundary with later phases
 
