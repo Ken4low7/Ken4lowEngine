@@ -27,10 +27,12 @@ The Visual Studio project still contains old explicit FadeManager source entries
 
 `Tests/test_fade_manager_removal.py` prevents the application from reintroducing the FadeManager include/constructor, verifies the physical source and fade-only texture removal, and checks that the no-transition SceneManager path remains available.
 
-## Retired FPS LevelData validation
+## Retired FPS level validation
 
-The assertion reported from `LevelLoader.cpp` was caused by `LevelDataValidation` automatically loading the deleted `Resources/JSON/stages/fps_stage00.json` when `DebugScene` was constructed. The old comparison tool has now been retired: its compatibility hook remains so `DebugScene` does not need an unrelated structural rewrite, but it performs no file I/O and no longer includes `LevelLoader` or `BlenderSceneLoader`.
+The assertion reported from `LevelLoader.cpp` was caused by `LevelDataValidation` automatically loading the deleted `Resources/JSON/stages/fps_stage00.json` when `DebugScene` was constructed. The old LevelData comparison tool has now been retired: its compatibility hook remains so `DebugScene` does not need an unrelated structural rewrite, but it performs no file I/O and no longer includes `LevelLoader` or `BlenderSceneLoader`.
 
-The current Phase 4 Level pipeline (`LevelDocument`, `LevelSerializer`, `TransactionalLevelLoader`, and the `SceneLevelLoader` facade) remains intact. This cleanup removes only the obsolete FPS validation path, not the engine's current Level loading system.
+The related `LevelImportValidation` path has also been retired. It previously loaded `stages/hajimarinoheigen.json` and referenced `Stages/hajimarinoheigen.gltf` during `DebugScene` construction. Those validation hooks now keep only their constructor/DrawImGui compatibility surface and do not load deleted FPS stage data or models.
 
-`Tests/test_legacy_level_validation_retirement.py` prevents the deleted FPS JSON from being reintroduced into DebugScene startup and verifies that the transactional Level loader still exists.
+The current Phase 4 Level pipeline (`LevelDocument`, `LevelSerializer`, `TransactionalLevelLoader`, and the `SceneLevelLoader` facade) remains intact. This cleanup removes only the obsolete FPS validation paths, not the engine's current Level loading system.
+
+`Tests/test_legacy_level_validation_retirement.py` prevents the deleted FPS JSON/model paths from being reintroduced into DebugScene startup and verifies that the transactional Level loader still exists.
