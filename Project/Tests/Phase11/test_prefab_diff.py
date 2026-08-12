@@ -9,7 +9,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EDITOR_DIR = PROJECT_ROOT / "Engine" / "Editor"
 NLOHMANN_DIR = PROJECT_ROOT / "Externals" / "nlohmann"
 PREFAB_DIFF_HEADER = EDITOR_DIR / "EditorPrefabDiff.h"
-PREFAB_UI_SOURCE = EDITOR_DIR / "Legacy" / "ActorWorld_Prefab.cpp"
+PREFAB_PANEL_HEADER = EDITOR_DIR / "EditorPrefabDiffPanel.h"
+ACTOR_WORLD_IMGUI = EDITOR_DIR / "Legacy" / "ActorWorld_ImGui.cpp"
 RUNTIME_TEST = Path(__file__).with_name("EditorPrefabDiffRuntimeTests.cpp")
 
 
@@ -17,7 +18,8 @@ class EditorPrefabDiffContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.header = PREFAB_DIFF_HEADER.read_text(encoding="utf-8")
-        cls.prefab_ui = PREFAB_UI_SOURCE.read_text(encoding="utf-8")
+        cls.panel = PREFAB_PANEL_HEADER.read_text(encoding="utf-8")
+        cls.actor_world_imgui = ACTOR_WORLD_IMGUI.read_text(encoding="utf-8")
 
     def test_diff_model_has_semantic_actor_and_component_kinds(self) -> None:
         self.assertIn("enum class EditorPrefabDiffKind", self.header)
@@ -41,10 +43,11 @@ class EditorPrefabDiffContractTests(unittest.TestCase):
         self.assertIn("Settings", RUNTIME_TEST.read_text(encoding="utf-8"))
 
     def test_prefab_editor_panel_uses_tracked_source_and_semantic_diff(self) -> None:
-        self.assertIn("EditorPrefabDiff", self.prefab_ui)
-        self.assertIn("PrefabInstanceRegistry", self.prefab_ui)
-        self.assertIn("PrefabReferenceResolver::LoadBaseActor", self.prefab_ui)
-        self.assertIn("Prefab Diff", self.prefab_ui)
+        self.assertIn("PrefabInstanceRegistry::GetInstance()->Find", self.panel)
+        self.assertIn("PrefabReferenceResolver::LoadBaseActor", self.panel)
+        self.assertIn("EditorPrefabDiff::Build", self.panel)
+        self.assertIn('SeparatorText("Prefab Diff")', self.panel)
+        self.assertIn("DrawEditorPrefabDiffPanel(saveTargetActor)", self.actor_world_imgui)
 
     def test_runtime_behavior_when_portable_compiler_is_available(self) -> None:
         compiler = shutil.which("g++") or shutil.which("clang++")
