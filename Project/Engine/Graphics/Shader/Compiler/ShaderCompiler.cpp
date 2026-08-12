@@ -23,6 +23,14 @@ namespace Ken4lowEngine
 	{
 		ValidateArguments(desc, dxcManager);
 
+		const std::string shaderCacheKey = dxcManager->BuildShaderCacheKey(desc.filePath, desc.entryPoint, desc.profile);
+		if (Microsoft::WRL::ComPtr<IDxcBlob> cachedShader = dxcManager->FindCachedShader(shaderCacheKey))
+		{
+			// SourceとInclude内容が同一ならDXCを再実行せず、同じDXIL参照を共有する。
+			Log(ConvertString(std::format(L"Shader Cache Hit, name:{}, path:{}, profile:{}\n", desc.debugName, desc.filePath, desc.profile)));
+			return cachedShader;
+		}
+
 		Log(ConvertString(std::format(
 			L"Begin CompileShader, name:{}, path:{}, entry:{}, profile:{}, rootSig:{}\n",
 			desc.debugName,
@@ -83,6 +91,7 @@ namespace Ken4lowEngine
 		assert(SUCCEEDED(hr));
 		assert(shaderBlob != nullptr);
 
+		dxcManager->StoreCachedShader(shaderCacheKey, desc.filePath, shaderBlob);
 		Log(ConvertString(std::format(L"Compile Succeeded, name:{}, path:{}, profile:{}\n", desc.debugName, desc.filePath, desc.profile)));
 
 		return shaderBlob;
