@@ -69,7 +69,7 @@ Resources with an explicit final state also act as roots because their end-of-gr
 
 After culling, logical resource lifetimes are rebuilt from the surviving compiled schedule rather than declaration order. This is required for Phase 9.4 because transient allocation and aliasing must reason about the actual executable lifetime, not a pass that was removed before execution.
 
-`CompileStats` now exposes declared/executed/culled pass counts plus output-resource and side-effect-root counts, and `IsPassCulled` makes the decision available to the future RenderGraph visualizer.
+`CompileStats` now exposes declared/executed/culled pass counts plus output-resource and side-effect-root counts, and `IsPassCulled` makes the decision available to the RenderGraph visualizer.
 
 `RenderPipelineController` now marks the BackBuffer as the visible graph output and explicitly preserves `BeginDraw`, `EditorUiBuild`, and `EditorPicking` as side-effect roots. The Performance window reports declared/executed/culled pass counts and the active culling-root counts.
 
@@ -169,21 +169,29 @@ The key is built before creating the D3D12 RootSignature/PSO, so a hit skips bot
 
 Both caches are currently process-memory caches rather than disk caches. Phase 8 already owns deterministic cooked-data persistence; Phase 9.6 intentionally starts with runtime/editor reuse without adding another persistent cache format. A future persistent PSO cache can layer on top of the same structural inputs without changing call-site ownership.
 
-### 9.7 RenderGraph Visualizer — next
+### 9.7 RenderGraph Visualizer — implemented
 
-Expose compiled graph state in the editor:
+`RenderGraphVisualizer` is a read-only ImGui diagnostic window registered beside the existing Render Pipeline performance window in `PerformancePhaseValidation`. `F10` toggles the window without changing graph execution.
 
-- pass order
-- RAW/WAR/WAW edges
-- resource access/state
-- resource lifetime
-- culled passes
-- generated barriers
-- transient allocation/alias ownership
-- descriptor ownership / pressure
-- shader / PSO cache hit pressure
+The visualizer reads the already compiled data directly from `RenderGraph` and exposes separate tabs for:
 
-The visualizer is diagnostic and must not become a second source of scheduling truth.
+- compiled pass order, executed/culled state, side-effect roots, and resource accesses
+- resource ownership, output roots, culling-adjusted lifetime, and initial/final resource state
+- explicit dependencies plus RAW/WAR/WAW dependency records
+- generated Transition/UAV barrier records and their placement
+- real `RenderGraphTransientPool` allocation/slot/alias ownership diagnostics
+- persistent/transient SRV descriptor capacity, pressure, high-water marks, reclamation, recycle, and exhaustion counters
+- DXIL shader cache and graphics PSO cache hit/miss/create/entry statistics
+
+The visualizer does not rerun topological sorting, culling, hazard discovery, barrier generation, or alias planning. New RenderGraph getters expose only the minimal metadata required by diagnostics (`GetPassCount`, `GetResourceCount`, side-effect/output flags, and initial/final states), while pass order continues to come from `GetCompiledPassHandle` and all edges/barriers/lifetimes come from the graph-owned compiled records.
+
+Transient allocation display follows the actual planner state. Because the current Scene/PostEffect resources are still owner-managed committed resources, the normal frame correctly reports no active placed-resource allocation instead of inventing an estimated alias layout. When physical migration begins, the same window will display the real allocation and alias records without a visualizer-side model change.
+
+Shader and PSO cache tabs also provide explicit Debug clear controls. These call the existing cache invalidation APIs; the visualizer remains an observer/control surface rather than a second cache owner.
+
+Phase 9.7 contract tests verify that the visualizer consumes `GetDependencies`, `GetBarrierPlan`, `GetResourceLifetime`, culling metadata, transient-pool diagnostics, descriptor statistics, and shader/PSO cache statistics without invoking private graph compilation algorithms.
+
+With 9.7 implemented, the Phase 9 render-system hardening roadmap is complete at the infrastructure/foundation level. Physical migration of individual committed render targets into graph-owned transient resources remains an incremental follow-up rather than a requirement for the Phase 9 foundation.
 
 ## Compatibility strategy
 
@@ -195,7 +203,7 @@ Once barrier generation and pass-side-effect declarations are stable, explicit c
 
 ## Validation
 
-Phase 9 tests are added under `Tests/Phase9` and run in TeamDevelopmentCI. C++ Debug/Release translation-unit compilation remains required after every graph API change. Descriptor contract tests verify persistent/transient range separation, Frame Resource fence-generation reuse, submitted-command-list rejection, contiguous allocation, double-free rejection, per-frame capacity partitioning, and pressure diagnostics. Shader/PSO cache contracts verify content-based shader keys, recursive local include dependency tracking, cache-before-compile behavior, explicit invalidation, pointer-independent PSO keys, and cache lookup before D3D12 object creation.
+Phase 9 tests are added under `Tests/Phase9` and run in TeamDevelopmentCI. C++ Debug/Release translation-unit compilation remains required after every graph API change. Descriptor contract tests verify persistent/transient range separation, Frame Resource fence-generation reuse, submitted-command-list rejection, contiguous allocation, double-free rejection, per-frame capacity partitioning, and pressure diagnostics. Shader/PSO cache contracts verify content-based shader keys, recursive local include dependency tracking, cache-before-compile behavior, explicit invalidation, pointer-independent PSO keys, and cache lookup before D3D12 object creation. Visualizer contracts verify that editor diagnostics read the graph-owned schedule, dependency/barrier/lifetime records, transient allocation state, descriptor pressure, and cache statistics without rebuilding scheduling truth.
 
 ## Boundary with later phases
 
