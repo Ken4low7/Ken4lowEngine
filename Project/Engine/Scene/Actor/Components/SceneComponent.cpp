@@ -43,7 +43,9 @@ namespace Ken4lowEngine
 
 	std::size_t SceneComponent::RefreshWorldTransformHierarchy()
 	{
-		return UpdateWorldTransform();
+		SceneComponent* hierarchyRoot = this;
+		while (hierarchyRoot->parent_) hierarchyRoot = hierarchyRoot->parent_;
+		return hierarchyRoot->UpdateWorldTransform(); // 子からの即時Refreshでも必ずdirtyな親を先に確定する。
 	}
 
 	void SceneComponent::MarkTransformDirty()
