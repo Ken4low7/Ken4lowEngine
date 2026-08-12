@@ -12,6 +12,7 @@ namespace Ken4lowEngine
 {
 	class ActorWorld;
 	class SceneManager;
+	class SystemScheduler;
 
 	/// -------------------------------------------------------------
 	///　　　　　　　　　　シーンの基底クラス
@@ -55,6 +56,9 @@ namespace Ken4lowEngine
 		virtual EditorInputPolicy GetEditorInputPolicy() const { return EditorInputPolicy::UiMouse; }
 		virtual void CollectEditorObjects(std::vector<Ken4lowEngine::EditorObjectInfo>& /*outObjects*/) {}
 		virtual ActorWorld* GetEditorActorWorld() { return nullptr; }
+
+		/// <summary>Editor ProfilerがScene固有Schedulerを読み取るための任意診断入口。</summary>
+		virtual const SystemScheduler* GetEditorSystemScheduler() const { return nullptr; } // Runtime scheduleの所有権はScene側に残し、Editorは読み取りだけ行う。
 
 		/// <summary>SceneDefinitionのLevelを読み込むActorWorldを返します。</summary>
 		virtual ActorWorld* GetSceneActorWorld()
