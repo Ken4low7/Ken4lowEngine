@@ -78,6 +78,7 @@ namespace Ken4lowEngine
 
 		bool LoadFromJson(const nlohmann::json& manifest, const nlohmann::json& packageManifest = nlohmann::json::object())
 		{
+			loaded_ = false; // Reload失敗時に前回成功したGraphを有効状態として残さない。
 			assets_.clear();
 			assetIndexById_.clear();
 			logicalAssetsByPath_.clear();
