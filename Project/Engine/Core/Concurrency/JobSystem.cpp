@@ -85,7 +85,41 @@ namespace Ken4lowEngine
 		return JobHandle(std::move(state));
 	}
 
+	JobHandle JobSystem::DispatchAfter(
+		const JobHandle& dependency,
+		Job job,
+		JobPriority priority)
+	{
+		return DispatchAfter(std::vector<JobHandle>{ dependency }, std::move(job), priority);
+	}
+
+	JobHandle JobSystem::DispatchAfter(
+		const std::vector<JobHandle>& dependencies,
+		Job job,
+		JobPriority priority)
+	{
+		if (!job) return {};
+		if (!IsInitialized()) Initialize();
+
+		auto state = std::make_shared<JobState>();
+		state->remaining.store(1, std::memory_order_release);
+		std::vector<Task> tasks;
+		tasks.push_back({ std::move(job), state });
+		EnqueueTasksAfterDependencies(std::move(tasks), dependencies, priority);
+		return JobHandle(std::move(state));
+	}
+
 	JobHandle JobSystem::ParallelFor(
+		std::size_t itemCount,
+		std::size_t grainSize,
+		IndexedJob job,
+		JobPriority priority)
+	{
+		return ParallelForAfter({}, itemCount, grainSize, std::move(job), priority);
+	}
+
+	JobHandle JobSystem::ParallelForAfter(
+		const std::vector<JobHandle>& dependencies,
 		std::size_t itemCount,
 		std::size_t grainSize,
 		IndexedJob job,
@@ -99,21 +133,24 @@ namespace Ken4lowEngine
 		auto state = std::make_shared<JobState>();
 		state->remaining.store(chunkCount, std::memory_order_release);
 		auto sharedJob = std::make_shared<IndexedJob>(std::move(job));
+		std::vector<Task> tasks;
+		tasks.reserve(chunkCount);
 
 		for (std::size_t chunkIndex = 0; chunkIndex < chunkCount; ++chunkIndex)
 		{
 			const std::size_t begin = chunkIndex * grainSize;
 			const std::size_t end = (std::min)(itemCount, begin + grainSize);
-			EnqueueTask(
+			tasks.push_back(
 				{
 					[sharedJob, begin, end]()
 					{
 						for (std::size_t index = begin; index < end; ++index) (*sharedJob)(index);
 					},
 					state,
-				},
-				priority);
+				});
 		}
+
+		EnqueueTasksAfterDependencies(std::move(tasks), dependencies, priority);
 		return JobHandle(std::move(state));
 	}
 
@@ -201,18 +238,97 @@ namespace Ken4lowEngine
 		queueCv_.notify_one();
 	}
 
+	void JobSystem::EnqueueTasksAfterDependencies(
+		std::vector<Task> tasks,
+		const std::vector<JobHandle>& dependencies,
+		JobPriority priority)
+	{
+		if (tasks.empty()) return;
+
+		auto batch = std::make_shared<DependencyBatch>();
+		batch->tasks = std::move(tasks);
+		batch->priority = priority;
+
+		// Dependency registration is closed before release so fast prerequisites cannot enqueue a partial fan-in.
+		for (const JobHandle& dependency : dependencies)
+		{
+			if (!dependency.state_) continue;
+
+			batch->remainingDependencies.fetch_add(1, std::memory_order_acq_rel);
+			const bool registered = RegisterCompletionCallback(
+				dependency.state_,
+				[this, batch]()
+				{
+					if (batch->remainingDependencies.fetch_sub(1, std::memory_order_acq_rel) == 1)
+					{
+						TryEnqueueDependencyBatch(batch);
+					}
+				});
+
+			if (!registered)
+			{
+				batch->remainingDependencies.fetch_sub(1, std::memory_order_acq_rel);
+			}
+		}
+
+		batch->registrationComplete.store(true, std::memory_order_release);
+		TryEnqueueDependencyBatch(batch);
+	}
+
+	void JobSystem::TryEnqueueDependencyBatch(const std::shared_ptr<DependencyBatch>& batch)
+	{
+		if (!batch) return;
+		if (!batch->registrationComplete.load(std::memory_order_acquire)) return;
+		if (batch->remainingDependencies.load(std::memory_order_acquire) != 0) return;
+
+		bool expected = false;
+		if (!batch->enqueued.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) return;
+
+		for (Task& task : batch->tasks)
+		{
+			EnqueueTask(std::move(task), batch->priority);
+		}
+		batch->tasks.clear();
+	}
+
+	bool JobSystem::RegisterCompletionCallback(
+		const std::shared_ptr<JobState>& state,
+		std::function<void()> callback)
+	{
+		if (!state || !callback) return false;
+
+		std::scoped_lock lock(state->mutex);
+		if (state->remaining.load(std::memory_order_acquire) == 0) return false;
+		state->completionCallbacks.push_back(std::move(callback));
+		return true;
+	}
+
 	void JobSystem::CompleteTask(const std::shared_ptr<JobState>& state, std::exception_ptr exception)
 	{
 		if (!state) return;
-		if (exception)
+
+		std::vector<std::function<void()>> completionCallbacks;
+		bool completed = false;
 		{
 			std::scoped_lock lock(state->mutex);
-			if (!state->firstException) state->firstException = exception;
+			if (exception && !state->firstException)
+			{
+				state->firstException = exception;
+			}
+
+			if (state->remaining.fetch_sub(1, std::memory_order_acq_rel) == 1)
+			{
+				completionCallbacks = std::move(state->completionCallbacks);
+				completed = true;
+			}
 		}
-		if (state->remaining.fetch_sub(1, std::memory_order_acq_rel) == 1)
+
+		if (!completed) return;
+		for (auto& callback : completionCallbacks)
 		{
-			state->completionCv.notify_all();
+			if (callback) callback();
 		}
+		state->completionCv.notify_all();
 	}
 
 	std::size_t JobSystem::ResolveWorkerCount(std::size_t requestedWorkerCount)
