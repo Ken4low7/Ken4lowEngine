@@ -61,6 +61,7 @@ public:
 	}
 
 	K4E::ActorWorld* GetEditorActorWorld() override { return &actorWorld_; }
+	const K4E::SystemScheduler* GetEditorSystemScheduler() const override { return &worldSystemScheduler_; } // Phase 11.5 Profilerへ実際のWorld scheduleを読み取り専用で公開する。
 
 	void PrepareShadowPass() override
 	{
