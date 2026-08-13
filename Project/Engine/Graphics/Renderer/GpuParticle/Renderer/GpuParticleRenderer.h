@@ -5,6 +5,7 @@
 #include "GpuParticleMeshPipeline.h"
 #include "BlendModeType.h"
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -90,6 +91,7 @@ private:
 	{
 		uint32_t sampleCount = 0;
 		bool pendingResolve = false;
+		std::array<uint8_t, kGpuTimingMaxSamplesPerFrame> alphaSamples{};
 	};
 
 	GpuParticleSpritePipeline* gpuParticlePipeline_ = nullptr;
@@ -114,6 +116,7 @@ private:
 	std::vector<GpuTimingFrameState> gpuTimingFrameStates_{};
 	GpuDrivenGpuTimings gpuDrivenGpuTimings_{};
 	uint64_t gpuTimestampFrequency_ = 0;
+	uint64_t currentGpuTimingFrameFenceValue_ = UINT64_MAX;
 	uint32_t gpuTimingFrameResourceCount_ = 0;
 	uint32_t currentGpuTimingFrameIndex_ = UINT32_MAX;
 	uint32_t activeGpuTimingSample_ = kInvalidGpuTimingSample;
