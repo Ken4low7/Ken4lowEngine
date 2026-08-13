@@ -39,10 +39,6 @@ namespace Ken4lowEngine
 			return &instance;
 		}
 
-		/// <summary>
-		/// Editor等で組み立てたEffect設定をRuntimeへ登録します。
-		/// 同名Effectの再登録時は旧Emitterを破棄し、新Module構成を次回再生から使用します。
-		/// </summary>
 		bool RegisterEffect(const GpuParticleEffectDesc& effect)
 		{
 			if (effect.effectName.empty())
@@ -58,9 +54,6 @@ namespace Ken4lowEngine
 			return true;
 		}
 
-		/// <summary>
-		/// 既存GpuParticleEffectSerializerのJSONを読み込み、effectNameをキーにRuntimeへ登録します。
-		/// </summary>
 		bool LoadEffect(const std::string& filePath)
 		{
 			GpuParticleEffectDesc effect{};
@@ -81,9 +74,6 @@ namespace Ken4lowEngine
 			return true;
 		}
 
-		/// <summary>
-		/// LoadEffectで登録したJSONを再読み込みします。Particle Editor保存後の即時反映に使用します。
-		/// </summary>
 		bool ReloadEffect(const std::string& effectName)
 		{
 			const auto pathIt = sourcePaths_.find(effectName);
@@ -98,13 +88,13 @@ namespace Ken4lowEngine
 		}
 
 		/// <summary>
-		/// Effect内の全対応Emitterを一度だけ発生させます。
-		/// 小さなEmitter poolを循環利用し、同一フレームに異なる位置で同じEffectを呼んでも発生位置を潰しません。
+		/// Effect内の全Emitterを一度だけ発生させます。
+		/// 小さなEmitter poolを循環利用し、同一フレームの別位置Spawnで位置を共有しにくくします。
 		/// </summary>
 		bool Play(const std::string& effectName, const Vector3& worldPosition)
 		{
 			const GpuParticleCompiledEffect* effect = FindEffect(effectName);
-			if (!effect)
+			if (!effect || !ValidateEffectSupport(*effect))
 			{
 				return false;
 			}
@@ -112,34 +102,22 @@ namespace Ken4lowEngine
 			uint32_t& nextSlot = nextBurstSlotByEffect_[effectName];
 			const uint32_t burstSlot = nextSlot++ % kBurstEmitterPoolSize;
 			bool emittedAny = false;
-			bool foundSupportedEmitter = false;
 
 			for (std::size_t index = 0; index < effect->emitters.size(); ++index)
 			{
 				const GpuParticleCompiledEmitter& emitterDesc = effect->emitters[index];
-				if (!IsEmitterSupported(emitterDesc))
-				{
-					continue;
-				}
-
-				foundSupportedEmitter = true;
 				GpuParticleEmitter* emitter = EnsureEmitter(
 					effectName, emitterDesc, index, worldPosition, false, burstSlot);
 				if (!emitter)
 				{
-					continue;
+					SetStatus(false, "Play failed while creating emitter: " + emitterDesc.name);
+					return false;
 				}
 
 				if (emitterDesc.emission.burstCount > 0)
 				{
 					emittedAny |= emitter->RequestEmit(emitterDesc.emission.burstCount) > 0;
 				}
-			}
-
-			if (!foundSupportedEmitter)
-			{
-				SetStatus(false, "Play failed: effect has no currently supported Sprite/Alpha emitter. effect=" + effectName);
-				return false;
 			}
 
 			SetStatus(emittedAny, emittedAny
@@ -149,13 +127,12 @@ namespace Ken4lowEngine
 		}
 
 		/// <summary>
-		/// Effectを継続再生します。loop=trueのEmitterだけspawnRateに従って定期発生し、
-		/// loop=falseのEmitterは開始時Burstだけを担当できます。
+		/// loop=trueのEmitterはspawnRateで継続発生し、loop=falseのEmitterは開始時Burstだけを担当します。
 		/// </summary>
 		PlayHandle PlayLoop(const std::string& effectName, const Vector3& worldPosition)
 		{
 			const GpuParticleCompiledEffect* effect = FindEffect(effectName);
-			if (!effect)
+			if (!effect || !ValidateEffectSupport(*effect))
 			{
 				return {};
 			}
@@ -163,24 +140,19 @@ namespace Ken4lowEngine
 			LoopInstance instance{};
 			instance.handle = AllocateHandle();
 			instance.effectName = effectName;
-			bool createdAny = false;
 
 			for (std::size_t index = 0; index < effect->emitters.size(); ++index)
 			{
 				const GpuParticleCompiledEmitter& emitterDesc = effect->emitters[index];
-				if (!IsEmitterSupported(emitterDesc))
-				{
-					continue;
-				}
-
 				GpuParticleEmitter* emitter = EnsureEmitter(
 					effectName, emitterDesc, index, worldPosition, true, instance.handle.id);
 				if (!emitter)
 				{
-					continue;
+					RemoveEmitters(instance.emitterNames);
+					SetStatus(false, "PlayLoop failed while creating emitter: " + emitterDesc.name);
+					return {};
 				}
 
-				createdAny = true;
 				instance.emitterNames.push_back(
 					BuildEmitterName(effectName, emitterDesc, index, true, instance.handle.id));
 				if (emitterDesc.emission.burstCount > 0)
@@ -189,18 +161,11 @@ namespace Ken4lowEngine
 				}
 			}
 
-			if (!createdAny)
-			{
-				SetStatus(false, "PlayLoop failed: no supported emitter. effect=" + effectName);
-				return {};
-			}
-
 			activeLoops_[instance.handle.id] = instance;
 			SetStatus(true, "Loop started: " + effectName);
 			return instance.handle;
 		}
 
-		/// <summary>指定Effect名で動作中のLoop Instanceをすべて停止します。</summary>
 		bool StopLoop(const std::string& effectName)
 		{
 			std::vector<uint32_t> handles;
@@ -212,17 +177,16 @@ namespace Ken4lowEngine
 				}
 			}
 
-			for (const uint32_t handleId : handles)
-			{
-				StopLoop(PlayHandle{ handleId });
-			}
-
 			if (handles.empty())
 			{
 				SetStatus(false, "StopLoop skipped: effect is not looping. effect=" + effectName);
 				return false;
 			}
 
+			for (const uint32_t handleId : handles)
+			{
+				StopLoopInternal(handleId);
+			}
 			SetStatus(true, "Loop instances stopped: " + effectName);
 			return true;
 		}
@@ -242,19 +206,12 @@ namespace Ken4lowEngine
 				return false;
 			}
 
-			GpuParticleManager* manager = GpuParticleManager::GetInstance();
-			for (const std::string& emitterName : instanceIt->second.emitterNames)
-			{
-				manager->RemoveEmitter(emitterName);
-			}
-
 			const std::string effectName = instanceIt->second.effectName;
-			activeLoops_.erase(instanceIt);
+			StopLoopInternal(handle.id);
 			SetStatus(true, "Loop stopped: " + effectName);
 			return true;
 		}
 
-		/// <summary>追従演出用にLoop Effect全体の基準位置を更新します。</summary>
 		bool SetLoopPosition(PlayHandle handle, const Vector3& worldPosition)
 		{
 			const auto instanceIt = activeLoops_.find(handle.id);
@@ -274,11 +231,6 @@ namespace Ken4lowEngine
 			for (std::size_t index = 0; index < effect.emitters.size(); ++index)
 			{
 				const GpuParticleCompiledEmitter& emitterDesc = effect.emitters[index];
-				if (!IsEmitterSupported(emitterDesc))
-				{
-					continue;
-				}
-
 				const std::string emitterName = BuildEmitterName(
 					effect.name, emitterDesc, index, true, handle.id);
 				if (GpuParticleEmitter* emitter = manager->GetEmitter(emitterName))
@@ -350,6 +302,36 @@ namespace Ken4lowEngine
 			return &it->second;
 		}
 
+		bool ValidateEffectSupport(const GpuParticleCompiledEffect& effect)
+		{
+			if (effect.emitters.empty())
+			{
+				SetStatus(false, "Effect has no emitters: " + effect.name);
+				return false;
+			}
+
+			for (const GpuParticleCompiledEmitter& emitter : effect.emitters)
+			{
+				if (emitter.render.renderType != GpuParticleRenderType::Sprite)
+				{
+					SetStatus(false, "Unsupported authored renderer (currently Sprite only): " + emitter.name);
+					return false;
+				}
+				if (emitter.render.blendMode != GpuParticleBlendMode::Additive)
+				{
+					// 既存GpuParticleSpritePipelineが加算PSO固定なので、見た目を偽装せずAdditiveだけを許可する。
+					SetStatus(false, "Unsupported authored blend mode (current backend is Additive): " + emitter.name);
+					return false;
+				}
+				if (!IsSpawnShapeSupported(emitter.spawn.shape))
+				{
+					SetStatus(false, "Unsupported authored spawn shape (current backend supports Point/Sphere/Box): " + emitter.name);
+					return false;
+				}
+			}
+			return true;
+		}
+
 		GpuParticleEmitter* EnsureEmitter(
 			const std::string& effectName,
 			const GpuParticleCompiledEmitter& emitterDesc,
@@ -358,11 +340,6 @@ namespace Ken4lowEngine
 			bool loopMode,
 			uint32_t instanceId)
 		{
-			if (!IsEmitterSupported(emitterDesc))
-			{
-				return nullptr;
-			}
-
 			GpuParticleManager* manager = GpuParticleManager::GetInstance();
 			const std::string emitterName = BuildEmitterName(
 				effectName, emitterDesc, emitterIndex, loopMode, instanceId);
@@ -376,7 +353,6 @@ namespace Ken4lowEngine
 			GpuParticleEmitter* emitter = manager->CreateRuntimeEmitter(emitterName, info);
 			if (!emitter)
 			{
-				SetStatus(false, "Failed to create runtime emitter: " + emitterName);
 				return nullptr;
 			}
 
@@ -465,19 +441,11 @@ namespace Ken4lowEngine
 			return { count, kHighRateTick };
 		}
 
-		static bool IsEmitterSupported(const GpuParticleCompiledEmitter& emitterDesc)
+		static bool IsSpawnShapeSupported(GpuParticleSpawnShape shape)
 		{
-			if (emitterDesc.render.renderType != GpuParticleRenderType::Sprite)
-			{
-				return false;
-			}
-			if (emitterDesc.render.blendMode != GpuParticleBlendMode::Alpha)
-			{
-				return false;
-			}
-			return emitterDesc.spawn.shape == GpuParticleSpawnShape::Point ||
-				emitterDesc.spawn.shape == GpuParticleSpawnShape::Sphere ||
-				emitterDesc.spawn.shape == GpuParticleSpawnShape::Box;
+			return shape == GpuParticleSpawnShape::Point ||
+				shape == GpuParticleSpawnShape::Sphere ||
+				shape == GpuParticleSpawnShape::Box;
 		}
 
 		static Vector3 Add(const Vector3& lhs, const Vector3& rhs)
@@ -539,16 +507,28 @@ namespace Ken4lowEngine
 			}
 			for (const uint32_t handleId : loopHandles)
 			{
-				const auto instanceIt = activeLoops_.find(handleId);
-				if (instanceIt == activeLoops_.end())
-				{
-					continue;
-				}
-				for (const std::string& emitterName : instanceIt->second.emitterNames)
-				{
-					manager->RemoveEmitter(emitterName);
-				}
-				activeLoops_.erase(instanceIt);
+				StopLoopInternal(handleId);
+			}
+		}
+
+		void StopLoopInternal(uint32_t handleId)
+		{
+			const auto instanceIt = activeLoops_.find(handleId);
+			if (instanceIt == activeLoops_.end())
+			{
+				return;
+			}
+
+			RemoveEmitters(instanceIt->second.emitterNames);
+			activeLoops_.erase(instanceIt);
+		}
+
+		static void RemoveEmitters(const std::vector<std::string>& emitterNames)
+		{
+			GpuParticleManager* manager = GpuParticleManager::GetInstance();
+			for (const std::string& emitterName : emitterNames)
+			{
+				manager->RemoveEmitter(emitterName);
 			}
 		}
 
