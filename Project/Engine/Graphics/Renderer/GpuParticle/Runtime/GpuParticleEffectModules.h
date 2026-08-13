@@ -61,7 +61,8 @@ namespace Ken4lowEngine
 		std::string texturePath;
 		std::string meshPath;
 		bool billboard = true;
-		GpuParticleBlendMode blendMode = GpuParticleBlendMode::Alpha;
+		// 現行Sprite PipelineのPSOと一致させ、Module単体生成でも見た目の契約を崩さない。
+		GpuParticleBlendMode blendMode = GpuParticleBlendMode::Additive;
 		bool useSpriteSheet = false;
 		int spriteSheetRows = 1;
 		int spriteSheetColumns = 1;
