@@ -9,6 +9,7 @@ MODULE_HEADER = GPU_ROOT / "Runtime" / "GpuParticleEffectModules.h"
 RUNTIME_HEADER = GPU_ROOT / "Runtime" / "GpuParticleEffectRuntime.h"
 EFFECT_DESC_HEADER = GPU_ROOT / "Data" / "GpuParticleEffectDesc.h"
 EMITTER_DATA_HEADER = GPU_ROOT / "Data" / "GpuParticleEmitterData.h"
+EMITTER_HEADER = GPU_ROOT / "Emitter" / "GpuParticleEmitter.h"
 EMITTER_SOURCE = GPU_ROOT / "Emitter" / "GpuParticleEmitter.cpp"
 BUFFERS_HEADER = GPU_ROOT / "Buffers" / "GpuParticleBuffers.h"
 SERIALIZER_SOURCE = GPU_ROOT / "Preset" / "GpuParticleEffectSerializer.cpp"
@@ -17,6 +18,7 @@ SPRITE_PIPELINE_HEADER = GPU_ROOT / "Pipeline" / "GpuParticleSpritePipeline.h"
 MESH_PIPELINE_HEADER = GPU_ROOT / "Pipeline" / "GpuParticleMeshPipeline.h"
 RENDERER_SOURCE = GPU_ROOT / "Renderer" / "GpuParticleRenderer.cpp"
 SAMPLE_EFFECT = PROJECT_ROOT / "Resources" / "Effects" / "Phase13" / "Explosion.effect.json"
+MESH_SAMPLE_EFFECT = PROJECT_ROOT / "Resources" / "Effects" / "Phase13" / "MeshDebris.effect.json"
 SHADER_ROOT = PROJECT_ROOT / "Resources" / "Shaders" / "GpuParticle"
 EMIT_SHADER = SHADER_ROOT / "GpuParticleEmit.CS.hlsl"
 UPDATE_SHADER = SHADER_ROOT / "GpuParticleUpdate.CS.hlsl"
@@ -34,6 +36,7 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         cls.runtime = RUNTIME_HEADER.read_text(encoding="utf-8")
         cls.effect_desc = EFFECT_DESC_HEADER.read_text(encoding="utf-8")
         cls.emitter_data = EMITTER_DATA_HEADER.read_text(encoding="utf-8")
+        cls.emitter_header = EMITTER_HEADER.read_text(encoding="utf-8")
         cls.emitter_source = EMITTER_SOURCE.read_text(encoding="utf-8")
         cls.buffers = BUFFERS_HEADER.read_text(encoding="utf-8")
         cls.serializer = SERIALIZER_SOURCE.read_text(encoding="utf-8")
@@ -49,6 +52,7 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         cls.mesh_pixel_shader = MESH_PIXEL_SHADER.read_text(encoding="utf-8")
         cls.particle_data_shader = PARTICLE_DATA_SHADER.read_text(encoding="utf-8")
         cls.sample = json.loads(SAMPLE_EFFECT.read_text(encoding="utf-8"))
+        cls.mesh_sample = json.loads(MESH_SAMPLE_EFFECT.read_text(encoding="utf-8"))
 
     def test_flat_asset_is_compiled_into_explicit_module_boundaries(self) -> None:
         for module_name in (
@@ -91,6 +95,18 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         self.assertIn("std::unordered_map<uint32_t, LoopInstance> activeLoops_", self.runtime)
         self.assertIn("parameterOverrides", self.runtime)
 
+    def test_finite_emission_duration_is_runtime_behavior_not_dead_authoring_data(self) -> None:
+        # One-shot effects may emit over a finite time window without becoming infinite loops.
+        self.assertIn("bool loopForever = true", self.emitter_header)
+        self.assertIn("float emissionDuration = 0.0f", self.emitter_header)
+        self.assertIn("ResetEmissionSchedule", self.emitter_header)
+        self.assertIn("HasEmissionSchedule", self.emitter_header)
+        self.assertIn("emissionElapsed_ += scheduleDelta", self.emitter_source)
+        self.assertIn("info.loopForever = loopMode && emitterDesc.emission.loop", self.runtime)
+        self.assertIn("info.emissionDuration = info.loopForever ? 0.0f", self.runtime)
+        self.assertIn("emittedAny |= emitter->HasEmissionSchedule()", self.runtime)
+        self.assertIn("if (!loopMode) existing->ResetEmissionSchedule()", self.runtime)
+
     def test_all_authored_spawn_shapes_reach_custom_emit_shader(self) -> None:
         for name in ("Point", "Sphere", "Box", "Cone", "Circle", "Ring", "Hemisphere"):
             self.assertIn(name, self.effect_desc)
@@ -117,7 +133,7 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         self.assertIn("BlendMode::kBlendModeMultiply", self.runtime)
 
     def test_render_groups_prevent_cross_texture_and_cross_blend_redraw(self) -> None:
-        # Authoring emitters share legacy Default type=0, so texture/blend identity must be stamped separately for correct filtering.
+        # Authoring emitters share the legacy spawn implementation, so material identity must survive until the pixel shader.
         self.assertIn("BuildGpuParticleRenderGroup", self.emitter_data)
         self.assertIn("out.renderGroup = BuildGpuParticleRenderGroup", self.emitter_source)
         self.assertIn("out.type = info_.useDescSpawnOverride ? out.renderGroup : GetEffectiveType()", self.emitter_source)
@@ -200,6 +216,19 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
             self.assertTrue(emitter["useSizeCurve"])
             self.assertTrue(emitter["useColorGradient"])
             self.assertGreater(len(emitter["parameterBindings"]), 0)
+
+    def test_mesh_sample_exercises_real_mesh_and_finite_duration_path(self) -> None:
+        self.assertEqual(self.mesh_sample["effectName"], "Phase13MeshDebris")
+        self.assertEqual(len(self.mesh_sample["emitters"]), 1)
+        emitter = self.mesh_sample["emitters"][0]
+        self.assertEqual(emitter["renderType"], "Mesh")
+        self.assertEqual(emitter["meshPath"], "Sample/cube.gltf")
+        self.assertEqual(emitter["meshSubMeshIndex"], 0)
+        self.assertFalse(emitter["loop"])
+        self.assertGreater(emitter["duration"], 0.0)
+        self.assertGreater(emitter["spawnRate"], 0.0)
+        self.assertTrue(any(abs(v) > 0.0 for v in emitter["angularVelocity"]))
+        self.assertGreater(len(emitter["parameterBindings"]), 0)
 
     def test_effect_editor_previews_unsaved_module_configuration_through_runtime(self) -> None:
         self.assertIn("RegisterPreviewEffect", self.editor)
