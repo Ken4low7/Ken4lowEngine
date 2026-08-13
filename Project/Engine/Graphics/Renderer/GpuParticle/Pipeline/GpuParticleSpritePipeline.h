@@ -1,6 +1,9 @@
 #pragma once
 #include <DX12Include.h>
 #include "BlendStateFactory.h"
+#include "BlendModeType.h"
+
+#include <array>
 
 namespace Ken4lowEngine
 {
@@ -30,26 +33,25 @@ public: /// ---------- ゲッター ---------- ///
 	/// <summary>
 	/// 描画用Graphics PSO
 	/// </summary>
-	ID3D12PipelineState* GetGfxPSO() const { return pipelineState_.Get(); }
+	ID3D12PipelineState* GetGfxPSO(BlendMode blendMode) const;
 
 private: /// ---------- 内部メンバ関数 ---------- ///
 
 	// ルートシグネチャの生成
 	void CreateRootSignature();
 
-	// パイプラインステートオブジェクトの生成
-	void CreatePSO();
+	// BlendModeごとのPSOを生成し、Authoring側のAlpha/Additive/Multiplyを実描画へ反映する。
+	void CreatePSO(BlendMode blendMode);
 
 private: /// ---------- メンバ変数 ---------- ///
+
+	static constexpr size_t kBlendModeCount = static_cast<size_t>(BlendMode::kcountOfBlendMode);
 
 	// DirectX共通管理
 	DirectXCommon* dxCommon_ = nullptr;
 
 	ComPtr<ID3D12RootSignature> rootSignature_;
-	ComPtr<ID3D12PipelineState> pipelineState_;
-
-	// 今は加算固定（必要なら将来 “Add/Alpha” でPSOを増やす）
-	BlendMode blendMode_ = BlendMode::kBlendModeAdd;
+	std::array<ComPtr<ID3D12PipelineState>, kBlendModeCount> pipelineStates_{};
 };
 
 
