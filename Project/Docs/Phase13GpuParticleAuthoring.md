@@ -78,7 +78,7 @@ Owns:
 - blend mode metadata
 - sprite-sheet settings
 
-`GpuParticleEffectCompiler` converts the existing flat `GpuParticleEmitterDesc` into these modules. This is intentionally a compatibility layer: old Effect JSON remains readable, while future runtime behavior no longer needs to couple directly to every flat serialized field.
+`GpuParticleEffectCompiler` converts the existing flat `GpuParticleEmitterDesc` into these modules. This is intentionally a compatibility layer: existing Effect JSON fields remain usable, while future runtime behavior no longer needs to couple directly to every flat serialized field.
 
 ## 13.2 Runtime Effect Playback
 
@@ -143,7 +143,7 @@ without adding a new hard-coded `GpuParticleType` for every visual variation.
 
 A single reusable emitter per Effect is not sufficient for hit/explosion effects. Two calls in one frame at different positions could otherwise update the same emitter position before the GPU consumes both requests.
 
-Phase 13 uses a small bounded burst-emitter pool per Effect. Each `Play` advances through eight slots. Particle state is still stored by the existing GPU backend, while subsequent spawns can safely use another emitter slot and position.
+Phase 13 uses a small bounded burst-emitter pool per Effect. Each `Play` advances through eight slots. Particle state is still stored by the existing GPU backend, while subsequent spawns can use another emitter slot and position.
 
 The pool is bounded intentionally so repeated combat effects do not create an unbounded number of runtime emitter objects.
 
@@ -165,23 +165,25 @@ Each loop owns uniquely named runtime emitters and can be stopped independently.
 
 ## 13.6 Current Backend Compatibility Gate
 
-The serialized schema already knows more features than the current flat custom-spawn GPU path actually executes. Phase 13 therefore fails closed instead of pretending those fields are working.
+The serialized schema already knows more features than the current custom-spawn GPU path actually executes. Phase 13 validates the whole Effect before creating any runtime emitter so an unsupported layer cannot silently disappear from a composite effect.
 
-The first runtime foundation currently accepts:
+The current runtime foundation accepts:
 
 - Sprite renderer
-- Alpha blend
+- Additive blend
 - Point spawn
 - Sphere spawn
 - Box spawn
 
+`Additive` is not an arbitrary Phase 13 limitation: the existing `GpuParticleSpritePipeline` currently owns one graphics PSO and that PSO is created with `BlendMode::kBlendModeAdd`. Authoring therefore defaults to Additive and refuses Alpha/Multiply until the renderer can select the matching PSO per authored emitter.
+
 The following remain asset-schema values but are not enabled by `GpuParticleEffectRuntime` yet:
 
 - Mesh authored runtime path
-- Additive / Multiply authored blend modes
+- Alpha / Multiply authored blend modes
 - Cone / Circle / Ring / Hemisphere custom spawn shapes
 
-This separation lets the schema remain stable while GPU backend support is added incrementally.
+This keeps the save schema ahead of the backend without pretending an unsupported visual mode is working.
 
 ## 13.7 Runtime Preview
 
@@ -194,9 +196,9 @@ The editor exposes:
 - `Start Loop Preview`
 - `Stop Loop Preview`
 
-Preview registers the current in-memory `GpuParticleEffectDesc` first, so unsaved authoring changes can be tested immediately. A loop preview keeps its `PlayHandle` and updates its world position while the preview position is edited.
+Preview registers the current in-memory `GpuParticleEffectDesc` first, so unsaved authoring changes can be tested immediately. Re-registering an Effect explicitly clears an old loop-preview handle before replacing its runtime emitters, preventing the editor from retaining a stale preview handle.
 
-The property UI is also grouped with the same four authoring responsibilities used by the compiler:
+The property UI is grouped with the same four authoring responsibilities used by the compiler:
 
 - Emission Module
 - Spawn Module
@@ -216,14 +218,14 @@ The current GPU update path still uses the existing linear behavior for authored
 - rotation
 - alpha fade
 
-Phase 13 does not duplicate or replace that code. The Module layer records the authoring intent and feeds the proven `GpuParticleEmitter::EmitterInfo` path.
+Phase 13 does not duplicate or replace that code. The Module layer records the authoring intent and feeds the existing `GpuParticleEmitter::EmitterInfo` path.
 
 ## 13.9 Next Authoring Steps
 
 The recommended continuation is:
 
-1. implement Cone / Circle / Ring / Hemisphere in the custom Emit compute path;
-2. route authored Additive / Multiply through render pipeline selection;
+1. route authored Alpha / Multiply through selectable Sprite graphics PSOs;
+2. implement Cone / Circle / Ring / Hemisphere in the custom Emit compute path;
 3. add `FloatCurve` and `ColorGradient` authoring data;
 4. bake curves/gradients to GPU-friendly LUTs;
 5. add Update modules such as Noise, Vortex, and Attractor;
@@ -269,9 +271,10 @@ The Effect Asset can later map `ChargeAmount` to spawn rate, size, color, noise 
 - Effect-level playback API;
 - bounded burst emitter pooling;
 - handle-scoped loop instances;
-- fail-closed backend compatibility checks;
+- strict backend compatibility validation;
 - real-time editor preview integration;
-- the multi-emitter Phase 13 sample asset.
+- the multi-emitter Phase 13 sample asset;
+- alignment with the currently additive-only Sprite PSO.
 
 Windows Debug/Release translation-unit compilation remains part of TeamDevelopmentCI. `GpuParticleEffectEditor.cpp` includes the runtime facade directly, so the Windows compile job parses the authoring runtime against the real engine include environment.
 
@@ -284,7 +287,7 @@ Phase 13 foundation is ready for game-side evaluation when:
 3. repeated burst effects can occur at different positions without sharing one mutable spawn location;
 4. multiple loop instances of the same effect can coexist and follow different Actors;
 5. the Effect Editor can preview current in-memory settings through the gameplay runtime;
-6. unsupported backend combinations fail closed;
+6. unsupported backend combinations fail before a partial effect is spawned;
 7. Phase 13 tests and Debug/Release compile jobs pass.
 
-Curve/Gradient LUTs and User Parameters are intentionally the next authoring increment rather than prerequisites for this compatibility foundation.
+Curve/Gradient LUTs and User Parameters remain the next authoring increment rather than prerequisites for this compatibility foundation.
