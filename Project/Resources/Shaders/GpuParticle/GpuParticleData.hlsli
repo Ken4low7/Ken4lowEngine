@@ -23,6 +23,8 @@ static const uint GPU_PARTICLE_ANIM_LOOP = 1u << 0;
 static const uint GPU_PARTICLE_ANIM_RANDOM_START = 1u << 1;
 static const uint GPU_PARTICLE_CUSTOM_DESC_OVERRIDE = 1u << 0;
 static const uint GPU_PARTICLE_CUSTOM_ALPHA_FADE = 1u << 1;
+static const uint GPU_PARTICLE_CUSTOM_SIZE_CURVE = 1u << 2;
+static const uint GPU_PARTICLE_CUSTOM_COLOR_GRADIENT = 1u << 3;
 
 uint GPUParticle_GetKind(uint packedBillboardMode)
 {
@@ -94,6 +96,27 @@ struct Particle
     float rotation;
     float rotationSpeed;
     float2 customPadding2;
+
+    // Authoring Curve/Force/Mesh Rotationを粒子ごとに固定し、Emitter再利用後も既に生成済みの見た目を変えない。
+    float4 sizeCurveLut;
+    float4 colorGradientLut0;
+    float4 colorGradientLut1;
+    float4 colorGradientLut2;
+    float4 colorGradientLut3;
+    float noiseStrength;
+    float noiseFrequency;
+    float vortexStrength;
+    float attractorStrength;
+    float3 vortexAxis;
+    float attractorRadius;
+    float3 attractorPosition;
+    float forcePadding;
+    float3 forceOrigin;
+    float forceOriginPadding;
+    float3 rotation3D;
+    float rotation3DPadding;
+    float3 angularVelocity3D;
+    float angularVelocity3DPadding;
 };
 
 /// ---------- エミッター ---------- ///
@@ -143,6 +166,28 @@ struct EmitterCBData
     uint spriteSheetRows;
     uint spriteSheetColumns;
     float spriteSheetFrameRate;
+
+    float4 sizeCurveLut;
+    float4 colorGradientLut0;
+    float4 colorGradientLut1;
+    float4 colorGradientLut2;
+    float4 colorGradientLut3;
+    float noiseStrength;
+    float noiseFrequency;
+    float vortexStrength;
+    float attractorStrength;
+    float3 vortexAxis;
+    float attractorRadius;
+    float3 attractorPosition;
+    float forcePadding;
+    float3 startRotation3D;
+    float rotation3DPadding;
+    float3 rotationRandom3D;
+    float rotationRandom3DPadding;
+    float3 angularVelocity;
+    float angularVelocityPadding;
+    float3 angularVelocityRandom;
+    float angularVelocityRandomPadding;
 };
 
 /// ---------- 時間制御 ---------- ///
