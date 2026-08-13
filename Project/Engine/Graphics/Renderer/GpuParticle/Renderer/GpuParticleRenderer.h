@@ -44,6 +44,12 @@ public:
 		GpuTimingMetric total{};
 	};
 
+	GpuParticleRenderer() = default;
+	~GpuParticleRenderer()
+	{
+		if (activeRenderer_ == this) activeRenderer_ = nullptr; // Manager破棄後にEditor診断がdangling pointerを保持しない。
+	}
+
 	void Initialize(GpuParticleSpritePipeline* pipeline, GpuParticleBuffers* buffers);
 
 	/// Manager互換の引数は残しつつ、Phase14ではGPU Compactionが実Instance数をIndirect Argsへ書き込む。
