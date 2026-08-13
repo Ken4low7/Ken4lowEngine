@@ -8,6 +8,8 @@ DEFINITION = PROJECT_ROOT / "Engine" / "Scene" / "Management" / "SceneDefinition
 REGISTRY = PROJECT_ROOT / "Engine" / "Scene" / "Management" / "SceneDefinitionRegistry.h"
 SERIALIZER = PROJECT_ROOT / "Engine" / "Scene" / "Management" / "SceneDefinitionSerializer.cpp"
 FACTORY = PROJECT_ROOT / "ApplicationLayer" / "SceneManagement" / "SceneFactory" / "SceneFactory.cpp"
+EDITOR_SCENE = PROJECT_ROOT / "Engine" / "Editor" / "EditorSceneDeferredController.h"
+LEVEL_OVERLAY = PROJECT_ROOT / "Engine" / "Editor" / "EditorLevelOverlay.h"
 
 
 class DataDrivenSceneAuthoringTests(unittest.TestCase):
@@ -18,6 +20,8 @@ class DataDrivenSceneAuthoringTests(unittest.TestCase):
         cls.registry = REGISTRY.read_text(encoding="utf-8")
         cls.serializer = SERIALIZER.read_text(encoding="utf-8")
         cls.factory = FACTORY.read_text(encoding="utf-8")
+        cls.editor_scene = EDITOR_SCENE.read_text(encoding="utf-8")
+        cls.level_overlay = LEVEL_OVERLAY.read_text(encoding="utf-8")
 
     def test_generic_scene_owns_editable_actor_world(self) -> None:
         self.assertIn("class DataDrivenScene final : public BaseScene", self.data_scene)
@@ -36,9 +40,21 @@ class DataDrivenSceneAuthoringTests(unittest.TestCase):
         self.assertIn("definition.levelPath = path.generic_string()", self.registry)
         self.assertIn("RefreshDiscoveredLevelScenes(); // Save Level As直後", self.registry)
 
+    def test_fallback_scene_binds_same_named_level(self) -> None:
+        self.assertIn('definition.className == "DataDrivenScene" && definition.levelPath.empty()', self.registry)
+        self.assertIn("definition.levelPath = path.generic_string(); // TitleScene等の空Fallback", self.registry)
+        self.assertIn("RefreshDiscoveredLevelScenes(); // Fallback追加後", self.registry)
+
     def test_factory_has_single_generic_runtime_class(self) -> None:
         self.assertIn('K4E_REGISTER_SCENE_NAMED("DataDrivenScene"', self.factory)
         self.assertIn("DataDrivenScene.h", self.factory)
+
+    def test_editor_new_scene_reuses_safe_level_flow(self) -> None:
+        self.assertIn("RequestNewLevel()", self.editor_scene)
+        self.assertIn("RequestSaveLevelAs()", self.editor_scene)
+        self.assertIn("levelPath.stem().string()", self.editor_scene)
+        self.assertIn("sceneManager_->ChangeScene(sceneId)", self.editor_scene)
+        self.assertIn('ImGui::Button("Scene"', self.level_overlay)
 
 
 if __name__ == "__main__":
