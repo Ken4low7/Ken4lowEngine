@@ -62,8 +62,10 @@ void UAVManager::CreateUAVForTexture2D(uint32_t uavIndex, ID3D12Resource* pResou
 	uavDesc.Format = Format;
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 	uavDesc.Texture2D.MipSlice = MipLevels;
+
+	// Clear用descriptorはshader-visible heapからコピーせず、同一UAVをCPU-only heapへ直接生成する。
 	dxCommon_->GetDevice()->CreateUnorderedAccessView(pResource, nullptr, &uavDesc, GetCPUDescriptorHandle(uavIndex));
-	MirrorUavDescriptorForClear(uavIndex);
+	dxCommon_->GetDevice()->CreateUnorderedAccessView(pResource, nullptr, &uavDesc, GetClearCPUDescriptorHandle(uavIndex));
 }
 
 void UAVManager::CreateSRVForTexture2DOnThisHeap(uint32_t srvIndex, ID3D12Resource* pResource, DXGI_FORMAT Format, UINT MipLevels)
@@ -79,6 +81,9 @@ void UAVManager::CreateSRVForTexture2DOnThisHeap(uint32_t srvIndex, ID3D12Resour
 
 void UAVManager::CreateUAVForBuffer(uint32_t uavIndex, ID3D12Resource* pResource, UINT64 bufferSize)
 {
+	if (!pResource) throw std::runtime_error("pResource is null in CreateUAVForBuffer");
+	if (uavIndex >= kMaxUAVCount) throw std::runtime_error("uavIndex out of bounds in CreateUAVForBuffer");
+
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
 	uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -87,11 +92,14 @@ void UAVManager::CreateUAVForBuffer(uint32_t uavIndex, ID3D12Resource* pResource
 	uavDesc.Buffer.StructureByteStride = 0;
 	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
 	dxCommon_->GetDevice()->CreateUnorderedAccessView(pResource, nullptr, &uavDesc, GetCPUDescriptorHandle(uavIndex));
-	MirrorUavDescriptorForClear(uavIndex);
+	dxCommon_->GetDevice()->CreateUnorderedAccessView(pResource, nullptr, &uavDesc, GetClearCPUDescriptorHandle(uavIndex));
 }
 
 void UAVManager::CreateUAVForStructuredBuffer(uint32_t uavIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride)
 {
+	if (!pResource) throw std::runtime_error("pResource is null in CreateUAVForStructuredBuffer");
+	if (uavIndex >= kMaxUAVCount) throw std::runtime_error("uavIndex out of bounds in CreateUAVForStructuredBuffer");
+
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
 	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -101,7 +109,7 @@ void UAVManager::CreateUAVForStructuredBuffer(uint32_t uavIndex, ID3D12Resource*
 	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 	uavDesc.Buffer.StructureByteStride = structureByteStride;
 	dxCommon_->GetDevice()->CreateUnorderedAccessView(pResource, nullptr, &uavDesc, GetCPUDescriptorHandle(uavIndex));
-	MirrorUavDescriptorForClear(uavIndex);
+	dxCommon_->GetDevice()->CreateUnorderedAccessView(pResource, nullptr, &uavDesc, GetClearCPUDescriptorHandle(uavIndex));
 }
 
 uint32_t UAVManager::Allocate()
@@ -146,16 +154,6 @@ D3D12_CPU_DESCRIPTOR_HANDLE UAVManager::GetClearCPUDescriptorHandle(uint32_t ind
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = clearCpuDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 	handle.ptr += static_cast<unsigned long long>(index) * descriptorSize_;
 	return handle;
-}
-
-void UAVManager::MirrorUavDescriptorForClear(uint32_t index)
-{
-	// MicrosoftのClear UAV契約に合わせ、shader-visible descriptorをCPU-only heapへ複製する。
-	dxCommon_->GetDevice()->CopyDescriptorsSimple(
-		1,
-		GetClearCPUDescriptorHandle(index),
-		GetCPUDescriptorHandle(index),
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 void UAVManager::CreateSRVForStructureBuffer(uint32_t srvIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride)
