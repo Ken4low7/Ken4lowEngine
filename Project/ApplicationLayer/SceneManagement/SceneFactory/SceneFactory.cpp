@@ -1,27 +1,29 @@
 #include "SceneFactory.h"
 #include "DebugScene.h"
+#include "../../Scene/SampleScene/SampleScene.h"
 
-#include <functional>
+#include <algorithm>
 #include <unordered_map>
+#include <utility>
 
 namespace Ken4lowEngine
 {
 	namespace
 	{
-		using SceneCreator = std::function<std::unique_ptr<BaseScene>()>;
+		using SceneCreatorMap = std::unordered_map<std::string, SceneFactory::SceneCreator>;
 
-		const std::unordered_map<std::string, SceneCreator>& GetSceneCreators()
+		SceneCreatorMap& GetSceneCreators()
 		{
-			static const std::unordered_map<std::string, SceneCreator> creators = []
-				{
-					std::unordered_map<std::string, SceneCreator> result;
-#ifdef _DEBUG
-					result.emplace("DebugScene", [] { return std::make_unique<DebugScene>(); });
-#endif
-					return result; // JSONのScene IDとC++ Class名を分離できるようClass生成だけを登録表へ集約する。
-				}();
-			return creators;
+			static SceneCreatorMap creators;
+			return creators; // Function-local staticなら各Sceneの静的登録順に依存せず安全に初期化できる。
 		}
+	}
+
+	bool SceneFactory::RegisterSceneClass(std::string sceneName, SceneCreator creator)
+	{
+		if (sceneName.empty() || !creator) return false;
+		auto& creators = GetSceneCreators();
+		return creators.emplace(std::move(sceneName), std::move(creator)).second;
 	}
 
 	std::unique_ptr<BaseScene> SceneFactory::CreateScene(const std::string& sceneName)
@@ -34,4 +36,27 @@ namespace Ken4lowEngine
 		}
 		return iterator->second();
 	}
+
+	bool SceneFactory::CanCreateScene(const std::string& sceneName) const
+	{
+		return GetSceneCreators().contains(sceneName);
+	}
+
+	std::vector<std::string> SceneFactory::GetRegisteredSceneNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(GetSceneCreators().size());
+		for (const auto& [name, creator] : GetSceneCreators())
+		{
+			(void)creator;
+			names.push_back(name);
+		}
+		std::sort(names.begin(), names.end());
+		return names;
+	}
 } // namespace Ken4lowEngine
+
+K4E_REGISTER_SCENE_NAMED("SampleScene", ::Ken4lowEngine::SampleScene)
+#ifdef _DEBUG
+K4E_REGISTER_SCENE_NAMED("DebugScene", ::DebugScene)
+#endif
