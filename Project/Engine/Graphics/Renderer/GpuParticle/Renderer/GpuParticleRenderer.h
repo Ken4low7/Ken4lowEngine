@@ -30,6 +30,7 @@ private:
 	void CreateGpuDrivenPipeline();
 	void CreateIndirectCommandSignatures();
 	bool BuildVisibleParticleList(uint32_t primitiveCount, bool indexed);
+	void SortVisibleParticlesByDepth();
 
 private:
 	GpuParticleSpritePipeline* gpuParticlePipeline_ = nullptr;
@@ -38,9 +39,10 @@ private:
 	std::unique_ptr<ParticleMaterial> particleMaterial_;
 	std::unique_ptr<GpuParticleMeshPipeline> gpuParticleMeshPipeline_;
 
-	// Compaction + ExecuteIndirectをRenderer内に閉じ、Managerの既存Emitter APIを壊さずGPU Driven化する。
+	// CompactionとAlpha Sortを同じUAV契約で連結し、CPU readbackなしでIndirect Drawへ渡す。
 	ComPtr<ID3D12RootSignature> compactionRootSignature_;
 	ComPtr<ID3D12PipelineState> compactionPipelineState_;
+	ComPtr<ID3D12PipelineState> depthSortPipelineState_;
 	ComPtr<ID3D12CommandSignature> drawCommandSignature_;
 	ComPtr<ID3D12CommandSignature> drawIndexedCommandSignature_;
 	bool gpuDrivenBuffersReadable_ = false;
