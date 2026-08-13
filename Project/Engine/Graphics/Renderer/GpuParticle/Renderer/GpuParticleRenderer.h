@@ -3,6 +3,7 @@
 #include "ParticleMesh.h"
 #include "ParticleMaterial.h"
 #include "GpuParticleMeshPipeline.h"
+#include "BlendModeType.h"
 
 namespace Ken4lowEngine
 {
@@ -43,7 +44,7 @@ public: /// ---------- セッター ---------- ///
 	// テクスチャファイルパスのセッター
 	void SetTextureFilePath(const std::string& path);
 
-	// 描画タイプのセッター
+	// packed drawTypeからMaterial IDとBlendModeを分離して、Authoringの合成設定を描画PSOへ反映する。
 	void SetDrawType(uint32_t type, uint32_t slot);
 
 private: /// ---------- 内部処理 ---------- ///
@@ -70,6 +71,7 @@ private: /// ---------- メンバ変数 ---------- ///
 	std::unique_ptr<GpuParticleMeshPipeline> gpuParticleMeshPipeline_;
 
 	std::string textureFilePath_ = "Effects/circle2.dds";
+	BlendMode blendMode_ = BlendMode::kBlendModeAdd;
 };
 
 
