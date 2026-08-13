@@ -39,11 +39,25 @@ namespace Ken4lowEngine
 				static_cast<int>(effect.emitters.size()) - 1);
 		}
 
+		void StopPreviewLoopIfNeeded(GpuParticleEffectRuntime::PlayHandle& previewLoopHandle)
+		{
+			if (!previewLoopHandle.IsValid())
+			{
+				return;
+			}
+
+			GpuParticleEffectRuntime::GetInstance()->StopLoop(previewLoopHandle);
+			previewLoopHandle = {};
+		}
+
 		bool RegisterPreviewEffect(
 			GpuParticleEffectDesc& effect,
+			GpuParticleEffectRuntime::PlayHandle& previewLoopHandle,
 			std::string& statusMessage,
 			bool& lastOperationSucceeded)
 		{
+			// RegisterEffectは同名Runtime Emitterを作り直すため、Editor側の古いLoop Handleも同時に破棄する。
+			StopPreviewLoopIfNeeded(previewLoopHandle);
 			GpuParticleEffectRuntime* runtime = GpuParticleEffectRuntime::GetInstance();
 			lastOperationSucceeded = runtime->RegisterEffect(effect);
 			statusMessage = runtime->GetLastStatus();
@@ -55,7 +69,6 @@ namespace Ken4lowEngine
 	void DrawEmitterDescImGui(GpuParticleEmitterDesc& desc)
 	{
 #ifdef USE_IMGUI
-		// Emission ModuleはEmitterの生成数・生成周期・寿命の上限だけを編集する。
 		if (ImGui::CollapsingHeader("Emission Module", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			DrawStringInput("Name", desc.name);
@@ -70,7 +83,6 @@ namespace Ken4lowEngine
 				desc.burstCount = static_cast<uint32_t>((std::max)(burstCount, 0));
 		}
 
-		// Spawn Moduleは生成位置・形状・寿命・初速度だけを担当する。
 		if (ImGui::CollapsingHeader("Spawn Module", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			ImGui::DragFloat3("Position", &desc.position.x, 0.01f);
@@ -89,7 +101,6 @@ namespace Ken4lowEngine
 			ImGui::DragFloat("Speed Random", &desc.speedRandom, 0.01f, 0.0f, 10000.0f);
 		}
 
-		// Update Moduleは生成後の移動・サイズ・色・回転変化だけを担当する。
 		if (ImGui::CollapsingHeader("Update Module", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			ImGui::DragFloat3("Gravity", &desc.gravity.x, 0.01f);
@@ -115,7 +126,6 @@ namespace Ken4lowEngine
 			ImGui::DragFloat3("Angular Velocity Random", &desc.angularVelocityRandom.x, 0.01f);
 		}
 
-		// Render Moduleは見た目と描画方式だけを担当し、Spawn/Updateの値を持たない。
 		if (ImGui::CollapsingHeader("Render Module", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			int renderType = static_cast<int>(desc.renderType);
@@ -162,7 +172,6 @@ namespace Ken4lowEngine
 		DrawStringInput("Effect Name", effect.effectName);
 		DrawStringInput("JSON Path", jsonPath);
 
-		// ImGuiで編集したEffect設定をJSON化し、次回の編集時に復元できるようにする。
 		if (ImGui::Button("Save JSON"))
 		{
 			lastOperationSucceeded = GpuParticleEffectSerializer::Save(effect, jsonPath);
@@ -177,8 +186,6 @@ namespace Ken4lowEngine
 			statusMessage = lastOperationSucceeded
 				? "Effect JSONを読み込みました: " + jsonPath
 				: "Effect JSONの読み込みに失敗しました: " + jsonPath;
-
-			// LoadでEmitter数が変わっても範囲外アクセスしないよう、選択Indexを補正する。
 			if (lastOperationSucceeded) ClampSelectedEmitterIndex(effect, selectedEmitterIndex);
 		}
 
@@ -194,7 +201,7 @@ namespace Ken4lowEngine
 
 			if (ImGui::Button("Preview Burst"))
 			{
-				if (RegisterPreviewEffect(effect, statusMessage, lastOperationSucceeded))
+				if (RegisterPreviewEffect(effect, previewLoopHandle, statusMessage, lastOperationSucceeded))
 				{
 					GpuParticleEffectRuntime* runtime = GpuParticleEffectRuntime::GetInstance();
 					lastOperationSucceeded = runtime->Play(effect.effectName, previewPosition);
@@ -204,14 +211,9 @@ namespace Ken4lowEngine
 			ImGui::SameLine();
 			if (ImGui::Button("Start Loop Preview"))
 			{
-				GpuParticleEffectRuntime* runtime = GpuParticleEffectRuntime::GetInstance();
-				if (previewLoopHandle.IsValid())
+				if (RegisterPreviewEffect(effect, previewLoopHandle, statusMessage, lastOperationSucceeded))
 				{
-					runtime->StopLoop(previewLoopHandle);
-					previewLoopHandle = {};
-				}
-				if (RegisterPreviewEffect(effect, statusMessage, lastOperationSucceeded))
-				{
+					GpuParticleEffectRuntime* runtime = GpuParticleEffectRuntime::GetInstance();
 					previewLoopHandle = runtime->PlayLoop(effect.effectName, previewPosition);
 					lastOperationSucceeded = previewLoopHandle.IsValid();
 					statusMessage = runtime->GetLastStatus();
@@ -231,10 +233,9 @@ namespace Ken4lowEngine
 				GpuParticleEffectRuntime::GetInstance()->SetLoopPosition(previewLoopHandle, previewPosition);
 				ImGui::TextDisabled("Loop Preview Handle: %u", previewLoopHandle.id);
 			}
-			ImGui::TextDisabled("Current runtime foundation supports Sprite + Alpha + Point/Sphere/Box.");
+			ImGui::TextDisabled("Current runtime foundation supports Sprite + Additive + Point/Sphere/Box.");
 		}
 
-		// Sprite用EmitterとMesh用Emitterを明確に分け、用途に合った既定値で追加する。
 		if (ImGui::Button("Add Sprite Emitter"))
 		{
 			auto emitter = CreateDefaultSpriteEmitterDesc();
@@ -287,7 +288,6 @@ namespace Ken4lowEngine
 			if (ImGui::Button("Remove Selected Emitter"))
 			{
 				effect.emitters.erase(effect.emitters.begin() + selectedEmitterIndex);
-				// 削除後に範囲外アクセスしないよう、次に選択できるIndexへ補正する。
 				ClampSelectedEmitterIndex(effect, selectedEmitterIndex);
 			}
 		}
