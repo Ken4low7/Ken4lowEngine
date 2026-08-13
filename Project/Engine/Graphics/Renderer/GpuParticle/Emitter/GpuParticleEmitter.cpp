@@ -112,6 +112,13 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 	if (info_.useSizeCurve) out.overrideFlags |= kSizeCurveFlag;
 	if (info_.useColorGradient) out.overrideFlags |= kColorGradientFlag;
 	out.maxParticles = info_.maxParticles;
+
+	const uint32_t packedDrawType = GetDrawType();
+	out.renderGroup = BuildGpuParticleRenderGroup(
+		info_.textureFilePath,
+		UnpackGpuParticleMaterialDrawType(packedDrawType),
+		UnpackGpuParticleBlendMode(packedDrawType)); // ParticleへMaterial識別を固定し、Emitter再利用後も正しいTexture/Blendだけで描画する。
+
 	out.positionRandom = info_.positionRandom;
 	out.lifeTime = (std::max)(info_.lifeTime, 0.01f);
 	out.velocity = info_.velocity;
