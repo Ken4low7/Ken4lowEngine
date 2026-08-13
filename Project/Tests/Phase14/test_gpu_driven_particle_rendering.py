@@ -14,6 +14,7 @@ MESH_PIPELINE = GPU_ROOT / "Pipeline" / "GpuParticleMeshPipeline.cpp"
 SHADER_MANIFEST = PROJECT_ROOT / "Engine" / "Graphics" / "Shader" / "Manifest" / "GpuParticleShaderManifest.h"
 UAV_HEADER = PROJECT_ROOT / "Engine" / "Graphics" / "Descriptor" / "UAV" / "UAVManager.h"
 UAV_SOURCE = PROJECT_ROOT / "Engine" / "Graphics" / "Descriptor" / "UAV" / "UAVManager.cpp"
+RESOURCE_MANAGER_SOURCE = PROJECT_ROOT / "Engine" / "System" / "Resource" / "ResourceManager.cpp"
 SPRITE_VS = SHADER_ROOT / "GpuParticle.VS.hlsl"
 MESH_VS = SHADER_ROOT / "GpuParticleMesh.VS.hlsl"
 COMPACT_CS = SHADER_ROOT / "GpuParticleCompact.CS.hlsl"
@@ -32,6 +33,7 @@ class GpuDrivenParticleRenderingTests(unittest.TestCase):
         cls.manifest = SHADER_MANIFEST.read_text(encoding="utf-8")
         cls.uav_h = UAV_HEADER.read_text(encoding="utf-8")
         cls.uav_cpp = UAV_SOURCE.read_text(encoding="utf-8")
+        cls.resource_manager_cpp = RESOURCE_MANAGER_SOURCE.read_text(encoding="utf-8")
         cls.sprite_vs = SPRITE_VS.read_text(encoding="utf-8")
         cls.mesh_vs = MESH_VS.read_text(encoding="utf-8")
         cls.compact_cs = COMPACT_CS.read_text(encoding="utf-8")
@@ -47,7 +49,15 @@ class GpuDrivenParticleRenderingTests(unittest.TestCase):
             "GetGpuDrivenDrawCBAddress",
         ):
             self.assertIn(token, self.buffers_h + self.buffers_cpp)
-        self.assertIn("D3D12_RESOURCE_STATE_UNORDERED_ACCESS", self.buffers_cpp)
+        self.assertIn("D3D12_RESOURCE_STATE_UNORDERED_ACCESS", self.renderer_cpp)
+
+    def test_default_heap_gpu_driven_buffers_start_in_common(self) -> None:
+        # Buffer creation must match the runtime contract before first-use UAV promotion.
+        gpu_driven_section = self.buffers_cpp.split("void GpuParticleBuffers::CreateGpuDrivenDrawBuffers()", 1)[1]
+        self.assertNotIn("D3D12_RESOURCE_STATE_UNORDERED_ACCESS", gpu_driven_section)
+        self.assertGreaterEqual(gpu_driven_section.count("D3D12_RESOURCE_STATE_COMMON"), 2)
+        self.assertIn("type == D3D12_HEAP_TYPE_DEFAULT", self.resource_manager_cpp)
+        self.assertIn("actualInitState = D3D12_RESOURCE_STATE_COMMON", self.resource_manager_cpp)
 
     def test_compaction_filters_dead_and_other_render_groups(self) -> None:
         # CPU reference keeps the intended visible-index contract readable beside the HLSL implementation.
