@@ -56,7 +56,7 @@ VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID
     output.texcoord = input.texcoord;
     output.color = particle.color;
     output.type = particle.type;
-    output.renderGroup = particle.renderGroup; // MeshもSpriteと同じMaterial renderGroup契約で選別する。
+    output.renderGroup = particle.type; // Desc OverrideはtypeをMaterial hashとして使うのでMeshでも同じ選別契約にする。
 
     if (particle.lifeTime <= 0.0f)
     {
