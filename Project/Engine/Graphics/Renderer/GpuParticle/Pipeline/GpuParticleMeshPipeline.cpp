@@ -6,6 +6,8 @@
 #include "ShaderCompiler.h"
 #include "GpuParticleShaderManifest.h"
 
+#include <string>
+
 namespace Ken4lowEngine
 {
 
@@ -14,12 +16,23 @@ void GpuParticleMeshPipeline::Initialize()
 	dxCommon_ = DirectXCommon::GetInstance();
 
 	CreateRootSignature();
-
-	CreatePSO();
-
-	pipelineState_->SetName(L"GpuParticleMeshPipeline_Gfx_PSO");
+	for (uint32_t modeIndex = 0; modeIndex < static_cast<uint32_t>(BlendMode::kcountOfBlendMode); ++modeIndex)
+	{
+		CreatePSO(static_cast<BlendMode>(modeIndex));
+	}
 
 	rootSignature_->SetName(L"GpuParticleMeshPipeline_RootSignature");
+}
+
+ID3D12PipelineState* GpuParticleMeshPipeline::GetGfxPSO(BlendMode blendMode) const
+{
+	const size_t index = static_cast<size_t>(blendMode);
+	if (index < pipelineStates_.size() && pipelineStates_[index])
+	{
+		return pipelineStates_[index].Get();
+	}
+
+	return pipelineStates_[static_cast<size_t>(BlendMode::kBlendModeAdd)].Get();
 }
 
 void GpuParticleMeshPipeline::CreateRootSignature()
@@ -91,12 +104,11 @@ void GpuParticleMeshPipeline::CreateRootSignature()
 	assert(SUCCEEDED(hr));
 }
 
-void GpuParticleMeshPipeline::CreatePSO()
+void GpuParticleMeshPipeline::CreatePSO(BlendMode blendMode)
 {
 	HRESULT hr{};
 
 	// ---- 入力レイアウト（まずはスプライトと同じにしておく）----
-	// ※あなたのモデル頂点が float3 なら POSITION の Format を R32G32B32_FLOAT に変更してね
 	D3D12_INPUT_ELEMENT_DESC input[3]{};
 	input[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 	input[1] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0,	   D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
@@ -106,8 +118,8 @@ void GpuParticleMeshPipeline::CreatePSO()
 	layout.pInputElementDescs = input;
 	layout.NumElements = _countof(input);
 
-	// ---- Blend ----
-	const D3D12_RENDER_TARGET_BLEND_DESC blendDesc = BlendStateFactory::GetInstance()->GetBlendDesc(blendMode_);
+	// Mesh ParticleもSpriteと同じAuthoring BlendMode契約を使う。
+	const D3D12_RENDER_TARGET_BLEND_DESC blendDesc = BlendStateFactory::GetInstance()->GetBlendDesc(blendMode);
 
 	// ---- Rasterizer（メッシュなので基本BACK。粒子用途で両面欲しければNONE）----
 	D3D12_RASTERIZER_DESC rast{};
@@ -159,8 +171,12 @@ void GpuParticleMeshPipeline::CreatePSO()
 	desc.SampleDesc.Count = 1;
 	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
-	hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineState_));
+	const size_t index = static_cast<size_t>(blendMode);
+	hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineStates_[index]));
 	assert(SUCCEEDED(hr));
+
+	const std::wstring name = L"GpuParticleMeshPipeline_Gfx_PSO_" + std::to_wstring(index);
+	pipelineStates_[index]->SetName(name.c_str());
 }
 
 } // namespace Ken4lowEngine
