@@ -19,29 +19,19 @@ namespace Ken4lowEngine
 		constexpr const char* kFallbackParticleTexture = "Effects/white.dds";
 	}
 
-	/// -------------------------------------------------------------
-	///				　　　	初期化処理
-	/// -------------------------------------------------------------
 	void GpuParticleRenderer::Initialize(GpuParticleSpritePipeline* pipeline, GpuParticleBuffers* buffers)
 	{
 		TextureManager::GetInstance()->LoadTexture(textureFilePath_);
-
 		gpuParticlePipeline_ = pipeline;
 		gpuParticleBuffers_ = buffers;
-
 		particleMesh_ = std::make_unique<ParticleMesh>();
 		particleMesh_->Initialize();
-
 		particleMaterial_ = std::make_unique<ParticleMaterial>();
 		particleMaterial_->Initialize();
-
 		gpuParticleMeshPipeline_ = std::make_unique<GpuParticleMeshPipeline>();
 		gpuParticleMeshPipeline_->Initialize();
 	}
 
-	/// -------------------------------------------------------------
-	///				　　　			描画処理
-	/// -------------------------------------------------------------
 	void GpuParticleRenderer::Draw(UINT instanceCount, uint32_t slot)
 	{
 		uint32_t meshId = 0;
@@ -50,35 +40,23 @@ namespace Ken4lowEngine
 			DrawMesh(instanceCount, slot, meshId);
 			return;
 		}
-
 		DrawSprite(instanceCount, slot);
 	}
 
 	bool GpuParticleRenderer::TryGetMeshIdFromTexturePath(uint32_t& outMeshId) const
 	{
 		outMeshId = 0;
-
-		if (textureFilePath_.size() <= kMeshTexturePrefix.size())
-		{
-			return false;
-		}
+		if (textureFilePath_.size() <= kMeshTexturePrefix.size()) return false;
 
 		const std::string_view pathView(textureFilePath_);
-		if (pathView.substr(0, kMeshTexturePrefix.size()) != kMeshTexturePrefix)
-		{
-			return false;
-		}
+		if (pathView.substr(0, kMeshTexturePrefix.size()) != kMeshTexturePrefix) return false;
 
 		const std::string_view numberView = pathView.substr(kMeshTexturePrefix.size());
 		uint32_t parsed = 0;
 		const auto* begin = numberView.data();
 		const auto* end = numberView.data() + numberView.size();
 		const auto result = std::from_chars(begin, end, parsed);
-
-		if (result.ec != std::errc{} || result.ptr != end)
-		{
-			return false;
-		}
+		if (result.ec != std::errc{} || result.ptr != end) return false;
 
 		outMeshId = parsed;
 		return true;
@@ -87,28 +65,19 @@ namespace Ken4lowEngine
 	void GpuParticleRenderer::DrawSprite(UINT instanceCount, uint32_t slot)
 	{
 		auto* commandList = DirectXCommon::GetInstance()->GetCommandManager()->GetCommandList();
-
 		PostEffectManager::GetInstance()->BindSceneRenderTarget();
-
 		commandList->SetGraphicsRootSignature(gpuParticlePipeline_->GetGfxRootSignature());
 		commandList->SetPipelineState(gpuParticlePipeline_->GetGfxPSO(blendMode_));
 
 		const auto& vbView = particleMesh_->GetVertexBufferView();
 		commandList->IASetVertexBuffers(0, 1, &vbView);
-
 		SRVManager::GetInstance()->PreDraw();
 
 		const D3D12_GPU_VIRTUAL_ADDRESS perViewAddress = gpuParticleBuffers_->GetPerViewCBAddress();
-		if (perViewAddress == 0)
-		{
-			return;
-		}
+		if (perViewAddress == 0) return;
 		commandList->SetGraphicsRootConstantBufferView(0, perViewAddress); // PerViewは現在FrameのUpload Arenaに置き、前Frameと安全に並行させる。
-
 		SRVManager::GetInstance()->SetGraphicsRootDescriptorTable(1, gpuParticleBuffers_->GetParticleSrvIndex());
-
 		particleMaterial_->SetPipeline(2, slot);
-
 		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 3, TextureManager::GetInstance()->GetSrvHandleGPU(textureFilePath_));
 
 		if (particleMesh_->HasIndex())
@@ -128,37 +97,21 @@ namespace Ken4lowEngine
 	void GpuParticleRenderer::DrawMesh(UINT instanceCount, uint32_t slot, uint32_t meshId)
 	{
 		const MeshParticleAsset* mesh = GpuParticleManager::GetInstance()->FindMeshAsset(meshId);
-		if (!mesh || !gpuParticleMeshPipeline_ || !particleMaterial_)
-		{
-			return;
-		}
+		if (!mesh || !gpuParticleMeshPipeline_ || !particleMaterial_) return;
 
 		auto* commandList = DirectXCommon::GetInstance()->GetCommandManager()->GetCommandList();
-
 		PostEffectManager::GetInstance()->BindSceneRenderTarget();
-
 		commandList->SetGraphicsRootSignature(gpuParticleMeshPipeline_->GetGfxRootSignature());
 		commandList->SetPipelineState(gpuParticleMeshPipeline_->GetGfxPSO(blendMode_));
-
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		commandList->IASetVertexBuffers(0, 1, &mesh->vbv);
-
-		if (mesh->indexCount > 0)
-		{
-			commandList->IASetIndexBuffer(&mesh->ibv);
-		}
-
+		if (mesh->indexCount > 0) commandList->IASetIndexBuffer(&mesh->ibv);
 		SRVManager::GetInstance()->PreDraw();
 
 		const D3D12_GPU_VIRTUAL_ADDRESS perViewAddress = gpuParticleBuffers_->GetPerViewCBAddress();
-		if (perViewAddress == 0)
-		{
-			return;
-		}
+		if (perViewAddress == 0) return;
 		commandList->SetGraphicsRootConstantBufferView(0, perViewAddress);
-
 		SRVManager::GetInstance()->SetGraphicsRootDescriptorTable(1, gpuParticleBuffers_->GetParticleSrvIndex());
-
 		particleMaterial_->SetPipeline(2, slot);
 
 		std::string texturePath = mesh->textureFilePath.empty() ? kFallbackParticleTexture : mesh->textureFilePath;
@@ -168,30 +121,26 @@ namespace Ken4lowEngine
 			3,
 			TextureManager::GetInstance()->GetSrvHandleGPU(texturePath));
 
-		if (mesh->indexCount > 0)
-		{
-			commandList->DrawIndexedInstanced(mesh->indexCount, instanceCount, 0, 0, 0);
-		}
+		if (mesh->indexCount > 0) commandList->DrawIndexedInstanced(mesh->indexCount, instanceCount, 0, 0, 0);
 	}
 
 	void GpuParticleRenderer::SetTextureFilePath(const std::string& path)
 	{
 		textureFilePath_ = path;
-
 		uint32_t meshId = 0;
-		if (TryGetMeshIdFromTexturePath(meshId))
-		{
-			return;
-		}
-
+		if (TryGetMeshIdFromTexturePath(meshId)) return;
 		TextureManager::GetInstance()->LoadTexture(textureFilePath_); // 念のためロード（キャッシュされる想定）
 	}
 
 	void GpuParticleRenderer::SetDrawType(uint32_t drawType, uint32_t slot)
 	{
-		// Runtime Effectだけが上位bitへBlendModeを持ち、既存Emitterの未pack値は従来どおりAdditiveへフォールバックする。
 		blendMode_ = UnpackGpuParticleBlendMode(drawType);
 		const uint32_t materialDrawType = UnpackGpuParticleMaterialDrawType(drawType);
-		if (particleMaterial_) { particleMaterial_->SetDrawType(materialDrawType, slot); }
+		const uint32_t renderGroup = BuildGpuParticleRenderGroup(textureFilePath_, materialDrawType, blendMode_);
+		if (particleMaterial_)
+		{
+			// Pixel Shaderはlegacy typeではなくTexture/Mesh+Blendを含むrenderGroupで粒子を選別する。
+			particleMaterial_->SetDrawType(renderGroup, slot);
+		}
 	}
 } // namespace Ken4lowEngine
