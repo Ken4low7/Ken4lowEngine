@@ -9,6 +9,7 @@ MODULE_HEADER = GPU_ROOT / "Runtime" / "GpuParticleEffectModules.h"
 RUNTIME_HEADER = GPU_ROOT / "Runtime" / "GpuParticleEffectRuntime.h"
 EFFECT_DESC_HEADER = GPU_ROOT / "Data" / "GpuParticleEffectDesc.h"
 EMITTER_DATA_HEADER = GPU_ROOT / "Data" / "GpuParticleEmitterData.h"
+EMITTER_SOURCE = GPU_ROOT / "Emitter" / "GpuParticleEmitter.cpp"
 BUFFERS_HEADER = GPU_ROOT / "Buffers" / "GpuParticleBuffers.h"
 SERIALIZER_SOURCE = GPU_ROOT / "Preset" / "GpuParticleEffectSerializer.cpp"
 EDITOR_SOURCE = GPU_ROOT / "Preset" / "GpuParticleEffectEditor.cpp"
@@ -16,10 +17,14 @@ SPRITE_PIPELINE_HEADER = GPU_ROOT / "Pipeline" / "GpuParticleSpritePipeline.h"
 MESH_PIPELINE_HEADER = GPU_ROOT / "Pipeline" / "GpuParticleMeshPipeline.h"
 RENDERER_SOURCE = GPU_ROOT / "Renderer" / "GpuParticleRenderer.cpp"
 SAMPLE_EFFECT = PROJECT_ROOT / "Resources" / "Effects" / "Phase13" / "Explosion.effect.json"
-EMIT_SHADER = PROJECT_ROOT / "Resources" / "Shaders" / "GpuParticle" / "GpuParticleEmit.CS.hlsl"
-UPDATE_SHADER = PROJECT_ROOT / "Resources" / "Shaders" / "GpuParticle" / "GpuParticleUpdate.CS.hlsl"
-MESH_VERTEX_SHADER = PROJECT_ROOT / "Resources" / "Shaders" / "GpuParticle" / "GpuParticleMesh.VS.hlsl"
-PARTICLE_DATA_SHADER = PROJECT_ROOT / "Resources" / "Shaders" / "GpuParticle" / "GpuParticleData.hlsli"
+SHADER_ROOT = PROJECT_ROOT / "Resources" / "Shaders" / "GpuParticle"
+EMIT_SHADER = SHADER_ROOT / "GpuParticleEmit.CS.hlsl"
+UPDATE_SHADER = SHADER_ROOT / "GpuParticleUpdate.CS.hlsl"
+SPRITE_VERTEX_SHADER = SHADER_ROOT / "GpuParticle.VS.hlsl"
+SPRITE_PIXEL_SHADER = SHADER_ROOT / "GpuParticle.PS.hlsl"
+MESH_VERTEX_SHADER = SHADER_ROOT / "GpuParticleMesh.VS.hlsl"
+MESH_PIXEL_SHADER = SHADER_ROOT / "GpuParticleMesh.PS.hlsl"
+PARTICLE_DATA_SHADER = SHADER_ROOT / "GpuParticleData.hlsli"
 
 
 class GpuParticleEffectAuthoringTests(unittest.TestCase):
@@ -29,6 +34,7 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         cls.runtime = RUNTIME_HEADER.read_text(encoding="utf-8")
         cls.effect_desc = EFFECT_DESC_HEADER.read_text(encoding="utf-8")
         cls.emitter_data = EMITTER_DATA_HEADER.read_text(encoding="utf-8")
+        cls.emitter_source = EMITTER_SOURCE.read_text(encoding="utf-8")
         cls.buffers = BUFFERS_HEADER.read_text(encoding="utf-8")
         cls.serializer = SERIALIZER_SOURCE.read_text(encoding="utf-8")
         cls.editor = EDITOR_SOURCE.read_text(encoding="utf-8")
@@ -37,7 +43,10 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         cls.renderer = RENDERER_SOURCE.read_text(encoding="utf-8")
         cls.emit_shader = EMIT_SHADER.read_text(encoding="utf-8")
         cls.update_shader = UPDATE_SHADER.read_text(encoding="utf-8")
+        cls.sprite_vertex_shader = SPRITE_VERTEX_SHADER.read_text(encoding="utf-8")
+        cls.sprite_pixel_shader = SPRITE_PIXEL_SHADER.read_text(encoding="utf-8")
         cls.mesh_vertex_shader = MESH_VERTEX_SHADER.read_text(encoding="utf-8")
+        cls.mesh_pixel_shader = MESH_PIXEL_SHADER.read_text(encoding="utf-8")
         cls.particle_data_shader = PARTICLE_DATA_SHADER.read_text(encoding="utf-8")
         cls.sample = json.loads(SAMPLE_EFFECT.read_text(encoding="utf-8"))
 
@@ -107,6 +116,18 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         self.assertIn("BlendMode::kBlendModeNormal", self.runtime)
         self.assertIn("BlendMode::kBlendModeMultiply", self.runtime)
 
+    def test_render_groups_prevent_cross_texture_and_cross_blend_redraw(self) -> None:
+        # Authoring emitters share legacy Default type=0, so texture/blend identity must be stamped separately for correct filtering.
+        self.assertIn("BuildGpuParticleRenderGroup", self.emitter_data)
+        self.assertIn("out.renderGroup = BuildGpuParticleRenderGroup", self.emitter_source)
+        self.assertIn("out.type = info_.useDescSpawnOverride ? out.renderGroup : GetEffectiveType()", self.emitter_source)
+        self.assertIn("hasAuthoredBlendTag", self.renderer)
+        self.assertIn("BuildGpuParticleRenderGroup(textureFilePath_", self.renderer)
+        self.assertIn("output.renderGroup = particle.type", self.sprite_vertex_shader)
+        self.assertIn("output.renderGroup = particle.type", self.mesh_vertex_shader)
+        self.assertIn("input.renderGroup != gMaterial.drawType", self.sprite_pixel_shader)
+        self.assertIn("input.renderGroup != gMaterial.drawType", self.mesh_pixel_shader)
+
     def test_mesh_authoring_loads_real_mesh_assets_and_rotates_instances(self) -> None:
         self.assertIn("GpuParticleKind::Mesh", self.runtime)
         self.assertIn("LoadMeshAssetsFromAssimp", self.runtime)
@@ -160,25 +181,33 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         self.assertIn("float4 sizeCurveLut", self.particle_data_shader)
         self.assertIn("float3 angularVelocity3D", self.particle_data_shader)
 
-    def test_sample_effect_still_exercises_multi_emitter_authoring(self) -> None:
+    def test_sample_effect_exercises_advanced_multi_emitter_authoring(self) -> None:
         self.assertEqual(self.sample["effectName"], "Phase13Explosion")
         self.assertEqual(len(self.sample["emitters"]), 3)
+        self.assertEqual({p["name"] for p in self.sample["userParameters"]}, {"Intensity"})
         self.assertEqual(
             {emitter["name"] for emitter in self.sample["emitters"]},
             {"Flash", "Smoke", "Sparks"},
         )
+        self.assertIn("Hemisphere", {emitter["spawnShape"] for emitter in self.sample["emitters"]})
+        self.assertIn("Ring", {emitter["spawnShape"] for emitter in self.sample["emitters"]})
+        self.assertIn("Alpha", {emitter["blendMode"] for emitter in self.sample["emitters"]})
+        self.assertIn("Additive", {emitter["blendMode"] for emitter in self.sample["emitters"]})
         for emitter in self.sample["emitters"]:
             self.assertEqual(emitter["renderType"], "Sprite")
-            self.assertIn(emitter["blendMode"], {"Alpha", "Additive", "Multiply"})
-            self.assertIn(emitter["spawnShape"], {"Point", "Sphere", "Box", "Cone", "Circle", "Ring", "Hemisphere"})
             self.assertGreater(emitter["maxParticles"], 0)
             self.assertGreater(emitter["burstCount"], 0)
+            self.assertTrue(emitter["useSizeCurve"])
+            self.assertTrue(emitter["useColorGradient"])
+            self.assertGreater(len(emitter["parameterBindings"]), 0)
 
     def test_effect_editor_previews_unsaved_module_configuration_through_runtime(self) -> None:
         self.assertIn("RegisterPreviewEffect", self.editor)
         self.assertIn("runtime->RegisterEffect(effect)", self.editor)
         self.assertIn("runtime->Play(effect.effectName, previewPosition)", self.editor)
         self.assertIn("runtime->PlayLoop(effect.effectName, previewPosition)", self.editor)
+        self.assertIn("User Parameters", self.editor)
+        self.assertIn("User Parameter Bindings", self.editor)
         for section in ("Emission Module", "Spawn Module", "Update Module", "Render Module"):
             self.assertIn(section, self.editor)
 
