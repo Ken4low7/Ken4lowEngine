@@ -33,23 +33,39 @@ namespace Ken4lowEngine
 		float speedRandom = 0.0f;
 	};
 
-	/// <summary>生成後の移動・色・サイズ・回転だけを担当するUpdate Moduleです。</summary>
+	/// <summary>生成後の移動・色・サイズ・回転・Forceを担当するUpdate Moduleです。</summary>
 	struct GpuParticleUpdateModule
 	{
 		Vector3 gravity{};
 		float damping = 0.0f;
+		float noiseStrength = 0.0f;
+		float noiseFrequency = 1.0f;
+		Vector3 vortexAxis{ 0.0f, 1.0f, 0.0f };
+		float vortexStrength = 0.0f;
+		Vector3 attractorPosition{};
+		float attractorStrength = 0.0f;
+		float attractorRadius = 0.0f;
+
 		Vector2 startSize{ 1.0f, 1.0f };
 		Vector2 endSize{ 1.0f, 1.0f };
 		float sizeRandom = 0.0f;
+		bool useSizeCurve = false;
+		Vector4 sizeCurveLut{ 1.0f, 1.0f, 1.0f, 1.0f };
+
 		Vector4 startColor{ 1.0f, 1.0f, 1.0f, 1.0f };
 		Vector4 endColor{ 1.0f, 1.0f, 1.0f, 0.0f };
 		Vector4 colorRandom{};
 		bool alphaFade = true;
+		bool useColorGradient = false;
+		std::array<Vector4, 4> colorGradientLut{};
+
 		float startRotation = 0.0f;
 		float rotationSpeed = 0.0f;
 		float rotationRandom = 0.0f;
 		Vector3 startScale3D{ 1.0f, 1.0f, 1.0f };
 		Vector3 endScale3D{ 1.0f, 1.0f, 1.0f };
+		Vector3 startRotation3D{};
+		Vector3 rotationRandom3D{};
 		Vector3 angularVelocity{};
 		Vector3 angularVelocityRandom{};
 	};
@@ -60,8 +76,8 @@ namespace Ken4lowEngine
 		GpuParticleRenderType renderType = GpuParticleRenderType::Sprite;
 		std::string texturePath;
 		std::string meshPath;
+		uint32_t meshSubMeshIndex = 0;
 		bool billboard = true;
-		// 現行Sprite PipelineのPSOと一致させ、Module単体生成でも見た目の契約を崩さない。
 		GpuParticleBlendMode blendMode = GpuParticleBlendMode::Additive;
 		bool useSpriteSheet = false;
 		int spriteSheetRows = 1;
@@ -71,7 +87,6 @@ namespace Ken4lowEngine
 
 	/// <summary>
 	/// 1 EmitterをEmission / Spawn / Update / Renderへ分解したRuntime向け中間表現です。
-	/// JSON互換の平坦なDescとGPU実装を直接結合せず、今後Module追加やCurve導入をここへ集約します。
 	/// </summary>
 	struct GpuParticleCompiledEmitter
 	{
@@ -81,11 +96,13 @@ namespace Ken4lowEngine
 		GpuParticleSpawnModule spawn;
 		GpuParticleUpdateModule update;
 		GpuParticleRenderModule render;
+		std::vector<GpuParticleParameterBindingDesc> parameterBindings;
 	};
 
 	struct GpuParticleCompiledEffect
 	{
 		std::string name;
+		std::vector<GpuParticleUserParameterDesc> userParameters;
 		std::vector<GpuParticleCompiledEmitter> emitters;
 	};
 
@@ -98,7 +115,7 @@ namespace Ken4lowEngine
 			out.name = desc.name;
 			out.localPosition = desc.position;
 
-			// 旧JSONの平坦な値をModule境界へ一度だけ変換し、GPU側へ直接依存させない。
+			// Authoring値をModule境界へ一度だけ変換し、Runtime/GPU側で平坦JSONを直接参照しない。
 			out.emission.maxParticles = desc.maxParticles;
 			out.emission.loop = desc.loop;
 			out.emission.duration = desc.duration;
@@ -118,30 +135,45 @@ namespace Ken4lowEngine
 
 			out.update.gravity = desc.gravity;
 			out.update.damping = desc.damping;
+			out.update.noiseStrength = desc.noiseStrength;
+			out.update.noiseFrequency = desc.noiseFrequency;
+			out.update.vortexAxis = desc.vortexAxis;
+			out.update.vortexStrength = desc.vortexStrength;
+			out.update.attractorPosition = desc.attractorPosition;
+			out.update.attractorStrength = desc.attractorStrength;
+			out.update.attractorRadius = desc.attractorRadius;
 			out.update.startSize = desc.startSize;
 			out.update.endSize = desc.endSize;
 			out.update.sizeRandom = desc.sizeRandom;
+			out.update.useSizeCurve = desc.useSizeCurve;
+			out.update.sizeCurveLut = desc.sizeCurveLut;
 			out.update.startColor = desc.startColor;
 			out.update.endColor = desc.endColor;
 			out.update.colorRandom = desc.colorRandom;
 			out.update.alphaFade = desc.alphaFade;
+			out.update.useColorGradient = desc.useColorGradient;
+			out.update.colorGradientLut = desc.colorGradientLut;
 			out.update.startRotation = desc.startRotation;
 			out.update.rotationSpeed = desc.rotationSpeed;
 			out.update.rotationRandom = desc.rotationRandom;
 			out.update.startScale3D = desc.startScale3D;
 			out.update.endScale3D = desc.endScale3D;
+			out.update.startRotation3D = desc.startRotation3D;
+			out.update.rotationRandom3D = desc.rotationRandom3D;
 			out.update.angularVelocity = desc.angularVelocity;
 			out.update.angularVelocityRandom = desc.angularVelocityRandom;
 
 			out.render.renderType = desc.renderType;
 			out.render.texturePath = desc.texturePath;
 			out.render.meshPath = desc.meshPath;
+			out.render.meshSubMeshIndex = desc.meshSubMeshIndex;
 			out.render.billboard = desc.billboard;
 			out.render.blendMode = desc.blendMode;
 			out.render.useSpriteSheet = desc.useSpriteSheet;
 			out.render.spriteSheetRows = desc.spriteSheetRows;
 			out.render.spriteSheetColumns = desc.spriteSheetColumns;
 			out.render.spriteSheetFrameRate = desc.spriteSheetFrameRate;
+			out.parameterBindings = desc.parameterBindings;
 			return out;
 		}
 
@@ -149,6 +181,7 @@ namespace Ken4lowEngine
 		{
 			GpuParticleCompiledEffect out{};
 			out.name = effect.effectName;
+			out.userParameters = effect.userParameters;
 			out.emitters.reserve(effect.emitters.size());
 			for (const GpuParticleEmitterDesc& emitter : effect.emitters)
 			{
