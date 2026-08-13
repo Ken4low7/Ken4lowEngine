@@ -6,6 +6,7 @@
 
 #include "GpuParticleType.h"
 #include "BillboardMode.h"
+#include "BlendModeType.h"
 
 namespace Ken4lowEngine
 {
@@ -58,6 +59,36 @@ struct GpuEmitterCBData
 	uint32_t spriteSheetColumns = 1;
 	float spriteSheetFrameRate = 0.0f;
 };
+
+// drawTypeの上位4bitへBlendModeを埋め込み、既存Managerの描画重複排除キーもそのまま利用する。
+inline constexpr uint32_t kGpuParticleBlendTagShift = 28u;
+inline constexpr uint32_t kGpuParticleBlendTagMask = 0xF0000000u;
+inline constexpr uint32_t kGpuParticleMaterialDrawTypeMask = 0x0FFFFFFFu;
+
+inline constexpr uint32_t PackGpuParticleDrawType(uint32_t materialDrawType, BlendMode blendMode)
+{
+	const uint32_t blendTag = static_cast<uint32_t>(blendMode) + 1u;
+	return (materialDrawType & kGpuParticleMaterialDrawTypeMask) |
+		((blendTag << kGpuParticleBlendTagShift) & kGpuParticleBlendTagMask);
+}
+
+inline constexpr uint32_t UnpackGpuParticleMaterialDrawType(uint32_t packedDrawType)
+{
+	return packedDrawType & kGpuParticleMaterialDrawTypeMask;
+}
+
+inline constexpr BlendMode UnpackGpuParticleBlendMode(uint32_t packedDrawType)
+{
+	const uint32_t blendTag = (packedDrawType & kGpuParticleBlendTagMask) >> kGpuParticleBlendTagShift;
+	if (blendTag == 0u)
+	{
+		return BlendMode::kBlendModeAdd;
+	}
+
+	const uint32_t decoded = blendTag - 1u;
+	const uint32_t maxMode = static_cast<uint32_t>(BlendMode::kcountOfBlendMode) - 1u;
+	return decoded <= maxMode ? static_cast<BlendMode>(decoded) : BlendMode::kBlendModeAdd;
+}
 
 // HLSLのEmitterCBDataと16byteパッキングを一致させる。
 static_assert(sizeof(GpuEmitterCBData) == 288);
