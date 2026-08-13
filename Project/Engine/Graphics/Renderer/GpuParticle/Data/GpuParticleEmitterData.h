@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <string_view>
 #include <Vector2.h>
 #include <Vector3.h>
 #include <Vector4.h>
@@ -26,7 +27,8 @@ struct GpuEmitterCBData
 	float speedScale = 1.0f;
 	uint32_t overrideFlags = 0;
 	uint32_t maxParticles = UINT32_MAX;
-	float overridePadding[2]{};
+	uint32_t renderGroup = 0;
+	float overridePadding = 0.0f;
 	Vector3 positionRandom{};
 	float lifeTime = 1.0f;
 	Vector3 velocity{};
@@ -110,6 +112,30 @@ inline constexpr BlendMode UnpackGpuParticleBlendMode(uint32_t packedDrawType)
 	const uint32_t decoded = blendTag - 1u;
 	const uint32_t maxMode = static_cast<uint32_t>(BlendMode::kcountOfBlendMode) - 1u;
 	return decoded <= maxMode ? static_cast<BlendMode>(decoded) : BlendMode::kBlendModeAdd;
+}
+
+inline uint32_t BuildGpuParticleRenderGroup(
+	std::string_view textureOrMeshKey,
+	uint32_t materialDrawType,
+	BlendMode blendMode)
+{
+	// FNV-1aでTexture/Mesh・Material種別・Blendを1つのGPU描画グループへ固定し、別TextureのDefault粒子が重複描画されるのを防ぐ。
+	uint32_t hash = 2166136261u;
+	for (const unsigned char c : textureOrMeshKey)
+	{
+		hash ^= c;
+		hash *= 16777619u;
+	}
+
+	for (uint32_t shift = 0; shift < 32u; shift += 8u)
+	{
+		hash ^= (materialDrawType >> shift) & 0xFFu;
+		hash *= 16777619u;
+	}
+
+	hash ^= static_cast<uint32_t>(blendMode);
+	hash *= 16777619u;
+	return hash == 0u ? 1u : hash;
 }
 
 static_assert(sizeof(GpuEmitterCBData) == 480); // HLSL cbufferと16byteパッキングを一致させる。
