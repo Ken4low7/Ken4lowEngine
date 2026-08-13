@@ -16,14 +16,6 @@ struct PerView
     float3 padding;
 };
 
-struct Material
-{
-    float4 color;
-    float4x4 uvTransform;
-    uint drawType;
-    float3 padding;
-};
-
 bool IsBillboardMode(uint mode, uint flag)
 {
     return (mode & flag) != 0;
@@ -45,22 +37,16 @@ float4x4 MakeBasisRowMajor(float3 xAxis, float3 yAxis, float3 zAxis)
 }
 
 StructuredBuffer<Particle> gParticles : register(t0);
+StructuredBuffer<uint> gVisibleParticleIndices : register(t1);
 ConstantBuffer<PerView> gPerView : register(b0);
-ConstantBuffer<Material> gMaterial : register(b1);
 
 VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID)
 {
-    VertexShaderOutput output = (VertexShaderOutput) 0;
-    Particle particle = gParticles[instanceId];
+    VertexShaderOutput output;
 
-    // ManagerはGlobal Particle Buffer全体をInstanceとして送るため、非対象groupと死亡粒子をVSでclipしてRaster/PS負荷を抑える。
-    if (particle.lifeTime <= 0.0f || particle.type != gMaterial.drawType)
-    {
-        output.position = float4(0.0f, 0.0f, -1.0f, 1.0f);
-        output.renderGroup = particle.type;
-        return output;
-    }
-
+    // ExecuteIndirectのinstanceIdはCompaction済みindex列を引き、死粒子をVSへ流さない。
+    const uint particleIndex = gVisibleParticleIndices[instanceId];
+    Particle particle = gParticles[particleIndex];
     float4x4 worldMatrix;
 
     if (IsBillboardMode(particle.billboardMode, BILLBOARD_RIBBON))
@@ -124,7 +110,7 @@ VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID
     output.animFlags = particle.animFlags;
     output.startFrame = particle.startFrame;
     output.animSpeed = particle.animSpeed;
-    output.renderGroup = particle.type; // Desc OverrideではtypeにMaterial hashを格納し、Legacyでは従来のtype値をそのまま使う。
+    output.renderGroup = particle.type;
 
     return output;
 }
