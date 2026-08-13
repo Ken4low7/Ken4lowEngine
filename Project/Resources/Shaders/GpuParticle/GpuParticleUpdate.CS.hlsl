@@ -7,6 +7,69 @@ RWStructuredBuffer<uint> gFreeList : register(u2);
 
 ConstantBuffer<PerFrame> gPerFrame : register(b2);
 
+float SampleScalarLut(float4 lut, float t)
+{
+    float position = saturate(t) * 3.0f;
+    uint index = min((uint) floor(position), 2u);
+    float localT = frac(position);
+    float a = index == 0u ? lut.x : (index == 1u ? lut.y : lut.z);
+    float b = index == 0u ? lut.y : (index == 1u ? lut.z : lut.w);
+    return lerp(a, b, localT);
+}
+
+float4 SampleColorGradient(Particle p, float t)
+{
+    float position = saturate(t) * 3.0f;
+    uint index = min((uint) floor(position), 2u);
+    float localT = frac(position);
+    float4 a = index == 0u ? p.colorGradientLut0 : (index == 1u ? p.colorGradientLut1 : p.colorGradientLut2);
+    float4 b = index == 0u ? p.colorGradientLut1 : (index == 1u ? p.colorGradientLut2 : p.colorGradientLut3);
+    return lerp(a, b, localT);
+}
+
+float3 EvaluateNoiseAcceleration(Particle p)
+{
+    if (abs(p.noiseStrength) <= 1e-6f || p.noiseFrequency <= 1e-6f)
+        return 0.0f;
+
+    // 時間と位置を格子化した決定的Noiseで、追加Textureなしでも煙や魔法粒子に揺らぎを与える。
+    float3 cell = floor((p.translate + gPerFrame.time.xxx) * p.noiseFrequency);
+    return (GPURand3(cell + 17.37f) * 2.0f - 1.0f) * p.noiseStrength;
+}
+
+float3 EvaluateVortexAcceleration(Particle p)
+{
+    if (abs(p.vortexStrength) <= 1e-6f)
+        return 0.0f;
+
+    float axisLength = length(p.vortexAxis);
+    float3 relative = p.translate - p.forceOrigin;
+    if (axisLength <= 1e-6f || length(relative) <= 1e-6f)
+        return 0.0f;
+
+    float3 tangent = cross(p.vortexAxis / axisLength, relative);
+    float tangentLength = length(tangent);
+    return tangentLength > 1e-6f ? tangent / tangentLength * p.vortexStrength : 0.0f;
+}
+
+float3 EvaluateAttractorAcceleration(Particle p)
+{
+    if (abs(p.attractorStrength) <= 1e-6f)
+        return 0.0f;
+
+    float3 delta = p.attractorPosition - p.translate;
+    float distanceToAttractor = length(delta);
+    if (distanceToAttractor <= 1e-6f)
+        return 0.0f;
+    if (p.attractorRadius > 0.0f && distanceToAttractor > p.attractorRadius)
+        return 0.0f;
+
+    float falloff = p.attractorRadius > 0.0f
+        ? saturate(1.0f - distanceToAttractor / max(p.attractorRadius, 1e-5f))
+        : 1.0f;
+    return delta / distanceToAttractor * p.attractorStrength * falloff;
+}
+
 [numthreads(1024, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
@@ -49,18 +112,35 @@ void main(uint3 DTid : SV_DispatchThreadID)
     float t = saturate(p.currentTime / max(p.lifeTime, 1e-5f));
     if ((p.customFlags & GPU_PARTICLE_CUSTOM_DESC_OVERRIDE) != 0u)
     {
-		// Desc Previewは指定velocityで移動し、寿命比でsize/colorを開始値から終了値へ補間する。
         float damp = max(0.0f, 1.0f - p.damping * dt);
         p.velocity *= damp;
-        p.velocity += p.gravity * dt;
+        float3 acceleration = p.gravity;
+        acceleration += EvaluateNoiseAcceleration(p);
+        acceleration += EvaluateVortexAcceleration(p);
+        acceleration += EvaluateAttractorAcceleration(p);
+        p.velocity += acceleration * dt;
         p.translate += p.velocity * dt;
-        p.scale = lerp(p.startScale, p.endScale, t);
-        p.color = lerp(p.startColor, p.endColor, t);
-        if ((p.customFlags & GPU_PARTICLE_CUSTOM_ALPHA_FADE) == 0u)
+
+        float sizeMultiplier = (p.customFlags & GPU_PARTICLE_CUSTOM_SIZE_CURVE) != 0u
+            ? max(0.0f, SampleScalarLut(p.sizeCurveLut, t))
+            : 1.0f;
+        p.scale = lerp(p.startScale, p.endScale, t) * sizeMultiplier;
+
+        if ((p.customFlags & GPU_PARTICLE_CUSTOM_COLOR_GRADIENT) != 0u)
         {
-            p.color.a = p.startColor.a;
+            p.color = saturate(SampleColorGradient(p, t));
         }
+        else
+        {
+            p.color = lerp(p.startColor, p.endColor, t);
+            if ((p.customFlags & GPU_PARTICLE_CUSTOM_ALPHA_FADE) == 0u)
+            {
+                p.color.a = p.startColor.a;
+            }
+        }
+
         p.rotation += p.rotationSpeed * dt;
+        p.rotation3D += p.angularVelocity3D * dt;
     }
     else
     {
