@@ -43,11 +43,13 @@ Normal alpha blending runs a GPU Bitonic Sort on the compacted visible-index buf
 
 The sort key is `-NDC depth`, which produces back-to-front particle order while retaining a deterministic particle-index tie breaker. Additive and multiply paths skip sorting because they do not require the same conventional alpha ordering.
 
-The current maximum particle count is 131072, a power of two, so the fixed-size Bitonic network requires 153 compare/swap dispatch passes. This is a correctness-first implementation with no CPU synchronization. A future performance pass may replace it with radix/tiled sorting if profiling shows alpha-heavy effects are sort-bound.
+The current maximum particle count is 131072, a power of two, so the fixed Bitonic network has 153 possible compare/swap dispatch stages. The sort shader reads the GPU-generated visible `InstanceCount`, rounds it to the next power of two, and makes stages/ranges outside that active capacity no-op. This keeps correctness without a CPU count readback while reducing sparse alpha-effect compare work.
 
 ## UAV Clear Synchronization
 
 D3D12 UAV clears are explicitly separated from following dispatch work by UAV barriers. `UAVManager` also keeps a non-shader-visible CPU descriptor mirror specifically for `ClearUnorderedAccessViewXxx`, while compute binding continues to use the shader-visible heap.
+
+The compaction-to-sort barrier covers both visible indices and indirect arguments because the sort shader reads both resources.
 
 ## Resource State Flow
 
@@ -63,42 +65,62 @@ Per render group:
 
 Repeated draw groups transition the scratch resources back to UAV state before rebuilding them.
 
+## 14.6 Stress / Performance Validation Tooling
+
+Phase 14 includes two complementary measurements.
+
+### GPU command workload statistics
+
+`GpuParticleRenderer::GpuDrivenStatistics` records CPU-side command emission counts without GPU readback:
+
+- draw requests
+- compaction dispatches
+- total particle slots scanned by compaction
+- alpha-sort render groups
+- alpha-sort dispatches
+- indirect draws
+
+`GpuParticleWorkloadEstimator` provides the same theoretical workload math as a portable header-only utility. Its runtime test verifies the current 131072-particle pool, 512 compaction thread groups per render group, and 153 Bitonic stages per alpha group.
+
+### No-stall GPU timestamp timings
+
+`GpuParticleRenderer` owns a bounded timestamp query/readback ring keyed by FrameResource and its fence generation. It exposes last/EMA/max/sample-count metrics for:
+
+- compaction
+- alpha sort
+- graphics / ExecuteIndirect section
+- total GPU-driven render-group work
+
+Resolved timestamps are mapped only when that FrameResource is reused after the existing frame-fence synchronization. The profiler does not call `ExecuteAndWait` or `WaitAndReset`, so profiling itself does not introduce a new GPU synchronization point.
+
+The profiler supports up to 256 render-group samples per frame and silently stops adding timestamp samples beyond that bound while normal rendering continues.
+
 ## Validation
 
-`Tests/Phase14/test_gpu_driven_particle_rendering.py` protects:
+Phase 14 tests protect:
 
 - visible-index and indirect-argument buffer ownership
 - alive/render-group filtering
 - compacted-index vertex shader lookup
 - ExecuteIndirect usage
-- alpha depth-sort contract
+- alpha depth-sort ordering and Bitonic network semantics
+- adaptive visible-count sort capacity
 - UAV clear CPU-descriptor mirror
 - explicit UAV/resource-state synchronization
+- portable workload-estimator runtime math
+- randomized workload stress bounds
+- bounded no-stall GPU timestamp profiler contracts
 
-The main CI also runs Phase 14 contract tests and compiles the GPU particle shader set configured in the workflow.
+The main CI runs all Phase 14 tests and directly DXC-compiles the GPU particle shader set, including Compact and Sort compute shaders, before Debug/Release C++ translation-unit compilation.
 
-## Remaining Phase 14 Work
+## 14.7 Final Cleanup / Acceptance
 
-### 14.6 Stress / Performance Validation
+Code-side Phase 14 completion criteria are:
 
-Run representative particle loads and record:
+- no old full-pool direct instance draw path in `GpuParticleRenderer`
+- no obsolete Phase 13 vertex-stage dead/material rejection dependency
+- compaction, alpha sort, indirect draw, resource-state and descriptor contracts covered by CI
+- workload and GPU timing diagnostics available for real hardware profiling
+- Debug and Release translation-unit compilation green
 
-- GPU particle update time
-- compaction time
-- alpha sort time
-- graphics particle time
-- active render-group count
-- alpha render-group count
-- peak particle count
-
-Targets should be based on the actual target GPU rather than guessed desktop budgets.
-
-### 14.7 Final Cleanup
-
-After stress validation:
-
-- remove obsolete Phase 13 early-rejection assumptions
-- tighten comments and diagnostics
-- verify Debug and Release CI
-- perform an actual Windows/DX12 visual smoke test
-- then merge Phase 14 only after those checks are green
+The final machine-dependent acceptance step is an actual Windows/DX12 visual smoke and stress run on target hardware. Record the exposed timings under representative effects instead of inventing universal GPU budgets. If alpha-heavy scenes show sort pressure, the next optimization candidate is a tiled/radix or GPU-generated dynamic-dispatch sort rather than reducing ordering correctness.
