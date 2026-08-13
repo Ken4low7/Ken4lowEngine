@@ -15,8 +15,17 @@ struct PerView
     float3 padding;
 };
 
+struct Material
+{
+    float4 color;
+    float4x4 uvTransform;
+    uint drawType;
+    float3 padding;
+};
+
 StructuredBuffer<Particle> gParticles : register(t0);
 ConstantBuffer<PerView> gPerView : register(b0);
+ConstantBuffer<Material> gMaterial : register(b1);
 
 float3 RotateEulerXYZ(float3 position, float3 rotation)
 {
@@ -46,7 +55,14 @@ VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID
     VertexShaderOutput output = (VertexShaderOutput) 0;
     Particle particle = gParticles[instanceId];
 
-    // Mesh ParticleはScale -> Euler Rotation -> Translationの順でAuthoring Transformを適用する。
+    // Meshは頂点数が多いため、Material group不一致と死亡ParticleをTransform前にclipして無駄なVS/Raster処理を抑える。
+    if (particle.lifeTime <= 0.0f || particle.type != gMaterial.drawType)
+    {
+        output.position = float4(0.0f, 0.0f, -1.0f, 1.0f);
+        output.renderGroup = particle.type;
+        return output;
+    }
+
     float4 localPosition = input.position;
     localPosition.xyz *= particle.scale;
     localPosition.xyz = RotateEulerXYZ(localPosition.xyz, particle.rotation3D);
@@ -57,11 +73,6 @@ VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID
     output.color = particle.color;
     output.type = particle.type;
     output.renderGroup = particle.type; // Desc OverrideはtypeをMaterial hashとして使うのでMeshでも同じ選別契約にする。
-
-    if (particle.lifeTime <= 0.0f)
-    {
-        output.color.a = 0.0f;
-    }
 
     return output;
 }
