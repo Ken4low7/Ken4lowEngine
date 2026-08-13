@@ -215,7 +215,7 @@ void GpuParticleBuffers::CreateGpuDrivenDrawBuffers()
 		sizeof(uint32_t) * kMaxParticles,
 		D3D12_HEAP_TYPE_DEFAULT,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		D3D12_RESOURCE_STATE_COMMON);
 
 	visibleParticleIndexUavIndex_ = UAVManager::GetInstance()->Allocate();
 	UAVManager::GetInstance()->CreateUAVForStructuredBuffer(
@@ -230,8 +230,9 @@ void GpuParticleBuffers::CreateGpuDrivenDrawBuffers()
 		sizeof(uint32_t) * kIndirectArgumentWordCount,
 		D3D12_HEAP_TYPE_DEFAULT,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		D3D12_RESOURCE_STATE_COMMON);
 
+	// GPU-driven scratch bufferはCOMMONから最初のUAVアクセスへ暗黙promotionさせ、生成時State警告を出さない。
 	indirectDrawArgsUavIndex_ = UAVManager::GetInstance()->Allocate();
 	UAVManager::GetInstance()->CreateUAVForStructuredBuffer(
 		indirectDrawArgsUavIndex_, indirectDrawArgsBuffer_.Get(), kIndirectArgumentWordCount, sizeof(uint32_t));
