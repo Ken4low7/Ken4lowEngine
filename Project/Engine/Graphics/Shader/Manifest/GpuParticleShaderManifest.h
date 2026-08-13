@@ -19,6 +19,7 @@ namespace Ken4lowEngine
 		EmitCS,
 		UpdateCS,
 		CompactCS,
+		SortCS,
 	};
 
 	class GpuParticleShaderManifest
@@ -123,10 +124,22 @@ namespace Ken4lowEngine
 			}
 			case GpuParticleComputeShaderId::CompactCS:
 			{
-				// GPU Driven描画のMaterial別Alive compactionもManifest管理へ統合する。
 				static const ShaderDescriptor desc{
 					L"GpuParticleCompactCS",
 					L"Resources/Shaders/GpuParticle/GpuParticleCompact.CS.hlsl",
+					L"main",
+					L"cs_6_0",
+					ShaderStage::Compute,
+					RootSignatureType::Compute
+				};
+				return desc;
+			}
+			case GpuParticleComputeShaderId::SortCS:
+			{
+				// Alpha描画だけCompaction済みindex列を奥から手前へ並べるGPU Bitonic Sortです。
+				static const ShaderDescriptor desc{
+					L"GpuParticleSortCS",
+					L"Resources/Shaders/GpuParticle/GpuParticleSort.CS.hlsl",
 					L"main",
 					L"cs_6_0",
 					ShaderStage::Compute,
