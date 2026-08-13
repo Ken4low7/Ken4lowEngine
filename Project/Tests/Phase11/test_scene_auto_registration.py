@@ -7,6 +7,7 @@ FACTORY_HEADER = PROJECT_ROOT / "ApplicationLayer" / "SceneManagement" / "SceneF
 FACTORY_SOURCE = FACTORY_HEADER.with_suffix(".cpp")
 SCENE_MANAGER_HEADER = PROJECT_ROOT / "Engine" / "Scene" / "Management" / "SceneManager.h"
 EDITOR_WINDOW_SOURCE = PROJECT_ROOT / "Engine" / "Editor" / "EditorWindowManager.cpp"
+GAME_APPLICATION_SOURCE = PROJECT_ROOT / "Engine" / "Core" / "Application" / "GameApplication.cpp"
 SAMPLE_SCENE_HEADER = PROJECT_ROOT / "ApplicationLayer" / "Scene" / "SampleScene" / "SampleScene.h"
 
 
@@ -17,6 +18,7 @@ class SceneAutoRegistrationTests(unittest.TestCase):
         cls.factory_cpp = FACTORY_SOURCE.read_text(encoding="utf-8")
         cls.scene_manager_h = SCENE_MANAGER_HEADER.read_text(encoding="utf-8")
         cls.editor_cpp = EDITOR_WINDOW_SOURCE.read_text(encoding="utf-8")
+        cls.game_application_cpp = GAME_APPLICATION_SOURCE.read_text(encoding="utf-8")
         cls.sample_scene_h = SAMPLE_SCENE_HEADER.read_text(encoding="utf-8")
 
     def test_factory_supports_scene_self_registration(self) -> None:
@@ -43,6 +45,16 @@ class SceneAutoRegistrationTests(unittest.TestCase):
         self.assertIn("GetEditorActorWorld", self.sample_scene_h)
         self.assertIn("CollectActorWorldEditorObjects", self.sample_scene_h)
         self.assertIn('K4E_REGISTER_SCENE_NAMED("SampleScene"', self.factory_cpp)
+
+    def test_scene_switch_uses_gpu_safe_transition(self) -> None:
+        # Draw中に要求されたScene切替が次Updateまで旧Sceneを保持する契約を固定する。
+        self.assertIn("GpuSafeSceneTransition", self.game_application_cpp)
+        self.assertIn("SignalAndGetValue", self.game_application_cpp)
+        self.assertIn("WaitForValue", self.game_application_cpp)
+        self.assertIn("SetSceneTransition(std::move(safeSceneTransition))", self.game_application_cpp)
+        startup = self.game_application_cpp.index("sceneManager_->ChangeScene(startSceneName);")
+        install = self.game_application_cpp.index("sceneManager_->SetSceneTransition(std::move(safeSceneTransition))")
+        self.assertLess(startup, install)
 
 
 if __name__ == "__main__":
