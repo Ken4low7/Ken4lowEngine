@@ -31,17 +31,14 @@ public:
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(uint32_t index);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(uint32_t index);
 
-	/// ClearUnorderedAccessViewXxxはnon-shader-visible CPU descriptorを要求するため専用mirrorを返す。
+	/// ClearUnorderedAccessViewXxx用に、同じUAVを直接生成したnon-shader-visible CPU descriptorを返す。
 	D3D12_CPU_DESCRIPTOR_HANDLE GetClearCPUDescriptorHandle(uint32_t index);
-
-private:
-	void MirrorUavDescriptorForClear(uint32_t index);
 
 private:
 	DirectXCommon* dxCommon_ = nullptr;
 	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc_{};
 	ComPtr<ID3D12DescriptorHeap> descriptorHeap_;
-	ComPtr<ID3D12DescriptorHeap> clearCpuDescriptorHeap_; // Clear用にshader-visible heapとは別のCPU-only mirrorを保持する。
+	ComPtr<ID3D12DescriptorHeap> clearCpuDescriptorHeap_; // Clear用UAVはshader-visible側からコピーせずCPU-only heapへ直接生成する。
 	UINT descriptorSize_ = 0;
 	static constexpr uint32_t kMaxUAVCount = 512;
 	uint32_t useIndex_ = 0;
