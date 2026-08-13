@@ -87,7 +87,7 @@ namespace Ken4lowEngine
 			uavRanges[index].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 		}
 
-		D3D12_ROOT_PARAMETER params[4]{};
+		D3D12_ROOT_PARAMETER params[5]{};
 		params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 		params[0].Descriptor.ShaderRegister = 0;
 		params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
@@ -98,6 +98,13 @@ namespace Ken4lowEngine
 			params[index + 1].DescriptorTable.pDescriptorRanges = &uavRanges[index];
 			params[index + 1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 		}
+
+		// b1の4 root constantsはBitonic Sortのlevel/maskをUpload allocationなしで更新する。
+		params[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+		params[4].Constants.ShaderRegister = 1;
+		params[4].Constants.RegisterSpace = 0;
+		params[4].Constants.Num32BitValues = 4;
+		params[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 		D3D12_ROOT_SIGNATURE_DESC rootDesc{};
 		rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
@@ -131,8 +138,17 @@ namespace Ken4lowEngine
 		hr = device->CreateComputePipelineState(&pipelineDesc, IID_PPV_ARGS(&compactionPipelineState_));
 		assert(SUCCEEDED(hr));
 
+		const ShaderDescriptor& sortShader =
+			GpuParticleShaderManifest::GetCompute(GpuParticleComputeShaderId::SortCS);
+		ComPtr<IDxcBlob> sortCs = ShaderCompiler::CompileShader(sortShader, dxCommon->GetDXCCompilerManager());
+		assert(sortCs != nullptr);
+		pipelineDesc.CS = { sortCs->GetBufferPointer(), sortCs->GetBufferSize() };
+		hr = device->CreateComputePipelineState(&pipelineDesc, IID_PPV_ARGS(&depthSortPipelineState_));
+		assert(SUCCEEDED(hr));
+
 		compactionRootSignature_->SetName(L"GpuParticleRenderer_CompactionRootSignature");
 		compactionPipelineState_->SetName(L"GpuParticleRenderer_CompactionPSO");
+		depthSortPipelineState_->SetName(L"GpuParticleRenderer_DepthSortPSO");
 	}
 
 	void GpuParticleRenderer::CreateIndirectCommandSignatures()
@@ -167,7 +183,6 @@ namespace Ken4lowEngine
 		ID3D12Resource* indirectBuffer = gpuParticleBuffers_->GetIndirectDrawArgsBuffer();
 		if (!particleBuffer || !visibleBuffer || !indirectBuffer) return false;
 
-		// CB確保失敗時にResource StateだけUAVへ残さないよう、GPU state変更より前に確保する。
 		const D3D12_GPU_VIRTUAL_ADDRESS drawCbAddress = gpuParticleBuffers_->GetGpuDrivenDrawCBAddress(
 			shaderRenderGroup_, primitiveCount, indexed);
 		if (drawCbAddress == 0) return false;
@@ -184,20 +199,31 @@ namespace Ken4lowEngine
 		dxCommon->ResourceTransition(particleBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		uavManager->PreDispatch();
-		const UINT clearValues[4] = { 0u, 0u, 0u, 0u };
+		const UINT zeroValues[4] = { 0u, 0u, 0u, 0u };
 		commandList->ClearUnorderedAccessViewUint(
 			uavManager->GetGPUDescriptorHandle(gpuParticleBuffers_->GetIndirectDrawArgsUavIndex()),
-			uavManager->GetCPUDescriptorHandle(gpuParticleBuffers_->GetIndirectDrawArgsUavIndex()),
+			uavManager->GetClearCPUDescriptorHandle(gpuParticleBuffers_->GetIndirectDrawArgsUavIndex()),
 			indirectBuffer,
-			clearValues,
+			zeroValues,
 			0,
 			nullptr);
 
-		// Clear UAVの書き込みをCompaction CSのInterlockedAddより前に確定させる。
-		D3D12_RESOURCE_BARRIER clearBarrier{};
-		clearBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-		clearBarrier.UAV.pResource = indirectBuffer;
-		commandList->ResourceBarrier(1, &clearBarrier);
+		const UINT invalidIndexValues[4] = { 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu };
+		commandList->ClearUnorderedAccessViewUint(
+			uavManager->GetGPUDescriptorHandle(gpuParticleBuffers_->GetVisibleParticleIndexUavIndex()),
+			uavManager->GetClearCPUDescriptorHandle(gpuParticleBuffers_->GetVisibleParticleIndexUavIndex()),
+			visibleBuffer,
+			invalidIndexValues,
+			0,
+			nullptr);
+
+		// Clear UAVはDispatchと暗黙順序保証がないので、両scratch bufferを明示的に同期する。
+		D3D12_RESOURCE_BARRIER clearBarriers[2]{};
+		clearBarriers[0].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+		clearBarriers[0].UAV.pResource = indirectBuffer;
+		clearBarriers[1].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+		clearBarriers[1].UAV.pResource = visibleBuffer;
+		commandList->ResourceBarrier(_countof(clearBarriers), clearBarriers);
 
 		commandList->SetComputeRootSignature(compactionRootSignature_.Get());
 		commandList->SetPipelineState(compactionPipelineState_.Get());
@@ -209,12 +235,58 @@ namespace Ken4lowEngine
 		const UINT groupCountX = (GpuParticleBuffers::GetMaxParticles() + kCompactionThreadCount - 1) / kCompactionThreadCount;
 		commandList->Dispatch(groupCountX, 1, 1);
 
-		// TransitionがCompaction書き込み完了を可視化し、直後のVS/ExecuteIndirectから同じ結果を安全に読む。
+		D3D12_RESOURCE_BARRIER compactBarrier{};
+		compactBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+		compactBarrier.UAV.pResource = visibleBuffer;
+		commandList->ResourceBarrier(1, &compactBarrier);
+
+		if (blendMode_ == BlendMode::kBlendModeNormal)
+		{
+			SortVisibleParticlesByDepth();
+		}
+
+		// TransitionがCompute書き込み完了を可視化し、直後のVS/ExecuteIndirectから同じ結果を安全に読む。
 		dxCommon->ResourceTransition(particleBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		dxCommon->ResourceTransition(visibleBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		dxCommon->ResourceTransition(indirectBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 		gpuDrivenBuffersReadable_ = true;
 		return true;
+	}
+
+	void GpuParticleRenderer::SortVisibleParticlesByDepth()
+	{
+		if (!depthSortPipelineState_ || !gpuParticleBuffers_) return;
+
+		const D3D12_GPU_VIRTUAL_ADDRESS perViewAddress = gpuParticleBuffers_->GetPerViewCBAddress();
+		if (perViewAddress == 0) return;
+
+		auto* commandList = DirectXCommon::GetInstance()->GetCommandManager()->GetCommandList();
+		auto* uavManager = UAVManager::GetInstance();
+		const UINT maxParticles = GpuParticleBuffers::GetMaxParticles();
+		const UINT groupCountX = (maxParticles + kCompactionThreadCount - 1) / kCompactionThreadCount;
+
+		commandList->SetComputeRootSignature(compactionRootSignature_.Get());
+		commandList->SetPipelineState(depthSortPipelineState_.Get());
+		commandList->SetComputeRootConstantBufferView(0, perViewAddress);
+		commandList->SetComputeRootDescriptorTable(1, uavManager->GetGPUDescriptorHandle(gpuParticleBuffers_->GetParticleUavIndex()));
+		commandList->SetComputeRootDescriptorTable(2, uavManager->GetGPUDescriptorHandle(gpuParticleBuffers_->GetVisibleParticleIndexUavIndex()));
+		commandList->SetComputeRootDescriptorTable(3, uavManager->GetGPUDescriptorHandle(gpuParticleBuffers_->GetIndirectDrawArgsUavIndex()));
+
+		// 131072は2の累乗なので固定長Bitonic SortでCPU readback無しの厳密な全体順を作れる。
+		for (UINT sortLevel = 2; sortLevel <= maxParticles; sortLevel <<= 1)
+		{
+			for (UINT sortLevelMask = sortLevel >> 1; sortLevelMask > 0; sortLevelMask >>= 1)
+			{
+				const UINT constants[4] = { sortLevel, sortLevelMask, maxParticles, 0u };
+				commandList->SetComputeRoot32BitConstants(4, _countof(constants), constants, 0);
+				commandList->Dispatch(groupCountX, 1, 1);
+
+				D3D12_RESOURCE_BARRIER sortBarrier{};
+				sortBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+				sortBarrier.UAV.pResource = gpuParticleBuffers_->GetVisibleParticleIndexBuffer();
+				commandList->ResourceBarrier(1, &sortBarrier);
+			}
+		}
 	}
 
 	void GpuParticleRenderer::DrawSprite(uint32_t slot)
