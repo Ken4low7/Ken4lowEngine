@@ -20,32 +20,90 @@ namespace Ken4lowEngine
 		template<class T>
 		void ReadOptional(const json& source, const char* key, T& value)
 		{
-			// JsonReadUtilへ欠損・型不正時の既定値維持を集約し、Particle Presetの旧Json互換を保つ。
+			// 欠損・型不正時は既定値を維持し、旧Effect JSONを新しいAuthoring schemaへ段階移行できるようにする。
 			JsonReadUtil::TryRead(source, key, value);
 		}
 
 		void ReadVector2(const json& source, const char* key, Vector2& value)
 		{
-			// Vector配列の要素順は既存Json形式のまま、読み取り検証だけを共通化する。
 			value = JsonReadUtil::ReadVector2Or(source, key, value);
 		}
 
 		void ReadVector3(const json& source, const char* key, Vector3& value)
 		{
-			// Vector配列の要素順は既存Json形式のまま、読み取り検証だけを共通化する。
 			value = JsonReadUtil::ReadVector3Or(source, key, value);
 		}
 
 		void ReadVector4(const json& source, const char* key, Vector4& value)
 		{
-			// Vector配列の要素順は既存Json形式のまま、読み取り検証だけを共通化する。
 			value = JsonReadUtil::ReadVector4Or(source, key, value);
 		}
 
 		std::string ReadStringOr(const json& source, const char* key, const std::string& fallback)
 		{
-			// enum文字列の入口だけを共通化し、不明な値のenumフォールバックは既存関数側に残す。
 			return JsonReadUtil::ReadStringOr(source, key, fallback);
+		}
+
+		void ReadColorGradientLut(
+			const json& source,
+			const char* key,
+			std::array<Vector4, 4>& values)
+		{
+			if (!source.contains(key) || !source.at(key).is_array() || source.at(key).size() != values.size())
+			{
+				return;
+			}
+
+			const auto& array = source.at(key);
+			for (std::size_t index = 0; index < values.size(); ++index)
+			{
+				if (!array.at(index).is_array() || array.at(index).size() != 4)
+				{
+					continue;
+				}
+				values[index] = {
+					array.at(index).at(0).get<float>(),
+					array.at(index).at(1).get<float>(),
+					array.at(index).at(2).get<float>(),
+					array.at(index).at(3).get<float>()
+				};
+			}
+		}
+
+		json ToJson(const std::array<Vector4, 4>& values)
+		{
+			json result = json::array();
+			for (const Vector4& value : values)
+			{
+				result.push_back(ToJson(value));
+			}
+			return result;
+		}
+
+		const char* ParameterTargetToString(GpuParticleParameterTarget target)
+		{
+			switch (target)
+			{
+			case GpuParticleParameterTarget::SpawnRate: return "SpawnRate";
+			case GpuParticleParameterTarget::BurstCount: return "BurstCount";
+			case GpuParticleParameterTarget::LifeTime: return "LifeTime";
+			case GpuParticleParameterTarget::Speed: return "Speed";
+			case GpuParticleParameterTarget::Size: return "Size";
+			case GpuParticleParameterTarget::Alpha: return "Alpha";
+			case GpuParticleParameterTarget::Force: return "Force";
+			default: return "Speed";
+			}
+		}
+
+		GpuParticleParameterTarget ParameterTargetFromString(const std::string& text)
+		{
+			if (text == "SpawnRate") return GpuParticleParameterTarget::SpawnRate;
+			if (text == "BurstCount") return GpuParticleParameterTarget::BurstCount;
+			if (text == "LifeTime") return GpuParticleParameterTarget::LifeTime;
+			if (text == "Size") return GpuParticleParameterTarget::Size;
+			if (text == "Alpha") return GpuParticleParameterTarget::Alpha;
+			if (text == "Force") return GpuParticleParameterTarget::Force;
+			return GpuParticleParameterTarget::Speed;
 		}
 	}
 
@@ -125,6 +183,28 @@ namespace Ken4lowEngine
 
 			GpuParticleEffectDesc effect = CreateDefaultGpuParticleEffectDesc();
 			ReadOptional(root, "effectName", effect.effectName);
+
+			if (root.contains("userParameters"))
+			{
+				if (!root.at("userParameters").is_array()) return false;
+				effect.userParameters.clear();
+				for (const auto& source : root.at("userParameters"))
+				{
+					if (!source.is_object()) continue;
+					GpuParticleUserParameterDesc parameter{};
+					ReadOptional(source, "name", parameter.name);
+					ReadOptional(source, "defaultValue", parameter.defaultValue);
+					ReadOptional(source, "minValue", parameter.minValue);
+					ReadOptional(source, "maxValue", parameter.maxValue);
+					if (parameter.minValue > parameter.maxValue)
+					{
+						std::swap(parameter.minValue, parameter.maxValue);
+					}
+					parameter.defaultValue = std::clamp(parameter.defaultValue, parameter.minValue, parameter.maxValue);
+					effect.userParameters.push_back(std::move(parameter));
+				}
+			}
+
 			if (root.contains("emitters"))
 			{
 				if (!root.at("emitters").is_array()) return false;
@@ -140,6 +220,7 @@ namespace Ken4lowEngine
 					ReadOptional(source, "name", emitter.name);
 					ReadOptional(source, "texturePath", emitter.texturePath);
 					ReadOptional(source, "meshPath", emitter.meshPath);
+					ReadOptional(source, "meshSubMeshIndex", emitter.meshSubMeshIndex);
 					ReadOptional(source, "maxParticles", emitter.maxParticles);
 					ReadOptional(source, "loop", emitter.loop);
 					ReadOptional(source, "duration", emitter.duration);
@@ -158,18 +239,28 @@ namespace Ken4lowEngine
 					ReadOptional(source, "damping", emitter.damping);
 					ReadOptional(source, "speed", emitter.speed);
 					ReadOptional(source, "speedRandom", emitter.speedRandom);
+					ReadOptional(source, "noiseStrength", emitter.noiseStrength);
+					ReadOptional(source, "noiseFrequency", emitter.noiseFrequency);
+					ReadVector3(source, "vortexAxis", emitter.vortexAxis);
+					ReadOptional(source, "vortexStrength", emitter.vortexStrength);
+					ReadVector3(source, "attractorPosition", emitter.attractorPosition);
+					ReadOptional(source, "attractorStrength", emitter.attractorStrength);
+					ReadOptional(source, "attractorRadius", emitter.attractorRadius);
 					ReadVector2(source, "startSize", emitter.startSize);
 					ReadVector2(source, "endSize", emitter.endSize);
 					ReadOptional(source, "sizeRandom", emitter.sizeRandom);
+					ReadOptional(source, "useSizeCurve", emitter.useSizeCurve);
+					ReadVector4(source, "sizeCurveLut", emitter.sizeCurveLut);
 					ReadVector4(source, "startColor", emitter.startColor);
 					ReadVector4(source, "endColor", emitter.endColor);
 					ReadVector4(source, "colorRandom", emitter.colorRandom);
 					ReadOptional(source, "alphaFade", emitter.alphaFade);
+					ReadOptional(source, "useColorGradient", emitter.useColorGradient);
+					ReadColorGradientLut(source, "colorGradientLut", emitter.colorGradientLut);
 					ReadOptional(source, "startRotation", emitter.startRotation);
 					ReadOptional(source, "rotationSpeed", emitter.rotationSpeed);
 					ReadOptional(source, "rotationRandom", emitter.rotationRandom);
 					ReadOptional(source, "billboard", emitter.billboard);
-					// 旧EffectにblendModeが無い場合は、実際のSprite PSOと同じAdditiveへ移行する。
 					emitter.blendMode = GpuParticleBlendModeFromString(ReadStringOr(source, "blendMode", "Additive"));
 					ReadOptional(source, "useSpriteSheet", emitter.useSpriteSheet);
 					ReadOptional(source, "spriteSheetRows", emitter.spriteSheetRows);
@@ -177,10 +268,30 @@ namespace Ken4lowEngine
 					ReadOptional(source, "spriteSheetFrameRate", emitter.spriteSheetFrameRate);
 					ReadVector3(source, "startScale3D", emitter.startScale3D);
 					ReadVector3(source, "endScale3D", emitter.endScale3D);
+					ReadVector3(source, "startRotation3D", emitter.startRotation3D);
+					ReadVector3(source, "rotationRandom3D", emitter.rotationRandom3D);
 					ReadVector3(source, "angularVelocity", emitter.angularVelocity);
 					ReadVector3(source, "angularVelocityRandom", emitter.angularVelocityRandom);
+
+					if (source.contains("parameterBindings") && source.at("parameterBindings").is_array())
+					{
+						emitter.parameterBindings.clear();
+						for (const auto& bindingSource : source.at("parameterBindings"))
+						{
+							if (!bindingSource.is_object()) continue;
+							GpuParticleParameterBindingDesc binding{};
+							ReadOptional(bindingSource, "parameterName", binding.parameterName);
+							binding.target = ParameterTargetFromString(ReadStringOr(bindingSource, "target", "Speed"));
+							ReadOptional(bindingSource, "scale", binding.scale);
+							ReadOptional(bindingSource, "bias", binding.bias);
+							if (!binding.parameterName.empty()) emitter.parameterBindings.push_back(std::move(binding));
+						}
+					}
+
 					emitter.spriteSheetRows = (std::max)(emitter.spriteSheetRows, 1);
 					emitter.spriteSheetColumns = (std::max)(emitter.spriteSheetColumns, 1);
+					emitter.noiseFrequency = (std::max)(emitter.noiseFrequency, 0.0f);
+					emitter.attractorRadius = (std::max)(emitter.attractorRadius, 0.0f);
 					effect.emitters.push_back(std::move(emitter));
 				}
 			}
@@ -200,12 +311,23 @@ namespace Ken4lowEngine
 		{
 			json root;
 			root["effectName"] = effect.effectName;
+			root["userParameters"] = json::array();
+			for (const auto& parameter : effect.userParameters)
+			{
+				root["userParameters"].push_back({
+					{ "name", parameter.name },
+					{ "defaultValue", parameter.defaultValue },
+					{ "minValue", parameter.minValue },
+					{ "maxValue", parameter.maxValue }
+				});
+			}
+
 			root["emitters"] = json::array();
 			for (const auto& e : effect.emitters)
 			{
-				root["emitters"].push_back({
+				json emitter = {
 					{ "name", e.name }, { "renderType", Ken4lowEngine::ToString(e.renderType) },
-					{ "texturePath", e.texturePath }, { "meshPath", e.meshPath },
+					{ "texturePath", e.texturePath }, { "meshPath", e.meshPath }, { "meshSubMeshIndex", e.meshSubMeshIndex },
 					{ "maxParticles", e.maxParticles }, { "loop", e.loop }, { "duration", e.duration },
 					{ "spawnRate", e.spawnRate }, { "burstCount", e.burstCount },
 					{ "lifeTime", e.lifeTime }, { "lifeTimeRandom", e.lifeTimeRandom },
@@ -215,19 +337,37 @@ namespace Ken4lowEngine
 					{ "velocity", ToJson(e.velocity) }, { "velocityRandom", ToJson(e.velocityRandom) },
 					{ "gravity", ToJson(e.gravity) }, { "damping", e.damping },
 					{ "speed", e.speed }, { "speedRandom", e.speedRandom },
+					{ "noiseStrength", e.noiseStrength }, { "noiseFrequency", e.noiseFrequency },
+					{ "vortexAxis", ToJson(e.vortexAxis) }, { "vortexStrength", e.vortexStrength },
+					{ "attractorPosition", ToJson(e.attractorPosition) },
+					{ "attractorStrength", e.attractorStrength }, { "attractorRadius", e.attractorRadius },
 					{ "startSize", ToJson(e.startSize) }, { "endSize", ToJson(e.endSize) }, { "sizeRandom", e.sizeRandom },
+					{ "useSizeCurve", e.useSizeCurve }, { "sizeCurveLut", ToJson(e.sizeCurveLut) },
 					{ "startColor", ToJson(e.startColor) }, { "endColor", ToJson(e.endColor) },
 					{ "colorRandom", ToJson(e.colorRandom) }, { "alphaFade", e.alphaFade },
+					{ "useColorGradient", e.useColorGradient }, { "colorGradientLut", ToJson(e.colorGradientLut) },
 					{ "startRotation", e.startRotation }, { "rotationSpeed", e.rotationSpeed }, { "rotationRandom", e.rotationRandom },
 					{ "billboard", e.billboard }, { "blendMode", Ken4lowEngine::ToString(e.blendMode) },
 					{ "useSpriteSheet", e.useSpriteSheet }, { "spriteSheetRows", e.spriteSheetRows },
 					{ "spriteSheetColumns", e.spriteSheetColumns }, { "spriteSheetFrameRate", e.spriteSheetFrameRate },
 					{ "startScale3D", ToJson(e.startScale3D) }, { "endScale3D", ToJson(e.endScale3D) },
+					{ "startRotation3D", ToJson(e.startRotation3D) }, { "rotationRandom3D", ToJson(e.rotationRandom3D) },
 					{ "angularVelocity", ToJson(e.angularVelocity) }, { "angularVelocityRandom", ToJson(e.angularVelocityRandom) }
-				});
+				};
+
+				emitter["parameterBindings"] = json::array();
+				for (const auto& binding : e.parameterBindings)
+				{
+					emitter["parameterBindings"].push_back({
+						{ "parameterName", binding.parameterName },
+						{ "target", ParameterTargetToString(binding.target) },
+						{ "scale", binding.scale },
+						{ "bias", binding.bias }
+					});
+				}
+				root["emitters"].push_back(std::move(emitter));
 			}
 
-			// JsonReadUtilへ寄せても保存キーとdump(4)の整形は変えず、既存Preset形式を維持する。
 			return JsonFileIO::SaveJsonFile(filePath, root, 4);
 		}
 		catch (const std::exception&)
