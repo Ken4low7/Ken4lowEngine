@@ -107,7 +107,7 @@ VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID
     output.animFlags = particle.animFlags;
     output.startFrame = particle.startFrame;
     output.animSpeed = particle.animSpeed;
-    output.renderGroup = particle.renderGroup; // PSのTexture/Blend選別はlegacy typeではなくspawn時のrenderGroupを使う。
+    output.renderGroup = particle.type; // Desc OverrideではtypeにMaterial hashを格納し、Legacyでは従来のtype値をそのまま使う。
 
     return output;
 }
