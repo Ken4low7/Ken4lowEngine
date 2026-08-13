@@ -183,7 +183,29 @@ The following remain asset-schema values but are not enabled by `GpuParticleEffe
 
 This separation lets the schema remain stable while GPU backend support is added incrementally.
 
-## 13.7 Existing Update Behavior
+## 13.7 Runtime Preview
+
+`GpuParticleEffectEditor` now uses the same `GpuParticleEffectRuntime` as gameplay instead of maintaining an editor-only particle simulation.
+
+The editor exposes:
+
+- `Preview Position`
+- `Preview Burst`
+- `Start Loop Preview`
+- `Stop Loop Preview`
+
+Preview registers the current in-memory `GpuParticleEffectDesc` first, so unsaved authoring changes can be tested immediately. A loop preview keeps its `PlayHandle` and updates its world position while the preview position is edited.
+
+The property UI is also grouped with the same four authoring responsibilities used by the compiler:
+
+- Emission Module
+- Spawn Module
+- Update Module
+- Render Module
+
+This keeps the editor vocabulary, runtime model, and serialized Effect Asset aligned.
+
+## 13.8 Existing Update Behavior
 
 The current GPU update path still uses the existing linear behavior for authored override emitters:
 
@@ -196,7 +218,7 @@ The current GPU update path still uses the existing linear behavior for authored
 
 Phase 13 does not duplicate or replace that code. The Module layer records the authoring intent and feeds the proven `GpuParticleEmitter::EmitterInfo` path.
 
-## 13.8 Next Authoring Steps
+## 13.9 Next Authoring Steps
 
 The recommended continuation is:
 
@@ -206,10 +228,9 @@ The recommended continuation is:
 4. bake curves/gradients to GPU-friendly LUTs;
 5. add Update modules such as Noise, Vortex, and Attractor;
 6. add Effect User Parameters so gameplay can drive values such as `ChargeAmount` without knowing emitter internals;
-7. connect the Effect Editor to real-time runtime preview/restart;
-8. add GPU events, trails/ribbons, depth collision, and effect profiling only after the core authoring workflow is proven in a game.
+7. add GPU events, trails/ribbons, depth collision, and effect profiling only after the core authoring workflow is proven in a game.
 
-## 13.9 Curve / Gradient Direction
+## 13.10 Curve / Gradient Direction
 
 Curves should not perform arbitrary key searches for every particle every frame. The intended path is:
 
@@ -225,7 +246,7 @@ GPU Particle Update samples by normalized lifetime
 
 For example, a 256-sample LUT can represent `SizeOverLife`, `AlphaOverLife`, or a color gradient while keeping the update shader predictable.
 
-## 13.10 User Parameter Direction
+## 13.11 User Parameter Direction
 
 The target gameplay API is intentionally small:
 
@@ -249,9 +270,10 @@ The Effect Asset can later map `ChargeAmount` to spawn rate, size, color, noise 
 - bounded burst emitter pooling;
 - handle-scoped loop instances;
 - fail-closed backend compatibility checks;
+- real-time editor preview integration;
 - the multi-emitter Phase 13 sample asset.
 
-Windows Debug/Release translation-unit compilation remains part of TeamDevelopmentCI. The runtime header is also included by the GPU Particle manager translation unit so the Windows compile job parses the real authoring facade with the existing engine include environment.
+Windows Debug/Release translation-unit compilation remains part of TeamDevelopmentCI. `GpuParticleEffectEditor.cpp` includes the runtime facade directly, so the Windows compile job parses the authoring runtime against the real engine include environment.
 
 ## Completion Boundary
 
@@ -261,7 +283,8 @@ Phase 13 foundation is ready for game-side evaluation when:
 2. one Effect can author multiple independent emitters;
 3. repeated burst effects can occur at different positions without sharing one mutable spawn location;
 4. multiple loop instances of the same effect can coexist and follow different Actors;
-5. unsupported backend combinations fail closed;
-6. Phase 13 tests and Debug/Release compile jobs pass.
+5. the Effect Editor can preview current in-memory settings through the gameplay runtime;
+6. unsupported backend combinations fail closed;
+7. Phase 13 tests and Debug/Release compile jobs pass.
 
 Curve/Gradient LUTs and User Parameters are intentionally the next authoring increment rather than prerequisites for this compatibility foundation.
