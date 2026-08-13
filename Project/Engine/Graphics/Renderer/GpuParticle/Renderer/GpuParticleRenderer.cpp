@@ -138,7 +138,7 @@ namespace Ken4lowEngine
 		PostEffectManager::GetInstance()->BindSceneRenderTarget();
 
 		commandList->SetGraphicsRootSignature(gpuParticleMeshPipeline_->GetGfxRootSignature());
-		commandList->SetPipelineState(gpuParticleMeshPipeline_->GetGfxPSO());
+		commandList->SetPipelineState(gpuParticleMeshPipeline_->GetGfxPSO(blendMode_));
 
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		commandList->IASetVertexBuffers(0, 1, &mesh->vbv);
