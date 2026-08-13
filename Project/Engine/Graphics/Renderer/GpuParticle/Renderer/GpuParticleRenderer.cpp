@@ -136,11 +136,15 @@ namespace Ken4lowEngine
 	{
 		blendMode_ = UnpackGpuParticleBlendMode(drawType);
 		const uint32_t materialDrawType = UnpackGpuParticleMaterialDrawType(drawType);
-		const uint32_t renderGroup = BuildGpuParticleRenderGroup(textureFilePath_, materialDrawType, blendMode_);
+		const bool hasAuthoredBlendTag = (drawType & kGpuParticleBlendTagMask) != 0u;
+		const uint32_t shaderRenderGroup = hasAuthoredBlendTag
+			? BuildGpuParticleRenderGroup(textureFilePath_, materialDrawType, blendMode_)
+			: materialDrawType;
+
 		if (particleMaterial_)
 		{
-			// Pixel Shaderはlegacy typeではなくTexture/Mesh+Blendを含むrenderGroupで粒子を選別する。
-			particleMaterial_->SetDrawType(renderGroup, slot);
+			// Legacy Emitterは従来type、Authoring EmitterだけTexture/Mesh+Blend hashを使い互換性と多Material描画を両立する。
+			particleMaterial_->SetDrawType(shaderRenderGroup, slot);
 		}
 	}
 } // namespace Ken4lowEngine
