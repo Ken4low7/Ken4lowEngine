@@ -49,33 +49,28 @@ float2 ResolveFlipbookUV(VertexShaderOutput input, float2 baseUV)
 
     float2 tileScale = float2(
         1.0f / (float) input.atlasCols,
-        1.0f / (float) input.atlasRows
-    );
+        1.0f / (float) input.atlasRows);
 
-    // 境界にじみ軽減
     float2 inset = tileScale * 0.02f;
-
     float2 uv = baseUV;
     uv *= (tileScale - inset * 2.0f);
     uv += inset;
     uv.x += tileScale.x * (float) col;
     uv.y += tileScale.y * (float) row;
-
     return uv;
 }
 
 float4 main(VertexShaderOutput input) : SV_TARGET0
 {
-    if (input.type != gMaterial.drawType)
+    // legacy type=0を共有するAuthoring Effectでも、別Texture/Blendの粒子を同じDrawで誤描画しない。
+    if (input.renderGroup != gMaterial.drawType)
     {
         discard;
     }
 
     float2 uv = ResolveFlipbookUV(input, input.texcoord);
-
     float4 transformedUV = mul(float4(uv, 0.0f, 1.0f), gMaterial.uvTransform);
     float4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
-
     float4 outColor = gMaterial.color * textureColor * input.color;
 
     if (outColor.a < 0.001f)
