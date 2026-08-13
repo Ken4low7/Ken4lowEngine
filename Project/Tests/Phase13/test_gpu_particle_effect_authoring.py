@@ -32,6 +32,7 @@ SERIALIZER_SOURCE = (
     / "Preset"
     / "GpuParticleEffectSerializer.cpp"
 )
+EDITOR_SOURCE = SERIALIZER_SOURCE.with_name("GpuParticleEffectEditor.cpp")
 SAMPLE_EFFECT = PROJECT_ROOT / "Resources" / "Effects" / "Phase13" / "Explosion.effect.json"
 EMIT_SHADER = PROJECT_ROOT / "Resources" / "Shaders" / "GpuParticle" / "GpuParticleEmit.CS.hlsl"
 
@@ -43,6 +44,7 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         cls.runtime = RUNTIME_HEADER.read_text(encoding="utf-8")
         cls.effect_desc = EFFECT_DESC_HEADER.read_text(encoding="utf-8")
         cls.serializer = SERIALIZER_SOURCE.read_text(encoding="utf-8")
+        cls.editor = EDITOR_SOURCE.read_text(encoding="utf-8")
         cls.emit_shader = EMIT_SHADER.read_text(encoding="utf-8")
         cls.sample = json.loads(SAMPLE_EFFECT.read_text(encoding="utf-8"))
 
@@ -67,8 +69,8 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         self.assertIn("GpuParticleEffectCompiler::Compile(effect)", self.runtime)
         self.assertIn("GpuParticleEffectSerializer::Load(effect, filePath)", self.runtime)
         self.assertIn("std::unordered_map<std::string, GpuParticleCompiledEffect>", self.runtime)
-        self.assertIn('j["effectName"]', self.serializer)
-        self.assertIn('j["emitters"]', self.serializer)
+        self.assertIn('root["effectName"]', self.serializer)
+        self.assertIn('root["emitters"]', self.serializer)
 
     def test_gameplay_runtime_exposes_effect_level_playback_api(self) -> None:
         for api in (
@@ -87,6 +89,16 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         self.assertIn('"RuntimeAssetBurst_"', self.runtime)
         self.assertIn('"RuntimeAssetLoop_"', self.runtime)
         self.assertIn("activeLoops_[instance.handle.id] = instance", self.runtime)
+
+    def test_effect_editor_previews_unsaved_module_configuration_through_runtime(self) -> None:
+        self.assertIn('#include "GpuParticleEffectRuntime.h"', self.editor)
+        for section in ("Emission Module", "Spawn Module", "Update Module", "Render Module"):
+            self.assertIn(section, self.editor)
+        self.assertIn('ImGui::Button("Preview Burst")', self.editor)
+        self.assertIn('ImGui::Button("Start Loop Preview")', self.editor)
+        self.assertIn("runtime->RegisterEffect(effect)", self.editor)
+        self.assertIn("runtime->Play(effect.effectName, previewPosition)", self.editor)
+        self.assertIn("runtime->PlayLoop(effect.effectName, previewPosition)", self.editor)
 
     def test_runtime_fails_closed_for_backend_features_not_implemented_yet(self) -> None:
         self.assertIn("GpuParticleRenderType::Sprite", self.runtime)
