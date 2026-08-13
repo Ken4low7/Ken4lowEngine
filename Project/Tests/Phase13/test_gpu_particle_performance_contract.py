@@ -16,16 +16,18 @@ class GpuParticlePerformanceContractTests(unittest.TestCase):
         cls.mesh_pipeline = (GPU_ROOT / "Pipeline" / "GpuParticleMeshPipeline.cpp").read_text(encoding="utf-8")
         cls.sprite_vs = (SHADER_ROOT / "GpuParticle.VS.hlsl").read_text(encoding="utf-8")
         cls.mesh_vs = (SHADER_ROOT / "GpuParticleMesh.VS.hlsl").read_text(encoding="utf-8")
+        cls.compact_cs = (SHADER_ROOT / "GpuParticleCompact.CS.hlsl").read_text(encoding="utf-8")
         cls.renderer = (GPU_ROOT / "Renderer" / "GpuParticleRenderer.cpp").read_text(encoding="utf-8")
         cls.charge_effect = json.loads((EFFECT_ROOT / "BossCharge.effect.json").read_text(encoding="utf-8"))
 
-    def test_vertex_stage_rejects_dead_and_foreign_material_instances(self) -> None:
-        # The current global particle buffer draw still scans all slots, so rejection must happen before rasterization.
+    def test_vertex_stage_consumes_only_compacted_particle_instances(self) -> None:
+        # Phase14 supersedes the Phase13 VS rejection path by removing dead/foreign particles before graphics dispatch.
+        self.assertIn("particle.lifeTime <= 0.0f", self.compact_cs)
+        self.assertIn("particle.type != gDraw.renderGroup", self.compact_cs)
         for shader in (self.sprite_vs, self.mesh_vs):
-            self.assertIn("ConstantBuffer<Material> gMaterial : register(b1)", shader)
-            self.assertIn("particle.lifeTime <= 0.0f", shader)
-            self.assertIn("particle.type != gMaterial.drawType", shader)
-            self.assertIn("output.position = float4(0.0f, 0.0f, -1.0f, 1.0f)", shader)
+            self.assertIn("gVisibleParticleIndices[instanceId]", shader)
+            self.assertIn("gParticles[particleIndex]", shader)
+        self.assertIn("ExecuteIndirect", self.renderer)
 
     def test_material_cb_is_visible_to_vertex_and_pixel_stages(self) -> None:
         self.assertIn("params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL", self.sprite_pipeline)
