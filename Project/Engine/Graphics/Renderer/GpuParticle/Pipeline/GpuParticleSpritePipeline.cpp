@@ -11,40 +11,27 @@
 namespace Ken4lowEngine
 {
 
-/// -------------------------------------------------------------
-/// 初期化
-/// -------------------------------------------------------------
 void GpuParticleSpritePipeline::Initialize()
 {
 	dxCommon_ = DirectXCommon::GetInstance();
-
 	CreateRootSignature();
 	for (uint32_t modeIndex = 0; modeIndex < static_cast<uint32_t>(BlendMode::kcountOfBlendMode); ++modeIndex)
 	{
 		CreatePSO(static_cast<BlendMode>(modeIndex));
 	}
-
 	rootSignature_->SetName(L"GpuParticleSpritePipeline_RootSignature");
 }
 
 ID3D12PipelineState* GpuParticleSpritePipeline::GetGfxPSO(BlendMode blendMode) const
 {
 	const size_t index = static_cast<size_t>(blendMode);
-	if (index < pipelineStates_.size() && pipelineStates_[index])
-	{
-		return pipelineStates_[index].Get();
-	}
-
+	if (index < pipelineStates_.size() && pipelineStates_[index]) return pipelineStates_[index].Get();
 	return pipelineStates_[static_cast<size_t>(BlendMode::kBlendModeAdd)].Get();
 }
 
-/// -------------------------------------------------------------
-/// Graphics PSO 生成（GPUスプライト用）
-/// -------------------------------------------------------------
 void GpuParticleSpritePipeline::CreatePSO(BlendMode blendMode)
 {
 	HRESULT hr{};
-
 	D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
 	inputElementDescs[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT,  0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 	inputElementDescs[1] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,        0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
@@ -53,32 +40,22 @@ void GpuParticleSpritePipeline::CreatePSO(BlendMode blendMode)
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
 	inputLayoutDesc.NumElements = _countof(inputElementDescs);
-
-	// AuthoringのBlendModeごとにPSOを分離し、同一シェーダーでも合成方法だけを安全に切り替える。
 	const D3D12_RENDER_TARGET_BLEND_DESC blendDesc = BlendStateFactory::GetInstance()->GetBlendDesc(blendMode);
 
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
 	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
-	const ShaderDescriptor& vsDesc =
-		GpuParticleShaderManifest::GetGraphics(GpuParticleGraphicsShaderId::SpriteVS);
-	const ShaderDescriptor& psDesc =
-		GpuParticleShaderManifest::GetGraphics(GpuParticleGraphicsShaderId::SpritePS);
-
+	const ShaderDescriptor& vsDesc = GpuParticleShaderManifest::GetGraphics(GpuParticleGraphicsShaderId::SpriteVS);
+	const ShaderDescriptor& psDesc = GpuParticleShaderManifest::GetGraphics(GpuParticleGraphicsShaderId::SpritePS);
 	assert(vsDesc.stage == ShaderStage::Vertex);
 	assert(psDesc.stage == ShaderStage::Pixel);
 	assert(vsDesc.rootSignature == RootSignatureType::GpuParticle);
 	assert(psDesc.rootSignature == RootSignatureType::GpuParticle);
 
-	ComPtr<IDxcBlob> vs = ShaderCompiler::CompileShader(
-		vsDesc,
-		dxCommon_->GetDXCCompilerManager());
+	ComPtr<IDxcBlob> vs = ShaderCompiler::CompileShader(vsDesc, dxCommon_->GetDXCCompilerManager());
 	assert(vs != nullptr);
-
-	ComPtr<IDxcBlob> ps = ShaderCompiler::CompileShader(
-		psDesc,
-		dxCommon_->GetDXCCompilerManager());
+	ComPtr<IDxcBlob> ps = ShaderCompiler::CompileShader(psDesc, dxCommon_->GetDXCCompilerManager());
 	assert(ps != nullptr);
 
 	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
@@ -104,46 +81,52 @@ void GpuParticleSpritePipeline::CreatePSO(BlendMode blendMode)
 	const size_t index = static_cast<size_t>(blendMode);
 	hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineStates_[index]));
 	assert(SUCCEEDED(hr));
-
 	const std::wstring name = L"GpuParticleSpritePipeline_Gfx_PSO_" + std::to_wstring(index);
 	pipelineStates_[index]->SetName(name.c_str());
 }
 
-/// -------------------------------------------------------------
-/// RootSignature 生成（GPUスプライト用）
-/// -------------------------------------------------------------
 void GpuParticleSpritePipeline::CreateRootSignature()
 {
 	HRESULT hr{};
-
 	D3D12_ROOT_SIGNATURE_DESC rsDesc{};
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-	D3D12_DESCRIPTOR_RANGE srvRange[1]{};
-	srvRange[0].BaseShaderRegister = 0;
-	srvRange[0].NumDescriptors = 1;
-	srvRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	srvRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	D3D12_DESCRIPTOR_RANGE particleSrvRange{};
+	particleSrvRange.BaseShaderRegister = 0;
+	particleSrvRange.NumDescriptors = 1;
+	particleSrvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	particleSrvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	D3D12_ROOT_PARAMETER params[4]{};
+	D3D12_DESCRIPTOR_RANGE visibleIndexSrvRange{};
+	visibleIndexSrvRange.BaseShaderRegister = 1;
+	visibleIndexSrvRange.NumDescriptors = 1;
+	visibleIndexSrvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	visibleIndexSrvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
+	D3D12_ROOT_PARAMETER params[5]{};
 	params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	params[0].Descriptor.ShaderRegister = 0;
 
 	params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-	params[1].DescriptorTable.NumDescriptorRanges = _countof(srvRange);
-	params[1].DescriptorTable.pDescriptorRanges = srvRange;
+	params[1].DescriptorTable.NumDescriptorRanges = 1;
+	params[1].DescriptorTable.pDescriptorRanges = &particleSrvRange;
 
 	params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL; // VSでもrenderGroup/dead判定を行い、不要粒子をラスタライズ前に除外する。
+	params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	params[2].Descriptor.ShaderRegister = 1;
 
 	params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	params[3].DescriptorTable.NumDescriptorRanges = _countof(srvRange);
-	params[3].DescriptorTable.pDescriptorRanges = srvRange;
+	params[3].DescriptorTable.NumDescriptorRanges = 1;
+	params[3].DescriptorTable.pDescriptorRanges = &particleSrvRange;
+
+	// t1はCompaction済みParticle index列だけをVSへ公開する専用SRVです。
+	params[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	params[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	params[4].DescriptorTable.NumDescriptorRanges = 1;
+	params[4].DescriptorTable.pDescriptorRanges = &visibleIndexSrvRange;
 
 	rsDesc.pParameters = params;
 	rsDesc.NumParameters = _countof(params);
@@ -157,7 +140,6 @@ void GpuParticleSpritePipeline::CreateRootSignature()
 	samplers[0].MaxLOD = D3D12_FLOAT32_MAX;
 	samplers[0].ShaderRegister = 0;
 	samplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-
 	rsDesc.pStaticSamplers = samplers;
 	rsDesc.NumStaticSamplers = _countof(samplers);
 
@@ -169,7 +151,6 @@ void GpuParticleSpritePipeline::CreateRootSignature()
 		Log(err ? reinterpret_cast<char*>(err->GetBufferPointer()) : "SerializeRootSignature failed");
 		assert(false);
 	}
-
 	hr = dxCommon_->GetDevice()->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&rootSignature_));
 	assert(SUCCEEDED(hr));
 }
