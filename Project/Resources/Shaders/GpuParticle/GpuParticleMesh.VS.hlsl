@@ -43,7 +43,7 @@ float3 RotateEulerXYZ(float3 position, float3 rotation)
 
 VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID)
 {
-    VertexShaderOutput output;
+    VertexShaderOutput output = (VertexShaderOutput) 0;
     Particle particle = gParticles[instanceId];
 
     // Mesh ParticleはScale -> Euler Rotation -> Translationの順でAuthoring Transformを適用する。
@@ -56,6 +56,7 @@ VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID
     output.texcoord = input.texcoord;
     output.color = particle.color;
     output.type = particle.type;
+    output.renderGroup = particle.renderGroup; // MeshもSpriteと同じMaterial renderGroup契約で選別する。
 
     if (particle.lifeTime <= 0.0f)
     {
