@@ -109,6 +109,15 @@ class GpuDrivenParticleRenderingTests(unittest.TestCase):
         self.assertIn("GPU_PARTICLE_INVALID_INDEX", self.sort_cs)
         self.assertIn("GpuParticleComputeShaderId::SortCS", self.manifest)
 
+    def test_alpha_sort_limits_compare_network_to_visible_power_of_two_capacity(self) -> None:
+        # GPU InstanceCount remains on-device and decides how much of each fixed dispatch performs useful comparisons.
+        self.assertIn("ResolveSortCapacity", self.sort_cs)
+        self.assertIn("gIndirectDrawArgs[1]", self.sort_cs)
+        self.assertIn("visibleCount - 1u", self.sort_cs)
+        self.assertIn("gSort.sortLevel > sortCapacity", self.sort_cs)
+        self.assertIn("partnerIndex >= sortCapacity", self.sort_cs)
+        self.assertIn("compactBarriers[1].UAV.pResource = indirectBuffer", self.renderer_cpp)
+
     def test_uav_clears_use_non_shader_visible_cpu_descriptor_mirror(self) -> None:
         self.assertIn("clearCpuDescriptorHeap_", self.uav_h)
         self.assertIn("D3D12_DESCRIPTOR_HEAP_FLAG_NONE", self.uav_cpp)
