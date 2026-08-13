@@ -118,10 +118,13 @@ class GpuDrivenParticleRenderingTests(unittest.TestCase):
         self.assertIn("partnerIndex >= sortCapacity", self.sort_cs)
         self.assertIn("compactBarriers[1].UAV.pResource = indirectBuffer", self.renderer_cpp)
 
-    def test_uav_clears_use_non_shader_visible_cpu_descriptor_mirror(self) -> None:
+    def test_uav_clears_use_direct_cpu_only_descriptors(self) -> None:
+        # D3D12 forbids copying descriptors from a shader-visible heap, so clear descriptors must be created directly.
         self.assertIn("clearCpuDescriptorHeap_", self.uav_h)
         self.assertIn("D3D12_DESCRIPTOR_HEAP_FLAG_NONE", self.uav_cpp)
-        self.assertIn("MirrorUavDescriptorForClear", self.uav_cpp)
+        self.assertNotIn("MirrorUavDescriptorForClear", self.uav_h + self.uav_cpp)
+        self.assertNotIn("CopyDescriptorsSimple", self.uav_cpp)
+        self.assertGreaterEqual(self.uav_cpp.count("CreateUnorderedAccessView(pResource, nullptr, &uavDesc, GetClearCPUDescriptorHandle(uavIndex))"), 3)
         self.assertIn("GetClearCPUDescriptorHandle", self.renderer_cpp)
         self.assertIn("D3D12_RESOURCE_BARRIER_TYPE_UAV", self.renderer_cpp)
 
