@@ -6,6 +6,8 @@
 #include "ShaderCompiler.h"
 #include "GpuParticleShaderManifest.h"
 
+#include <string>
+
 namespace Ken4lowEngine
 {
 
@@ -17,16 +19,29 @@ void GpuParticleSpritePipeline::Initialize()
 	dxCommon_ = DirectXCommon::GetInstance();
 
 	CreateRootSignature();
-	CreatePSO();
+	for (uint32_t modeIndex = 0; modeIndex < static_cast<uint32_t>(BlendMode::kcountOfBlendMode); ++modeIndex)
+	{
+		CreatePSO(static_cast<BlendMode>(modeIndex));
+	}
 
 	rootSignature_->SetName(L"GpuParticleSpritePipeline_RootSignature");
-	pipelineState_->SetName(L"GpuParticleSpritePipeline_Gfx_PSO");
+}
+
+ID3D12PipelineState* GpuParticleSpritePipeline::GetGfxPSO(BlendMode blendMode) const
+{
+	const size_t index = static_cast<size_t>(blendMode);
+	if (index < pipelineStates_.size() && pipelineStates_[index])
+	{
+		return pipelineStates_[index].Get();
+	}
+
+	return pipelineStates_[static_cast<size_t>(BlendMode::kBlendModeAdd)].Get();
 }
 
 /// -------------------------------------------------------------
 /// Graphics PSO 生成（GPUスプライト用）
 /// -------------------------------------------------------------
-void GpuParticleSpritePipeline::CreatePSO()
+void GpuParticleSpritePipeline::CreatePSO(BlendMode blendMode)
 {
 	HRESULT hr{};
 
@@ -40,8 +55,8 @@ void GpuParticleSpritePipeline::CreatePSO()
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
 	inputLayoutDesc.NumElements = _countof(inputElementDescs);
 
-	// Blend
-	const D3D12_RENDER_TARGET_BLEND_DESC blendDesc = BlendStateFactory::GetInstance()->GetBlendDesc(blendMode_);
+	// AuthoringのBlendModeごとにPSOを分離し、同一シェーダーでも合成方法だけを安全に切り替える。
+	const D3D12_RENDER_TARGET_BLEND_DESC blendDesc = BlendStateFactory::GetInstance()->GetBlendDesc(blendMode);
 
 	// Rasterizer
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
@@ -92,8 +107,12 @@ void GpuParticleSpritePipeline::CreatePSO()
 	desc.DepthStencilState = depthStencilDesc;
 	desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-	hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineState_));
+	const size_t index = static_cast<size_t>(blendMode);
+	hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineStates_[index]));
 	assert(SUCCEEDED(hr));
+
+	const std::wstring name = L"GpuParticleSpritePipeline_Gfx_PSO_" + std::to_wstring(index);
+	pipelineStates_[index]->SetName(name.c_str());
 }
 
 /// -------------------------------------------------------------
