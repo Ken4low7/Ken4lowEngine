@@ -169,7 +169,8 @@ namespace Ken4lowEngine
 					ReadOptional(source, "rotationSpeed", emitter.rotationSpeed);
 					ReadOptional(source, "rotationRandom", emitter.rotationRandom);
 					ReadOptional(source, "billboard", emitter.billboard);
-					emitter.blendMode = GpuParticleBlendModeFromString(ReadStringOr(source, "blendMode", "Alpha"));
+					// 旧EffectにblendModeが無い場合は、実際のSprite PSOと同じAdditiveへ移行する。
+					emitter.blendMode = GpuParticleBlendModeFromString(ReadStringOr(source, "blendMode", "Additive"));
 					ReadOptional(source, "useSpriteSheet", emitter.useSpriteSheet);
 					ReadOptional(source, "spriteSheetRows", emitter.spriteSheetRows);
 					ReadOptional(source, "spriteSheetColumns", emitter.spriteSheetColumns);
