@@ -2,6 +2,7 @@
 #include "DirectXCommon.h"
 #include "GpuParticleSpritePipeline.h"
 #include "GpuParticleBuffers.h"
+#include "GpuParticleEmitterData.h"
 #include "GpuParticleManager.h"
 #include "SRVManager.h"
 #include "PostEffectManager.h"
@@ -90,7 +91,7 @@ namespace Ken4lowEngine
 		PostEffectManager::GetInstance()->BindSceneRenderTarget();
 
 		commandList->SetGraphicsRootSignature(gpuParticlePipeline_->GetGfxRootSignature());
-		commandList->SetPipelineState(gpuParticlePipeline_->GetGfxPSO());
+		commandList->SetPipelineState(gpuParticlePipeline_->GetGfxPSO(blendMode_));
 
 		const auto& vbView = particleMesh_->GetVertexBufferView();
 		commandList->IASetVertexBuffers(0, 1, &vbView);
@@ -188,6 +189,9 @@ namespace Ken4lowEngine
 
 	void GpuParticleRenderer::SetDrawType(uint32_t drawType, uint32_t slot)
 	{
-		if (particleMaterial_) { particleMaterial_->SetDrawType(drawType, slot); }
+		// Runtime Effectだけが上位bitへBlendModeを持ち、既存Emitterの未pack値は従来どおりAdditiveへフォールバックする。
+		blendMode_ = UnpackGpuParticleBlendMode(drawType);
+		const uint32_t materialDrawType = UnpackGpuParticleMaterialDrawType(drawType);
+		if (particleMaterial_) { particleMaterial_->SetDrawType(materialDrawType, slot); }
 	}
 } // namespace Ken4lowEngine
