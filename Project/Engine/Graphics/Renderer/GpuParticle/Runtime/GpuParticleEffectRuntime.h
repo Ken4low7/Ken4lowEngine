@@ -1,12 +1,13 @@
 #pragma once
 
-#include "GpuParticleEffectDesc.h"
+#include "GpuParticleEffectModules.h"
 #include "GpuParticleEffectSerializer.h"
 #include "GpuParticleEmitter.h"
 #include "GpuParticleManager.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -16,8 +17,8 @@
 namespace Ken4lowEngine
 {
 	/// <summary>
-	/// Effect Editorで保存したGpuParticleEffectDescを、そのまま実ゲームで再生するためのRuntime境界です。
-	/// Gameplay側はEmitterやGpuParticleTypeを直接触らず、Effect名と位置だけを指定します。
+	/// Effect Editorで保存したGpuParticleEffectDescをModuleへCompileし、
+	/// GameplayからEffect名だけで複数Emitterを再生するRuntime境界です。
 	/// </summary>
 	class GpuParticleEffectRuntime
 	{
@@ -40,7 +41,7 @@ namespace Ken4lowEngine
 
 		/// <summary>
 		/// Editor等で組み立てたEffect設定をRuntimeへ登録します。
-		/// 同名Effectを再登録した場合は既存Runtime Emitterを破棄し、新設定を次回再生から使用します。
+		/// 同名Effectの再登録時は旧Emitterを破棄し、新Module構成を次回再生から使用します。
 		/// </summary>
 		bool RegisterEffect(const GpuParticleEffectDesc& effect)
 		{
@@ -50,14 +51,15 @@ namespace Ken4lowEngine
 				return false;
 			}
 
-			RemoveCachedEmitters(effect.effectName);
-			effects_[effect.effectName] = effect;
+			RemoveEffectEmitters(effect.effectName);
+			compiledEffects_[effect.effectName] = GpuParticleEffectCompiler::Compile(effect);
+			nextBurstSlotByEffect_[effect.effectName] = 0;
 			SetStatus(true, "Registered effect: " + effect.effectName);
 			return true;
 		}
 
 		/// <summary>
-		/// GpuParticleEffectSerializerのJSONを読み込み、effectNameをキーにRuntimeへ登録します。
+		/// 既存GpuParticleEffectSerializerのJSONを読み込み、effectNameをキーにRuntimeへ登録します。
 		/// </summary>
 		bool LoadEffect(const std::string& filePath)
 		{
@@ -80,7 +82,7 @@ namespace Ken4lowEngine
 		}
 
 		/// <summary>
-		/// LoadEffectで登録したJSONを再読み込みします。Particle Editorの保存後に即座に再確認する用途です。
+		/// LoadEffectで登録したJSONを再読み込みします。Particle Editor保存後の即時反映に使用します。
 		/// </summary>
 		bool ReloadEffect(const std::string& effectName)
 		{
@@ -96,122 +98,132 @@ namespace Ken4lowEngine
 		}
 
 		/// <summary>
-		/// Effect内の全Sprite Emitterを一度だけ発生させます。
-		/// 同一EffectのEmitterは再利用するため、短時間に連続再生してもEmitterオブジェクトを増やし続けません。
+		/// Effect内の全対応Emitterを一度だけ発生させます。
+		/// 小さなEmitter poolを循環利用し、同一フレームに異なる位置で同じEffectを呼んでも発生位置を潰しません。
 		/// </summary>
 		bool Play(const std::string& effectName, const Vector3& worldPosition)
 		{
-			const GpuParticleEffectDesc* effect = FindEffect(effectName);
+			const GpuParticleCompiledEffect* effect = FindEffect(effectName);
 			if (!effect)
 			{
 				return false;
 			}
 
+			uint32_t& nextSlot = nextBurstSlotByEffect_[effectName];
+			const uint32_t burstSlot = nextSlot++ % kBurstEmitterPoolSize;
 			bool emittedAny = false;
+			bool foundSupportedEmitter = false;
+
 			for (std::size_t index = 0; index < effect->emitters.size(); ++index)
 			{
-				const GpuParticleEmitterDesc& desc = effect->emitters[index];
-				if (desc.renderType != GpuParticleRenderType::Sprite)
+				const GpuParticleCompiledEmitter& emitterDesc = effect->emitters[index];
+				if (!IsEmitterSupported(emitterDesc))
 				{
 					continue;
 				}
 
-				GpuParticleEmitter* emitter = EnsureEmitter(effectName, desc, index, worldPosition, false);
+				foundSupportedEmitter = true;
+				GpuParticleEmitter* emitter = EnsureEmitter(
+					effectName, emitterDesc, index, worldPosition, false, burstSlot);
 				if (!emitter)
 				{
 					continue;
 				}
 
-				const uint32_t count = desc.burstCount;
-				if (count > 0)
+				if (emitterDesc.emission.burstCount > 0)
 				{
-					emittedAny |= emitter->RequestEmit(count) > 0;
+					emittedAny |= emitter->RequestEmit(emitterDesc.emission.burstCount) > 0;
 				}
+			}
+
+			if (!foundSupportedEmitter)
+			{
+				SetStatus(false, "Play failed: effect has no currently supported Sprite/Alpha emitter. effect=" + effectName);
+				return false;
 			}
 
 			SetStatus(emittedAny, emittedAny
 				? "Played effect: " + effectName
-				: "Play produced no particles. Check burstCount / renderType. effect=" + effectName);
+				: "Play produced no particles. Check burstCount/maxParticles. effect=" + effectName);
 			return emittedAny;
 		}
 
 		/// <summary>
-		/// Effectを継続再生します。desc.loop=trueのEmitterだけspawnRateに従って定期発生し、
-		/// loop=falseのEmitterは開始時burstだけを担当できるため、Flash + Smokeのような複合演出を1Effectにできます。
+		/// Effectを継続再生します。loop=trueのEmitterだけspawnRateに従って定期発生し、
+		/// loop=falseのEmitterは開始時Burstだけを担当できます。
 		/// </summary>
 		PlayHandle PlayLoop(const std::string& effectName, const Vector3& worldPosition)
 		{
-			const GpuParticleEffectDesc* effect = FindEffect(effectName);
+			const GpuParticleCompiledEffect* effect = FindEffect(effectName);
 			if (!effect)
 			{
 				return {};
 			}
 
-			auto activeIt = activeLoops_.find(effectName);
-			if (activeIt != activeLoops_.end())
-			{
-				SetLoopPosition(activeIt->second.handle, worldPosition);
-				SetStatus(true, "Loop position updated: " + effectName);
-				return activeIt->second.handle;
-			}
-
 			LoopInstance instance{};
 			instance.handle = AllocateHandle();
 			instance.effectName = effectName;
-
 			bool createdAny = false;
+
 			for (std::size_t index = 0; index < effect->emitters.size(); ++index)
 			{
-				const GpuParticleEmitterDesc& desc = effect->emitters[index];
-				if (desc.renderType != GpuParticleRenderType::Sprite)
+				const GpuParticleCompiledEmitter& emitterDesc = effect->emitters[index];
+				if (!IsEmitterSupported(emitterDesc))
 				{
 					continue;
 				}
 
-				GpuParticleEmitter* emitter = EnsureEmitter(effectName, desc, index, worldPosition, true);
+				GpuParticleEmitter* emitter = EnsureEmitter(
+					effectName, emitterDesc, index, worldPosition, true, instance.handle.id);
 				if (!emitter)
 				{
 					continue;
 				}
 
 				createdAny = true;
-				instance.emitterNames.push_back(BuildEmitterName(effectName, desc, index, true));
-				if (desc.burstCount > 0)
+				instance.emitterNames.push_back(
+					BuildEmitterName(effectName, emitterDesc, index, true, instance.handle.id));
+				if (emitterDesc.emission.burstCount > 0)
 				{
-					emitter->RequestEmit(desc.burstCount);
+					emitter->RequestEmit(emitterDesc.emission.burstCount);
 				}
 			}
 
 			if (!createdAny)
 			{
-				SetStatus(false, "PlayLoop failed: no supported Sprite emitter. effect=" + effectName);
+				SetStatus(false, "PlayLoop failed: no supported emitter. effect=" + effectName);
 				return {};
 			}
 
-			handleToEffect_[instance.handle.id] = effectName;
-			activeLoops_[effectName] = instance;
+			activeLoops_[instance.handle.id] = instance;
 			SetStatus(true, "Loop started: " + effectName);
 			return instance.handle;
 		}
 
+		/// <summary>指定Effect名で動作中のLoop Instanceをすべて停止します。</summary>
 		bool StopLoop(const std::string& effectName)
 		{
-			const auto activeIt = activeLoops_.find(effectName);
-			if (activeIt == activeLoops_.end())
+			std::vector<uint32_t> handles;
+			for (const auto& [handleId, instance] : activeLoops_)
+			{
+				if (instance.effectName == effectName)
+				{
+					handles.push_back(handleId);
+				}
+			}
+
+			for (const uint32_t handleId : handles)
+			{
+				StopLoop(PlayHandle{ handleId });
+			}
+
+			if (handles.empty())
 			{
 				SetStatus(false, "StopLoop skipped: effect is not looping. effect=" + effectName);
 				return false;
 			}
 
-			GpuParticleManager* manager = GpuParticleManager::GetInstance();
-			for (const std::string& emitterName : activeIt->second.emitterNames)
-			{
-				manager->RemoveEmitter(emitterName);
-			}
-
-			handleToEffect_.erase(activeIt->second.handle.id);
-			activeLoops_.erase(activeIt);
-			SetStatus(true, "Loop stopped: " + effectName);
+			SetStatus(true, "Loop instances stopped: " + effectName);
 			return true;
 		}
 
@@ -223,47 +235,55 @@ namespace Ken4lowEngine
 				return false;
 			}
 
-			const auto handleIt = handleToEffect_.find(handle.id);
-			if (handleIt == handleToEffect_.end())
+			const auto instanceIt = activeLoops_.find(handle.id);
+			if (instanceIt == activeLoops_.end())
 			{
 				SetStatus(false, "StopLoop skipped: handle is not active.");
 				return false;
 			}
 
-			return StopLoop(handleIt->second);
+			GpuParticleManager* manager = GpuParticleManager::GetInstance();
+			for (const std::string& emitterName : instanceIt->second.emitterNames)
+			{
+				manager->RemoveEmitter(emitterName);
+			}
+
+			const std::string effectName = instanceIt->second.effectName;
+			activeLoops_.erase(instanceIt);
+			SetStatus(true, "Loop stopped: " + effectName);
+			return true;
 		}
 
-		/// <summary>
-		/// 追従演出用にLoop Effect全体の基準位置を更新します。
-		/// </summary>
+		/// <summary>追従演出用にLoop Effect全体の基準位置を更新します。</summary>
 		bool SetLoopPosition(PlayHandle handle, const Vector3& worldPosition)
 		{
-			const auto handleIt = handleToEffect_.find(handle.id);
-			if (handleIt == handleToEffect_.end())
+			const auto instanceIt = activeLoops_.find(handle.id);
+			if (instanceIt == activeLoops_.end())
 			{
 				return false;
 			}
 
-			const auto effectIt = effects_.find(handleIt->second);
-			const auto loopIt = activeLoops_.find(handleIt->second);
-			if (effectIt == effects_.end() || loopIt == activeLoops_.end())
+			const auto effectIt = compiledEffects_.find(instanceIt->second.effectName);
+			if (effectIt == compiledEffects_.end())
 			{
 				return false;
 			}
 
 			GpuParticleManager* manager = GpuParticleManager::GetInstance();
-			const GpuParticleEffectDesc& effect = effectIt->second;
+			const GpuParticleCompiledEffect& effect = effectIt->second;
 			for (std::size_t index = 0; index < effect.emitters.size(); ++index)
 			{
-				const GpuParticleEmitterDesc& desc = effect.emitters[index];
-				if (desc.renderType != GpuParticleRenderType::Sprite)
+				const GpuParticleCompiledEmitter& emitterDesc = effect.emitters[index];
+				if (!IsEmitterSupported(emitterDesc))
 				{
 					continue;
 				}
 
-				if (GpuParticleEmitter* emitter = manager->GetEmitter(BuildEmitterName(effect.effectName, desc, index, true)))
+				const std::string emitterName = BuildEmitterName(
+					effect.name, emitterDesc, index, true, handle.id);
+				if (GpuParticleEmitter* emitter = manager->GetEmitter(emitterName))
 				{
-					emitter->SetPosition(Add(worldPosition, desc.position));
+					emitter->SetPosition(Add(worldPosition, emitterDesc.localPosition));
 				}
 			}
 			return true;
@@ -271,12 +291,35 @@ namespace Ken4lowEngine
 
 		[[nodiscard]] bool IsRegistered(const std::string& effectName) const
 		{
-			return effects_.contains(effectName);
+			return compiledEffects_.contains(effectName);
 		}
 
 		[[nodiscard]] bool IsLooping(const std::string& effectName) const
 		{
-			return activeLoops_.contains(effectName);
+			for (const auto& [handleId, instance] : activeLoops_)
+			{
+				(void)handleId;
+				if (instance.effectName == effectName)
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		[[nodiscard]] std::size_t GetRegisteredEffectCount() const
+		{
+			return compiledEffects_.size();
+		}
+
+		[[nodiscard]] std::size_t GetActiveLoopCount() const
+		{
+			return activeLoops_.size();
+		}
+
+		[[nodiscard]] bool WasLastOperationSuccessful() const
+		{
+			return lastOperationSucceeded_;
 		}
 
 		[[nodiscard]] const std::string& GetLastStatus() const
@@ -292,12 +335,14 @@ namespace Ken4lowEngine
 			std::vector<std::string> emitterNames;
 		};
 
+		static constexpr uint32_t kBurstEmitterPoolSize = 8;
+
 		GpuParticleEffectRuntime() = default;
 
-		[[nodiscard]] const GpuParticleEffectDesc* FindEffect(const std::string& effectName)
+		[[nodiscard]] const GpuParticleCompiledEffect* FindEffect(const std::string& effectName)
 		{
-			const auto it = effects_.find(effectName);
-			if (it == effects_.end())
+			const auto it = compiledEffects_.find(effectName);
+			if (it == compiledEffects_.end())
 			{
 				SetStatus(false, "Effect is not registered: " + effectName);
 				return nullptr;
@@ -307,26 +352,27 @@ namespace Ken4lowEngine
 
 		GpuParticleEmitter* EnsureEmitter(
 			const std::string& effectName,
-			const GpuParticleEmitterDesc& desc,
+			const GpuParticleCompiledEmitter& emitterDesc,
 			std::size_t emitterIndex,
 			const Vector3& worldPosition,
-			bool loopMode)
+			bool loopMode,
+			uint32_t instanceId)
 		{
-			if (!IsSpawnShapeSupported(desc.spawnShape))
+			if (!IsEmitterSupported(emitterDesc))
 			{
-				SetStatus(false, "Runtime currently supports Point/Sphere/Box spawn shapes only. emitter=" + desc.name);
 				return nullptr;
 			}
 
 			GpuParticleManager* manager = GpuParticleManager::GetInstance();
-			const std::string emitterName = BuildEmitterName(effectName, desc, emitterIndex, loopMode);
+			const std::string emitterName = BuildEmitterName(
+				effectName, emitterDesc, emitterIndex, loopMode, instanceId);
 			if (GpuParticleEmitter* existing = manager->GetEmitter(emitterName))
 			{
-				existing->SetPosition(Add(worldPosition, desc.position));
+				existing->SetPosition(Add(worldPosition, emitterDesc.localPosition));
 				return existing;
 			}
 
-			GpuParticleEmitter::EmitterInfo info = CompileEmitterInfo(desc, loopMode);
+			GpuParticleEmitter::EmitterInfo info = CompileEmitterInfo(emitterDesc, loopMode);
 			GpuParticleEmitter* emitter = manager->CreateRuntimeEmitter(emitterName, info);
 			if (!emitter)
 			{
@@ -334,55 +380,62 @@ namespace Ken4lowEngine
 				return nullptr;
 			}
 
-			emitter->SetPosition(Add(worldPosition, desc.position));
+			emitter->SetPosition(Add(worldPosition, emitterDesc.localPosition));
 			return emitter;
 		}
 
-		static GpuParticleEmitter::EmitterInfo CompileEmitterInfo(const GpuParticleEmitterDesc& desc, bool loopMode)
+		static GpuParticleEmitter::EmitterInfo CompileEmitterInfo(
+			const GpuParticleCompiledEmitter& emitterDesc,
+			bool loopMode)
 		{
 			GpuParticleEmitter::EmitterInfo info{};
-			info.textureFilePath = desc.texturePath.empty() ? "Effects/white.dds" : desc.texturePath;
-			info.radius = (std::max)(desc.spawnRadius, 0.0f);
+			info.textureFilePath = emitterDesc.render.texturePath.empty()
+				? "Effects/white.dds" : emitterDesc.render.texturePath;
+			info.radius = (std::max)(emitterDesc.spawn.radius, 0.0f);
 			info.drawType = 0;
 			info.kind = GpuParticleKind::Sprite;
 			info.spriteType = GpuParticleType::Default;
-			info.billboardFlags = desc.billboard ? BillboardMode::Camera : BillboardMode::None;
+			info.billboardFlags = emitterDesc.render.billboard ? BillboardMode::Camera : BillboardMode::None;
 			info.lifeScale = 1.0f;
 			info.speedScale = 1.0f;
 			info.useDescSpawnOverride = true;
-			info.maxParticles = (std::max)(desc.maxParticles, 1u);
-			info.positionRandom = desc.positionRandom;
-			info.velocity = desc.velocity;
-			info.velocityRandom = desc.velocityRandom;
-			info.startSize = desc.startSize;
-			info.endSize = desc.endSize;
-			info.startColor = desc.startColor;
-			info.endColor = desc.endColor;
-			info.lifeTime = (std::max)(desc.lifeTime, 0.01f);
-			info.lifeTimeRandom = (std::max)(desc.lifeTimeRandom, 0.0f);
-			info.gravity = desc.gravity;
-			info.damping = (std::max)(desc.damping, 0.0f);
-			info.speed = (std::max)(desc.speed, 0.0f);
-			info.speedRandom = (std::max)(desc.speedRandom, 0.0f);
-			info.sizeRandom = (std::max)(desc.sizeRandom, 0.0f);
-			info.startRotation = desc.startRotation;
-			info.rotationSpeed = desc.rotationSpeed;
-			info.rotationRandom = (std::max)(desc.rotationRandom, 0.0f);
-			info.spawnShape = static_cast<uint32_t>(desc.spawnShape);
-			info.spawnRadius = (std::max)(desc.spawnRadius, 0.0f);
-			info.spawnBoxSize = desc.spawnBoxSize;
-			info.colorRandom = desc.colorRandom;
-			info.alphaFade = desc.alphaFade;
-			info.startScale3D = desc.startScale3D;
-			info.endScale3D = desc.endScale3D;
-			info.useSpriteSheet = desc.useSpriteSheet;
-			info.spriteSheetRows = static_cast<uint32_t>((std::max)(desc.spriteSheetRows, 1));
-			info.spriteSheetColumns = static_cast<uint32_t>((std::max)(desc.spriteSheetColumns, 1));
-			info.spriteSheetFrameRate = (std::max)(desc.spriteSheetFrameRate, 0.0f);
 
-			if (loopMode && desc.loop && desc.spawnRate > 0.0f)
+			// Moduleごとの責務から既存EmitterInfoへ集約し、GPUバックエンドは変更せずAuthoring構造だけを分離する。
+			info.maxParticles = (std::max)(emitterDesc.emission.maxParticles, 1u);
+			info.positionRandom = emitterDesc.spawn.positionRandom;
+			info.velocity = emitterDesc.spawn.velocity;
+			info.velocityRandom = emitterDesc.spawn.velocityRandom;
+			info.lifeTime = (std::max)(emitterDesc.spawn.lifeTime, 0.01f);
+			info.lifeTimeRandom = (std::max)(emitterDesc.spawn.lifeTimeRandom, 0.0f);
+			info.speed = (std::max)(emitterDesc.spawn.speed, 0.0f);
+			info.speedRandom = (std::max)(emitterDesc.spawn.speedRandom, 0.0f);
+			info.spawnShape = static_cast<uint32_t>(emitterDesc.spawn.shape);
+			info.spawnRadius = (std::max)(emitterDesc.spawn.radius, 0.0f);
+			info.spawnBoxSize = emitterDesc.spawn.boxSize;
+
+			info.startSize = emitterDesc.update.startSize;
+			info.endSize = emitterDesc.update.endSize;
+			info.sizeRandom = (std::max)(emitterDesc.update.sizeRandom, 0.0f);
+			info.startColor = emitterDesc.update.startColor;
+			info.endColor = emitterDesc.update.endColor;
+			info.colorRandom = emitterDesc.update.colorRandom;
+			info.alphaFade = emitterDesc.update.alphaFade;
+			info.gravity = emitterDesc.update.gravity;
+			info.damping = (std::max)(emitterDesc.update.damping, 0.0f);
+			info.startRotation = emitterDesc.update.startRotation;
+			info.rotationSpeed = emitterDesc.update.rotationSpeed;
+			info.rotationRandom = (std::max)(emitterDesc.update.rotationRandom, 0.0f);
+			info.startScale3D = emitterDesc.update.startScale3D;
+			info.endScale3D = emitterDesc.update.endScale3D;
+
+			info.useSpriteSheet = emitterDesc.render.useSpriteSheet;
+			info.spriteSheetRows = static_cast<uint32_t>((std::max)(emitterDesc.render.spriteSheetRows, 1));
+			info.spriteSheetColumns = static_cast<uint32_t>((std::max)(emitterDesc.render.spriteSheetColumns, 1));
+			info.spriteSheetFrameRate = (std::max)(emitterDesc.render.spriteSheetFrameRate, 0.0f);
+
+			if (loopMode && emitterDesc.emission.loop && emitterDesc.emission.spawnRate > 0.0f)
 			{
-				const auto [loopCount, loopFrequency] = BuildLoopSchedule(desc.spawnRate);
+				const auto [loopCount, loopFrequency] = BuildLoopSchedule(emitterDesc.emission.spawnRate);
 				info.loopCount = loopCount;
 				info.loopFrequency = loopFrequency;
 			}
@@ -391,7 +444,6 @@ namespace Ken4lowEngine
 				info.loopCount = 0;
 				info.loopFrequency = 0.0f;
 			}
-
 			return info;
 		}
 
@@ -404,20 +456,28 @@ namespace Ken4lowEngine
 
 			if (spawnRate < 10.0f)
 			{
-				// 低レートでは1粒ずつ発生させ、秒間発生数をそのまま周期へ変換する。
 				return { 1u, 1.0f / spawnRate };
 			}
 
 			constexpr float kHighRateTick = 0.10f;
-			const uint32_t count = (std::max)(1u, static_cast<uint32_t>(std::lround(spawnRate * kHighRateTick)));
+			const uint32_t count = (std::max)(
+				1u, static_cast<uint32_t>(std::lround(spawnRate * kHighRateTick)));
 			return { count, kHighRateTick };
 		}
 
-		static bool IsSpawnShapeSupported(GpuParticleSpawnShape shape)
+		static bool IsEmitterSupported(const GpuParticleCompiledEmitter& emitterDesc)
 		{
-			return shape == GpuParticleSpawnShape::Point ||
-				shape == GpuParticleSpawnShape::Sphere ||
-				shape == GpuParticleSpawnShape::Box;
+			if (emitterDesc.render.renderType != GpuParticleRenderType::Sprite)
+			{
+				return false;
+			}
+			if (emitterDesc.render.blendMode != GpuParticleBlendMode::Alpha)
+			{
+				return false;
+			}
+			return emitterDesc.spawn.shape == GpuParticleSpawnShape::Point ||
+				emitterDesc.spawn.shape == GpuParticleSpawnShape::Sphere ||
+				emitterDesc.spawn.shape == GpuParticleSpawnShape::Box;
 		}
 
 		static Vector3 Add(const Vector3& lhs, const Vector3& rhs)
@@ -427,13 +487,15 @@ namespace Ken4lowEngine
 
 		static std::string BuildEmitterName(
 			const std::string& effectName,
-			const GpuParticleEmitterDesc& desc,
+			const GpuParticleCompiledEmitter& emitterDesc,
 			std::size_t emitterIndex,
-			bool loopMode)
+			bool loopMode,
+			uint32_t instanceId)
 		{
 			std::string result = loopMode ? "RuntimeAssetLoop_" : "RuntimeAssetBurst_";
 			result += SanitizeName(effectName);
-			result += "_" + std::to_string(emitterIndex) + "_" + SanitizeName(desc.name);
+			result += "_" + std::to_string(instanceId);
+			result += "_" + std::to_string(emitterIndex) + "_" + SanitizeName(emitterDesc.name);
 			return result;
 		}
 
@@ -450,25 +512,43 @@ namespace Ken4lowEngine
 			return result.empty() ? "Effect" : result;
 		}
 
-		void RemoveCachedEmitters(const std::string& effectName)
+		void RemoveEffectEmitters(const std::string& effectName)
 		{
 			GpuParticleManager* manager = GpuParticleManager::GetInstance();
-			const auto effectIt = effects_.find(effectName);
-			if (effectIt != effects_.end())
+			const auto effectIt = compiledEffects_.find(effectName);
+			if (effectIt != compiledEffects_.end())
 			{
-				for (std::size_t index = 0; index < effectIt->second.emitters.size(); ++index)
+				for (std::size_t emitterIndex = 0; emitterIndex < effectIt->second.emitters.size(); ++emitterIndex)
 				{
-					const GpuParticleEmitterDesc& desc = effectIt->second.emitters[index];
-					manager->RemoveEmitter(BuildEmitterName(effectName, desc, index, false));
-					manager->RemoveEmitter(BuildEmitterName(effectName, desc, index, true));
+					const GpuParticleCompiledEmitter& emitterDesc = effectIt->second.emitters[emitterIndex];
+					for (uint32_t slot = 0; slot < kBurstEmitterPoolSize; ++slot)
+					{
+						manager->RemoveEmitter(BuildEmitterName(
+							effectName, emitterDesc, emitterIndex, false, slot));
+					}
 				}
 			}
 
-			const auto loopIt = activeLoops_.find(effectName);
-			if (loopIt != activeLoops_.end())
+			std::vector<uint32_t> loopHandles;
+			for (const auto& [handleId, instance] : activeLoops_)
 			{
-				handleToEffect_.erase(loopIt->second.handle.id);
-				activeLoops_.erase(loopIt);
+				if (instance.effectName == effectName)
+				{
+					loopHandles.push_back(handleId);
+				}
+			}
+			for (const uint32_t handleId : loopHandles)
+			{
+				const auto instanceIt = activeLoops_.find(handleId);
+				if (instanceIt == activeLoops_.end())
+				{
+					continue;
+				}
+				for (const std::string& emitterName : instanceIt->second.emitterNames)
+				{
+					manager->RemoveEmitter(emitterName);
+				}
+				activeLoops_.erase(instanceIt);
 			}
 		}
 
@@ -487,10 +567,10 @@ namespace Ken4lowEngine
 			lastStatus_ = std::move(message);
 		}
 
-		std::unordered_map<std::string, GpuParticleEffectDesc> effects_;
+		std::unordered_map<std::string, GpuParticleCompiledEffect> compiledEffects_;
 		std::unordered_map<std::string, std::string> sourcePaths_;
-		std::unordered_map<std::string, LoopInstance> activeLoops_;
-		std::unordered_map<uint32_t, std::string> handleToEffect_;
+		std::unordered_map<std::string, uint32_t> nextBurstSlotByEffect_;
+		std::unordered_map<uint32_t, LoopInstance> activeLoops_;
 		uint32_t nextHandleId_ = 1;
 		bool lastOperationSucceeded_ = true;
 		std::string lastStatus_ = "Ready";
