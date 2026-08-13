@@ -25,6 +25,24 @@ RWStructuredBuffer<uint> gIndirectDrawArgs : register(u2);
 static const uint GPU_PARTICLE_INVALID_INDEX = 0xFFFFFFFFu;
 static const float GPU_PARTICLE_SORT_SENTINEL = 3.402823466e+38f;
 
+uint ResolveSortCapacity()
+{
+    uint visibleCount = min(gIndirectDrawArgs[1], gSort.maxParticles);
+    if (visibleCount <= 1u)
+    {
+        return 1u;
+    }
+
+    // Visible countの次の2冪だけを有効networkにして、疎なAlpha Effectで無駄なcompareを抑える。
+    uint value = visibleCount - 1u;
+    value |= value >> 1u;
+    value |= value >> 2u;
+    value |= value >> 4u;
+    value |= value >> 8u;
+    value |= value >> 16u;
+    return min(value + 1u, gSort.maxParticles);
+}
+
 float ResolveSortKey(uint particleIndex)
 {
     if (particleIndex == GPU_PARTICLE_INVALID_INDEX)
@@ -67,14 +85,15 @@ bool IsLess(uint leftParticleIndex, uint rightParticleIndex)
 [numthreads(256, 1, 1)]
 void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
+    uint sortCapacity = ResolveSortCapacity();
     uint index = dispatchThreadId.x;
-    if (index >= gSort.maxParticles)
+    if (gSort.sortLevel > sortCapacity || index >= sortCapacity)
     {
         return;
     }
 
     uint partnerIndex = index ^ gSort.sortLevelMask;
-    if (partnerIndex <= index || partnerIndex >= gSort.maxParticles)
+    if (partnerIndex <= index || partnerIndex >= sortCapacity)
     {
         return;
     }
