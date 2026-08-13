@@ -45,7 +45,6 @@ void GpuParticleSpritePipeline::CreatePSO(BlendMode blendMode)
 {
 	HRESULT hr{};
 
-	// 入力レイアウト（ParticleMeshのVBに合わせる）
 	D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
 	inputElementDescs[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT,  0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 	inputElementDescs[1] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,        0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
@@ -58,7 +57,6 @@ void GpuParticleSpritePipeline::CreatePSO(BlendMode blendMode)
 	// AuthoringのBlendModeごとにPSOを分離し、同一シェーダーでも合成方法だけを安全に切り替える。
 	const D3D12_RENDER_TARGET_BLEND_DESC blendDesc = BlendStateFactory::GetInstance()->GetBlendDesc(blendMode);
 
-	// Rasterizer
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
 	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
@@ -83,7 +81,6 @@ void GpuParticleSpritePipeline::CreatePSO(BlendMode blendMode)
 		dxCommon_->GetDXCCompilerManager());
 	assert(ps != nullptr);
 
-	// Depth（テストON・書き込みOFF）
 	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
 	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
@@ -96,14 +93,11 @@ void GpuParticleSpritePipeline::CreatePSO(BlendMode blendMode)
 	desc.PS = { ps->GetBufferPointer(), ps->GetBufferSize() };
 	desc.BlendState.RenderTarget[0] = blendDesc;
 	desc.RasterizerState = rasterizerDesc;
-
 	desc.NumRenderTargets = 1;
 	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-
 	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	desc.SampleDesc.Count = 1;
 	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
 	desc.DepthStencilState = depthStencilDesc;
 	desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
@@ -125,33 +119,27 @@ void GpuParticleSpritePipeline::CreateRootSignature()
 	D3D12_ROOT_SIGNATURE_DESC rsDesc{};
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-	// SRV Table（t0 を 1つ）
 	D3D12_DESCRIPTOR_RANGE srvRange[1]{};
 	srvRange[0].BaseShaderRegister = 0;
 	srvRange[0].NumDescriptors = 1;
 	srvRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	srvRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	// RootParameters
 	D3D12_ROOT_PARAMETER params[4]{};
 
-	// b0 : PerView / シミュレーション定数（全部のシェーダ）
 	params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	params[0].Descriptor.ShaderRegister = 0;
 
-	// t0 : Particle SRV（VS）
 	params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	params[1].DescriptorTable.NumDescriptorRanges = _countof(srvRange);
 	params[1].DescriptorTable.pDescriptorRanges = srvRange;
 
-	// b1 : Material（PS）
 	params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL; // VSでもrenderGroup/dead判定を行い、不要粒子をラスタライズ前に除外する。
 	params[2].Descriptor.ShaderRegister = 1;
 
-	// t0 : Texture SRV（PS）
 	params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	params[3].DescriptorTable.NumDescriptorRanges = _countof(srvRange);
@@ -160,7 +148,6 @@ void GpuParticleSpritePipeline::CreateRootSignature()
 	rsDesc.pParameters = params;
 	rsDesc.NumParameters = _countof(params);
 
-	// Static Sampler
 	D3D12_STATIC_SAMPLER_DESC samplers[1]{};
 	samplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
 	samplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
