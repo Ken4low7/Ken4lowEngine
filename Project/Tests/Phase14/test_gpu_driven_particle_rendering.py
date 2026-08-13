@@ -11,9 +11,13 @@ RENDERER_HEADER = GPU_ROOT / "Renderer" / "GpuParticleRenderer.h"
 RENDERER_SOURCE = GPU_ROOT / "Renderer" / "GpuParticleRenderer.cpp"
 SPRITE_PIPELINE = GPU_ROOT / "Pipeline" / "GpuParticleSpritePipeline.cpp"
 MESH_PIPELINE = GPU_ROOT / "Pipeline" / "GpuParticleMeshPipeline.cpp"
+SHADER_MANIFEST = PROJECT_ROOT / "Engine" / "Graphics" / "Shader" / "Manifest" / "GpuParticleShaderManifest.h"
+UAV_HEADER = PROJECT_ROOT / "Engine" / "Graphics" / "Descriptor" / "UAV" / "UAVManager.h"
+UAV_SOURCE = PROJECT_ROOT / "Engine" / "Graphics" / "Descriptor" / "UAV" / "UAVManager.cpp"
 SPRITE_VS = SHADER_ROOT / "GpuParticle.VS.hlsl"
 MESH_VS = SHADER_ROOT / "GpuParticleMesh.VS.hlsl"
 COMPACT_CS = SHADER_ROOT / "GpuParticleCompact.CS.hlsl"
+SORT_CS = SHADER_ROOT / "GpuParticleSort.CS.hlsl"
 
 
 class GpuDrivenParticleRenderingTests(unittest.TestCase):
@@ -25,9 +29,13 @@ class GpuDrivenParticleRenderingTests(unittest.TestCase):
         cls.renderer_cpp = RENDERER_SOURCE.read_text(encoding="utf-8")
         cls.sprite_pipeline = SPRITE_PIPELINE.read_text(encoding="utf-8")
         cls.mesh_pipeline = MESH_PIPELINE.read_text(encoding="utf-8")
+        cls.manifest = SHADER_MANIFEST.read_text(encoding="utf-8")
+        cls.uav_h = UAV_HEADER.read_text(encoding="utf-8")
+        cls.uav_cpp = UAV_SOURCE.read_text(encoding="utf-8")
         cls.sprite_vs = SPRITE_VS.read_text(encoding="utf-8")
         cls.mesh_vs = MESH_VS.read_text(encoding="utf-8")
         cls.compact_cs = COMPACT_CS.read_text(encoding="utf-8")
+        cls.sort_cs = SORT_CS.read_text(encoding="utf-8")
 
     def test_gpu_buffers_hold_visible_indices_and_indirect_arguments(self) -> None:
         for token in (
@@ -42,7 +50,7 @@ class GpuDrivenParticleRenderingTests(unittest.TestCase):
         self.assertIn("D3D12_RESOURCE_STATE_UNORDERED_ACCESS", self.buffers_cpp)
 
     def test_compaction_filters_dead_and_other_render_groups(self) -> None:
-        # CPU reference keeps the intended stable visible-index contract readable beside the HLSL implementation.
+        # CPU reference keeps the intended visible-index contract readable beside the HLSL implementation.
         particles = [
             {"alive": True, "alpha": 1.0, "group": 7},
             {"alive": False, "alpha": 1.0, "group": 7},
@@ -86,6 +94,27 @@ class GpuDrivenParticleRenderingTests(unittest.TestCase):
 
         self.assertNotIn("commandList->DrawInstanced", self.renderer_cpp)
         self.assertNotIn("commandList->DrawIndexedInstanced", self.renderer_cpp)
+
+    def test_alpha_blend_uses_gpu_back_to_front_bitonic_sort(self) -> None:
+        # Farther positive NDC depth must appear first for conventional alpha blending.
+        depths = [(10, 0.2), (20, 0.9), (30, 0.5)]
+        self.assertEqual([index for index, _ in sorted(depths, key=lambda item: (-item[1], item[0]))], [20, 30, 10])
+
+        self.assertIn("SortVisibleParticlesByDepth", self.renderer_cpp)
+        self.assertIn("BlendMode::kBlendModeNormal", self.renderer_cpp)
+        self.assertIn("SetComputeRoot32BitConstants", self.renderer_cpp)
+        self.assertIn("sortLevelMask", self.sort_cs)
+        self.assertIn("partnerIndex = index ^ gSort.sortLevelMask", self.sort_cs)
+        self.assertIn("return -(clipPosition.z / clipPosition.w)", self.sort_cs)
+        self.assertIn("GPU_PARTICLE_INVALID_INDEX", self.sort_cs)
+        self.assertIn("GpuParticleComputeShaderId::SortCS", self.manifest)
+
+    def test_uav_clears_use_non_shader_visible_cpu_descriptor_mirror(self) -> None:
+        self.assertIn("clearCpuDescriptorHeap_", self.uav_h)
+        self.assertIn("D3D12_DESCRIPTOR_HEAP_FLAG_NONE", self.uav_cpp)
+        self.assertIn("MirrorUavDescriptorForClear", self.uav_cpp)
+        self.assertIn("GetClearCPUDescriptorHandle", self.renderer_cpp)
+        self.assertIn("D3D12_RESOURCE_BARRIER_TYPE_UAV", self.renderer_cpp)
 
     def test_resource_states_bridge_compute_to_graphics_and_indirect(self) -> None:
         self.assertIn("D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE", self.renderer_cpp)
