@@ -1,6 +1,6 @@
 #include "GpuParticleEffectEditor.h"
 #include "GpuParticleEffectSerializer.h"
-#include "GpuParticleEffectRuntime.h"
+#include "../Runtime/GpuParticleEffectRuntime.h"
 
 #ifdef USE_IMGUI
 #include <algorithm>
