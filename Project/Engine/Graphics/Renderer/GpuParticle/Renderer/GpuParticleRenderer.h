@@ -5,6 +5,9 @@
 #include "GpuParticleMeshPipeline.h"
 #include "BlendModeType.h"
 
+#include <cstdint>
+#include <vector>
+
 namespace Ken4lowEngine
 {
 
@@ -24,6 +27,22 @@ public:
 		uint64_t indirectDraws = 0;
 	};
 
+	struct GpuTimingMetric
+	{
+		float lastMs = 0.0f;
+		float averageMs = 0.0f;
+		float maxMs = 0.0f;
+		uint64_t sampleCount = 0;
+	};
+
+	struct GpuDrivenGpuTimings
+	{
+		GpuTimingMetric compaction{};
+		GpuTimingMetric alphaSort{};
+		GpuTimingMetric graphics{};
+		GpuTimingMetric total{};
+	};
+
 	void Initialize(GpuParticleSpritePipeline* pipeline, GpuParticleBuffers* buffers);
 
 	/// Manager互換の引数は残しつつ、Phase14ではGPU Compactionが実Instance数をIndirect Argsへ書き込む。
@@ -32,6 +51,11 @@ public:
 	/// Stress/Profiler側が区間単位でGPU Driven workloadを比較できるようCPU同期不要の発行統計だけを公開する。
 	void ResetGpuDrivenStatistics() { gpuDrivenStatistics_ = {}; }
 	const GpuDrivenStatistics& GetGpuDrivenStatistics() const { return gpuDrivenStatistics_; }
+	const GpuDrivenGpuTimings& GetGpuDrivenGpuTimings() const { return gpuDrivenGpuTimings_; }
+	bool IsGpuTimingAvailable() const { return gpuTimingAvailable_; }
+
+	/// Editor診断からManagerのprivate ownershipを崩さずProfiler snapshotへ到達するための参照です。
+	static GpuParticleRenderer* GetActiveRenderer() { return activeRenderer_; }
 
 public:
 	void SetTextureFilePath(const std::string& path);
@@ -46,7 +70,28 @@ private:
 	bool BuildVisibleParticleList(uint32_t primitiveCount, bool indexed);
 	void SortVisibleParticlesByDepth();
 
+	void InitializeGpuTiming();
+	void PrepareGpuTimingFrame();
+	void CollectGpuTiming(uint32_t frameIndex);
+	void BeginGpuTimingSample();
+	void WriteGpuTimingPoint(uint32_t pointIndex);
+	void EndGpuTimingSample();
+	void CancelGpuTimingSample();
+	void UpdateGpuTimingMetric(GpuTimingMetric& metric, float elapsedMs);
+	uint32_t GetGpuTimingFrameBaseQuery(uint32_t frameIndex) const;
+	uint32_t GetGpuTimingSampleBaseQuery(uint32_t frameIndex, uint32_t sampleIndex) const;
+
 private:
+	static constexpr uint32_t kGpuTimingQueriesPerSample = 4;
+	static constexpr uint32_t kGpuTimingMaxSamplesPerFrame = 256;
+	static constexpr uint32_t kInvalidGpuTimingSample = UINT32_MAX;
+
+	struct GpuTimingFrameState
+	{
+		uint32_t sampleCount = 0;
+		bool pendingResolve = false;
+	};
+
 	GpuParticleSpritePipeline* gpuParticlePipeline_ = nullptr;
 	GpuParticleBuffers* gpuParticleBuffers_ = nullptr;
 	std::unique_ptr<ParticleMesh> particleMesh_;
@@ -63,8 +108,21 @@ private:
 	uint32_t shaderRenderGroup_ = 0;
 	GpuDrivenStatistics gpuDrivenStatistics_{};
 
+	// Timestamp readbackはFrameResource再利用時だけ読むため、Profilerを有効にしてもGPU待機を追加しない。
+	ComPtr<ID3D12QueryHeap> gpuTimestampHeap_;
+	ComPtr<ID3D12Resource> gpuTimestampReadback_;
+	std::vector<GpuTimingFrameState> gpuTimingFrameStates_{};
+	GpuDrivenGpuTimings gpuDrivenGpuTimings_{};
+	uint64_t gpuTimestampFrequency_ = 0;
+	uint32_t gpuTimingFrameResourceCount_ = 0;
+	uint32_t currentGpuTimingFrameIndex_ = UINT32_MAX;
+	uint32_t activeGpuTimingSample_ = kInvalidGpuTimingSample;
+	bool gpuTimingAvailable_ = false;
+
 	std::string textureFilePath_ = "Effects/circle2.dds";
 	BlendMode blendMode_ = BlendMode::kBlendModeAdd;
+
+	inline static GpuParticleRenderer* activeRenderer_ = nullptr;
 };
 
 } // namespace Ken4lowEngine
