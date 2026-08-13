@@ -14,43 +14,28 @@
 namespace Ken4lowEngine
 {
 
-/// -------------------------------------------------------------
-///			　	GPUパーティクルエミッタークラス
-/// -------------------------------------------------------------
 class GpuParticleEmitter
 {
-public: /// ---------- 構造体 ---------- ///
-
-	/// エミッター情報構造体
+public:
 	struct EmitterInfo
 	{
 		std::string textureFilePath;
 		float radius = 0.0f;
 
-		// ループ発生（定期発生）
+		// 定期発生。loopForever=falseならemissionDurationで自動停止する。
 		uint32_t loopCount = 0;
 		float loopFrequency = 0.0f;
+		bool loopForever = true;
+		float emissionDuration = 0.0f;
 
-		// 描画ID（0ならtypeを使う）
 		uint32_t drawType = 0;
-
-		// ★差別化の核：モード（Sprite / Ribbon など）
 		GpuParticleKind kind = GpuParticleKind::Sprite;
-
-		// ★Sprite用：21タイプ（DefaultはUIに出さない運用）
 		GpuParticleType spriteType = GpuParticleType::Default;
-
-		// ★Ribbon用：リボンタイプ（UIで別枠にする）
 		GpuRibbonType ribbonType = GpuRibbonType::Trail;
-
-		// ★下位16bitのフラグ（Camera/YAxis など）
 		BillboardMode billboardFlags = BillboardMode::Camera;
-
-		// 攻撃ヒットなど同一タイプ内の差別化用に、寿命と初速度だけエミッター単位で上書きする。
 		float lifeScale = 1.0f;
 		float speedScale = 1.0f;
 
-		// Authoring DescをGPU生成値へ直接渡し、既存Type Preset経路とは独立して演出を組めるようにする。
 		bool useDescSpawnOverride = false;
 		uint32_t maxParticles = (std::numeric_limits<uint32_t>::max)();
 		Vector3 positionRandom{};
@@ -106,59 +91,48 @@ public: /// ---------- 構造体 ---------- ///
 		Vector3 angularVelocityRandom{};
 	};
 
-public: /// ---------- メンバ関数 ---------- ///
-
-	/// <summary>
-	/// エミッターのコンストラクタ。<br/>
-	/// 名前と基本設定（EmitterInfo）を受け取り、ループタイマーや累積発生数を初期化します。
-	/// </summary>
-	/// <param name="name">エミッター名（識別用のキー）</param>
-	/// <param name="info">エミッターの基本設定</param>
+public:
 	GpuParticleEmitter(const std::string& name, const EmitterInfo& info);
-
-	/// <summary>
-	/// 1 フレーム分の「追加バースト発生」をリクエストします。<br/>
-	/// 引数 count を pendingBurstCount_ に加算するだけで、実際のエミットは BuildCB() を通じて行われます。<br/>
-	/// Update() 側から複数回呼ばれても、そのフレーム内で合算されて利用されます。
-	/// </summary>
-	/// <param name="count">このフレームに追加で発生させたいパーティクル数</param>
-	/// <returns>maxParticlesと発生待ち数を考慮して、Runtimeが実際に受理した数。</returns>
 	uint32_t RequestEmit(uint32_t count);
-
-	/// 発生済み粒子が残っている間だけ描画するための軽量更新。
 	void UpdateActivity(float deltaTime);
-
-	/// <summary>
-	/// 定期発射（ループ）とバースト発生をまとめて処理し、GPU に渡すエミッター用 CB データを構築します。
-	/// </summary>
 	bool BuildCB(GpuEmitterCBData& out, float deltaTime);
 
-public: /// ---------- セッター ---------- ///
+	/// Burst pool再利用時に有限Emissionの経過時間だけを初期化し、既存生存Particleには触れない。
+	void ResetEmissionSchedule()
+	{
+		loopTimer_ = 0.0f;
+		emissionElapsed_ = 0.0f;
+	}
 
-	/// <summary>エミッターのワールド座標を設定します。</summary>
+public:
 	void SetPosition(const Vector3& position) { position_ = position; }
 
-public: /// ---------- ゲッター ---------- ///
-
+public:
 	const std::string& GetName() const { return name_; }
 	const EmitterInfo& GetInfo() const { return info_; }
 
-	// 描画に使うID（0なら type を返す）
 	uint32_t GetDrawType() const
 	{
 		const uint32_t effectiveType = GetEffectiveType();
 		return (info_.drawType != 0) ? info_.drawType : effectiveType;
 	}
 
-	// Runtime Parameter反映とImGui編集で共通利用する。
 	EmitterInfo& GetInfoMutable() { return info_; }
-
 	const Vector3 GetPosition() const { return position_; }
 	uint32_t GetEstimatedActiveParticleCount() const { return estimatedActiveParticleCount_; }
-	bool HasActiveParticles() const { return estimatedActiveParticleCount_ > 0 || pendingBurstCount_ > 0; }
 
-private: /// ---------- プライベート関数 ---------- ///
+	bool HasEmissionSchedule() const
+	{
+		if (info_.loopCount == 0 || info_.loopFrequency <= 0.0f) return false;
+		return info_.loopForever || emissionElapsed_ < info_.emissionDuration;
+	}
 
+	bool HasActiveParticles() const
+	{
+		return estimatedActiveParticleCount_ > 0 || pendingBurstCount_ > 0 || HasEmissionSchedule();
+	}
+
+private:
 	static constexpr uint32_t ToU32(BillboardMode m) { return static_cast<uint32_t>(m); }
 
 	uint32_t GetEffectiveType() const
@@ -171,7 +145,6 @@ private: /// ---------- プライベート関数 ---------- ///
 		{
 			return static_cast<uint32_t>(ToGpuParticleType(info_.ribbonType));
 		}
-
 		return static_cast<uint32_t>(info_.spriteType);
 	}
 
@@ -181,12 +154,12 @@ private: /// ---------- プライベート関数 ---------- ///
 		return PackBillboardMode(info_.kind, flags);
 	}
 
-private: /// ---------- メンバ変数 ---------- ///
-
+private:
 	std::string name_;
 	EmitterInfo info_;
 	Vector3 position_{ 0.0f, 0.0f, 0.0f };
 	float loopTimer_ = 0.0f;
+	float emissionElapsed_ = 0.0f;
 	uint32_t pendingBurstCount_ = 0;
 
 	struct ActiveBatch
