@@ -14,4 +14,7 @@ struct VertexShaderOutput
     nointerpolation uint animFlags : TEXCOORD7;
     nointerpolation uint startFrame : TEXCOORD8;
     nointerpolation float animSpeed : TEXCOORD9;
+
+    // Texture/MeshとBlendを含む描画グループでPixel ShaderのMaterialを正しく選別する。
+    nointerpolation uint renderGroup : TEXCOORD10;
 };
