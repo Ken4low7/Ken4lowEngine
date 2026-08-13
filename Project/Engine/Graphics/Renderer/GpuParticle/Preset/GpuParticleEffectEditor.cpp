@@ -1,5 +1,6 @@
 #include "GpuParticleEffectEditor.h"
 #include "GpuParticleEffectSerializer.h"
+#include "GpuParticleEffectRuntime.h"
 
 #ifdef USE_IMGUI
 #include <algorithm>
@@ -37,22 +38,27 @@ namespace Ken4lowEngine
 				0,
 				static_cast<int>(effect.emitters.size()) - 1);
 		}
+
+		bool RegisterPreviewEffect(
+			GpuParticleEffectDesc& effect,
+			std::string& statusMessage,
+			bool& lastOperationSucceeded)
+		{
+			GpuParticleEffectRuntime* runtime = GpuParticleEffectRuntime::GetInstance();
+			lastOperationSucceeded = runtime->RegisterEffect(effect);
+			statusMessage = runtime->GetLastStatus();
+			return lastOperationSucceeded;
+		}
 	}
 #endif
 
 	void DrawEmitterDescImGui(GpuParticleEmitterDesc& desc)
 	{
 #ifdef USE_IMGUI
-		// 基本情報とEmitterの生成期間・寿命を調整するセクション。
-		if (ImGui::CollapsingHeader("Basic", ImGuiTreeNodeFlags_DefaultOpen))
+		// Emission ModuleはEmitterの生成数・生成周期・寿命の上限だけを編集する。
+		if (ImGui::CollapsingHeader("Emission Module", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			DrawStringInput("Name", desc.name);
-			int renderType = static_cast<int>(desc.renderType);
-			const char* renderTypeNames[] = { "Sprite", "Mesh" };
-			if (ImGui::Combo("Render Type", &renderType, renderTypeNames, IM_ARRAYSIZE(renderTypeNames)))
-				desc.renderType = static_cast<GpuParticleRenderType>(renderType);
-			DrawStringInput("Texture Path", desc.texturePath);
-			DrawStringInput("Mesh Path", desc.meshPath);
 			int maxParticles = static_cast<int>((std::min)(desc.maxParticles, 1000000u));
 			if (ImGui::DragInt("Max Particles", &maxParticles, 1.0f, 0, 1000000))
 				desc.maxParticles = static_cast<uint32_t>((std::max)(maxParticles, 0));
@@ -62,12 +68,10 @@ namespace Ken4lowEngine
 			int burstCount = static_cast<int>((std::min)(desc.burstCount, 100000u));
 			if (ImGui::DragInt("Burst Count", &burstCount, 1.0f, 0, 100000))
 				desc.burstCount = static_cast<uint32_t>((std::max)(burstCount, 0));
-			ImGui::DragFloat("Life Time", &desc.lifeTime, 0.01f, 0.01f, 3600.0f);
-			ImGui::DragFloat("Life Time Random", &desc.lifeTimeRandom, 0.01f, 0.0f, 3600.0f);
 		}
 
-		// 発生位置とPoint/Sphere/Box分布を調整するセクション。
-		if (ImGui::CollapsingHeader("Spawn", ImGuiTreeNodeFlags_DefaultOpen))
+		// Spawn Moduleは生成位置・形状・寿命・初速度だけを担当する。
+		if (ImGui::CollapsingHeader("Spawn Module", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			ImGui::DragFloat3("Position", &desc.position.x, 0.01f);
 			ImGui::DragFloat3("Position Random", &desc.positionRandom.x, 0.01f);
@@ -77,41 +81,33 @@ namespace Ken4lowEngine
 				desc.spawnShape = static_cast<GpuParticleSpawnShape>(spawnShape);
 			ImGui::DragFloat("Spawn Radius", &desc.spawnRadius, 0.01f, 0.0f, 10000.0f);
 			ImGui::DragFloat3("Spawn Box Size", &desc.spawnBoxSize.x, 0.01f, 0.0f, 10000.0f);
-		}
-
-		// 初速度、速さ、重力、減衰を調整するセクション。
-		if (ImGui::CollapsingHeader("Velocity / Physics", ImGuiTreeNodeFlags_DefaultOpen))
-		{
+			ImGui::DragFloat("Life Time", &desc.lifeTime, 0.01f, 0.01f, 3600.0f);
+			ImGui::DragFloat("Life Time Random", &desc.lifeTimeRandom, 0.01f, 0.0f, 3600.0f);
 			ImGui::DragFloat3("Velocity", &desc.velocity.x, 0.01f);
 			ImGui::DragFloat3("Velocity Random", &desc.velocityRandom.x, 0.01f);
 			ImGui::DragFloat("Speed", &desc.speed, 0.01f, 0.0f, 10000.0f);
 			ImGui::DragFloat("Speed Random", &desc.speedRandom, 0.01f, 0.0f, 10000.0f);
-			ImGui::DragFloat3("Gravity", &desc.gravity.x, 0.01f);
-			ImGui::DragFloat("Damping", &desc.damping, 0.01f, 0.0f, 1000.0f);
 		}
 
-		// Spriteの2DサイズとMeshの3Dスケールを調整するセクション。
-		if (ImGui::CollapsingHeader("Size", ImGuiTreeNodeFlags_DefaultOpen))
+		// Update Moduleは生成後の移動・サイズ・色・回転変化だけを担当する。
+		if (ImGui::CollapsingHeader("Update Module", ImGuiTreeNodeFlags_DefaultOpen))
 		{
+			ImGui::DragFloat3("Gravity", &desc.gravity.x, 0.01f);
+			ImGui::DragFloat("Damping", &desc.damping, 0.01f, 0.0f, 1000.0f);
+			ImGui::SeparatorText("Size");
 			ImGui::DragFloat2("Start Size", &desc.startSize.x, 0.01f, 0.0f, 10000.0f);
 			ImGui::DragFloat2("End Size", &desc.endSize.x, 0.01f, 0.0f, 10000.0f);
 			ImGui::DragFloat("Size Random", &desc.sizeRandom, 0.01f, 0.0f, 1.0f);
 			ImGui::DragFloat3("Start Scale 3D", &desc.startScale3D.x, 0.01f, 0.0f, 10000.0f);
 			ImGui::DragFloat3("End Scale 3D", &desc.endScale3D.x, 0.01f, 0.0f, 10000.0f);
-		}
 
-		// RGBAは内部値と同じ0.0～1.0のColorEdit4で編集する。
-		if (ImGui::CollapsingHeader("Color", ImGuiTreeNodeFlags_DefaultOpen))
-		{
+			ImGui::SeparatorText("Color");
 			ImGui::ColorEdit4("Start Color", &desc.startColor.x);
 			ImGui::ColorEdit4("End Color", &desc.endColor.x);
 			ImGui::ColorEdit4("Color Random", &desc.colorRandom.x);
 			ImGui::Checkbox("Alpha Fade", &desc.alphaFade);
-		}
 
-		// Sprite Z回転と将来のMesh 3軸回転を調整するセクション。
-		if (ImGui::CollapsingHeader("Rotation"))
-		{
+			ImGui::SeparatorText("Rotation");
 			ImGui::DragFloat("Start Rotation", &desc.startRotation, 0.01f);
 			ImGui::DragFloat("Rotation Speed", &desc.rotationSpeed, 0.01f);
 			ImGui::DragFloat("Rotation Random", &desc.rotationRandom, 0.01f, 0.0f, 1000.0f);
@@ -119,14 +115,22 @@ namespace Ken4lowEngine
 			ImGui::DragFloat3("Angular Velocity Random", &desc.angularVelocityRandom.x, 0.01f);
 		}
 
-		// Sprite専用の向き、合成、SpriteSheet設定。
-		if (ImGui::CollapsingHeader("Sprite"))
+		// Render Moduleは見た目と描画方式だけを担当し、Spawn/Updateの値を持たない。
+		if (ImGui::CollapsingHeader("Render Module", ImGuiTreeNodeFlags_DefaultOpen))
 		{
+			int renderType = static_cast<int>(desc.renderType);
+			const char* renderTypeNames[] = { "Sprite", "Mesh" };
+			if (ImGui::Combo("Render Type", &renderType, renderTypeNames, IM_ARRAYSIZE(renderTypeNames)))
+				desc.renderType = static_cast<GpuParticleRenderType>(renderType);
+			DrawStringInput("Texture Path", desc.texturePath);
+			DrawStringInput("Mesh Path", desc.meshPath);
 			ImGui::Checkbox("Billboard", &desc.billboard);
+
 			int blendMode = static_cast<int>(desc.blendMode);
 			const char* blendModeNames[] = { "Alpha", "Additive", "Multiply" };
 			if (ImGui::Combo("Blend Mode", &blendMode, blendModeNames, IM_ARRAYSIZE(blendModeNames)))
 				desc.blendMode = static_cast<GpuParticleBlendMode>(blendMode);
+
 			ImGui::Checkbox("Use Sprite Sheet", &desc.useSpriteSheet);
 			if (desc.useSpriteSheet)
 			{
@@ -134,18 +138,10 @@ namespace Ken4lowEngine
 				ImGui::DragInt("Sprite Sheet Columns", &desc.spriteSheetColumns, 1.0f, 1, 64);
 				ImGui::DragFloat("Sprite Sheet Frame Rate", &desc.spriteSheetFrameRate, 0.1f, 0.0f, 1000.0f);
 			}
-			else ImGui::TextDisabled("SpriteSheet parameters are disabled.");
-		}
-
-		// Mesh専用のモデル、テクスチャ、3Dスケール・回転設定。
-		if (ImGui::CollapsingHeader("Mesh"))
-		{
-			DrawStringInput("Mesh Path##MeshSection", desc.meshPath);
-			DrawStringInput("Texture Path##MeshSection", desc.texturePath);
-			ImGui::DragFloat3("Start Scale 3D##MeshSection", &desc.startScale3D.x, 0.01f, 0.0f, 10000.0f);
-			ImGui::DragFloat3("End Scale 3D##MeshSection", &desc.endScale3D.x, 0.01f, 0.0f, 10000.0f);
-			ImGui::DragFloat3("Angular Velocity##MeshSection", &desc.angularVelocity.x, 0.01f);
-			ImGui::DragFloat3("Angular Velocity Random##MeshSection", &desc.angularVelocityRandom.x, 0.01f);
+			else
+			{
+				ImGui::TextDisabled("SpriteSheet parameters are disabled.");
+			}
 		}
 #else
 		(void)desc;
@@ -160,6 +156,9 @@ namespace Ken4lowEngine
 		bool& lastOperationSucceeded)
 	{
 #ifdef USE_IMGUI
+		static Vector3 previewPosition{ 0.0f, 0.0f, 0.0f };
+		static GpuParticleEffectRuntime::PlayHandle previewLoopHandle{};
+
 		DrawStringInput("Effect Name", effect.effectName);
 		DrawStringInput("JSON Path", jsonPath);
 
@@ -189,6 +188,52 @@ namespace Ken4lowEngine
 		ImGui::TextColored(statusColor, "%s", statusMessage.c_str());
 		ImGui::Separator();
 
+		if (ImGui::CollapsingHeader("Runtime Preview", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			ImGui::DragFloat3("Preview Position", &previewPosition.x, 0.05f);
+
+			if (ImGui::Button("Preview Burst"))
+			{
+				if (RegisterPreviewEffect(effect, statusMessage, lastOperationSucceeded))
+				{
+					GpuParticleEffectRuntime* runtime = GpuParticleEffectRuntime::GetInstance();
+					lastOperationSucceeded = runtime->Play(effect.effectName, previewPosition);
+					statusMessage = runtime->GetLastStatus();
+				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Start Loop Preview"))
+			{
+				GpuParticleEffectRuntime* runtime = GpuParticleEffectRuntime::GetInstance();
+				if (previewLoopHandle.IsValid())
+				{
+					runtime->StopLoop(previewLoopHandle);
+					previewLoopHandle = {};
+				}
+				if (RegisterPreviewEffect(effect, statusMessage, lastOperationSucceeded))
+				{
+					previewLoopHandle = runtime->PlayLoop(effect.effectName, previewPosition);
+					lastOperationSucceeded = previewLoopHandle.IsValid();
+					statusMessage = runtime->GetLastStatus();
+				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Stop Loop Preview"))
+			{
+				GpuParticleEffectRuntime* runtime = GpuParticleEffectRuntime::GetInstance();
+				lastOperationSucceeded = previewLoopHandle.IsValid() && runtime->StopLoop(previewLoopHandle);
+				previewLoopHandle = {};
+				statusMessage = runtime->GetLastStatus();
+			}
+
+			if (previewLoopHandle.IsValid())
+			{
+				GpuParticleEffectRuntime::GetInstance()->SetLoopPosition(previewLoopHandle, previewPosition);
+				ImGui::TextDisabled("Loop Preview Handle: %u", previewLoopHandle.id);
+			}
+			ImGui::TextDisabled("Current runtime foundation supports Sprite + Alpha + Point/Sphere/Box.");
+		}
+
 		// Sprite用EmitterとMesh用Emitterを明確に分け、用途に合った既定値で追加する。
 		if (ImGui::Button("Add Sprite Emitter"))
 		{
@@ -215,7 +260,7 @@ namespace Ken4lowEngine
 		ImGui::Text("Emitter Count: %zu", effect.emitters.size());
 		ClampSelectedEmitterIndex(effect, selectedEmitterIndex);
 
-		ImGui::BeginChild("Emitter List", ImVec2(220.0f, 360.0f), true);
+		ImGui::BeginChild("Emitter List", ImVec2(220.0f, 480.0f), true);
 		ImGui::SeparatorText("Emitters");
 		for (size_t index = 0; index < effect.emitters.size(); ++index)
 		{
@@ -232,7 +277,7 @@ namespace Ken4lowEngine
 		ImGui::EndChild();
 
 		ImGui::SameLine();
-		ImGui::BeginChild("Selected Emitter", ImVec2(0.0f, 360.0f), true);
+		ImGui::BeginChild("Selected Emitter", ImVec2(0.0f, 480.0f), true);
 		if (selectedEmitterIndex >= 0 && selectedEmitterIndex < static_cast<int>(effect.emitters.size()))
 		{
 			ImGui::SeparatorText("Selected Emitter");
