@@ -11,21 +11,21 @@
 namespace Ken4lowEngine
 {
 
-// エミッターの球体情報
+// HLSL EmitterCBDataと同一順序で保持し、Runtime Authoring値をEmit Computeへ渡す。
 struct GpuEmitterCBData
 {
-	Vector3 translate;		// 位置
-	float radius;			// 半径
-	uint32_t count;			// 発生数
-	float frequency;		// 発生頻度
-	float frequencyTime;	// 発生頻度タイマー
-	uint32_t emit; 			// 発生フラグ
-	uint32_t type;			// エミッターの種類
-	uint32_t billboardMode; // ビルボードモード
-	float lifeScale = 1.0f;	// 寿命倍率
-	float speedScale = 1.0f;	// 初速度倍率
-	uint32_t overrideFlags = 0; // Desc由来の生成値上書きフラグ（0なら既存挙動）
-	uint32_t maxParticles = UINT32_MAX; // Emitter単位のCPU側発生上限
+	Vector3 translate;
+	float radius;
+	uint32_t count;
+	float frequency;
+	float frequencyTime;
+	uint32_t emit;
+	uint32_t type;
+	uint32_t billboardMode;
+	float lifeScale = 1.0f;
+	float speedScale = 1.0f;
+	uint32_t overrideFlags = 0;
+	uint32_t maxParticles = UINT32_MAX;
 	float overridePadding[2]{};
 	Vector3 positionRandom{};
 	float lifeTime = 1.0f;
@@ -58,6 +58,28 @@ struct GpuEmitterCBData
 	uint32_t spriteSheetRows = 1;
 	uint32_t spriteSheetColumns = 1;
 	float spriteSheetFrameRate = 0.0f;
+
+	Vector4 sizeCurveLut{ 1.0f, 1.0f, 1.0f, 1.0f };
+	Vector4 colorGradientLut0{ 1.0f, 1.0f, 1.0f, 1.0f };
+	Vector4 colorGradientLut1{ 1.0f, 1.0f, 1.0f, 0.66f };
+	Vector4 colorGradientLut2{ 1.0f, 1.0f, 1.0f, 0.33f };
+	Vector4 colorGradientLut3{ 1.0f, 1.0f, 1.0f, 0.0f };
+	float noiseStrength = 0.0f;
+	float noiseFrequency = 1.0f;
+	float vortexStrength = 0.0f;
+	float attractorStrength = 0.0f;
+	Vector3 vortexAxis{ 0.0f, 1.0f, 0.0f };
+	float attractorRadius = 0.0f;
+	Vector3 attractorPosition{};
+	float forcePadding = 0.0f;
+	Vector3 startRotation3D{};
+	float rotation3DPadding = 0.0f;
+	Vector3 rotationRandom3D{};
+	float rotationRandom3DPadding = 0.0f;
+	Vector3 angularVelocity{};
+	float angularVelocityPadding = 0.0f;
+	Vector3 angularVelocityRandom{};
+	float angularVelocityRandomPadding = 0.0f;
 };
 
 // drawTypeの上位4bitへBlendModeを埋め込み、既存Managerの描画重複排除キーもそのまま利用する。
@@ -90,6 +112,5 @@ inline constexpr BlendMode UnpackGpuParticleBlendMode(uint32_t packedDrawType)
 	return decoded <= maxMode ? static_cast<BlendMode>(decoded) : BlendMode::kBlendModeAdd;
 }
 
-// HLSLのEmitterCBDataと16byteパッキングを一致させる。
-static_assert(sizeof(GpuEmitterCBData) == 288);
+static_assert(sizeof(GpuEmitterCBData) == 480); // HLSL cbufferと16byteパッキングを一致させる。
 } // namespace Ken4lowEngine
