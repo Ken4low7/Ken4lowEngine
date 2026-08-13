@@ -5,8 +5,11 @@
 #include "ISceneTransition.h"
 #include "SceneDefinitionRegistry.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
+#include <unordered_set>
+#include <vector>
 
 namespace Ken4lowEngine
 {
@@ -35,6 +38,34 @@ namespace Ken4lowEngine
 		[[nodiscard]] std::string GetStartupSceneName(bool debugBuild) const;
 		[[nodiscard]] const SceneDefinition* FindSceneDefinition(const std::string& sceneId) const;
 		[[nodiscard]] const SceneDefinition& GetCurrentSceneDefinition() const { return currentSceneDefinition_; }
+
+		[[nodiscard]] std::vector<std::string> GetAvailableSceneIds() const
+		{
+			std::vector<std::string> result;
+			if (!sceneFactory_) return result;
+
+			std::unordered_set<std::string> seenIds;
+			std::unordered_set<std::string> representedClasses;
+			for (const auto& [sceneId, definition] : sceneDefinitionRegistry_.GetDefinitions())
+			{
+				if (sceneId.empty() || definition.className.empty()) continue;
+				if (!sceneFactory_->CanCreateScene(definition.className)) continue;
+#ifndef _DEBUG
+				if (definition.editorOnly) continue;
+#endif
+				if (seenIds.insert(sceneId).second) result.push_back(sceneId);
+				representedClasses.insert(definition.className);
+			}
+
+			for (const std::string& className : sceneFactory_->GetRegisteredSceneNames())
+			{
+				if (representedClasses.contains(className)) continue;
+				if (seenIds.insert(className).second) result.push_back(className);
+			}
+
+			std::sort(result.begin(), result.end());
+			return result; // Registry定義とC++自己登録を統合し、実際に生成可能なSceneだけEditorへ公開する。
+		}
 
 		[[nodiscard]] bool IsTransitioning() const { return isTransitioning_ || (sceneTransition_ && sceneTransition_->IsBusy()); }
 		[[nodiscard]] bool IsPlayInEditorActive() const { return editorPlaySessionActive_; }
