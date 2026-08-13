@@ -14,10 +14,24 @@ class GpuParticleBuffers;
 class GpuParticleRenderer
 {
 public:
+	struct GpuDrivenStatistics
+	{
+		uint64_t drawRequests = 0;
+		uint64_t compactionDispatches = 0;
+		uint64_t compactionParticleScans = 0;
+		uint64_t alphaSortGroups = 0;
+		uint64_t alphaSortDispatches = 0;
+		uint64_t indirectDraws = 0;
+	};
+
 	void Initialize(GpuParticleSpritePipeline* pipeline, GpuParticleBuffers* buffers);
 
 	/// Manager互換の引数は残しつつ、Phase14ではGPU Compactionが実Instance数をIndirect Argsへ書き込む。
 	void Draw(UINT instanceCount, uint32_t slot = 0);
+
+	/// Stress/Profiler側が区間単位でGPU Driven workloadを比較できるようCPU同期不要の発行統計だけを公開する。
+	void ResetGpuDrivenStatistics() { gpuDrivenStatistics_ = {}; }
+	const GpuDrivenStatistics& GetGpuDrivenStatistics() const { return gpuDrivenStatistics_; }
 
 public:
 	void SetTextureFilePath(const std::string& path);
@@ -47,6 +61,7 @@ private:
 	ComPtr<ID3D12CommandSignature> drawIndexedCommandSignature_;
 	bool gpuDrivenBuffersReadable_ = false;
 	uint32_t shaderRenderGroup_ = 0;
+	GpuDrivenStatistics gpuDrivenStatistics_{};
 
 	std::string textureFilePath_ = "Effects/circle2.dds";
 	BlendMode blendMode_ = BlendMode::kBlendModeAdd;
