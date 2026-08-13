@@ -9,8 +9,10 @@
 #include "UAVManager.h"
 #include "PostEffectManager.h"
 #include "ShaderCompiler.h"
+#include "ResourceManager.h"
 #include <TextureManager.h>
 
+#include <algorithm>
 #include <cassert>
 #include <charconv>
 #include <string_view>
@@ -39,6 +41,233 @@ namespace Ken4lowEngine
 		CreateGpuDrivenPipeline();
 		CreateIndirectCommandSignatures();
 		ResetGpuDrivenStatistics();
+		InitializeGpuTiming();
+		activeRenderer_ = this; // Editor diagnosticsはManagerの所有権を変えず、このlive rendererの計測値だけを参照する。
+	}
+
+	void GpuParticleRenderer::InitializeGpuTiming()
+	{
+		gpuTimingAvailable_ = false;
+		gpuTimestampHeap_.Reset();
+		gpuTimestampReadback_.Reset();
+		gpuTimingFrameStates_.clear();
+		gpuDrivenGpuTimings_ = {};
+		gpuTimestampFrequency_ = 0;
+		gpuTimingFrameResourceCount_ = 0;
+		currentGpuTimingFrameIndex_ = UINT32_MAX;
+		currentGpuTimingFrameFenceValue_ = UINT64_MAX;
+		activeGpuTimingSample_ = kInvalidGpuTimingSample;
+
+		DirectXCommon* dxCommon = DirectXCommon::GetInstance();
+		if (!dxCommon || !dxCommon->GetDevice() || !dxCommon->GetCommandManager())
+		{
+			return;
+		}
+
+		gpuTimingFrameResourceCount_ = (std::max)(1u, dxCommon->GetCommandManager()->GetFrameResourceCount());
+		const uint32_t queriesPerFrame = kGpuTimingMaxSamplesPerFrame * kGpuTimingQueriesPerSample;
+		const uint32_t totalQueryCount = gpuTimingFrameResourceCount_ * queriesPerFrame;
+
+		D3D12_QUERY_HEAP_DESC queryHeapDesc{};
+		queryHeapDesc.Count = totalQueryCount;
+		queryHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+		queryHeapDesc.NodeMask = 0;
+		if (FAILED(dxCommon->GetDevice()->CreateQueryHeap(&queryHeapDesc, IID_PPV_ARGS(&gpuTimestampHeap_))))
+		{
+			return;
+		}
+
+		const UINT64 readbackBytes = static_cast<UINT64>(totalQueryCount) * sizeof(uint64_t);
+		gpuTimestampReadback_ = ResourceManager::CreateBufferResource(
+			dxCommon->GetDevice(),
+			readbackBytes,
+			D3D12_HEAP_TYPE_READBACK,
+			D3D12_RESOURCE_FLAG_NONE,
+			D3D12_RESOURCE_STATE_COPY_DEST);
+		if (!gpuTimestampReadback_)
+		{
+			gpuTimestampHeap_.Reset();
+			return;
+		}
+
+		if (FAILED(dxCommon->GetCommandManager()->GetCommandQueue()->GetTimestampFrequency(&gpuTimestampFrequency_)) ||
+			gpuTimestampFrequency_ == 0)
+		{
+			gpuTimestampReadback_.Reset();
+			gpuTimestampHeap_.Reset();
+			return;
+		}
+
+		gpuTimestampHeap_->SetName(L"GpuParticleRenderer_TimestampHeap");
+		gpuTimestampReadback_->SetName(L"GpuParticleRenderer_TimestampReadback");
+		gpuTimingFrameStates_.resize(gpuTimingFrameResourceCount_);
+		gpuTimingAvailable_ = true; // FrameResource再利用時だけMapするためGPUへ新しいwaitを追加しない。
+	}
+
+	uint32_t GpuParticleRenderer::GetGpuTimingFrameBaseQuery(uint32_t frameIndex) const
+	{
+		if (gpuTimingFrameResourceCount_ == 0) return 0;
+		const uint32_t queriesPerFrame = kGpuTimingMaxSamplesPerFrame * kGpuTimingQueriesPerSample;
+		return (frameIndex % gpuTimingFrameResourceCount_) * queriesPerFrame;
+	}
+
+	uint32_t GpuParticleRenderer::GetGpuTimingSampleBaseQuery(uint32_t frameIndex, uint32_t sampleIndex) const
+	{
+		return GetGpuTimingFrameBaseQuery(frameIndex) + sampleIndex * kGpuTimingQueriesPerSample;
+	}
+
+	void GpuParticleRenderer::UpdateGpuTimingMetric(GpuTimingMetric& metric, float elapsedMs)
+	{
+		metric.lastMs = (std::max)(0.0f, elapsedMs);
+		metric.averageMs = metric.sampleCount == 0
+			? metric.lastMs
+			: metric.averageMs * 0.9f + metric.lastMs * 0.1f;
+		metric.maxMs = (std::max)(metric.maxMs, metric.lastMs);
+		++metric.sampleCount;
+	}
+
+	void GpuParticleRenderer::CollectGpuTiming(uint32_t frameIndex)
+	{
+		if (!gpuTimingAvailable_ || gpuTimingFrameStates_.empty() || !gpuTimestampReadback_ || gpuTimestampFrequency_ == 0)
+		{
+			return;
+		}
+
+		const uint32_t safeFrameIndex = frameIndex % gpuTimingFrameResourceCount_;
+		GpuTimingFrameState& state = gpuTimingFrameStates_[safeFrameIndex];
+		if (!state.pendingResolve || state.sampleCount == 0)
+		{
+			state.sampleCount = 0;
+			state.pendingResolve = false;
+			state.alphaSamples.fill(0);
+			return;
+		}
+
+		const uint32_t baseQuery = GetGpuTimingFrameBaseQuery(safeFrameIndex);
+		const uint32_t resolvedQueryCount = state.sampleCount * kGpuTimingQueriesPerSample;
+		const SIZE_T beginByte = static_cast<SIZE_T>(baseQuery) * sizeof(uint64_t);
+		const SIZE_T endByte = static_cast<SIZE_T>(baseQuery + resolvedQueryCount) * sizeof(uint64_t);
+		const D3D12_RANGE readRange{ beginByte, endByte };
+		void* mappedData = nullptr;
+		if (FAILED(gpuTimestampReadback_->Map(0, &readRange, &mappedData)) || !mappedData)
+		{
+			return;
+		}
+
+		const auto* timestamps = static_cast<const uint64_t*>(mappedData);
+		const double millisecondsPerTick = 1000.0 / static_cast<double>(gpuTimestampFrequency_);
+		for (uint32_t sampleIndex = 0; sampleIndex < state.sampleCount; ++sampleIndex)
+		{
+			const uint32_t query = GetGpuTimingSampleBaseQuery(safeFrameIndex, sampleIndex);
+			const uint64_t begin = timestamps[query + 0];
+			const uint64_t compactEnd = timestamps[query + 1];
+			const uint64_t sortEnd = timestamps[query + 2];
+			const uint64_t drawEnd = timestamps[query + 3];
+
+			if (compactEnd >= begin)
+			{
+				UpdateGpuTimingMetric(
+					gpuDrivenGpuTimings_.compaction,
+					static_cast<float>(static_cast<double>(compactEnd - begin) * millisecondsPerTick));
+			}
+			if (state.alphaSamples[sampleIndex] != 0 && sortEnd >= compactEnd)
+			{
+				UpdateGpuTimingMetric(
+					gpuDrivenGpuTimings_.alphaSort,
+					static_cast<float>(static_cast<double>(sortEnd - compactEnd) * millisecondsPerTick));
+			}
+			if (drawEnd >= sortEnd)
+			{
+				UpdateGpuTimingMetric(
+					gpuDrivenGpuTimings_.graphics,
+					static_cast<float>(static_cast<double>(drawEnd - sortEnd) * millisecondsPerTick));
+			}
+			if (drawEnd >= begin)
+			{
+				UpdateGpuTimingMetric(
+					gpuDrivenGpuTimings_.total,
+					static_cast<float>(static_cast<double>(drawEnd - begin) * millisecondsPerTick));
+			}
+		}
+
+		const D3D12_RANGE writeRange{ 0, 0 };
+		gpuTimestampReadback_->Unmap(0, &writeRange);
+		state.sampleCount = 0;
+		state.pendingResolve = false;
+		state.alphaSamples.fill(0);
+	}
+
+	void GpuParticleRenderer::PrepareGpuTimingFrame()
+	{
+		if (!gpuTimingAvailable_ || gpuTimingFrameStates_.empty()) return;
+
+		auto* commandManager = DirectXCommon::GetInstance()->GetCommandManager();
+		const uint32_t frameIndex = commandManager->GetCurrentFrameIndex() % gpuTimingFrameResourceCount_;
+		const uint64_t frameFenceValue = commandManager->GetFrameFenceValue(frameIndex);
+		if (currentGpuTimingFrameIndex_ == frameIndex && currentGpuTimingFrameFenceValue_ == frameFenceValue)
+		{
+			return;
+		}
+
+		// Fence世代が変わったFrameResourceはPrepareFrame済みなので、前回ResolveをCPU待機なしで安全に読める。
+		CollectGpuTiming(frameIndex);
+		currentGpuTimingFrameIndex_ = frameIndex;
+		currentGpuTimingFrameFenceValue_ = frameFenceValue;
+		activeGpuTimingSample_ = kInvalidGpuTimingSample;
+	}
+
+	void GpuParticleRenderer::BeginGpuTimingSample()
+	{
+		activeGpuTimingSample_ = kInvalidGpuTimingSample;
+		PrepareGpuTimingFrame();
+		if (!gpuTimingAvailable_ || currentGpuTimingFrameIndex_ == UINT32_MAX) return;
+
+		GpuTimingFrameState& state = gpuTimingFrameStates_[currentGpuTimingFrameIndex_];
+		if (state.sampleCount >= kGpuTimingMaxSamplesPerFrame) return;
+
+		activeGpuTimingSample_ = state.sampleCount;
+		state.alphaSamples[activeGpuTimingSample_] = blendMode_ == BlendMode::kBlendModeNormal ? 1u : 0u;
+		WriteGpuTimingPoint(0);
+	}
+
+	void GpuParticleRenderer::WriteGpuTimingPoint(uint32_t pointIndex)
+	{
+		if (!gpuTimingAvailable_ || activeGpuTimingSample_ == kInvalidGpuTimingSample || pointIndex >= kGpuTimingQueriesPerSample)
+		{
+			return;
+		}
+
+		const uint32_t query = GetGpuTimingSampleBaseQuery(currentGpuTimingFrameIndex_, activeGpuTimingSample_) + pointIndex;
+		DirectXCommon::GetInstance()->GetCommandManager()->GetCommandList()->EndQuery(
+			gpuTimestampHeap_.Get(),
+			D3D12_QUERY_TYPE_TIMESTAMP,
+			query);
+	}
+
+	void GpuParticleRenderer::EndGpuTimingSample()
+	{
+		if (!gpuTimingAvailable_ || activeGpuTimingSample_ == kInvalidGpuTimingSample) return;
+
+		WriteGpuTimingPoint(3);
+		GpuTimingFrameState& state = gpuTimingFrameStates_[currentGpuTimingFrameIndex_];
+		const uint32_t query = GetGpuTimingSampleBaseQuery(currentGpuTimingFrameIndex_, activeGpuTimingSample_);
+		DirectXCommon::GetInstance()->GetCommandManager()->GetCommandList()->ResolveQueryData(
+			gpuTimestampHeap_.Get(),
+			D3D12_QUERY_TYPE_TIMESTAMP,
+			query,
+			kGpuTimingQueriesPerSample,
+			gpuTimestampReadback_.Get(),
+			static_cast<UINT64>(query) * sizeof(uint64_t));
+
+		state.sampleCount = activeGpuTimingSample_ + 1u;
+		state.pendingResolve = true;
+		activeGpuTimingSample_ = kInvalidGpuTimingSample;
+	}
+
+	void GpuParticleRenderer::CancelGpuTimingSample()
+	{
+		// Graphics setup失敗時も4 timestampを完結させ、次回FrameResource readbackのquery列を壊さない。
+		EndGpuTimingSample();
 	}
 
 	void GpuParticleRenderer::Draw(UINT instanceCount, uint32_t slot)
@@ -189,6 +418,8 @@ namespace Ken4lowEngine
 			shaderRenderGroup_, primitiveCount, indexed);
 		if (drawCbAddress == 0) return false;
 
+		BeginGpuTimingSample();
+
 		auto* dxCommon = DirectXCommon::GetInstance();
 		auto* commandList = dxCommon->GetCommandManager()->GetCommandList();
 		auto* uavManager = UAVManager::GetInstance();
@@ -243,11 +474,13 @@ namespace Ken4lowEngine
 		compactBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
 		compactBarrier.UAV.pResource = visibleBuffer;
 		commandList->ResourceBarrier(1, &compactBarrier);
+		WriteGpuTimingPoint(1);
 
 		if (blendMode_ == BlendMode::kBlendModeNormal)
 		{
 			SortVisibleParticlesByDepth();
 		}
+		WriteGpuTimingPoint(2);
 
 		// TransitionがCompute書き込み完了を可視化し、直後のVS/ExecuteIndirectから同じ結果を安全に読む。
 		dxCommon->ResourceTransition(particleBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -318,7 +551,11 @@ namespace Ken4lowEngine
 
 		SRVManager::GetInstance()->PreDraw();
 		const D3D12_GPU_VIRTUAL_ADDRESS perViewAddress = gpuParticleBuffers_->GetPerViewCBAddress();
-		if (perViewAddress == 0) return;
+		if (perViewAddress == 0)
+		{
+			CancelGpuTimingSample();
+			return;
+		}
 		commandList->SetGraphicsRootConstantBufferView(0, perViewAddress);
 		SRVManager::GetInstance()->SetGraphicsRootDescriptorTable(1, gpuParticleBuffers_->GetParticleSrvIndex());
 		particleMaterial_->SetPipeline(2, slot);
@@ -335,6 +572,7 @@ namespace Ken4lowEngine
 			commandList->ExecuteIndirect(drawCommandSignature_.Get(), 1, args, 0, nullptr, 0);
 		}
 		++gpuDrivenStatistics_.indirectDraws;
+		EndGpuTimingSample();
 	}
 
 	void GpuParticleRenderer::DrawMesh(uint32_t slot, uint32_t meshId)
@@ -353,7 +591,11 @@ namespace Ken4lowEngine
 		SRVManager::GetInstance()->PreDraw();
 
 		const D3D12_GPU_VIRTUAL_ADDRESS perViewAddress = gpuParticleBuffers_->GetPerViewCBAddress();
-		if (perViewAddress == 0) return;
+		if (perViewAddress == 0)
+		{
+			CancelGpuTimingSample();
+			return;
+		}
 		commandList->SetGraphicsRootConstantBufferView(0, perViewAddress);
 		SRVManager::GetInstance()->SetGraphicsRootDescriptorTable(1, gpuParticleBuffers_->GetParticleSrvIndex());
 		particleMaterial_->SetPipeline(2, slot);
@@ -374,6 +616,7 @@ namespace Ken4lowEngine
 			nullptr,
 			0);
 		++gpuDrivenStatistics_.indirectDraws;
+		EndGpuTimingSample();
 	}
 
 	void GpuParticleRenderer::SetTextureFilePath(const std::string& path)
