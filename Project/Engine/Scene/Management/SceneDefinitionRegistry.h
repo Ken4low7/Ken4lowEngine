@@ -110,7 +110,18 @@ namespace Ken4lowEngine
 				if (path.extension() != ".json") continue;
 
 				const std::string sceneId = path.stem().string();
-				if (sceneId.empty() || definitions_.contains(sceneId)) continue; // 明示Scene JSONがある場合はそちらを優先する。
+				if (sceneId.empty()) continue;
+
+				auto existing = definitions_.find(sceneId);
+				if (existing != definitions_.end())
+				{
+					SceneDefinition& definition = existing->second;
+					if (definition.className == "DataDrivenScene" && definition.levelPath.empty())
+					{
+						definition.levelPath = path.generic_string(); // TitleScene等の空Fallbackも、同名Levelが作られた時点で実データへ接続する。
+					}
+					continue; // 明示Scene JSONや専用C++ SceneはLevel自動検出で上書きしない。
+				}
 
 				SceneDefinition definition{};
 				definition.id = sceneId;
@@ -187,6 +198,7 @@ namespace Ken4lowEngine
 				definition.editorOnly = editorOnly;
 				definitions_.emplace(name, std::move(definition));
 			}
+			RefreshDiscoveredLevelScenes(); // Fallback追加後にも同名Levelを接続し、空のTitleScene等を残さない。
 		}
 
 		mutable std::unordered_map<std::string, SceneDefinition> definitions_;
