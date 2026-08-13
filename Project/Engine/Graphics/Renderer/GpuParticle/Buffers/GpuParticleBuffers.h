@@ -44,7 +44,8 @@ class GpuParticleBuffers
 		uint32_t startFrame = 0;
 
 		float animSpeed = 1.0f;
-		float pad1[3] = {};
+		uint32_t renderGroup = 0;
+		float pad1[2] = {};
 
 		Vector4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
 
@@ -80,7 +81,7 @@ class GpuParticleBuffers
 		Vector3 angularVelocity3D{};
 		float angularVelocity3DPadding = 0.0f;
 	};
-	static_assert(sizeof(ParticleCS) == 384); // HLSL Particle構造体とのstride一致を保証する。
+	static_assert(sizeof(ParticleCS) == 384); // renderGroupを追加しても既存paddingを再利用し、GPUメモリstrideは増やさない。
 
 	struct PerView
 	{
