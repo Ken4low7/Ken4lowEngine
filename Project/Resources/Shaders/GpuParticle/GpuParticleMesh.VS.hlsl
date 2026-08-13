@@ -1,7 +1,6 @@
-#include "GpuParticle.hlsli" //頂点シェーダーへの入力頂点構造
-#include "GpuParticleData.hlsli" //パーティクルデータ構造体"
+#include "GpuParticle.hlsli"
+#include "GpuParticleData.hlsli"
 
-// 頂点シェーダーへの入力頂点構造
 struct VertexShaderInput
 {
     float4 position : POSITION0;
@@ -11,38 +10,57 @@ struct VertexShaderInput
 
 struct PerView
 {
-    float4x4 viewProjectionMatrix; // ビュー射影行列
-    uint billboardMode; // ビルボードモード
-    float3 padding; // パディング
+    float4x4 viewProjectionMatrix;
+    uint billboardMode;
+    float3 padding;
 };
 
-StructuredBuffer<Particle> gParticles : register(t0); // 読み取り可能なパーティクルバッファ
-ConstantBuffer<PerView> gPerView : register(b0); // ビュー情報
+StructuredBuffer<Particle> gParticles : register(t0);
+ConstantBuffer<PerView> gPerView : register(b0);
+
+float3 RotateEulerXYZ(float3 position, float3 rotation)
+{
+    float sx, cx;
+    float sy, cy;
+    float sz, cz;
+    sincos(rotation.x, sx, cx);
+    sincos(rotation.y, sy, cy);
+    sincos(rotation.z, sz, cz);
+
+    float3 xRotated = float3(
+        position.x,
+        position.y * cx - position.z * sx,
+        position.y * sx + position.z * cx);
+    float3 yRotated = float3(
+        xRotated.x * cy + xRotated.z * sy,
+        xRotated.y,
+        -xRotated.x * sy + xRotated.z * cy);
+    return float3(
+        yRotated.x * cz - yRotated.y * sz,
+        yRotated.x * sz + yRotated.y * cz,
+        yRotated.z);
+}
 
 VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID)
 {
     VertexShaderOutput output;
-    
     Particle particle = gParticles[instanceId];
 
-    // world変換
-    // scale は拡大縮小、translate は加算移動として扱う。
-    // 以前の *= particle.translate は座標を掛け算してしまい、
-    // MeshParticle が正しい位置に出ない原因になる。
+    // Mesh ParticleはScale -> Euler Rotation -> Translationの順でAuthoring Transformを適用する。
     float4 localPosition = input.position;
     localPosition.xyz *= particle.scale;
+    localPosition.xyz = RotateEulerXYZ(localPosition.xyz, particle.rotation3D);
     localPosition.xyz += particle.translate;
-    
+
     output.position = mul(localPosition, gPerView.viewProjectionMatrix);
     output.texcoord = input.texcoord;
     output.color = particle.color;
     output.type = particle.type;
 
-    // deadをPSで捨てるため alphaを0にする
-    if (particle.type <= 0.0f)
+    if (particle.lifeTime <= 0.0f)
     {
         output.color.a = 0.0f;
     }
-    
+
     return output;
 }
