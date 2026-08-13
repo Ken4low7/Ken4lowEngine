@@ -1,11 +1,16 @@
 #include "GpuParticleEmitter.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace Ken4lowEngine
 {
 namespace
 {
+	constexpr uint32_t kDescOverrideFlag = 1u << 0;
+	constexpr uint32_t kSizeCurveFlag = 1u << 2;
+	constexpr uint32_t kColorGradientFlag = 1u << 3;
+
 	float EstimateGpuParticleLifeTimeSec(GpuParticleType type)
 	{
 		switch (type)
@@ -30,22 +35,16 @@ namespace
 	}
 }
 
-/// -------------------------------------------------------------
-///					　　　コンストラクタ
-/// -------------------------------------------------------------
 GpuParticleEmitter::GpuParticleEmitter(const std::string& name, const EmitterInfo& info)
 	: name_(name), info_(info)
 {
 }
 
-/// -------------------------------------------------------------
-///					　　　射出要求
-/// -------------------------------------------------------------
 uint32_t GpuParticleEmitter::RequestEmit(uint32_t count)
 {
 	if (count == 0 || info_.maxParticles == 0) return 0;
 
-	// Preview EmitterがmaxParticlesを超えて無限に増えないよう、CPU推定生存数と発生待ち数で抑制する。
+	// Runtime EmitterがmaxParticlesを超えて無限に増えないよう、CPU推定生存数と発生待ち数で抑制する。
 	const uint64_t reserved = static_cast<uint64_t>(estimatedActiveParticleCount_) + pendingBurstCount_;
 	const uint64_t available = reserved < info_.maxParticles ? info_.maxParticles - reserved : 0;
 	const uint32_t accepted = static_cast<uint32_t>((std::min)(static_cast<uint64_t>(count), available));
@@ -71,11 +70,9 @@ float GpuParticleEmitter::EstimateParticleLifeTimeSec() const
 {
 	if (info_.useDescSpawnOverride)
 	{
-		// Preview粒子はDescのlifeTimeをGPUへ直接渡すため、CPU側の生存数推定も同じ寿命へ合わせる。
 		return (std::max)(info_.lifeTime + std::abs(info_.lifeTimeRandom), 0.01f) + 0.10f;
 	}
 
-	// HLSL の lifeMax と合わせ、寿命後は Draw 対象から外して常時フル描画を避ける。
 	return EstimateGpuParticleLifeTimeSec(static_cast<GpuParticleType>(GetEffectiveType())) * std::max(info_.lifeScale, 0.01f) + 0.10f;
 }
 
@@ -90,19 +87,11 @@ void GpuParticleEmitter::RegisterActiveBatch(uint32_t count)
 	estimatedActiveParticleCount_ += count;
 }
 
-/// -------------------------------------------------------------
-///				　　定期発射の更新
-/// -------------------------------------------------------------
 bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 {
-	// ------------------------------
-	// ループ発生（定期発生）
-	// ------------------------------
 	if (info_.loopFrequency > 0.0f && info_.loopCount > 0)
 	{
 		loopTimer_ += deltaTime;
-
-		// 周期を超えた分だけ発生（取りこぼし防止でwhile）
 		while (loopTimer_ >= info_.loopFrequency)
 		{
 			RequestEmit(info_.loopCount);
@@ -110,20 +99,18 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 		}
 	}
 
-	// ------------------------------
-	// 共通でCBに書く値（Emitしない場合も）
-	// ------------------------------
 	out.translate = position_;
 	out.radius = info_.radius;
 	out.frequency = info_.loopFrequency;
-	out.frequencyTime = loopTimer_; // デバッグ用に残す（不要なら0でもOK）
-
-	// kindに応じた type / packed billboardMode
+	out.frequencyTime = loopTimer_;
 	out.type = GetEffectiveType();
 	out.billboardMode = GetPackedBillboardMode();
 	out.lifeScale = std::max(info_.lifeScale, 0.01f);
 	out.speedScale = std::max(info_.speedScale, 0.0f);
-	out.overrideFlags = info_.useDescSpawnOverride ? 1u : 0u;
+	out.overrideFlags = 0u;
+	if (info_.useDescSpawnOverride) out.overrideFlags |= kDescOverrideFlag;
+	if (info_.useSizeCurve) out.overrideFlags |= kSizeCurveFlag;
+	if (info_.useColorGradient) out.overrideFlags |= kColorGradientFlag;
 	out.maxParticles = info_.maxParticles;
 	out.positionRandom = info_.positionRandom;
 	out.lifeTime = (std::max)(info_.lifeTime, 0.01f);
@@ -154,9 +141,24 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 	out.spriteSheetColumns = (std::max)(info_.spriteSheetColumns, 1u);
 	out.spriteSheetFrameRate = (std::max)(info_.spriteSheetFrameRate, 0.0f);
 
-	// ------------------------------
-	// Emitしない
-	// ------------------------------
+	// Curve/Force/Mesh回転も同じEmitter CBへまとめ、追加GPUリソースなしでAuthoring機能を実行する。
+	out.sizeCurveLut = info_.sizeCurveLut;
+	out.colorGradientLut0 = info_.colorGradientLut[0];
+	out.colorGradientLut1 = info_.colorGradientLut[1];
+	out.colorGradientLut2 = info_.colorGradientLut[2];
+	out.colorGradientLut3 = info_.colorGradientLut[3];
+	out.noiseStrength = info_.noiseStrength;
+	out.noiseFrequency = (std::max)(info_.noiseFrequency, 0.0f);
+	out.vortexAxis = info_.vortexAxis;
+	out.vortexStrength = info_.vortexStrength;
+	out.attractorPosition = info_.attractorPosition;
+	out.attractorStrength = info_.attractorStrength;
+	out.attractorRadius = (std::max)(info_.attractorRadius, 0.0f);
+	out.startRotation3D = info_.startRotation3D;
+	out.rotationRandom3D = info_.rotationRandom3D;
+	out.angularVelocity = info_.angularVelocity;
+	out.angularVelocityRandom = info_.angularVelocityRandom;
+
 	if (pendingBurstCount_ == 0)
 	{
 		out.emit = 0;
@@ -164,19 +166,11 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 		return false;
 	}
 
-	// ------------------------------
-	// Emitする
-	// ------------------------------
 	out.emit = 1;
 	out.count = pendingBurstCount_;
-	out.frequencyTime = 0.0f; // 使わないなら0固定でOK
-
-	// 生存数をCPU側でも概算追跡し、寿命終了後の不要な全エミッター描画を止める。
+	out.frequencyTime = 0.0f;
 	RegisterActiveBatch(pendingBurstCount_);
-
-	// 消費（このフレーム分を確定）
 	pendingBurstCount_ = 0;
-
 	return true;
 }
 
