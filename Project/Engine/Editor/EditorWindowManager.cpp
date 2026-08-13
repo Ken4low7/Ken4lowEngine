@@ -1326,7 +1326,6 @@ namespace Ken4lowEngine
 #endif // USE_IMGUI
 	}
 
-	
 	void EditorWindowManager::DrawScene()
 	{
 #ifdef USE_IMGUI
@@ -1337,27 +1336,53 @@ namespace Ken4lowEngine
 
 		if (ImGui::Begin("Scene", &windowState_.showScene))
 		{
-			BaseScene* currentScene = sceneManager_ ? sceneManager_->GetCurrentScene() : nullptr;
-			std::vector<EditorObjectInfo> sceneObjects;
-			if (currentScene) { currentScene->CollectEditorObjects(sceneObjects); }
-			const char* currentSceneName = sceneObjects.empty() ? "(loading / none)" : sceneObjects.front().sceneName.c_str();
-			// Sceneウィンドウは現在シーン確認と通常シーン遷移の最小入口に限定する。
-			ImGui::Text("Current Scene: %s", currentSceneName);
+			std::string currentSceneName = "(loading / none)";
+			if (sceneManager_)
+			{
+				const SceneDefinition& currentDefinition = sceneManager_->GetCurrentSceneDefinition();
+				if (!currentDefinition.id.empty()) currentSceneName = currentDefinition.id;
+				else if (!currentDefinition.className.empty()) currentSceneName = currentDefinition.className;
+			}
+
+			ImGui::Text("Current Scene: %s", currentSceneName.c_str());
 			ImGui::Separator();
-			if (sceneManager_ && ImGui::Button("TitleScene")) { sceneManager_->ChangeScene("TitleScene"); }
-			ImGui::SameLine();
-			if (sceneManager_ && ImGui::Button("StageSelectScene")) { sceneManager_->ChangeScene("StageSelectScene"); }
-			ImGui::SameLine();
-			if (sceneManager_ && ImGui::Button("GamePlayScene")) { sceneManager_->ChangeScene("GamePlayScene"); }
-			ImGui::SameLine();
-			// DebugScene は開発用導線だけ残し、キー入力遷移は復活させない。
-			if (sceneManager_ && ImGui::Button("DebugScene")) { sceneManager_->ChangeScene("DebugScene"); }
+
+			const std::vector<std::string> sceneIds = sceneManager_
+				? sceneManager_->GetAvailableSceneIds()
+				: std::vector<std::string>{};
+			if (sceneIds.empty())
+			{
+				ImGui::TextDisabled("No registered scenes.");
+			}
+
+			for (std::size_t index = 0; index < sceneIds.size(); ++index)
+			{
+				const std::string& sceneId = sceneIds[index];
+				const bool isCurrent = sceneId == currentSceneName;
+				if (isCurrent) ImGui::BeginDisabled();
+				if (ImGui::Button(sceneId.c_str()))
+				{
+					sceneManager_->ChangeScene(sceneId);
+				}
+				if (isCurrent) ImGui::EndDisabled();
+
+				if (index + 1 < sceneIds.size())
+				{
+					const float nextButtonWidth = ImGui::CalcTextSize(sceneIds[index + 1].c_str()).x + ImGui::GetStyle().FramePadding.x * 2.0f;
+					if (ImGui::GetContentRegionAvail().x > nextButtonWidth + ImGui::GetStyle().ItemSpacing.x)
+					{
+						ImGui::SameLine();
+					}
+				}
+			}
+
+			ImGui::TextDisabled("Scene buttons are generated from registered scene classes."); // 新しいScene登録をEditor側へ自動反映する。
 		}
 		ImGui::End();
 #endif // USE_IMGUI
 	}
 
-void EditorWindowManager::InitializeEditorServices()
+	void EditorWindowManager::InitializeEditorServices()
 	{
 #ifdef USE_IMGUI
 		if (editorServicesInitialized_)
