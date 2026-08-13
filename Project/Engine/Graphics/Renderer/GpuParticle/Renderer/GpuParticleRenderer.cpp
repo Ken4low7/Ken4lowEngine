@@ -38,12 +38,14 @@ namespace Ken4lowEngine
 		gpuParticleMeshPipeline_->Initialize();
 		CreateGpuDrivenPipeline();
 		CreateIndirectCommandSignatures();
+		ResetGpuDrivenStatistics();
 	}
 
 	void GpuParticleRenderer::Draw(UINT instanceCount, uint32_t slot)
 	{
 		// Phase14ではinstanceCountをCPUで決めず、Compaction CSがIndirect ArgsのInstanceCountを生成する。
 		(void)instanceCount;
+		++gpuDrivenStatistics_.drawRequests;
 
 		uint32_t meshId = 0;
 		if (TryGetMeshIdFromTexturePath(meshId))
@@ -234,6 +236,8 @@ namespace Ken4lowEngine
 
 		const UINT groupCountX = (GpuParticleBuffers::GetMaxParticles() + kCompactionThreadCount - 1) / kCompactionThreadCount;
 		commandList->Dispatch(groupCountX, 1, 1);
+		++gpuDrivenStatistics_.compactionDispatches;
+		gpuDrivenStatistics_.compactionParticleScans += GpuParticleBuffers::GetMaxParticles();
 
 		D3D12_RESOURCE_BARRIER compactBarrier{};
 		compactBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
@@ -264,6 +268,7 @@ namespace Ken4lowEngine
 		auto* uavManager = UAVManager::GetInstance();
 		const UINT maxParticles = GpuParticleBuffers::GetMaxParticles();
 		const UINT groupCountX = (maxParticles + kCompactionThreadCount - 1) / kCompactionThreadCount;
+		++gpuDrivenStatistics_.alphaSortGroups;
 
 		commandList->SetComputeRootSignature(compactionRootSignature_.Get());
 		commandList->SetPipelineState(depthSortPipelineState_.Get());
@@ -280,6 +285,7 @@ namespace Ken4lowEngine
 				const UINT constants[4] = { sortLevel, sortLevelMask, maxParticles, 0u };
 				commandList->SetComputeRoot32BitConstants(4, _countof(constants), constants, 0);
 				commandList->Dispatch(groupCountX, 1, 1);
+				++gpuDrivenStatistics_.alphaSortDispatches;
 
 				D3D12_RESOURCE_BARRIER sortBarrier{};
 				sortBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
@@ -328,6 +334,7 @@ namespace Ken4lowEngine
 		{
 			commandList->ExecuteIndirect(drawCommandSignature_.Get(), 1, args, 0, nullptr, 0);
 		}
+		++gpuDrivenStatistics_.indirectDraws;
 	}
 
 	void GpuParticleRenderer::DrawMesh(uint32_t slot, uint32_t meshId)
@@ -366,6 +373,7 @@ namespace Ken4lowEngine
 			0,
 			nullptr,
 			0);
+		++gpuDrivenStatistics_.indirectDraws;
 	}
 
 	void GpuParticleRenderer::SetTextureFilePath(const std::string& path)
