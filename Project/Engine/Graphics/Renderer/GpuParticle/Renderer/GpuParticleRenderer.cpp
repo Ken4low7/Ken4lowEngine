@@ -4,11 +4,11 @@
 #include "GpuParticleBuffers.h"
 #include "GpuParticleEmitterData.h"
 #include "GpuParticleManager.h"
+#include "GpuParticleShaderManifest.h"
 #include "SRVManager.h"
 #include "UAVManager.h"
 #include "PostEffectManager.h"
 #include "ShaderCompiler.h"
-#include "ShaderManifestTypes.h"
 #include <TextureManager.h>
 
 #include <cassert>
@@ -120,14 +120,8 @@ namespace Ken4lowEngine
 			IID_PPV_ARGS(&compactionRootSignature_));
 		assert(SUCCEEDED(hr));
 
-		const ShaderDescriptor compactShader{
-			L"GpuParticleCompactCS",
-			L"Resources/Shaders/GpuParticle/GpuParticleCompact.CS.hlsl",
-			L"main",
-			L"cs_6_0",
-			ShaderStage::Compute,
-			RootSignatureType::Compute
-		};
+		const ShaderDescriptor& compactShader =
+			GpuParticleShaderManifest::GetCompute(GpuParticleComputeShaderId::CompactCS);
 		ComPtr<IDxcBlob> compactCs = ShaderCompiler::CompileShader(compactShader, dxCommon->GetDXCCompilerManager());
 		assert(compactCs != nullptr);
 
@@ -168,13 +162,19 @@ namespace Ken4lowEngine
 	{
 		if (!gpuParticleBuffers_ || !compactionPipelineState_ || primitiveCount == 0) return false;
 
-		auto* dxCommon = DirectXCommon::GetInstance();
-		auto* commandList = dxCommon->GetCommandManager()->GetCommandList();
-		auto* uavManager = UAVManager::GetInstance();
 		ID3D12Resource* particleBuffer = gpuParticleBuffers_->GetParticleBuffer();
 		ID3D12Resource* visibleBuffer = gpuParticleBuffers_->GetVisibleParticleIndexBuffer();
 		ID3D12Resource* indirectBuffer = gpuParticleBuffers_->GetIndirectDrawArgsBuffer();
 		if (!particleBuffer || !visibleBuffer || !indirectBuffer) return false;
+
+		// CB確保失敗時にResource StateだけUAVへ残さないよう、GPU state変更より前に確保する。
+		const D3D12_GPU_VIRTUAL_ADDRESS drawCbAddress = gpuParticleBuffers_->GetGpuDrivenDrawCBAddress(
+			shaderRenderGroup_, primitiveCount, indexed);
+		if (drawCbAddress == 0) return false;
+
+		auto* dxCommon = DirectXCommon::GetInstance();
+		auto* commandList = dxCommon->GetCommandManager()->GetCommandList();
+		auto* uavManager = UAVManager::GetInstance();
 
 		if (gpuDrivenBuffersReadable_)
 		{
@@ -193,9 +193,11 @@ namespace Ken4lowEngine
 			0,
 			nullptr);
 
-		const D3D12_GPU_VIRTUAL_ADDRESS drawCbAddress = gpuParticleBuffers_->GetGpuDrivenDrawCBAddress(
-			shaderRenderGroup_, primitiveCount, indexed);
-		if (drawCbAddress == 0) return false;
+		// Clear UAVの書き込みをCompaction CSのInterlockedAddより前に確定させる。
+		D3D12_RESOURCE_BARRIER clearBarrier{};
+		clearBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+		clearBarrier.UAV.pResource = indirectBuffer;
+		commandList->ResourceBarrier(1, &clearBarrier);
 
 		commandList->SetComputeRootSignature(compactionRootSignature_.Get());
 		commandList->SetPipelineState(compactionPipelineState_.Get());
