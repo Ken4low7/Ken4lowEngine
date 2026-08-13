@@ -48,6 +48,53 @@ namespace Ken4lowEngine
 			return value < 0.0f ? -0.001f : 0.001f;
 		}
 
+		float UnwrapAngleNear(float angle, float reference)
+		{
+			constexpr float kPi = 3.14159265358979323846f;
+			constexpr float kTwoPi = kPi * 2.0f;
+			while (angle - reference > kPi) angle -= kTwoPi;
+			while (angle - reference < -kPi) angle += kTwoPi;
+			return angle;
+		}
+
+		bool DecomposeGizmoMatrix(const Matrix4x4& matrix, Vector3& outScale, Vector3& outRotation, Vector3& outTranslation)
+		{
+			outTranslation = { matrix.m[3][0], matrix.m[3][1], matrix.m[3][2] };
+			outScale.x = std::sqrt(matrix.m[0][0] * matrix.m[0][0] + matrix.m[0][1] * matrix.m[0][1] + matrix.m[0][2] * matrix.m[0][2]);
+			outScale.y = std::sqrt(matrix.m[1][0] * matrix.m[1][0] + matrix.m[1][1] * matrix.m[1][1] + matrix.m[1][2] * matrix.m[1][2]);
+			outScale.z = std::sqrt(matrix.m[2][0] * matrix.m[2][0] + matrix.m[2][1] * matrix.m[2][1] + matrix.m[2][2] * matrix.m[2][2]);
+
+			constexpr float kScaleEpsilon = 0.000001f;
+			if (outScale.x <= kScaleEpsilon || outScale.y <= kScaleEpsilon || outScale.z <= kScaleEpsilon) return false;
+
+			Matrix4x4 rotationMatrix = matrix;
+			for (int column = 0; column < 3; ++column)
+			{
+				rotationMatrix.m[0][column] /= outScale.x;
+				rotationMatrix.m[1][column] /= outScale.y;
+				rotationMatrix.m[2][column] /= outScale.z;
+			}
+
+			// Engineのrow-vector / Rx*Ry*Rz規約に合わせてImGuizmoの結果をEuler角へ戻す。
+			const float sinY = std::clamp(rotationMatrix.m[0][2], -1.0f, 1.0f);
+			outRotation.y = std::asin(sinY);
+			const float cosY = std::cos(outRotation.y);
+			constexpr float kGimbalEpsilon = 0.00001f;
+			if (std::abs(cosY) > kGimbalEpsilon)
+			{
+				outRotation.x = std::atan2(rotationMatrix.m[1][2], rotationMatrix.m[2][2]);
+				outRotation.z = std::atan2(rotationMatrix.m[0][1], rotationMatrix.m[0][0]);
+			}
+			else
+			{
+				const float ySign = sinY >= 0.0f ? 1.0f : -1.0f;
+				outRotation.x = std::atan2(-ySign * rotationMatrix.m[1][0], rotationMatrix.m[1][1]);
+				outRotation.z = 0.0f;
+			}
+
+			return std::isfinite(outRotation.x) && std::isfinite(outRotation.y) && std::isfinite(outRotation.z);
+		}
+
 		bool IsSameVector(const Vector3& lhs, const Vector3& rhs)
 		{
 			constexpr float epsilon = 0.00001f;
@@ -231,18 +278,36 @@ namespace Ken4lowEngine
 			Vector3 scale{};
 			Vector3 rotation{};
 			Vector3 translation{};
-			Matrix4x4::Decompose(transformMatrix, scale, rotation, translation); // EngineのXYZ回転順で分解し、Y軸回転をImGuizmo固有Euler変換から切り離す。
+			if (DecomposeGizmoMatrix(transformMatrix, scale, rotation, translation))
+			{
+				EditorTransform editedWorldTransform = worldTransform;
+				switch (activeTool)
+				{
+				case EditorViewportTool::Translate:
+					editedWorldTransform.position = translation;
+					break;
+				case EditorViewportTool::Rotate:
+					rotation.x = UnwrapAngleNear(rotation.x, worldTransform.rotation.x);
+					rotation.y = UnwrapAngleNear(rotation.y, worldTransform.rotation.y);
+					rotation.z = UnwrapAngleNear(rotation.z, worldTransform.rotation.z);
+					editedWorldTransform.rotation = rotation;
+					break;
+				case EditorViewportTool::Scale:
+					editedWorldTransform.scale = {
+						KeepScaleInvertible(scale.x),
+						KeepScaleInvertible(scale.y),
+						KeepScaleInvertible(scale.z),
+					};
+					break;
+				case EditorViewportTool::Select:
+				default:
+					break;
+				}
 
-			EditorTransform editedWorldTransform{};
-			editedWorldTransform.position = translation;
-			editedWorldTransform.rotation = rotation;
-			editedWorldTransform.scale = {
-				KeepScaleInvertible(scale.x),
-				KeepScaleInvertible(scale.y),
-				KeepScaleInvertible(scale.z),
-			};
-			selected.WriteWorldTransform(editedWorldTransform);
-			EditorContext::GetInstance()->MarkLevelDirty();
+				// 選択中ツールの成分だけを書き戻し、回転操作で位置やScaleが数値誤差により漂うのを防ぐ。
+				selected.WriteWorldTransform(editedWorldTransform);
+				EditorContext::GetInstance()->MarkLevelDirty();
+			}
 		}
 
 		if (transformCommandActive_ && !usingGizmo) EndTransformCommand();
