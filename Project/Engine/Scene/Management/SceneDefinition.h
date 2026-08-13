@@ -7,7 +7,7 @@
 
 namespace Ken4lowEngine
 {
-	/// <summary>Scene遷移や使用Levelなど、C++ Sceneへ適用するデータ定義です。</summary>
+	/// <summary>Scene遷移や使用Levelなど、汎用Sceneへ適用するデータ定義です。</summary>
 	struct SceneDefinition
 	{
 		struct TransitionSettings
@@ -17,7 +17,7 @@ namespace Ken4lowEngine
 		};
 
 		std::string id;
-		std::string className;
+		std::string className = "DataDrivenScene";
 		std::string levelPath;
 		std::string gameMode;
 		std::string playerActor;
@@ -31,7 +31,7 @@ namespace Ken4lowEngine
 
 		[[nodiscard]] bool IsValid() const
 		{
-			return !id.empty() && !className.empty(); // Scene IDと生成するC++ Classは必須項目として扱う。
+			return !id.empty() && !className.empty(); // 通常SceneはDataDrivenSceneが既定なので、Scene IDだけで有効な定義を作れる。
 		}
 	};
 } // namespace Ken4lowEngine
