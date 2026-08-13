@@ -15,17 +15,9 @@ struct PerView
     float3 padding;
 };
 
-struct Material
-{
-    float4 color;
-    float4x4 uvTransform;
-    uint drawType;
-    float3 padding;
-};
-
 StructuredBuffer<Particle> gParticles : register(t0);
+StructuredBuffer<uint> gVisibleParticleIndices : register(t1);
 ConstantBuffer<PerView> gPerView : register(b0);
-ConstantBuffer<Material> gMaterial : register(b1);
 
 float3 RotateEulerXYZ(float3 position, float3 rotation)
 {
@@ -53,15 +45,10 @@ float3 RotateEulerXYZ(float3 position, float3 rotation)
 VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID)
 {
     VertexShaderOutput output = (VertexShaderOutput) 0;
-    Particle particle = gParticles[instanceId];
 
-    // Meshは頂点数が多いため、Material group不一致と死亡ParticleをTransform前にclipして無駄なVS/Raster処理を抑える。
-    if (particle.lifeTime <= 0.0f || particle.type != gMaterial.drawType)
-    {
-        output.position = float4(0.0f, 0.0f, -1.0f, 1.0f);
-        output.renderGroup = particle.type;
-        return output;
-    }
+    // MeshもCompaction済みindex列だけを参照し、131072枠の全Instance走査を描画段から除外する。
+    const uint particleIndex = gVisibleParticleIndices[instanceId];
+    Particle particle = gParticles[particleIndex];
 
     float4 localPosition = input.position;
     localPosition.xyz *= particle.scale;
@@ -72,7 +59,7 @@ VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID
     output.texcoord = input.texcoord;
     output.color = particle.color;
     output.type = particle.type;
-    output.renderGroup = particle.type; // Desc OverrideはtypeをMaterial hashとして使うのでMeshでも同じ選別契約にする。
+    output.renderGroup = particle.type;
 
     return output;
 }
