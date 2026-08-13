@@ -25,6 +25,73 @@
 
 namespace Ken4lowEngine
 {
+	namespace
+	{
+		class GpuSafeSceneTransition final : public ISceneTransition
+		{
+		public:
+			explicit GpuSafeSceneTransition(DirectXCommon* dxCommon)
+				: dxCommon_(dxCommon)
+			{
+			}
+
+			void Initialize() override
+			{
+				busy_ = false;
+				fullyCovered_ = false;
+			}
+
+			void Update(float deltaTime) override
+			{
+				(void)deltaTime;
+				if (!busy_) return;
+
+				if (dxCommon_)
+				{
+					DX12CommandManager* commandManager = dxCommon_->GetCommandManager();
+					DX12FenceManager* fenceManager = dxCommon_->GetFenceManager();
+					if (commandManager && fenceManager && commandManager->GetCommandQueue())
+					{
+						const UINT64 fenceValue = fenceManager->SignalAndGetValue(commandManager->GetCommandQueue());
+						fenceManager->WaitForValue(fenceValue);
+					}
+				}
+
+				fullyCovered_ = true; // Scene破棄直前のUpdateでも送信済みGPU workを完了させ、旧Scene Resourceの寿命を保証する。
+			}
+
+			void Draw2DSprites() override {}
+			void DrawImGui() override {}
+			void DrawInspectorContent() override {}
+
+			void Finalize() override
+			{
+				busy_ = false;
+				fullyCovered_ = false;
+			}
+
+			void StartCover() override
+			{
+				busy_ = true;
+				fullyCovered_ = false; // Draw中のScene変更要求では即Swapせず、次のUpdate境界まで延期する。
+			}
+
+			void StartCrack() override
+			{
+				busy_ = false;
+				fullyCovered_ = false;
+			}
+
+			bool IsFullyCovered() const override { return fullyCovered_; }
+			bool IsBusy() const override { return busy_; }
+
+		private:
+			DirectXCommon* dxCommon_ = nullptr;
+			bool busy_ = false;
+			bool fullyCovered_ = false;
+		};
+	}
+
 	GameApplication::GameApplication() = default;
 
 	GameApplication::~GameApplication() = default;
@@ -60,7 +127,7 @@ namespace Ken4lowEngine
 		// SceneManagerを生成し、GameApplicationが所有権を持つ。
 		sceneManager_ = std::make_unique<SceneManager>();
 
-		// FadeManagerを注入しないため、SceneManagerは既存の即時Scene切替経路を使用する。
+		// 起動Sceneだけは従来通り即時生成できるよう、Transition注入前にSceneManager本体を初期化する。
 		sceneManager_->Initialize();
 
 #ifdef USE_IMGUI
@@ -81,6 +148,10 @@ namespace Ken4lowEngine
 #endif
 		// 起動直後に表示するシーンを SceneManager へ依頼する。
 		sceneManager_->ChangeScene(startSceneName);
+
+		auto safeSceneTransition = std::make_unique<GpuSafeSceneTransition>(dxCommon_);
+		safeSceneTransition->Initialize();
+		sceneManager_->SetSceneTransition(std::move(safeSceneTransition)); // 実行中Sceneの切替だけをGPU-safeな次Update境界へ遅延させる。
 	}
 
 	/// -------------------------------------------------------------
