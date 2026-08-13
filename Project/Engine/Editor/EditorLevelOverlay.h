@@ -7,6 +7,7 @@
 #include "EditorPlayController.h"
 #include "EditorPlaySessionManager.h"
 #include "EditorProfilerPanel.h"
+#include "EditorSceneDeferredController.h"
 #include "EditorWindowManager.h"
 
 #include <string>
@@ -22,24 +23,27 @@ namespace Ken4lowEngine
 	inline void DrawEditorLevelOverlay()
 	{
 		EditorWindowManager* windowManager = EditorWindowManager::GetInstance();
-		EditorDiagnosticsPanel::GetInstance()->Draw(); // Phase 12のLog / Profiler / Error統合PanelをEditor中は毎フレーム更新する。
-		EditorProfilerPanel::GetInstance()->Draw(windowManager->GetSceneManager(), &windowManager->GetPerformanceMonitor()); // Phase 11.5は既存Subsystem診断値だけをF11 Profilerへ集約する。
+		EditorDiagnosticsPanel::GetInstance()->Draw();
+		EditorProfilerPanel::GetInstance()->Draw(windowManager->GetSceneManager(), &windowManager->GetPerformanceMonitor());
 
 		EditorLevelService* levelService = EditorLevelService::GetInstance();
 		EditorLevelDeferredController* deferredController = EditorLevelDeferredController::GetInstance();
+		EditorSceneDeferredController* sceneController = EditorSceneDeferredController::GetInstance();
 		EditorPlayController* playController = EditorPlayController::GetInstance();
 		EditorPlaySessionManager* sessionManager = EditorPlaySessionManager::GetInstance();
 		levelService->SetSceneManager(windowManager->GetSceneManager());
+		sceneController->SetSceneManager(windowManager->GetSceneManager());
 		levelService->Update(ImGui::GetIO().DeltaTime);
 		deferredController->UpdateShortcuts();
+		sceneController->Update(); // New SceneはNew Level完了後のSave AsとScene切替をフレーム跨ぎで接続する。
 
 		const EditorViewportRect& viewportRect = windowManager->GetMainViewportRect();
 		if (viewportRect.valid)
 		{
-			const float width = sessionManager->IsSessionActive() ? 400.0f : 240.0f;
+			const float width = sessionManager->IsSessionActive() ? 470.0f : 310.0f;
 			ImGui::SetNextWindowPos(
 				ImVec2(viewportRect.screenMax.x - width - 8.0f, viewportRect.screenMin.y + 54.0f),
-				ImGuiCond_Always); // メインToolbarと別段へ配置し、背面へ隠れて操作不能になる重なりを避ける。
+				ImGuiCond_Always);
 			ImGui::SetNextWindowSize(ImVec2(width, 42.0f), ImGuiCond_Always);
 			ImGui::SetNextWindowBgAlpha(0.94f);
 
@@ -56,6 +60,16 @@ namespace Ken4lowEngine
 			if (ImGui::Begin("##EditorLevelToolbar", nullptr, flags))
 			{
 				const bool levelEditable = playController->IsEditing() && !playController->IsTransitionPending();
+				if (!levelEditable) ImGui::BeginDisabled();
+				if (ImGui::Button("Scene", ImVec2(58.0f, 24.0f))) ImGui::OpenPopup("##EditorSceneMenu");
+				if (!levelEditable) ImGui::EndDisabled();
+				if (ImGui::BeginPopup("##EditorSceneMenu"))
+				{
+					sceneController->DrawMenuItems();
+					ImGui::EndPopup();
+				}
+
+				ImGui::SameLine();
 				if (!levelEditable) ImGui::BeginDisabled();
 				if (ImGui::Button("Level", ImVec2(58.0f, 24.0f))) ImGui::OpenPopup("##EditorLevelMenu");
 				if (!levelEditable) ImGui::EndDisabled();
