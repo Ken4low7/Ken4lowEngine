@@ -87,8 +87,17 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 {
 	if (info_.loopFrequency > 0.0f && info_.loopCount > 0)
 	{
-		loopTimer_ += deltaTime;
-		while (loopTimer_ >= info_.loopFrequency)
+		float scheduleDelta = (std::max)(deltaTime, 0.0f);
+		if (!info_.loopForever)
+		{
+			const float remaining = (std::max)(info_.emissionDuration - emissionElapsed_, 0.0f);
+			scheduleDelta = (std::min)(scheduleDelta, remaining);
+			emissionElapsed_ += scheduleDelta;
+		}
+
+		// 有限durationでは最後の端数フレームを切り詰め、指定時間を超えた定期発生を行わない。
+		loopTimer_ += scheduleDelta;
+		while (loopTimer_ >= info_.loopFrequency && scheduleDelta > 0.0f)
 		{
 			RequestEmit(info_.loopCount);
 			loopTimer_ -= info_.loopFrequency;
