@@ -13,7 +13,7 @@
 
 namespace Ken4lowEngine
 {
-	/// <summary>Scene Registryと各Scene JSONを読み込み、Scene IDから定義を解決します。</summary>
+	/// <summary>Scene Registry、Scene JSON、通常Levelを読み込み、Scene IDから定義を解決します。</summary>
 	class SceneDefinitionRegistry
 	{
 	public:
@@ -37,6 +37,7 @@ namespace Ken4lowEngine
 				if (!registryFile.is_open())
 				{
 					lastError_ = "Scene Registryを開けません: " + registryPath.generic_string();
+					RefreshDiscoveredLevelScenes();
 					RegisterFallbackDefinitions();
 					return false;
 				}
@@ -46,6 +47,7 @@ namespace Ken4lowEngine
 				if (!registryJson.is_object() || registryJson.value("Format", std::string{}) != "Ken4lowSceneRegistry")
 				{
 					lastError_ = "Scene Registry形式が不正です: " + registryPath.generic_string();
+					RefreshDiscoveredLevelScenes();
 					RegisterFallbackDefinitions();
 					return false;
 				}
@@ -63,18 +65,20 @@ namespace Ken4lowEngine
 					}
 				}
 
+				RefreshDiscoveredLevelScenes(); // Level JSONだけでもDataDriven SceneとしてEditor/Runtimeへ自動登録する。
 				if (definitions_.empty())
 				{
-					lastError_ = "Scene定義が1件も読み込まれませんでした。";
+					lastError_ = "Scene定義またはLevelが1件も読み込まれませんでした。";
 					RegisterFallbackDefinitions();
 					return false;
 				}
 
-				return lastError_.empty(); // 一部失敗時も読めたSceneは利用し、警告だけ保持する。
+				return lastError_.empty();
 			}
 			catch (const std::exception& exception)
 			{
 				lastError_ = std::string("Scene Registry読込中に例外が発生しました: ") + exception.what();
+				RefreshDiscoveredLevelScenes();
 				RegisterFallbackDefinitions();
 				return false;
 			}
@@ -86,11 +90,39 @@ namespace Ken4lowEngine
 			startupScene_ = "TitleScene";
 			debugStartupScene_ = "DebugScene";
 			lastError_.clear();
-			registryPath_.clear(); // 再読込時に前回のRegistry情報を残さない。
+			registryPath_.clear();
+		}
+
+		void RefreshDiscoveredLevelScenes() const
+		{
+			const std::filesystem::path sceneDirectory = registryPath_.empty()
+				? std::filesystem::path("Resources/JSON/Scenes")
+				: registryPath_.parent_path();
+			const std::filesystem::path levelDirectory = sceneDirectory.parent_path() / "Levels";
+
+			std::error_code error;
+			if (!std::filesystem::exists(levelDirectory, error) || error) return;
+			for (std::filesystem::directory_iterator iterator(levelDirectory, error), end; !error && iterator != end; iterator.increment(error))
+			{
+				const std::filesystem::directory_entry& entry = *iterator;
+				if (!entry.is_regular_file(error) || error) continue;
+				const std::filesystem::path path = entry.path();
+				if (path.extension() != ".json") continue;
+
+				const std::string sceneId = path.stem().string();
+				if (sceneId.empty() || definitions_.contains(sceneId)) continue; // 明示Scene JSONがある場合はそちらを優先する。
+
+				SceneDefinition definition{};
+				definition.id = sceneId;
+				definition.className = "DataDrivenScene";
+				definition.levelPath = path.generic_string();
+				definitions_.emplace(sceneId, std::move(definition));
+			}
 		}
 
 		[[nodiscard]] const SceneDefinition* Find(const std::string& sceneId) const
 		{
+			RefreshDiscoveredLevelScenes(); // Save Level As直後でも次のScene検索から自動認識する。
 			const auto iterator = definitions_.find(sceneId);
 			return iterator != definitions_.end() ? &iterator->second : nullptr;
 		}
@@ -109,7 +141,11 @@ namespace Ken4lowEngine
 			return definitions_.empty() ? requested : definitions_.begin()->first;
 		}
 
-		[[nodiscard]] const std::unordered_map<std::string, SceneDefinition>& GetDefinitions() const { return definitions_; }
+		[[nodiscard]] const std::unordered_map<std::string, SceneDefinition>& GetDefinitions() const
+		{
+			RefreshDiscoveredLevelScenes();
+			return definitions_;
+		}
 		[[nodiscard]] const std::string& GetLastError() const { return lastError_; }
 		[[nodiscard]] const std::filesystem::path& GetRegistryPath() const { return registryPath_; }
 
@@ -124,7 +160,7 @@ namespace Ken4lowEngine
 				return false;
 			}
 
-			definitions_[definition.id] = std::move(definition); // 同じIDは後から読んだ定義で明示的に上書きする。
+			definitions_[definition.id] = std::move(definition);
 			return true;
 		}
 
@@ -147,13 +183,13 @@ namespace Ken4lowEngine
 				if (definitions_.contains(name)) continue;
 				SceneDefinition definition{};
 				definition.id = name;
-				definition.className = name;
+				definition.className = editorOnly ? "DebugScene" : "DataDrivenScene";
 				definition.editorOnly = editorOnly;
 				definitions_.emplace(name, std::move(definition));
 			}
 		}
 
-		std::unordered_map<std::string, SceneDefinition> definitions_;
+		mutable std::unordered_map<std::string, SceneDefinition> definitions_;
 		std::string startupScene_ = "TitleScene";
 		std::string debugStartupScene_ = "DebugScene";
 		std::string lastError_;

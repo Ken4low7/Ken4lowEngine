@@ -58,7 +58,7 @@ namespace Ken4lowEngine
 
 		SceneDefinition definition{};
 		definition.id = json.value("Id", sourcePath.stem().string());
-		definition.className = json.value("Class", definition.id);
+		definition.className = json.value("Class", std::string("DataDrivenScene")); // Class省略時は汎用ActorWorld Sceneとして扱う。
 		definition.levelPath = json.value("Level", std::string{});
 		definition.gameMode = json.value("GameMode", std::string{});
 		definition.playerActor = json.value("PlayerActor", std::string{});

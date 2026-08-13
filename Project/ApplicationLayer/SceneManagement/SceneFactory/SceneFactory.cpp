@@ -1,6 +1,7 @@
 #include "SceneFactory.h"
 #include "DebugScene.h"
 #include "../../Scene/SampleScene/SampleScene.h"
+#include "../../../Engine/Scene/Management/DataDrivenScene.h"
 
 #include <algorithm>
 #include <unordered_map>
@@ -56,6 +57,7 @@ namespace Ken4lowEngine
 	}
 } // namespace Ken4lowEngine
 
+K4E_REGISTER_SCENE_NAMED("DataDrivenScene", ::Ken4lowEngine::DataDrivenScene) // 通常Sceneはこの1 Classを共有し、Level JSONだけで増やせる。
 K4E_REGISTER_SCENE_NAMED("SampleScene", ::Ken4lowEngine::SampleScene)
 #ifdef _DEBUG
 K4E_REGISTER_SCENE_NAMED("DebugScene", ::DebugScene)
