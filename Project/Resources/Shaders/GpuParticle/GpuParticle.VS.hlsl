@@ -16,6 +16,14 @@ struct PerView
     float3 padding;
 };
 
+struct Material
+{
+    float4 color;
+    float4x4 uvTransform;
+    uint drawType;
+    float3 padding;
+};
+
 bool IsBillboardMode(uint mode, uint flag)
 {
     return (mode & flag) != 0;
@@ -38,12 +46,21 @@ float4x4 MakeBasisRowMajor(float3 xAxis, float3 yAxis, float3 zAxis)
 
 StructuredBuffer<Particle> gParticles : register(t0);
 ConstantBuffer<PerView> gPerView : register(b0);
+ConstantBuffer<Material> gMaterial : register(b1);
 
 VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID)
 {
-    VertexShaderOutput output;
-
+    VertexShaderOutput output = (VertexShaderOutput) 0;
     Particle particle = gParticles[instanceId];
+
+    // ManagerはGlobal Particle Buffer全体をInstanceとして送るため、非対象groupと死亡粒子をVSでclipしてRaster/PS負荷を抑える。
+    if (particle.lifeTime <= 0.0f || particle.type != gMaterial.drawType)
+    {
+        output.position = float4(0.0f, 0.0f, -1.0f, 1.0f);
+        output.renderGroup = particle.type;
+        return output;
+    }
+
     float4x4 worldMatrix;
 
     if (IsBillboardMode(particle.billboardMode, BILLBOARD_RIBBON))
