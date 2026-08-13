@@ -78,11 +78,7 @@ float GpuParticleEmitter::EstimateParticleLifeTimeSec() const
 
 void GpuParticleEmitter::RegisterActiveBatch(uint32_t count)
 {
-	if (count == 0)
-	{
-		return;
-	}
-
+	if (count == 0) return;
 	activeBatches_.push_back({ EstimateParticleLifeTimeSec(), count });
 	estimatedActiveParticleCount_ += count;
 }
@@ -103,7 +99,6 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 	out.radius = info_.radius;
 	out.frequency = info_.loopFrequency;
 	out.frequencyTime = loopTimer_;
-	out.type = GetEffectiveType();
 	out.billboardMode = GetPackedBillboardMode();
 	out.lifeScale = std::max(info_.lifeScale, 0.01f);
 	out.speedScale = std::max(info_.speedScale, 0.0f);
@@ -117,7 +112,9 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 	out.renderGroup = BuildGpuParticleRenderGroup(
 		info_.textureFilePath,
 		UnpackGpuParticleMaterialDrawType(packedDrawType),
-		UnpackGpuParticleBlendMode(packedDrawType)); // ParticleへMaterial識別を固定し、Emitter再利用後も正しいTexture/Blendだけで描画する。
+		UnpackGpuParticleBlendMode(packedDrawType));
+	// Desc Overrideはlegacy Type Presetを使わないためtype channelをMaterial renderGroupとして再利用し、Spawn shader変更なしで正しいTexture選別を保証する。
+	out.type = info_.useDescSpawnOverride ? out.renderGroup : GetEffectiveType();
 
 	out.positionRandom = info_.positionRandom;
 	out.lifeTime = (std::max)(info_.lifeTime, 0.01f);
@@ -148,7 +145,6 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 	out.spriteSheetColumns = (std::max)(info_.spriteSheetColumns, 1u);
 	out.spriteSheetFrameRate = (std::max)(info_.spriteSheetFrameRate, 0.0f);
 
-	// Curve/Force/Mesh回転も同じEmitter CBへまとめ、追加GPUリソースなしでAuthoring機能を実行する。
 	out.sizeCurveLut = info_.sizeCurveLut;
 	out.colorGradientLut0 = info_.colorGradientLut[0];
 	out.colorGradientLut1 = info_.colorGradientLut[1];
