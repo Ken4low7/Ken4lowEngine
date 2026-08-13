@@ -81,7 +81,8 @@ struct Particle
     uint startFrame;
 
     float animSpeed;
-    float3 _pad1;
+    uint renderGroup;
+    float2 _pad1;
 
     float4 color;
 
@@ -134,7 +135,8 @@ struct EmitterCBData
     float speedScale;
     uint overrideFlags;
     uint maxParticles;
-    float2 overridePadding;
+    uint renderGroup;
+    float overridePadding;
     float3 positionRandom;
     float lifeTime;
     float3 velocity;
