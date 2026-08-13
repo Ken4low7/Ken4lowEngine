@@ -123,4 +123,10 @@ Code-side Phase 14 completion criteria are:
 - workload and GPU timing diagnostics available for real hardware profiling
 - Debug and Release translation-unit compilation green
 
-The final machine-dependent acceptance step is an actual Windows/DX12 visual smoke and stress run on target hardware. Record the exposed timings under representative effects instead of inventing universal GPU budgets. If alpha-heavy scenes show sort pressure, the next optimization candidate is a tiled/radix or GPU-generated dynamic-dispatch sort rather than reducing ordering correctness.
+All automated criteria above are now green on GitHub Actions run #449 for commit `82db34fe7544e221a5c7a1984c1254c2c26f5d38`.
+
+The final machine-dependent acceptance step is an actual Windows/DX12 visual smoke and stress run on target hardware. Use `Docs/Phase14WindowsDx12Acceptance.md` as the repeatable checklist and baseline record. Record the exposed timings under representative effects instead of inventing universal GPU budgets. If alpha-heavy scenes show sort pressure, the next optimization candidate is a tiled/radix or GPU-generated dynamic-dispatch sort rather than reducing ordering correctness.
+
+## Phase 14 Status
+
+Automated implementation and validation are complete. Phase 14 remains intentionally unmerged until the Windows/DX12 acceptance checklist has been run on real hardware and any visual/runtime regressions have been addressed.
