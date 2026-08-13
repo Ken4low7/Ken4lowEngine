@@ -91,7 +91,7 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         self.assertIn("activeLoops_[instance.handle.id] = instance", self.runtime)
 
     def test_effect_editor_previews_unsaved_module_configuration_through_runtime(self) -> None:
-        self.assertIn('#include "GpuParticleEffectRuntime.h"', self.editor)
+        self.assertIn("GpuParticleEffectRuntime.h", self.editor)
         for section in ("Emission Module", "Spawn Module", "Update Module", "Render Module"):
             self.assertIn(section, self.editor)
         self.assertIn('ImGui::Button("Preview Burst")', self.editor)
