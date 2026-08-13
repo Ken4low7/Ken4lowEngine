@@ -67,7 +67,7 @@ namespace Ken4lowEngine
 		void DrawMenuItems()
 		{
 			const bool canCreate = EditorPlayController::GetInstance()->IsEditing() && state_ == State::Idle;
-			if (ImGui::MenuItem("New Scene...", "Ctrl+Alt+N", false, canCreate)) RequestNewScene();
+			if (ImGui::MenuItem("New Scene...", nullptr, false, canCreate)) RequestNewScene();
 			ImGui::TextDisabled("Scene = Level JSON / Runtime Class = DataDrivenScene");
 		}
 #endif
