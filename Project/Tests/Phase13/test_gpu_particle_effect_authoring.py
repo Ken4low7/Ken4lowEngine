@@ -4,35 +4,19 @@ import unittest
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MODULE_HEADER = (
+GPU_PARTICLE_ROOT = (
     PROJECT_ROOT
     / "Engine"
     / "Graphics"
     / "Renderer"
     / "GpuParticle"
-    / "Runtime"
-    / "GpuParticleEffectModules.h"
 )
+MODULE_HEADER = GPU_PARTICLE_ROOT / "Runtime" / "GpuParticleEffectModules.h"
 RUNTIME_HEADER = MODULE_HEADER.with_name("GpuParticleEffectRuntime.h")
-EFFECT_DESC_HEADER = (
-    PROJECT_ROOT
-    / "Engine"
-    / "Graphics"
-    / "Renderer"
-    / "GpuParticle"
-    / "Data"
-    / "GpuParticleEffectDesc.h"
-)
-SERIALIZER_SOURCE = (
-    PROJECT_ROOT
-    / "Engine"
-    / "Graphics"
-    / "Renderer"
-    / "GpuParticle"
-    / "Preset"
-    / "GpuParticleEffectSerializer.cpp"
-)
-EDITOR_SOURCE = SERIALIZER_SOURCE.with_name("GpuParticleEffectEditor.cpp")
+EFFECT_DESC_HEADER = GPU_PARTICLE_ROOT / "Data" / "GpuParticleEffectDesc.h"
+SERIALIZER_SOURCE = GPU_PARTICLE_ROOT / "Preset" / "GpuParticleEffectSerializer.cpp"
+EDITOR_SOURCE = GPU_PARTICLE_ROOT / "Preset" / "GpuParticleEffectEditor.cpp"
+PIPELINE_HEADER = GPU_PARTICLE_ROOT / "Pipeline" / "GpuParticleSpritePipeline.h"
 SAMPLE_EFFECT = PROJECT_ROOT / "Resources" / "Effects" / "Phase13" / "Explosion.effect.json"
 EMIT_SHADER = PROJECT_ROOT / "Resources" / "Shaders" / "GpuParticle" / "GpuParticleEmit.CS.hlsl"
 
@@ -45,6 +29,7 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         cls.effect_desc = EFFECT_DESC_HEADER.read_text(encoding="utf-8")
         cls.serializer = SERIALIZER_SOURCE.read_text(encoding="utf-8")
         cls.editor = EDITOR_SOURCE.read_text(encoding="utf-8")
+        cls.pipeline = PIPELINE_HEADER.read_text(encoding="utf-8")
         cls.emit_shader = EMIT_SHADER.read_text(encoding="utf-8")
         cls.sample = json.loads(SAMPLE_EFFECT.read_text(encoding="utf-8"))
 
@@ -101,10 +86,15 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         self.assertIn("runtime->PlayLoop(effect.effectName, previewPosition)", self.editor)
 
     def test_runtime_fails_closed_for_backend_features_not_implemented_yet(self) -> None:
+        self.assertIn("ValidateEffectSupport", self.runtime)
         self.assertIn("GpuParticleRenderType::Sprite", self.runtime)
-        self.assertIn("GpuParticleBlendMode::Alpha", self.runtime)
+        self.assertIn("GpuParticleBlendMode::Additive", self.runtime)
         for shape in ("Point", "Sphere", "Box"):
             self.assertIn(f"GpuParticleSpawnShape::{shape}", self.runtime)
+
+        # Existing Sprite PSO is additive-only, so authored Alpha/Multiply must not pretend to work yet.
+        self.assertIn("BlendMode::kBlendModeAdd", self.pipeline)
+        self.assertIn("GpuParticleBlendMode::Additive", self.effect_desc)
 
         # The current custom spawn shader only has dedicated Sphere and Box branches after the Point/default path.
         self.assertIn("spawnShape == 1u", self.emit_shader)
@@ -120,7 +110,7 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         )
         for emitter in self.sample["emitters"]:
             self.assertEqual(emitter["renderType"], "Sprite")
-            self.assertEqual(emitter["blendMode"], "Alpha")
+            self.assertEqual(emitter["blendMode"], "Additive")
             self.assertIn(emitter["spawnShape"], {"Point", "Sphere", "Box"})
             self.assertGreater(emitter["maxParticles"], 0)
             self.assertGreater(emitter["burstCount"], 0)
