@@ -13,15 +13,10 @@
 namespace Ken4lowEngine
 {
 
-/// ---------- 前方宣言 ---------- ///
 class Camera;
 
-/// -------------------------------------------------------------
-///			　GPUパーティクルバッファクラス
-/// -------------------------------------------------------------
 class GpuParticleBuffers
 {
-	// HLSL Particleと同一strideを持つCPU側mirror。GPU readback用途ではなくResource stride定義に使用する。
 	struct ParticleCS
 	{
 		Vector3 translate;
@@ -44,8 +39,7 @@ class GpuParticleBuffers
 		uint32_t startFrame = 0;
 
 		float animSpeed = 1.0f;
-		uint32_t renderGroup = 0;
-		float pad1[2] = {};
+		float pad1[3] = {};
 
 		Vector4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
 
@@ -81,7 +75,7 @@ class GpuParticleBuffers
 		Vector3 angularVelocity3D{};
 		float angularVelocity3DPadding = 0.0f;
 	};
-	static_assert(sizeof(ParticleCS) == 384); // renderGroupを追加しても既存paddingを再利用し、GPUメモリstrideは増やさない。
+	static_assert(sizeof(ParticleCS) == 384); // HLSL Particle構造体とのstride一致を保証する。
 
 	struct PerView
 	{
@@ -97,22 +91,35 @@ class GpuParticleBuffers
 		float deltaTime = 1.0f / 60.0f;
 	};
 
-public: /// ---------- メンバ関数 ---------- ///
+public:
+	// Compaction CSへ1 Draw分のMaterial identityとIndirect geometry情報を渡す。
+	struct GpuDrivenDrawCBData
+	{
+		uint32_t renderGroup = 0;
+		uint32_t primitiveCount = 0;
+		uint32_t indexed = 0;
+		uint32_t maxParticles = 0;
+	};
+	static_assert(sizeof(GpuDrivenDrawCBData) == 16);
 
 	void Initialize(Camera* camera);
 	void Update(float deltaTime);
 
-public: /// ---------- ゲッター ---------- ///
-
+public:
 	ID3D12Resource* GetParticleBuffer() const { return particleBuffer_.Get(); }
 	ID3D12Resource* GetFreeCounterBuffer() const { return freeListIndexBuffer_.Get(); }
 	ID3D12Resource* GetPerFrameBuffer();
 	ID3D12Resource* GetEmitterBuffer();
+	ID3D12Resource* GetVisibleParticleIndexBuffer() const { return visibleParticleIndexBuffer_.Get(); }
+	ID3D12Resource* GetIndirectDrawArgsBuffer() const { return indirectDrawArgsBuffer_.Get(); }
 
 	static uint32_t GetMaxParticles() { return kMaxParticles; }
 	uint32_t GetParticleSrvIndex() const { return particleSrvIndex_; }
 	uint32_t GetParticleUavIndex() const { return particleUavIndex_; }
 	uint32_t GetFreeCounterUavIndex() const { return freeListIndexUavIndex_; }
+	uint32_t GetVisibleParticleIndexSrvIndex() const { return visibleParticleIndexSrvIndex_; }
+	uint32_t GetVisibleParticleIndexUavIndex() const { return visibleParticleIndexUavIndex_; }
+	uint32_t GetIndirectDrawArgsUavIndex() const { return indirectDrawArgsUavIndex_; }
 	ParticleCS* GetParticleData() const { return particleData_; }
 
 	PerView* GetPerViewData() { return &perViewData_; }
@@ -124,22 +131,23 @@ public: /// ---------- ゲッター ---------- ///
 	D3D12_GPU_VIRTUAL_ADDRESS GetEmitterCBAddress(uint32_t slot);
 	D3D12_GPU_VIRTUAL_ADDRESS GetPerViewCBAddress();
 	D3D12_GPU_VIRTUAL_ADDRESS GetPerFrameCBAddress();
+	D3D12_GPU_VIRTUAL_ADDRESS GetGpuDrivenDrawCBAddress(uint32_t renderGroup, uint32_t primitiveCount, bool indexed);
 
 	void SetDebugCameraEnabled(bool enabled) { isDebugCamera_ = enabled; }
 
-private: /// ---------- 内部メンバ関数 ---------- ///
-
+private:
 	void CreateParticleBuffer();
 	void InitializePerViewData();
 	void InitializeEmitterData();
 	void InitializePerFrameData();
 	void CreateFreeListIndexBuffer();
 	void CreateFreeListBuffer();
+	void CreateGpuDrivenDrawBuffers();
 
-private: /// ---------- メンバ変数 ---------- ///
-
+private:
 	static const uint32_t kMaxParticles = 131072;
 	static constexpr uint32_t kEmitterCBSlotCount = 256;
+	static constexpr uint32_t kIndirectArgumentWordCount = 5;
 
 	Camera* camera_ = nullptr;
 	bool isDebugCamera_ = false;
@@ -154,6 +162,13 @@ private: /// ---------- メンバ変数 ---------- ///
 
 	ComPtr<ID3D12Resource> freeListBuffer_;
 	uint32_t freeListUavIndex_ = 0;
+
+	// Visible indexとIndirect argsはComputeで毎Draw再構築し、Graphics側は生存Particleだけを参照する。
+	ComPtr<ID3D12Resource> visibleParticleIndexBuffer_;
+	uint32_t visibleParticleIndexSrvIndex_ = 0;
+	uint32_t visibleParticleIndexUavIndex_ = 0;
+	ComPtr<ID3D12Resource> indirectDrawArgsBuffer_;
+	uint32_t indirectDrawArgsUavIndex_ = 0;
 
 	PerView perViewData_{};
 	PerFrame perFrameData_{};
@@ -170,6 +185,5 @@ private: /// ---------- メンバ変数 ---------- ///
 	Matrix4x4 debugViewProjectionMatrix_;
 	Matrix4x4 viewProjectionMatrix_;
 };
-
 
 } // namespace Ken4lowEngine
