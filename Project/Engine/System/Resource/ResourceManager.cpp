@@ -43,13 +43,10 @@ ComPtr<ID3D12Resource> ResourceManager::CreateBufferResource(ID3D12Device* devic
 	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	desc.Flags = flags;
 
-	// Buffer は CreateCommittedResource の InitialState に COPY_DEST を指定しても
-	// Debug Layer では STATE_CREATION WARNING #1328 として無視される。
-	// DEFAULT Heap の Buffer は COMMON で作成し、CopyBufferRegion 時の
-	// 暗黙の State Promotion または明示的 Barrier 側に任せる。
 	D3D12_RESOURCE_STATES actualInitState = initState;
-	if (type == D3D12_HEAP_TYPE_DEFAULT && initState == D3D12_RESOURCE_STATE_COPY_DEST)
+	if (type == D3D12_HEAP_TYPE_DEFAULT && initState != D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
 	{
+		// DEFAULT heapのBufferはCOMMONで生成し、最初のGPUアクセス時のpromotionまたはBarrierに状態管理を委ねる。
 		actualInitState = D3D12_RESOURCE_STATE_COMMON;
 	}
 
