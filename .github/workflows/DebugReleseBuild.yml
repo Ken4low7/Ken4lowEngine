@@ -48,7 +48,7 @@ jobs:
           python -m unittest discover -s Tests/Phase11 -p "test_*.py" -v # Editor Undo/Redoのtransaction・履歴整合性を実ランタイムで検証する。
           python -m unittest discover -s Tests/Phase12 -p "test_*.py" -v # Crash/Replay/Migration/Stress/Shipping契約をCIで検証する。
           python -m unittest discover -s Tests/Phase13 -p "test_*.py" -v # GPU Particle Effect AuthoringのModule/Runtime/Asset契約をCIで検証する。
-          python -m unittest discover -s Tests/Phase14 -p "test_*.py" -v # GPU Driven Compaction/Indirect Draw契約をCIで固定する。
+          python -m unittest discover -s Tests/Phase14 -p "test_*.py" -v # GPU Driven Compaction/Indirect Draw/Alpha Sort/Profiler契約をCIで固定する。
 
   compile:
     name: Compile ${{ matrix.configuration }}
@@ -132,6 +132,7 @@ jobs:
             @{ Path = "$shaderRoot/GpuParticleEmit.CS.hlsl"; Profile = "cs_6_0" },
             @{ Path = "$shaderRoot/GpuParticleUpdate.CS.hlsl"; Profile = "cs_6_0" },
             @{ Path = "$shaderRoot/GpuParticleCompact.CS.hlsl"; Profile = "cs_6_0" },
+            @{ Path = "$shaderRoot/GpuParticleSort.CS.hlsl"; Profile = "cs_6_0" },
             @{ Path = "$shaderRoot/GpuParticle.VS.hlsl"; Profile = "vs_6_0" },
             @{ Path = "$shaderRoot/GpuParticle.PS.hlsl"; Profile = "ps_6_0" },
             @{ Path = "$shaderRoot/GpuParticleMesh.VS.hlsl"; Profile = "vs_6_0" },
