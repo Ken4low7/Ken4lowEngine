@@ -21,7 +21,7 @@ class Camera;
 /// -------------------------------------------------------------
 class GpuParticleBuffers
 {
-	// パーティクルの構造体
+	// HLSL Particleと同一strideを持つCPU側mirror。GPU readback用途ではなくResource stride定義に使用する。
 	struct ParticleCS
 	{
 		Vector3 translate;
@@ -59,10 +59,29 @@ class GpuParticleBuffers
 		float rotation = 0.0f;
 		float rotationSpeed = 0.0f;
 		float customPadding2[2]{};
-	};
-	static_assert(sizeof(ParticleCS) == 208); // HLSL Particle構造体とのstride一致を保証する。
 
-	// ビュー行列と射影行列
+		Vector4 sizeCurveLut{ 1.0f, 1.0f, 1.0f, 1.0f };
+		Vector4 colorGradientLut0{};
+		Vector4 colorGradientLut1{};
+		Vector4 colorGradientLut2{};
+		Vector4 colorGradientLut3{};
+		float noiseStrength = 0.0f;
+		float noiseFrequency = 1.0f;
+		float vortexStrength = 0.0f;
+		float attractorStrength = 0.0f;
+		Vector3 vortexAxis{ 0.0f, 1.0f, 0.0f };
+		float attractorRadius = 0.0f;
+		Vector3 attractorPosition{};
+		float forcePadding = 0.0f;
+		Vector3 forceOrigin{};
+		float forceOriginPadding = 0.0f;
+		Vector3 rotation3D{};
+		float rotation3DPadding = 0.0f;
+		Vector3 angularVelocity3D{};
+		float angularVelocity3DPadding = 0.0f;
+	};
+	static_assert(sizeof(ParticleCS) == 384); // HLSL Particle構造体とのstride一致を保証する。
+
 	struct PerView
 	{
 		Matrix4x4 viewProjectionMatrix{};
@@ -71,7 +90,6 @@ class GpuParticleBuffers
 		float padding[3]{};
 	};
 
-	// 時間計測用
 	struct PerFrame
 	{
 		float time = 0.0f;
@@ -106,7 +124,6 @@ public: /// ---------- ゲッター ---------- ///
 	D3D12_GPU_VIRTUAL_ADDRESS GetPerViewCBAddress();
 	D3D12_GPU_VIRTUAL_ADDRESS GetPerFrameCBAddress();
 
-	// 現在はCameraManagerの有効カメラを使用するため、互換用に状態だけ保持する
 	void SetDebugCameraEnabled(bool enabled) { isDebugCamera_ = enabled; }
 
 private: /// ---------- 内部メンバ関数 ---------- ///
