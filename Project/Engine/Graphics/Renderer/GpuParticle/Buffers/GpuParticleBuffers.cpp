@@ -10,9 +10,6 @@
 namespace Ken4lowEngine
 {
 
-/// -------------------------------------------------------------
-///			　　　	初期化処理
-/// -------------------------------------------------------------
 void GpuParticleBuffers::Initialize(Camera* camera)
 {
 	camera_ = camera;
@@ -23,6 +20,7 @@ void GpuParticleBuffers::Initialize(Camera* camera)
 	InitializePerFrameData();
 	CreateFreeListIndexBuffer();
 	CreateFreeListBuffer();
+	CreateGpuDrivenDrawBuffers();
 
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
 	const uint32_t frameCount = dxCommon->GetCommandManager()->GetFrameResourceCount();
@@ -34,11 +32,10 @@ void GpuParticleBuffers::Initialize(Camera* camera)
 	particleBuffer_->SetName(L"GpuParticleBuffers::particleBuffer_");
 	freeListIndexBuffer_->SetName(L"GpuParticleBuffers::freeListIndexBuffer_");
 	freeListBuffer_->SetName(L"GpuParticleBuffers::freeListBuffer_");
+	visibleParticleIndexBuffer_->SetName(L"GpuParticleBuffers::visibleParticleIndexBuffer_");
+	indirectDrawArgsBuffer_->SetName(L"GpuParticleBuffers::indirectDrawArgsBuffer_");
 }
 
-/// -------------------------------------------------------------
-///			　　　			更新処理
-/// -------------------------------------------------------------
 void GpuParticleBuffers::Update(float deltaTime)
 {
 	perFrameData_.deltaTime = deltaTime;
@@ -112,9 +109,19 @@ D3D12_GPU_VIRTUAL_ADDRESS GpuParticleBuffers::GetPerFrameCBAddress()
 	return resource ? resource->GetGPUVirtualAddress() : 0;
 }
 
-/// -------------------------------------------------------------
-///			　	パーティクルバッファの生成
-/// -------------------------------------------------------------
+D3D12_GPU_VIRTUAL_ADDRESS GpuParticleBuffers::GetGpuDrivenDrawCBAddress(uint32_t renderGroup, uint32_t primitiveCount, bool indexed)
+{
+	GpuDrivenDrawCBData data{};
+	data.renderGroup = renderGroup;
+	data.primitiveCount = primitiveCount;
+	data.indexed = indexed ? 1u : 0u;
+	data.maxParticles = kMaxParticles;
+
+	// Drawごとの小さなCompaction定数は現在FrameのUpload Arenaから確保してGPU待ちを作らない。
+	const FrameUploadArena::Allocation allocation = DirectXCommon::GetInstance()->GetFrameUploadArena().AllocateConstant(data);
+	return allocation.IsValid() ? allocation.gpuAddress : 0;
+}
+
 void GpuParticleBuffers::CreateParticleBuffer()
 {
 	particleBuffer_ = ResourceManager::CreateBufferResource(
@@ -131,9 +138,6 @@ void GpuParticleBuffers::CreateParticleBuffer()
 	UAVManager::GetInstance()->CreateUAVForStructuredBuffer(particleUavIndex_, particleBuffer_.Get(), kMaxParticles, sizeof(ParticleCS));
 }
 
-/// -------------------------------------------------------------
-///		　		ビュー行列と射影行列データの初期化
-/// -------------------------------------------------------------
 void GpuParticleBuffers::InitializePerViewData()
 {
 	perViewData_ = {};
@@ -146,9 +150,6 @@ void GpuParticleBuffers::InitializePerViewData()
 	perViewDirty_ = true;
 }
 
-/// -------------------------------------------------------------
-///			　		エミッターデータの初期化
-/// -------------------------------------------------------------
 void GpuParticleBuffers::InitializeEmitterData()
 {
 	emitterData_ = {};
@@ -166,9 +167,6 @@ void GpuParticleBuffers::InitializeEmitterData()
 	);
 }
 
-/// -------------------------------------------------------------
-///			　		時間計測用データの初期化
-/// -------------------------------------------------------------
 void GpuParticleBuffers::InitializePerFrameData()
 {
 	perFrameData_ = {};
@@ -176,9 +174,6 @@ void GpuParticleBuffers::InitializePerFrameData()
 	perFrameData_.deltaTime = 1.0f / 60.0f;
 }
 
-/// -------------------------------------------------------------
-///			　		フリーカウンターバッファの生成
-/// -------------------------------------------------------------
 void GpuParticleBuffers::CreateFreeListIndexBuffer()
 {
 	auto* device = DirectXCommon::GetInstance()->GetDevice();
@@ -195,9 +190,6 @@ void GpuParticleBuffers::CreateFreeListIndexBuffer()
 	UAVManager::GetInstance()->CreateUAVForStructuredBuffer(freeListIndexUavIndex_, freeListIndexBuffer_.Get(), 1, sizeof(int32_t));
 }
 
-/// -------------------------------------------------------------
-///			　		フリーリストバッファの生成
-/// -------------------------------------------------------------
 void GpuParticleBuffers::CreateFreeListBuffer()
 {
 	auto* device = DirectXCommon::GetInstance()->GetDevice();
@@ -212,6 +204,37 @@ void GpuParticleBuffers::CreateFreeListBuffer()
 
 	freeListUavIndex_ = UAVManager::GetInstance()->Allocate();
 	UAVManager::GetInstance()->CreateUAVForStructuredBuffer(freeListUavIndex_, freeListBuffer_.Get(), kMaxParticles, sizeof(int32_t));
+}
+
+void GpuParticleBuffers::CreateGpuDrivenDrawBuffers()
+{
+	auto* device = DirectXCommon::GetInstance()->GetDevice();
+
+	visibleParticleIndexBuffer_ = ResourceManager::CreateBufferResource(
+		device,
+		sizeof(uint32_t) * kMaxParticles,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	visibleParticleIndexUavIndex_ = UAVManager::GetInstance()->Allocate();
+	UAVManager::GetInstance()->CreateUAVForStructuredBuffer(
+		visibleParticleIndexUavIndex_, visibleParticleIndexBuffer_.Get(), kMaxParticles, sizeof(uint32_t));
+
+	visibleParticleIndexSrvIndex_ = SRVManager::GetInstance()->Allocate();
+	SRVManager::GetInstance()->CreateSRVForStructureBuffer(
+		visibleParticleIndexSrvIndex_, visibleParticleIndexBuffer_.Get(), kMaxParticles, sizeof(uint32_t));
+
+	indirectDrawArgsBuffer_ = ResourceManager::CreateBufferResource(
+		device,
+		sizeof(uint32_t) * kIndirectArgumentWordCount,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	indirectDrawArgsUavIndex_ = UAVManager::GetInstance()->Allocate();
+	UAVManager::GetInstance()->CreateUAVForStructuredBuffer(
+		indirectDrawArgsUavIndex_, indirectDrawArgsBuffer_.Get(), kIndirectArgumentWordCount, sizeof(uint32_t));
 }
 
 } // namespace Ken4lowEngine
