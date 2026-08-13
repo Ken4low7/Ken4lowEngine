@@ -44,7 +44,7 @@ namespace Ken4lowEngine
 
 	/// <summary>
 	/// 1つのGPUパーティクルEmitterを編集・保存するための設定です。
-	/// 今回は既存描画処理へ直結せず、次Phaseでランタイム設定へ変換するための土台として追加します。
+	/// 既存GPU描画処理とはCompilerを介して接続し、Authoring側では演出用パラメータを保持します。
 	/// JSONで項目名をそのまま表現しやすいよう、描画リソースと基本的な生成・変化パラメータを平坦に保持します。
 	/// </summary>
 	struct GpuParticleEmitterDesc
@@ -90,7 +90,7 @@ namespace Ken4lowEngine
 		float rotationRandom = 0.0f; ///< startRotationに加える±ランダム幅です。
 
 		bool billboard = true; ///< Spriteをカメラへ向けます。Meshでは通常使用しません。
-		GpuParticleBlendMode blendMode = GpuParticleBlendMode::Alpha; ///< Spriteの合成方法です。
+		GpuParticleBlendMode blendMode = GpuParticleBlendMode::Additive; ///< 現行Sprite Pipelineと一致する既定の加算合成です。
 		bool useSpriteSheet = false; ///< SpriteSheetアニメーションを使用する予定の設定です。
 		int spriteSheetRows = 1; ///< SpriteSheetの行数です。
 		int spriteSheetColumns = 1; ///< SpriteSheetの列数です。
@@ -136,7 +136,8 @@ namespace Ken4lowEngine
 		desc.startColor = { 1.0f, 0.8f, 0.2f, 1.0f };
 		desc.endColor = { 1.0f, 0.0f, 0.0f, 0.0f };
 		desc.spawnShape = GpuParticleSpawnShape::Point;
-		desc.blendMode = GpuParticleBlendMode::Alpha;
+		// 現行GpuParticleSpritePipelineは加算PSO固定なので、新規Emitterも同じ見た目から開始する。
+		desc.blendMode = GpuParticleBlendMode::Additive;
 		desc.billboard = true;
 		return desc;
 	}
@@ -163,7 +164,7 @@ namespace Ken4lowEngine
 		desc.startScale3D = { 0.2f, 0.2f, 0.2f };
 		desc.endScale3D = { 0.1f, 0.1f, 0.1f };
 		desc.spawnShape = GpuParticleSpawnShape::Sphere;
-		desc.blendMode = GpuParticleBlendMode::Alpha;
+		desc.blendMode = GpuParticleBlendMode::Additive;
 		desc.billboard = false;
 		return desc;
 	}
