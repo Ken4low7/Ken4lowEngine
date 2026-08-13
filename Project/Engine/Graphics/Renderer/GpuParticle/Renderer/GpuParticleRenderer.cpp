@@ -470,10 +470,13 @@ namespace Ken4lowEngine
 		++gpuDrivenStatistics_.compactionDispatches;
 		gpuDrivenStatistics_.compactionParticleScans += GpuParticleBuffers::GetMaxParticles();
 
-		D3D12_RESOURCE_BARRIER compactBarrier{};
-		compactBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-		compactBarrier.UAV.pResource = visibleBuffer;
-		commandList->ResourceBarrier(1, &compactBarrier);
+		// Sort shaderはvisible indexだけでなくIndirect InstanceCountも読むので両UAVのcompaction書き込みを確定させる。
+		D3D12_RESOURCE_BARRIER compactBarriers[2]{};
+		compactBarriers[0].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+		compactBarriers[0].UAV.pResource = visibleBuffer;
+		compactBarriers[1].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+		compactBarriers[1].UAV.pResource = indirectBuffer;
+		commandList->ResourceBarrier(_countof(compactBarriers), compactBarriers);
 		WriteGpuTimingPoint(1);
 
 		if (blendMode_ == BlendMode::kBlendModeNormal)
