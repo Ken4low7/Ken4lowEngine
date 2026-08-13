@@ -9,8 +9,10 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -54,15 +56,18 @@ namespace Ken4lowEngine
 
 			RemoveEffectEmitters(effect.effectName);
 
-			// Hot Reload時は同名Parameterの現在値を可能な限り保持し、Editor PreviewだけでなくGameplay調整にも使えるようにする。
-			auto previousValues = effectParameterValues_[effect.effectName];
+			// Hot Reload時は同名Parameterの現在値を可能な限り保持し、Editor PreviewとGameplay調整を途切れさせない。
+			ParameterMap previousValues;
+			const auto previousIt = effectParameterValues_.find(effect.effectName);
+			if (previousIt != effectParameterValues_.end()) previousValues = previousIt->second;
+
 			compiledEffects_[effect.effectName] = std::move(compiled);
 			auto& values = effectParameterValues_[effect.effectName];
 			values.clear();
 			for (const GpuParticleUserParameterDesc& parameter : compiledEffects_[effect.effectName].userParameters)
 			{
-				const auto previousIt = previousValues.find(parameter.name);
-				const float value = previousIt != previousValues.end() ? previousIt->second : parameter.defaultValue;
+				const auto valueIt = previousValues.find(parameter.name);
+				const float value = valueIt != previousValues.end() ? valueIt->second : parameter.defaultValue;
 				values[parameter.name] = std::clamp(value, parameter.minValue, parameter.maxValue);
 			}
 
@@ -81,10 +86,7 @@ namespace Ken4lowEngine
 			}
 
 			const std::string effectName = effect.effectName;
-			if (!RegisterEffect(effect))
-			{
-				return false;
-			}
+			if (!RegisterEffect(effect)) return false;
 
 			sourcePaths_[effectName] = filePath;
 			SetStatus(true, "Loaded effect: " + effectName + " <- " + filePath);
@@ -99,18 +101,16 @@ namespace Ken4lowEngine
 				SetStatus(false, "ReloadEffect failed: source path is not registered. effect=" + effectName);
 				return false;
 			}
-
 			return LoadEffect(pathIt->second);
 		}
 
-		/// <summary>Effect内の全Emitterを一度だけ発生させます。</summary>
+		/// <summary>
+		/// Effectを一度再生します。burstCountに加えてspawnRate/durationを持つEmitterは有限時間だけ継続発生します。
+		/// </summary>
 		bool Play(const std::string& effectName, const Vector3& worldPosition)
 		{
 			const GpuParticleCompiledEffect* effect = FindEffect(effectName);
-			if (!effect || !ValidateEffectSupport(*effect))
-			{
-				return false;
-			}
+			if (!effect || !ValidateEffectSupport(*effect)) return false;
 
 			uint32_t& nextSlot = nextBurstSlotByEffect_[effectName];
 			const uint32_t burstSlot = nextSlot++ % kBurstEmitterPoolSize;
@@ -134,25 +134,26 @@ namespace Ken4lowEngine
 				{
 					emittedAny |= emitter->RequestEmit(burstCount) > 0;
 				}
+				emittedAny |= emitter->HasEmissionSchedule();
 			}
 
 			SetStatus(emittedAny, emittedAny
 				? "Played effect: " + effectName
-				: "Play produced no particles. Check burstCount/maxParticles. effect=" + effectName);
+				: "Play produced no particles. Check burstCount/spawnRate/duration/maxParticles. effect=" + effectName);
 			return emittedAny;
 		}
 
-		/// <summary>EffectをHandle単位で継続再生します。</summary>
+		/// <summary>
+		/// EffectをHandle単位で継続再生します。loop=trueは無期限、loop=falseはdurationまで定期発生できます。
+		/// </summary>
 		PlayHandle PlayLoop(const std::string& effectName, const Vector3& worldPosition)
 		{
 			const GpuParticleCompiledEffect* effect = FindEffect(effectName);
-			if (!effect || !ValidateEffectSupport(*effect))
-			{
-				return {};
-			}
+			if (!effect || !ValidateEffectSupport(*effect)) return {};
 
 			LoopInstance instance{};
-			instance.handle = AllocateHandle();
+			const PlayHandle handle = AllocateHandle();
+			instance.handle = handle;
 			instance.effectName = effectName;
 			instance.worldPosition = worldPosition;
 
@@ -160,7 +161,7 @@ namespace Ken4lowEngine
 			{
 				const GpuParticleCompiledEmitter& emitterDesc = effect->emitters[index];
 				GpuParticleEmitter* emitter = EnsureEmitter(
-					*effect, emitterDesc, index, worldPosition, true, instance.handle.id, &instance.parameterOverrides);
+					*effect, emitterDesc, index, worldPosition, true, handle.id, &instance.parameterOverrides);
 				if (!emitter)
 				{
 					RemoveEmitters(instance.emitterNames);
@@ -168,21 +169,16 @@ namespace Ken4lowEngine
 					return {};
 				}
 
-				instance.emitterNames.push_back(
-					BuildEmitterName(effectName, emitterDesc, index, true, instance.handle.id));
-
+				instance.emitterNames.push_back(BuildEmitterName(effectName, emitterDesc, index, true, handle.id));
 				const uint32_t burstCount = ScaleCount(
 					emitterDesc.emission.burstCount,
 					EvaluateTargetFactor(*effect, emitterDesc, GpuParticleParameterTarget::BurstCount, &instance.parameterOverrides));
-				if (burstCount > 0)
-				{
-					emitter->RequestEmit(burstCount);
-				}
+				if (burstCount > 0) emitter->RequestEmit(burstCount);
 			}
 
-			activeLoops_[instance.handle.id] = std::move(instance);
+			activeLoops_[handle.id] = std::move(instance);
 			SetStatus(true, "Loop started: " + effectName);
-			return PlayHandle{ nextHandleId_ - 1u };
+			return handle;
 		}
 
 		bool StopLoop(const std::string& effectName)
@@ -190,10 +186,7 @@ namespace Ken4lowEngine
 			std::vector<uint32_t> handles;
 			for (const auto& [handleId, instance] : activeLoops_)
 			{
-				if (instance.effectName == effectName)
-				{
-					handles.push_back(handleId);
-				}
+				if (instance.effectName == effectName) handles.push_back(handleId);
 			}
 
 			if (handles.empty())
@@ -202,10 +195,7 @@ namespace Ken4lowEngine
 				return false;
 			}
 
-			for (const uint32_t handleId : handles)
-			{
-				StopLoopInternal(handleId);
-			}
+			for (const uint32_t handleId : handles) StopLoopInternal(handleId);
 			SetStatus(true, "Loop instances stopped: " + effectName);
 			return true;
 		}
@@ -234,11 +224,7 @@ namespace Ken4lowEngine
 		bool SetLoopPosition(PlayHandle handle, const Vector3& worldPosition)
 		{
 			auto instanceIt = activeLoops_.find(handle.id);
-			if (instanceIt == activeLoops_.end())
-			{
-				return false;
-			}
-
+			if (instanceIt == activeLoops_.end()) return false;
 			instanceIt->second.worldPosition = worldPosition;
 			return RefreshLoopInstance(instanceIt->second);
 		}
@@ -264,10 +250,7 @@ namespace Ken4lowEngine
 			for (auto& [handleId, instance] : activeLoops_)
 			{
 				(void)handleId;
-				if (instance.effectName == effectName)
-				{
-					RefreshLoopInstance(instance);
-				}
+				if (instance.effectName == effectName) RefreshLoopInstance(instance);
 			}
 			SetStatus(true, "Updated effect parameter: " + effectName + "." + parameterName);
 			return true;
@@ -357,8 +340,29 @@ namespace Ken4lowEngine
 				return false;
 			}
 
+			std::unordered_set<std::string> parameterNames;
+			for (const GpuParticleUserParameterDesc& parameter : effect.userParameters)
+			{
+				if (parameter.name.empty() || parameter.minValue > parameter.maxValue ||
+					!std::isfinite(parameter.defaultValue) || !std::isfinite(parameter.minValue) || !std::isfinite(parameter.maxValue))
+				{
+					SetStatus(false, "Invalid user parameter in effect: " + effect.name);
+					return false;
+				}
+				if (!parameterNames.insert(parameter.name).second)
+				{
+					SetStatus(false, "Duplicate user parameter: " + parameter.name);
+					return false;
+				}
+			}
+
 			for (const GpuParticleCompiledEmitter& emitter : effect.emitters)
 			{
+				if (emitter.emission.maxParticles == 0)
+				{
+					SetStatus(false, "Emitter maxParticles must be greater than zero: " + emitter.name);
+					return false;
+				}
 				if (emitter.render.renderType == GpuParticleRenderType::Mesh && emitter.render.meshPath.empty())
 				{
 					SetStatus(false, "Mesh emitter requires meshPath: " + emitter.name);
@@ -367,6 +371,11 @@ namespace Ken4lowEngine
 				if (static_cast<uint32_t>(emitter.spawn.shape) > static_cast<uint32_t>(GpuParticleSpawnShape::Hemisphere))
 				{
 					SetStatus(false, "Invalid authored spawn shape: " + emitter.name);
+					return false;
+				}
+				if (static_cast<uint32_t>(emitter.render.blendMode) > static_cast<uint32_t>(GpuParticleBlendMode::Multiply))
+				{
+					SetStatus(false, "Invalid authored blend mode: " + emitter.name);
 					return false;
 				}
 				for (const GpuParticleParameterBindingDesc& binding : emitter.parameterBindings)
@@ -393,14 +402,12 @@ namespace Ken4lowEngine
 			GpuParticleManager* manager = GpuParticleManager::GetInstance();
 			const std::string emitterName = BuildEmitterName(effect.name, emitterDesc, emitterIndex, loopMode, instanceId);
 			GpuParticleEmitter::EmitterInfo info{};
-			if (!CompileEmitterInfo(effect, emitterDesc, loopMode, parameterOverrides, info))
-			{
-				return nullptr;
-			}
+			if (!CompileEmitterInfo(effect, emitterDesc, loopMode, parameterOverrides, info)) return nullptr;
 
 			if (GpuParticleEmitter* existing = manager->GetEmitter(emitterName))
 			{
 				existing->GetInfoMutable() = info;
+				if (!loopMode) existing->ResetEmissionSchedule();
 				existing->SetPosition(Add(worldPosition, emitterDesc.localPosition));
 				return existing;
 			}
@@ -496,11 +503,18 @@ namespace Ken4lowEngine
 			info.spriteSheetFrameRate = (std::max)(emitterDesc.render.spriteSheetFrameRate, 0.0f);
 
 			const float effectiveSpawnRate = (std::max)(emitterDesc.emission.spawnRate * spawnRateFactor, 0.0f);
-			if (loopMode && emitterDesc.emission.loop && effectiveSpawnRate > 0.0f)
+			info.loopForever = loopMode && emitterDesc.emission.loop;
+			info.emissionDuration = info.loopForever ? 0.0f : (std::max)(emitterDesc.emission.duration, 0.0f);
+			if (effectiveSpawnRate > 0.0f && (info.loopForever || info.emissionDuration > 0.0f))
 			{
 				const auto [loopCount, loopFrequency] = BuildLoopSchedule(effectiveSpawnRate);
 				info.loopCount = loopCount;
 				info.loopFrequency = loopFrequency;
+			}
+			else
+			{
+				info.loopCount = 0;
+				info.loopFrequency = 0.0f;
 			}
 			return true;
 		}
@@ -531,10 +545,7 @@ namespace Ken4lowEngine
 				}
 			}
 
-			if (!render.texturePath.empty())
-			{
-				manager->SetMeshAssetTexturePath(meshId, render.texturePath);
-			}
+			if (!render.texturePath.empty()) manager->SetMeshAssetTexturePath(meshId, render.texturePath);
 			return meshId;
 		}
 
@@ -581,7 +592,7 @@ namespace Ken4lowEngine
 				const float value = GetParameterValue(effect, binding.parameterName, overrides);
 				factor *= (std::max)(0.0f, binding.bias + binding.scale * value);
 			}
-			return factor;
+			return std::isfinite(factor) ? factor : 0.0f;
 		}
 
 		float GetParameterValue(
@@ -628,8 +639,10 @@ namespace Ken4lowEngine
 
 		static uint32_t ScaleCount(uint32_t count, float factor)
 		{
-			if (count == 0 || factor <= 0.0f) return 0u;
-			return static_cast<uint32_t>((std::max)(1.0f, std::round(static_cast<float>(count) * factor)));
+			if (count == 0 || factor <= 0.0f || !std::isfinite(factor)) return 0u;
+			const double scaled = std::round(static_cast<double>(count) * static_cast<double>(factor));
+			const double maxValue = static_cast<double>((std::numeric_limits<uint32_t>::max)());
+			return static_cast<uint32_t>(std::clamp(scaled, 1.0, maxValue));
 		}
 
 		static Vector2 Scale(const Vector2& value, float factor)
