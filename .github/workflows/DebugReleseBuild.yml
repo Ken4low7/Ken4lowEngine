@@ -48,6 +48,7 @@ jobs:
           python -m unittest discover -s Tests/Phase11 -p "test_*.py" -v # Editor Undo/Redoのtransaction・履歴整合性を実ランタイムで検証する。
           python -m unittest discover -s Tests/Phase12 -p "test_*.py" -v # Crash/Replay/Migration/Stress/Shipping契約をCIで検証する。
           python -m unittest discover -s Tests/Phase13 -p "test_*.py" -v # GPU Particle Effect AuthoringのModule/Runtime/Asset契約をCIで検証する。
+          python -m unittest discover -s Tests/Phase14 -p "test_*.py" -v # GPU Driven Compaction/Indirect Draw契約をCIで固定する。
 
   compile:
     name: Compile ${{ matrix.configuration }}
@@ -130,6 +131,7 @@ jobs:
             @{ Path = "$shaderRoot/GpuParticle.CS.hlsl"; Profile = "cs_6_0" },
             @{ Path = "$shaderRoot/GpuParticleEmit.CS.hlsl"; Profile = "cs_6_0" },
             @{ Path = "$shaderRoot/GpuParticleUpdate.CS.hlsl"; Profile = "cs_6_0" },
+            @{ Path = "$shaderRoot/GpuParticleCompact.CS.hlsl"; Profile = "cs_6_0" },
             @{ Path = "$shaderRoot/GpuParticle.VS.hlsl"; Profile = "vs_6_0" },
             @{ Path = "$shaderRoot/GpuParticle.PS.hlsl"; Profile = "ps_6_0" },
             @{ Path = "$shaderRoot/GpuParticleMesh.VS.hlsl"; Profile = "vs_6_0" },
@@ -156,5 +158,5 @@ jobs:
       - name: Explain compile-only validation
         shell: pwsh
         run: |
-          Write-Host "Phase 5/7/8/9/10/11/12/13 CI validates project tests, GPU particle HLSL, and every configured C++ translation unit in ${{ matrix.configuration }}."
+          Write-Host "Phase 5/7/8/9/10/11/12/13/14 CI validates project tests, GPU particle HLSL, and every configured C++ translation unit in ${{ matrix.configuration }}."
           Write-Host "The full Debug link is intentionally separate because the hosted runner does not provide the repository's assimp-vc143-mtd.lib binary."
