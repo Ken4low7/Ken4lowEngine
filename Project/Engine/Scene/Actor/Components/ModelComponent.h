@@ -51,8 +51,10 @@ namespace Ken4lowEngine
 		const MaterialBinding& GetMaterialBinding() const { return materialBinding_; }
 		std::vector<ComponentProperty> CreateProperties(bool includeModelPath = true);
 		bool SubmitForwardOpaque(ForwardRenderQueue& queue);
+		bool SubmitForwardMasked(ForwardRenderQueue& queue);
 
 	private:
+		bool SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode);
 		void SyncTransformToObject3D();
 		void ApplyMaterialBinding();
 		void RefreshSharedMaterialBinding();
