@@ -7,6 +7,7 @@
 #include "ShadowCasterPipelineSet.h"
 #include "Vector4.h"
 #include "Engine/Graphics/Culling/FrustumCullingSystem.h"
+#include "Engine/Graphics/Renderer/Forward/ForwardRenderQueue.h"
 
 namespace Ken4lowEngine
 {
