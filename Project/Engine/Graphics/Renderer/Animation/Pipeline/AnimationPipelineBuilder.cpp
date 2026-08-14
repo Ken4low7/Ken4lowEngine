@@ -275,8 +275,9 @@ namespace Ken4lowEngine
 
 		D3D12_RASTERIZER_DESC rasterizerDesc{};
 		rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
-		rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+		rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
 		rasterizerDesc.FrontCounterClockwise = FALSE;
+		rasterizerDesc.DepthClipEnable = TRUE; // Phase15.1: Skinned MeshもStatic/Instancedと同じ裏面カリング契約へ揃える。
 
 		const ShaderDescriptor& vsDesc =
 			AnimationShaderManifest::GetGraphics(AnimationGraphicsShaderId::SkinningObject3DVS);
