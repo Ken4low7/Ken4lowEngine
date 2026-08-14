@@ -16,6 +16,14 @@ enum class MaterialCullMode : uint8_t
 	None,
 };
 
+enum class MaterialBlendMode : uint8_t
+{
+	Opaque = 0,
+	Masked,
+	Transparent,
+	Additive,
+};
+
 inline float CalculateWorldHandednessDeterminant(const Matrix4x4& world)
 {
 	return
@@ -66,6 +74,7 @@ struct MaterialDesc
 	PbrMaterialDesc pbr;
 	bool preferPbrWorkflow = false;
 	MaterialCullMode cullMode = MaterialCullMode::Back; // Phase15.1: 通常Materialは裏面カリングを既定とする。
+	MaterialBlendMode blendMode = MaterialBlendMode::Opaque; // Phase15.2: Forward Queue分類はMaterial側の明示契約から決める。
 };
 
 class MaterialTextureSlots
@@ -143,11 +152,14 @@ public:
 	void SetEmissiveFactor(const Vector4& emissiveFactor) { materialData_->emissiveFactor = emissiveFactor; } // 発光量を毎フレーム変更できるようCPU側の値へ直接反映する。
 	void SetCullMode(MaterialCullMode cullMode) { cullMode_ = cullMode; }
 	MaterialCullMode GetCullMode() const { return cullMode_; }
+	void SetBlendMode(MaterialBlendMode blendMode) { blendMode_ = blendMode; }
+	MaterialBlendMode GetBlendMode() const { return blendMode_; }
 
 private:
 	MaterialCBData materialCpuData_{};
 	MaterialCBData* materialData_ = &materialCpuData_;
 	mutable PerFrameUploadBuffer<MaterialCBData> materialBuffers_;
 	MaterialCullMode cullMode_ = MaterialCullMode::Back;
+	MaterialBlendMode blendMode_ = MaterialBlendMode::Opaque;
 };
 } // namespace Ken4lowEngine
