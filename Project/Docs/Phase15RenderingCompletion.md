@@ -11,6 +11,8 @@ The target is a renderer with explicit visibility rules, a completed Forward pat
 ### Implemented baseline
 
 - Static `Object3D` opaque and alpha rendering use back-face culling by default.
+- Static `Object3D` routes imported per-SubMesh cull metadata into actual Main, Shadow, and Editor Object-ID draws by grouping visible meshes into Back/Front/None surface groups.
+- Static `Object3D` uses imported SubMesh cull metadata until an Object-level Material cull mode is explicitly selected; `ResetMaterialBinding()` returns to imported metadata.
 - Instanced `Object3D` rendering uses back-face culling by default.
 - Skinned / animated rendering owns Back/Front/None PSO variants and batches visible models by effective `MaterialCullMode`, so a batch uses at most three surface PSO groups instead of switching per model.
 - Skinned single draws resolve the same effective cull mode before binding the graphics PSO.
@@ -31,7 +33,7 @@ Back-face culling is intentionally based on triangle winding in the D3D12 raster
 
 ### Remaining 15.1 work
 
-- Route imported per-SubMesh cull metadata into static/animated render grouping instead of only preserving it in `ModelData` / `Model`.
+- Route imported per-SubMesh cull metadata into animated/skinned SubMesh ranges; current animated model-level batches support cull modes, but mixed cull modes inside one model still need range-level grouping.
 - Add a debug visualization / counter for material cull modes and estimated culled triangle workload where useful.
 - Evaluate meshlet normal-cone culling after the basic material/rasterizer contract is stable.
 
