@@ -30,6 +30,7 @@ namespace Ken4lowEngine
 		source.sourcePath = JsonReadUtil::ReadStringOr(root, Keys::SourcePath, source.sourcePath);
 		source.preferPbrWorkflow = JsonReadUtil::ReadBoolOr(root, Keys::PreferPbrWorkflow, source.preferPbrWorkflow);
 		source.cullMode = CullModeFromString(JsonReadUtil::ReadStringOr(root, Keys::CullMode, "back")); // 旧JsonはBackへフォールバックする。
+		source.blendMode = BlendModeFromString(JsonReadUtil::ReadStringOr(root, Keys::BlendMode, "opaque")); // 旧JsonはForward Opaqueへフォールバックする。
 
 		// 欠損キーはSource既定値へフォールバックする。JsonReadUtilへ寄せてもMaterialDescのキー規約と既存Json互換は変えない。
 		source.legacyColor = JsonReadUtil::ReadVector4Or(legacy, Keys::LegacyColor, source.legacyColor);
@@ -91,6 +92,7 @@ namespace Ken4lowEngine
 		json[Keys::SourceKind] = ToString(normalized.sourceKind);
 		json[Keys::PreferPbrWorkflow] = normalized.preferPbrWorkflow;
 		json[Keys::CullMode] = ToString(normalized.cullMode);
+		json[Keys::BlendMode] = ToString(normalized.blendMode);
 
 		json[Keys::Legacy] = {
 			{ Keys::LegacyColor, ToJsonVector4(normalized.legacyColor) },
@@ -176,5 +178,29 @@ namespace Ken4lowEngine
 		if (text == "front") return MaterialCullMode::Front;
 		if (text == "none" || text == "twoSided" || text == "two-sided") return MaterialCullMode::None;
 		return MaterialCullMode::Back; // 未知値も安全な通常描画へフォールバックする。
+	}
+
+	const char* MaterialDescJsonConverter::ToString(MaterialBlendMode blendMode)
+	{
+		switch (blendMode)
+		{
+		case MaterialBlendMode::Masked:
+			return "masked";
+		case MaterialBlendMode::Transparent:
+			return "transparent";
+		case MaterialBlendMode::Additive:
+			return "additive";
+		case MaterialBlendMode::Opaque:
+		default:
+			return "opaque";
+		}
+	}
+
+	MaterialBlendMode MaterialDescJsonConverter::BlendModeFromString(const std::string& text)
+	{
+		if (text == "masked" || text == "mask") return MaterialBlendMode::Masked;
+		if (text == "transparent" || text == "blend" || text == "alpha") return MaterialBlendMode::Transparent;
+		if (text == "additive" || text == "add") return MaterialBlendMode::Additive;
+		return MaterialBlendMode::Opaque; // 未知値や旧Jsonは描画順を壊さないOpaqueへフォールバックする。
 	}
 }
