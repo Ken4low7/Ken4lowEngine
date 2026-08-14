@@ -61,18 +61,12 @@ namespace Ken4lowEngine
 
 		void DrawEditorObjectId(uint32_t objectId)
 		{
-			if (!dxCommon_ || !model_ || objectId == 0)
-			{
-				return;
-			}
-
+			if (!dxCommon_ || !model_ || objectId == 0) return;
 			ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
-			ObjectIdPipeline::GetInstance()->BindStatic(commandList, objectId);
+			const MaterialCullMode cullMode = ResolveMaterialCullModeForWorld(material_.GetCullMode(), worldTransform_.matWorld_);
+			ObjectIdPipeline::GetInstance()->BindStatic(commandList, objectId, cullMode); // PickingもMain描画と同じ面を選択対象にする。
 			worldTransform_.SetPipeline(0);
-			for (auto& mesh : model_->GetMeshes())
-			{
-				mesh.Draw();
-			}
+			for (auto& mesh : model_->GetMeshes()) mesh.Draw();
 		}
 
 		void SetModel(const std::string& filePath);
@@ -87,6 +81,8 @@ namespace Ken4lowEngine
 		void SetMetallic(float metallic) { material_.SetMetallic(metallic); }
 		void SetRoughness(float roughness) { material_.SetRoughness(roughness); }
 		void SetEmissiveFactor(const Vector4& emissiveFactor) { material_.SetEmissiveFactor(emissiveFactor); } // ゲーム側の脈動演出からObject3Dの発光量を安全に変更する。
+		void SetCullMode(MaterialCullMode cullMode) { material_.SetCullMode(cullMode); }
+		MaterialCullMode GetCullMode() const { return material_.GetCullMode(); }
 		void SetCamera(Camera* camera) { camera_ = camera; }
 		void SetReflectivity(float reflectivity) { material_.SetReflection(reflectivity); }
 		void ApplyMaterialDesc(const MaterialDesc& desc);
