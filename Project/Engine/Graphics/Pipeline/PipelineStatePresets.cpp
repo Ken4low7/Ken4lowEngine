@@ -31,6 +31,17 @@ namespace Ken4lowEngine::PipelineStatePresets
 		D3D12_RASTERIZER_DESC desc{};
 		desc.FillMode = D3D12_FILL_MODE_SOLID;
 		desc.CullMode = D3D12_CULL_MODE_BACK;
+		desc.FrontCounterClockwise = FALSE; // Ken4lowEngineは時計回りの三角形を表面として統一する。
+		desc.DepthClipEnable = TRUE;
+		return desc;
+	}
+
+	D3D12_RASTERIZER_DESC MakeRasterizerCullFront()
+	{
+		D3D12_RASTERIZER_DESC desc{};
+		desc.FillMode = D3D12_FILL_MODE_SOLID;
+		desc.CullMode = D3D12_CULL_MODE_FRONT;
+		desc.FrontCounterClockwise = FALSE;
 		desc.DepthClipEnable = TRUE;
 		return desc;
 	}
@@ -40,6 +51,7 @@ namespace Ken4lowEngine::PipelineStatePresets
 		D3D12_RASTERIZER_DESC desc{};
 		desc.FillMode = D3D12_FILL_MODE_SOLID;
 		desc.CullMode = D3D12_CULL_MODE_NONE;
+		desc.FrontCounterClockwise = FALSE;
 		desc.DepthClipEnable = TRUE;
 		return desc;
 	}
