@@ -1,6 +1,7 @@
 #include "Mesh.h"
 #include "ResourceManager.h"
 #include "DirectXCommon.h"
+#include "Engine/Graphics/Culling/CullingDiagnostics.h"
 #include <span>
 
 namespace Ken4lowEngine
@@ -9,6 +10,7 @@ namespace Ken4lowEngine
 	{
 		vertices = modelVertices;
 		indices = modelIndices;
+		normalCone_ = BuildNormalCone(vertices, indices); // Runtime cullはまだ行わず、将来のMeshlet判定用メタデータだけ先に生成する。
 		auto* device = DirectXCommon::GetInstance()->GetDevice();
 
 		vertexResource = ResourceManager::CreateBufferResource(device, sizeof(VertexData) * vertices.size());
@@ -44,6 +46,7 @@ namespace Ken4lowEngine
 		commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 		commandList->IASetIndexBuffer(&indexBufferView);
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		CullingDiagnostics::GetInstance()->RecordIndexedDraw(indices.size(), instanceCount, normalCone_.IsBackfaceCullCandidate());
 		commandList->DrawIndexedInstanced(static_cast<UINT>(indices.size()), instanceCount, 0, 0, startInstanceLocation); // 選択Instanceだけを描けるよう開始Instanceを渡す。
 	}
 } // namespace Ken4lowEngine
