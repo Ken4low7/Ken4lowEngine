@@ -34,8 +34,10 @@ The target is a renderer with explicit visibility rules, a completed Forward pat
 - Main-pass culling diagnostics are explicitly scoped around Scene 3D rendering so Shadow, Picking, Debug Wireframe, Particles, and Editor overlays do not contaminate the counters.
 - Each static/instanced `Mesh` builds CPU `NormalCone` metadata and bounded Visibility Meshlets while preserving the existing full VB/IB draw path.
 - Visibility Meshlets currently use a reference budget of 64 unique vertices / 126 triangles and retain a local Bounding Sphere + Normal Cone for later conservative visibility evaluation.
-- Skinned LOD `SubMeshRange` data now retains bind-pose Visibility Meshlets plus Normal Cone candidate meshlet/triangle counts. These are reference/workload metadata only; skinning can deform the bounds and cones, so they are not used to reject animated draw work.
-- A CPU/reference Meshlet evaluator now resolves Back/Front/Two-Sided and mirrored winding without changing the actual draw range. It expands the Normal Cone half-angle by the Bounding Sphere angular radius so near-camera or spatially wide Meshlets are not over-culled by a center-only test.
+- Skinned LOD `SubMeshRange` data retains bind-pose Visibility Meshlets plus Normal Cone candidate meshlet/triangle counts. These are reference/workload metadata only; skinning can deform the bounds and cones, so they are not used to reject animated draw work.
+- Animated/skinned draw calls now publish bind-pose Meshlet counts and Normal Cone candidate workload into `CullingDiagnostics`, including per-render-path counters. Non-CS animated draws also publish their actual indexed draw/triangle workload even though they do not yet own Meshlet metadata.
+- The Culling Statistics ImGui panel separates Static/Alpha/Instanced/Animated Meshlet workload and labels Animated candidate counts as bind-pose reference data.
+- A CPU/reference Meshlet evaluator resolves Back/Front/Two-Sided and mirrored winding without changing the actual draw range. It expands the Normal Cone half-angle by the Bounding Sphere angular radius so near-camera or spatially wide Meshlets are not over-culled by a center-only test.
 - Deterministic reference cases cover front-facing, back-facing, Front-cull, mirrored, wide-cone, Two-Sided, and bounding-sphere safety behavior.
 - Runtime Normal Cone rejection remains disabled; the current diagnostics report candidate Meshlet workload without removing rendered geometry.
 
@@ -45,7 +47,6 @@ The CPU reference currently defines a positive dot between the geometric Cross n
 
 ### Remaining 15.1 work
 
-- Publish the animated/skinned bind-pose Meshlet workload into `CullingDiagnostics`; keep it clearly labeled as reference metadata until pose-aware bounds/cones exist.
 - Compare the CPU reference result against representative Windows/DX12 scenes, including mirrored and Two-Sided assets.
 - Keep actual runtime rejection disabled until Windows/DX12 visual comparison confirms the reference evaluator.
 
