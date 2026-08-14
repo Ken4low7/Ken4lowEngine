@@ -113,6 +113,7 @@ namespace Ken4lowEngine
 		materialData_->emissiveFactor = { 0.0f, 0.0f, 0.0f, 1.0f };
 		materialData_->textureFlags = 0;
 		materialData_->padding[0] = materialData_->padding[1] = materialData_->padding[2] = 0.0f;
+		cullMode_ = MaterialCullMode::Back; // 通常Materialは表面だけを描画し、両面は明示Opt-inにする。
 	}
 
 	void Material::ApplyDesc(const MaterialDesc& desc)
@@ -135,6 +136,7 @@ namespace Ken4lowEngine
 		if (usePbr && !desc.pbr.normalTexturePath.empty()) materialData_->textureFlags |= 1u << 1;
 		if (usePbr && !desc.pbr.occlusionTexturePath.empty()) materialData_->textureFlags |= 1u << 2;
 		if (usePbr && !desc.pbr.emissiveTexturePath.empty()) materialData_->textureFlags |= 1u << 3;
+		cullMode_ = desc.cullMode;
 	}
 
 	void Material::Update()
@@ -179,6 +181,13 @@ namespace Ken4lowEngine
 			ImGui::DragFloat("Normal Scale##Material", &materialData_->normalScale, 0.01f, 0.0f, 2.0f);
 			ImGui::DragFloat("AO Strength##Material", &materialData_->occlusionStrength, 0.01f, 0.0f, 1.0f);
 			ImGui::ColorEdit4("Emissive##Material", &materialData_->emissiveFactor.x);
+
+			const char* cullModeNames[] = { "Back", "Front", "None (Two Sided)" };
+			int cullModeIndex = static_cast<int>(cullMode_);
+			if (ImGui::Combo("Cull Mode##Material", &cullModeIndex, cullModeNames, IM_ARRAYSIZE(cullModeNames)))
+			{
+				cullMode_ = static_cast<MaterialCullMode>(cullModeIndex); // Material単位の両面描画をEditorから明示選択する。
+			}
 		}
 #endif // USE_IMGUI
 	}
