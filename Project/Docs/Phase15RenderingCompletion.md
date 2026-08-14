@@ -30,13 +30,20 @@ The target is a renderer with explicit visibility rules, a completed Forward pat
 - Editor Object-ID picking provides Back/Front/None PSOs and follows the visible-surface cull mode, including mirrored static objects and instanced fallback behavior.
 - Assimp import reads `AI_MATKEY_TWOSIDED` (including glTF `doubleSided` when exposed by Assimp) and stores it as `MaterialCullMode::None` on the imported SubMesh.
 - `Model` retains imported SubMesh cull modes alongside texture/sampling metadata so later render-queue work can group meshes without re-reading source assets.
+- `Culling Statistics` combines the existing Frustum counts with Main-pass Back/Front/Two-Sided draw/triangle workload, PSO bind counts, and a clearly labeled estimated rasterizer back-face workload.
+- Main-pass culling diagnostics are explicitly scoped around Scene 3D rendering so Shadow, Picking, Debug Wireframe, Particles, and Editor overlays do not contaminate the counters.
+- Each static/instanced `Mesh` builds CPU `NormalCone` metadata and bounded Visibility Meshlets while preserving the existing full VB/IB draw path.
+- Visibility Meshlets currently use a reference budget of 64 unique vertices / 126 triangles and retain a local Bounding Sphere + Normal Cone for later conservative visibility evaluation.
+- Runtime Normal Cone rejection remains disabled; the current diagnostics report candidate Meshlet workload without removing rendered geometry.
 
 Back-face culling is intentionally based on triangle winding in the D3D12 rasterizer. Vertex normals remain a lighting input; they are not used to decide whether an individual triangle is front-facing.
 
 ### Remaining 15.1 work
 
-- Add a debug visualization / counter for material cull modes and estimated culled triangle workload where useful.
-- Evaluate meshlet normal-cone culling after the basic material/rasterizer contract is stable.
+- Add a CPU/reference Meshlet visibility evaluator and validate winding/sign conventions before enabling any Normal Cone rejection.
+- Add deterministic reference cases for front-facing, back-facing, mirrored, wide-cone, and Two-Sided surfaces.
+- Extend Visibility Meshlet metadata/counters to the animated/skinned path after the static reference is stable.
+- Keep actual runtime rejection disabled until Windows/DX12 visual comparison confirms the reference evaluator.
 
 ## 15.2 — Forward Renderer Completion
 
@@ -86,7 +93,7 @@ After Forward and Deferred produce stable depth contracts:
 2. test object or mesh bounds in compute
 3. compact visible draw work
 4. issue GPU-driven draws with `ExecuteIndirect`
-5. evaluate meshlet normal-cone culling
+5. reuse the validated Meshlet Normal Cone reference contract on GPU
 
 Existing Frustum Culling and CPU Occlusion Culling remain the correctness baseline during migration.
 
