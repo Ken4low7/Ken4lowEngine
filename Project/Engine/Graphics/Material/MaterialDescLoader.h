@@ -41,6 +41,7 @@ namespace Ken4lowEngine
 		std::string materialName;
 		std::string sourcePath;
 		bool preferPbrWorkflow = false;
+		MaterialCullMode cullMode = MaterialCullMode::Back; // 旧Material入力はBack Face Cullingへ安全にフォールバックする。
 
 		Vector4 legacyColor = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 		float legacyShininess = 32.0f;
