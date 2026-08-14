@@ -16,6 +16,24 @@ enum class MaterialCullMode : uint8_t
 	None,
 };
 
+inline float CalculateWorldHandednessDeterminant(const Matrix4x4& world)
+{
+	return
+		world.m[0][0] * (world.m[1][1] * world.m[2][2] - world.m[1][2] * world.m[2][1]) -
+		world.m[0][1] * (world.m[1][0] * world.m[2][2] - world.m[1][2] * world.m[2][0]) +
+		world.m[0][2] * (world.m[1][0] * world.m[2][1] - world.m[1][1] * world.m[2][0]);
+}
+
+inline MaterialCullMode ResolveMaterialCullModeForWorld(MaterialCullMode cullMode, const Matrix4x4& world)
+{
+	if (cullMode == MaterialCullMode::None || CalculateWorldHandednessDeterminant(world) >= 0.0f)
+	{
+		return cullMode;
+	}
+	// 負Scaleなどの鏡映Transformでは巻き順が反転するため、Front/Backを入れ替えて表面契約を維持する。
+	return cullMode == MaterialCullMode::Back ? MaterialCullMode::Front : MaterialCullMode::Back;
+}
+
 struct LegacyMaterialDesc
 {
 	Vector4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
