@@ -133,29 +133,62 @@ namespace Ken4lowEngine
 		shadowTransformData_->WorldInversedTranspose = Matrix4x4::Transpose(Matrix4x4::Inverse(shadowWorld));
 
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
-		const MaterialCullMode effectiveCullMode = ResolveMaterialCullModeForWorld(material_.GetCullMode(), shadowWorld);
-		Object3DCommon::GetInstance()->SetShadowMapRenderSetting(effectiveCullMode); // Main描画と同じ表面契約をSkinned Shadowにも適用する。
-		commandList->SetGraphicsRootConstantBufferView(0, shadowTransformResource_->GetGPUVirtualAddress());
+		const MaterialCullMode cullModes[] = { MaterialCullMode::Back, MaterialCullMode::Front, MaterialCullMode::None };
 
 		if (skinningCS_.IsSkinningModel())
 		{
-			commandList->IASetVertexBuffers(0, 1, &lod.skinnedVBV);
-			commandList->IASetIndexBuffer(&lod.ibv);
-			for (const auto& range : lod.subMeshRanges)
+			for (const MaterialCullMode cullMode : cullModes)
 			{
-				commandList->DrawIndexedInstanced(range.indexCount, 1, range.startIndex, 0, 0);
+				bool hasSurface = false;
+				for (const auto& range : lod.subMeshRanges)
+				{
+					if (ResolveSubmeshCullMode(range.cullMode, shadowWorld) == cullMode)
+					{
+						hasSurface = true;
+						break;
+					}
+				}
+				if (!hasSurface) continue;
+
+				Object3DCommon::GetInstance()->SetShadowMapRenderSetting(cullMode);
+				commandList->SetGraphicsRootConstantBufferView(0, shadowTransformResource_->GetGPUVirtualAddress()); // RootSignature切替後にShadow行列を再Bindする。
+				commandList->IASetVertexBuffers(0, 1, &lod.skinnedVBV);
+				commandList->IASetIndexBuffer(&lod.ibv);
+				for (const auto& range : lod.subMeshRanges)
+				{
+					if (ResolveSubmeshCullMode(range.cullMode, shadowWorld) != cullMode) continue;
+					commandList->DrawIndexedInstanced(range.indexCount, 1, range.startIndex, 0, 0);
+				}
 			}
 			return;
 		}
 
 		const size_t subMeshCount = animationMesh_ ? animationMesh_->GetSubmeshCount() : 0;
-		for (size_t index = 0; index < subMeshCount && index < modelData.subMeshes.size(); ++index)
+		for (const MaterialCullMode cullMode : cullModes)
 		{
-			const auto& vbv = animationMesh_->GetVertexBufferView(index);
-			const auto& ibv = animationMesh_->GetIndexBufferView(index);
-			commandList->IASetVertexBuffers(0, 1, &vbv);
-			commandList->IASetIndexBuffer(&ibv);
-			commandList->DrawIndexedInstanced(static_cast<UINT>(modelData.subMeshes[index].indices.size()), 1, 0, 0, 0);
+			bool hasSurface = false;
+			for (size_t index = 0; index < subMeshCount && index < modelData.subMeshes.size(); ++index)
+			{
+				if (ResolveSubmeshCullMode(modelData.subMeshes[index].material.GetCullMode(), shadowWorld) == cullMode)
+				{
+					hasSurface = true;
+					break;
+				}
+			}
+			if (!hasSurface) continue;
+
+			Object3DCommon::GetInstance()->SetShadowMapRenderSetting(cullMode);
+			commandList->SetGraphicsRootConstantBufferView(0, shadowTransformResource_->GetGPUVirtualAddress());
+			for (size_t index = 0; index < subMeshCount && index < modelData.subMeshes.size(); ++index)
+			{
+				const auto& subMesh = modelData.subMeshes[index];
+				if (ResolveSubmeshCullMode(subMesh.material.GetCullMode(), shadowWorld) != cullMode) continue;
+				const auto& vbv = animationMesh_->GetVertexBufferView(index);
+				const auto& ibv = animationMesh_->GetIndexBufferView(index);
+				commandList->IASetVertexBuffers(0, 1, &vbv);
+				commandList->IASetIndexBuffer(&ibv);
+				commandList->DrawIndexedInstanced(static_cast<UINT>(subMesh.indices.size()), 1, 0, 0, 0);
+			}
 		}
 	}
 }
