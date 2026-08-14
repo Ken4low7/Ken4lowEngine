@@ -25,6 +25,7 @@ namespace Ken4lowEngine
 			static constexpr const char* SourcePath = "sourcePath";
 			static constexpr const char* SourceKind = "sourceKind";
 			static constexpr const char* PreferPbrWorkflow = "preferPbrWorkflow";
+			static constexpr const char* CullMode = "cullMode";
 
 			static constexpr const char* Legacy = "legacy";
 			static constexpr const char* LegacyColor = "color";
@@ -53,27 +54,11 @@ namespace Ken4lowEngine
 			static constexpr const char* TextureSlotPath = "texturePath";
 		};
 
-		/// <summary>
-		/// JsonオブジェクトからMaterialDescSourceを作成します。<br/>
-		/// 欠損キーや型違いはSourceの既定値へフォールバックし、ファイルI/Oや描画接続は行いません。
-		/// </summary>
 		static MaterialDescSource FromJson(const nlohmann::json& json);
-
-		/// <summary>
-		/// MaterialDescSourceをJsonオブジェクトへ変換します。<br/>
-		/// まだファイル保存は行わず、Material Json保存形式を固めるためのオブジェクト生成だけを担当します。
-		/// </summary>
 		static nlohmann::json ToJson(const MaterialDescSource& source);
-
-		/// <summary>
-		/// MaterialSourceKindをJson保存用文字列へ変換します。
-		/// </summary>
 		static const char* ToString(MaterialSourceKind kind);
-
-		/// <summary>
-		/// Json文字列からMaterialSourceKindへ変換します。<br/>
-		/// 未知の値はManualへフォールバックし、古いJsonでも安全に読み込めるようにします。
-		/// </summary>
 		static MaterialSourceKind SourceKindFromString(const std::string& text);
+		static const char* ToString(MaterialCullMode cullMode);
+		static MaterialCullMode CullModeFromString(const std::string& text);
 	};
 }
