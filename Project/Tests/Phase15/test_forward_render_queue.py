@@ -11,6 +11,10 @@ MATERIAL_JSON_H = PROJECT_ROOT / "Engine" / "Graphics" / "Material" / "MaterialD
 MATERIAL_JSON_CPP = MATERIAL_JSON_H.with_suffix(".cpp")
 FORWARD_QUEUE = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Forward" / "ForwardRenderQueue.h"
 OBJECT_COMMON_H = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Object3D" / "Object3DCommon.h"
+OBJECT3D_H = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Object3D" / "Object3D.h"
+MODEL_COMPONENT_H = PROJECT_ROOT / "Engine" / "Scene" / "Actor" / "Components" / "ModelComponent.h"
+MODEL_COMPONENT_CPP = MODEL_COMPONENT_H.with_suffix(".cpp")
+ACTOR_WORLD_DRAW = PROJECT_ROOT / "Engine" / "Scene" / "Actor" / "Core" / "ActorWorld_Draw.cpp"
 
 
 class ForwardRenderQueueFoundationTests(unittest.TestCase):
@@ -24,6 +28,10 @@ class ForwardRenderQueueFoundationTests(unittest.TestCase):
         cls.material_json_cpp = MATERIAL_JSON_CPP.read_text(encoding="utf-8")
         cls.forward_queue = FORWARD_QUEUE.read_text(encoding="utf-8")
         cls.object_common_h = OBJECT_COMMON_H.read_text(encoding="utf-8")
+        cls.object3d_h = OBJECT3D_H.read_text(encoding="utf-8")
+        cls.model_component_h = MODEL_COMPONENT_H.read_text(encoding="utf-8")
+        cls.model_component_cpp = MODEL_COMPONENT_CPP.read_text(encoding="utf-8")
+        cls.actor_world_draw = ACTOR_WORLD_DRAW.read_text(encoding="utf-8")
 
     def test_material_owns_high_level_forward_blend_classification(self) -> None:
         self.assertIn("enum class MaterialBlendMode", self.material_h)
@@ -51,6 +59,36 @@ class ForwardRenderQueueFoundationTests(unittest.TestCase):
         self.assertIn("ForwardRenderBucket::Masked, BlendMode::kBlendModeNone, ForwardSortMode::FrontToBack, true, true", self.forward_queue)
         self.assertIn("ForwardRenderBucket::Transparent, BlendMode::kBlendModeNormal, ForwardSortMode::BackToFront, false, false", self.forward_queue)
         self.assertIn("ForwardRenderBucket::Additive, BlendMode::kBlendModeAdd, ForwardSortMode::BackToFront, false, false", self.forward_queue)
+
+    def test_forward_queue_owns_stable_submit_sort_execute_lifecycle(self) -> None:
+        self.assertIn("struct ForwardRenderItem", self.forward_queue)
+        self.assertIn("class ForwardRenderQueue", self.forward_queue)
+        self.assertIn("void BeginFrame()", self.forward_queue)
+        self.assertIn("bool Submit(ForwardRenderItem item)", self.forward_queue)
+        self.assertIn("std::stable_sort", self.forward_queue)
+        self.assertIn("submissionOrder", self.forward_queue)
+        self.assertIn("void ExecuteBucket(ForwardRenderBucket bucket)", self.forward_queue)
+        self.assertIn("void EndFrame()", self.forward_queue)
+
+    def test_static_model_component_submits_only_opaque_non_legacy_alpha_draws(self) -> None:
+        self.assertIn("GetBlendMode() const", self.object3d_h)
+        self.assertIn("SubmitForwardOpaque", self.model_component_h)
+        self.assertIn("object3D_->IsAlphaBlendEnabled()", self.model_component_cpp)
+        self.assertIn("policy.bucket != ForwardRenderBucket::Opaque", self.model_component_cpp)
+        self.assertIn("item.sortDepth = CalculateForwardSortDepth", self.model_component_cpp)
+        self.assertIn("lastForwardQueueSerial_ = queue.GetFrameSerial()", self.model_component_cpp)
+        self.assertIn("alreadyDrawnByOpaqueQueue", self.model_component_cpp)
+
+    def test_actor_world_executes_opaque_queue_before_legacy_component_draws(self) -> None:
+        begin_index = self.actor_world_draw.index("forwardQueue->BeginFrame()")
+        submit_index = self.actor_world_draw.index("SubmitForwardOpaque")
+        execute_index = self.actor_world_draw.index("ExecuteBucket(ForwardRenderBucket::Opaque)")
+        legacy_draw_index = self.actor_world_draw.index("actor->Draw()")
+        end_index = self.actor_world_draw.index("forwardQueue->EndFrame()")
+        self.assertLess(begin_index, submit_index)
+        self.assertLess(submit_index, execute_index)
+        self.assertLess(execute_index, legacy_draw_index)
+        self.assertLess(legacy_draw_index, end_index)
 
     def test_forward_policy_is_compiled_by_object_renderer(self) -> None:
         self.assertIn("Engine/Graphics/Renderer/Forward/ForwardRenderQueue.h", self.object_common_h)
