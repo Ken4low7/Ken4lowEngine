@@ -51,6 +51,11 @@ namespace Ken4lowEngine
 		CullingDiagnostics::GetInstance()->BeginMainPass(); // Shadowとは分け、Main 3D passだけのSurface統計を毎フレーム取り直す。
 	}
 
+	void Object3DCommon::EndObject3DPass()
+	{
+		CullingDiagnostics::GetInstance()->EndMainPass(); // Selection/Picking/OverlayのDrawをMain World統計へ混ぜない。
+	}
+
 	void Object3DCommon::DrawImGui()
 	{
 #ifdef USE_IMGUI
@@ -92,12 +97,15 @@ namespace Ken4lowEngine
 					toUll(stats.pipelineBindsByPath[2]), toUll(stats.pipelineBindsByPath[3]));
 			}
 
-			if (ImGui::CollapsingHeader("Normal Cone Foundation", ImGuiTreeNodeFlags_DefaultOpen))
+			if (ImGui::CollapsingHeader("Normal Cone / Visibility Meshlet", ImGuiTreeNodeFlags_DefaultOpen))
 			{
+				ImGui::Text("Visibility Meshlet Instances: %llu", toUll(stats.visibilityMeshletInstances));
 				ImGui::Text("Candidate Draw Calls: %llu", toUll(stats.normalConeCandidateDrawCalls));
+				ImGui::Text("Candidate Meshlet Instances: %llu", toUll(stats.normalConeCandidateMeshletInstances));
 				ImGui::Text("Candidate Triangles: %llu", toUll(stats.normalConeCandidateTriangles));
+				ImGui::Text("Meshlet Budget: 64 vertices / 126 triangles");
 				ImGui::Text("Runtime Normal Cone Culling: OFF");
-				ImGui::TextDisabled("Mesh now builds CPU normal-cone metadata. Runtime rejection stays OFF until conservative Meshlet bounds/cones are wired.");
+				ImGui::TextDisabled("CPU Meshlet bounds/cones are generated for reference statistics; rendered output still uses the original full Mesh draw.");
 			}
 		}
 		ImGui::End();
