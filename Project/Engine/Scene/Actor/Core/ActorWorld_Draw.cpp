@@ -64,6 +64,7 @@ namespace Ken4lowEngine
 				{
 					modelComponent->SubmitForwardOpaque(*forwardQueue);
 					modelComponent->SubmitForwardMasked(*forwardQueue); // MaskedもDepthWriteするためOpaque直後の専用Bucketへ収集する。
+					modelComponent->SubmitForwardTransparent(*forwardQueue);
 				}
 			}
 		}
@@ -82,6 +83,7 @@ namespace Ken4lowEngine
 			actor->Draw();
 		}
 
+		forwardQueue->ExecuteBucket(ForwardRenderBucket::Transparent); // 半透明はDepthを書き終えた不透明・旧経路3D描画の後にBackToFrontで合成する。
 		forwardQueue->EndFrame();
 	}
 
