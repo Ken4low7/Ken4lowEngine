@@ -6,6 +6,7 @@
 #include <ModelData.h>
 #include <TransformationMatrix.h>
 #include "LightManager.h"
+#include "Material.h"
 
 #include <array>
 #include <string>
@@ -25,12 +26,11 @@ public:
 	void Initialize(DirectXCommon* dxCommon);
 	void Finalize();
 
-	/// Skinned BatchはPhase15.1の次段でCullMode別グループへ分離するため、ここではBack Cull基準を維持する。
-	void SetRenderSetting();
+	void SetRenderSetting(MaterialCullMode cullMode = MaterialCullMode::Back);
 	void SetComputeSetting();
 
 	ID3D12RootSignature* GetRootSignature() const { return rootSignature.Get(); }
-	ID3D12PipelineState* GetPipelineState() const { return graphicsPipelineState.Get(); }
+	ID3D12PipelineState* GetPipelineState(MaterialCullMode cullMode = MaterialCullMode::Back) const;
 	ID3D12RootSignature* GetComputeRootSignature() const { return computeRootSignature_.Get(); }
 	ID3D12PipelineState* GetComputePipelineState() const { return computePipelineState_.Get(); }
 
@@ -45,6 +45,8 @@ private:
 
 	ComPtr<ID3D12RootSignature> rootSignature;
 	ComPtr<ID3D12PipelineState> graphicsPipelineState;
+	ComPtr<ID3D12PipelineState> graphicsPipelineStateFront_;
+	ComPtr<ID3D12PipelineState> graphicsPipelineStateTwoSided_;
 
 	ComPtr<ID3D12RootSignature> computeRootSignature_;
 	ComPtr<ID3D12PipelineState> computePipelineState_;
