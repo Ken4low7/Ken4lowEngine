@@ -31,7 +31,9 @@ namespace Ken4lowEngine
 			uint64_t indexedDrawCalls = 0;
 			uint64_t submittedSurfaceInstances = 0;
 			uint64_t submittedTriangles = 0;
+			uint64_t visibilityMeshletInstances = 0;
 			uint64_t normalConeCandidateDrawCalls = 0;
+			uint64_t normalConeCandidateMeshletInstances = 0;
 			uint64_t normalConeCandidateTriangles = 0;
 			std::array<uint64_t, kCullModeCount> pipelineBindsByCullMode{};
 			std::array<uint64_t, kCullModeCount> drawCallsByCullMode{};
@@ -54,6 +56,12 @@ namespace Ken4lowEngine
 			activeSurfaceValid_ = false; // 前フレームのPSO状態を新しいMain Passへ持ち越さない。
 		}
 
+		void EndMainPass()
+		{
+			mainPassActive_ = false;
+			activeSurfaceValid_ = false; // Selection/PickingなどMain外のDrawを統計へ混ぜない。
+		}
+
 		void SetActiveSurface(MaterialCullMode cullMode, SurfacePath path)
 		{
 			if (!mainPassActive_) { return; }
@@ -64,7 +72,12 @@ namespace Ken4lowEngine
 			++snapshot_.pipelineBindsByPath[ToPathIndex(path)];
 		}
 
-		void RecordIndexedDraw(uint64_t indexCount, uint64_t instanceCount, bool normalConeCandidate)
+		void RecordIndexedDraw(
+			uint64_t indexCount,
+			uint64_t instanceCount,
+			uint64_t visibilityMeshletCount = 0,
+			uint64_t normalConeCandidateMeshletCount = 0,
+			uint64_t normalConeCandidateTriangleCount = 0)
 		{
 			if (!mainPassActive_ || !activeSurfaceValid_ || instanceCount == 0) { return; }
 
@@ -75,15 +88,17 @@ namespace Ken4lowEngine
 			++snapshot_.indexedDrawCalls;
 			snapshot_.submittedSurfaceInstances += instanceCount;
 			snapshot_.submittedTriangles += triangleCount;
+			snapshot_.visibilityMeshletInstances += visibilityMeshletCount * instanceCount;
 			++snapshot_.drawCallsByCullMode[cullIndex];
 			snapshot_.trianglesByCullMode[cullIndex] += triangleCount;
 			++snapshot_.drawCallsByPath[pathIndex];
 			snapshot_.trianglesByPath[pathIndex] += triangleCount;
 
-			if (normalConeCandidate && activeCullMode_ != MaterialCullMode::None)
+			if (activeCullMode_ != MaterialCullMode::None && normalConeCandidateMeshletCount > 0)
 			{
 				++snapshot_.normalConeCandidateDrawCalls;
-				snapshot_.normalConeCandidateTriangles += triangleCount;
+				snapshot_.normalConeCandidateMeshletInstances += normalConeCandidateMeshletCount * instanceCount;
+				snapshot_.normalConeCandidateTriangles += normalConeCandidateTriangleCount * instanceCount;
 			}
 		}
 
