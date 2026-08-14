@@ -349,7 +349,7 @@ namespace Ken4lowEngine
 
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		SRVManager::GetInstance()->PreDraw();
-		Object3DCommon::GetInstance()->SetInstancedRenderSetting();
+		Object3DCommon::GetInstance()->SetInstancedRenderSetting(material_.GetCullMode()); // 全Instanceで共有するMaterial Cull Modeに対応したPSOを選ぶ。
 		material_.SetPipeline(0);
 		commandList->SetGraphicsRootConstantBufferView(1, perViewAllocation.gpuAddress);
 		commandList->SetGraphicsRootConstantBufferView(3, cameraAllocation.gpuAddress);
