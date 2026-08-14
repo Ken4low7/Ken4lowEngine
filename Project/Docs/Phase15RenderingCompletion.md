@@ -22,13 +22,15 @@ The target is a renderer with explicit visibility rules, a completed Forward pat
 - Instanced draws use the same handedness rule; if normal and mirrored instances are mixed in one draw, the renderer conservatively falls back to `None` so geometry never disappears because one PSO cannot represent two winding signs at once.
 - Directional/Spot/CSM depth shadows and Point-light linear-depth shadows select the same Material cull mode as their main Object3D path.
 - Editor Object-ID picking provides Back/Front/None PSOs and follows the visible-surface cull mode, including mirrored static objects and instanced fallback behavior.
+- Assimp import reads `AI_MATKEY_TWOSIDED` (including glTF `doubleSided` when exposed by Assimp) and stores it as `MaterialCullMode::None` on the imported SubMesh.
+- `Model` retains imported SubMesh cull modes alongside texture/sampling metadata so later render-queue work can group meshes without re-reading source assets.
 
 Back-face culling is intentionally based on triangle winding in the D3D12 rasterizer. Vertex normals remain a lighting input; they are not used to decide whether an individual triangle is front-facing.
 
 ### Remaining 15.1 work
 
 - Split skinned/animated batches by effective `MaterialCullMode` and route each group through the already-created Back/Front/None PSOs.
-- Import two-sided material metadata from model assets where available, including glTF `doubleSided` where the importer exposes it.
+- Route imported per-SubMesh cull metadata into static/animated render grouping instead of only preserving it in `ModelData` / `Model`.
 - Add a debug visualization / counter for material cull modes and estimated culled triangle workload where useful.
 - Evaluate meshlet normal-cone culling after the basic material/rasterizer contract is stable.
 
