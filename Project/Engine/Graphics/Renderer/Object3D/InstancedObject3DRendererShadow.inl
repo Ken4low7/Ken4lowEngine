@@ -14,7 +14,6 @@ namespace Ken4lowEngine
 	inline void InstancedObject3DRenderer::DrawShadow()
 	{
 		if (!initialized_ || !model_ || sourceInstances_.empty()) return;
-
 		InstanceStreamBuffer* stream = GetInstanceStream(InstanceStreamUsage::Shadow);
 		if (!stream || !stream->mappedInstances || stream->srvIndex == UINT32_MAX) return;
 
@@ -37,7 +36,6 @@ namespace Ken4lowEngine
 		Object3DCommon::GetInstance()->SetInstancedShadowMapRenderSetting(ResolveEffectiveCullMode()); // MainとShadowで同じ混在鏡映フォールバックを使う。
 		commandList->SetGraphicsRootConstantBufferView(0, perViewAllocation.gpuAddress);
 		SRVManager::GetInstance()->SetGraphicsRootDescriptorTable(1, stream->srvIndex);
-
 		for (auto& mesh : model_->GetMeshes()) mesh.DrawInstanced(static_cast<UINT>(shadowInstanceCount));
 	}
 
@@ -45,7 +43,6 @@ namespace Ken4lowEngine
 	{
 		const size_t count = UploadSourceInstancesForEditorPicking();
 		if (count == 0 || baseObjectId == 0) return;
-
 		InstanceStreamBuffer* stream = GetInstanceStream(InstanceStreamUsage::Picking);
 		if (!stream || stream->srvIndex == UINT32_MAX) return;
 
@@ -56,7 +53,7 @@ namespace Ken4lowEngine
 
 		ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		SRVManager::GetInstance()->PreDraw();
-		ObjectIdPipeline::GetInstance()->BindInstanced(commandList, baseObjectId, true);
+		ObjectIdPipeline::GetInstance()->BindInstanced(commandList, baseObjectId, true, ResolveEffectiveCullMode()); // 一括PickingもMain描画と同じ可視面に揃える。
 		SRVManager::GetInstance()->SetGraphicsRootDescriptorTable(0, stream->srvIndex);
 		commandList->SetGraphicsRootConstantBufferView(1, perViewAllocation.gpuAddress);
 		for (auto& mesh : model_->GetMeshes()) mesh.DrawInstanced(static_cast<UINT>(count));
@@ -66,7 +63,6 @@ namespace Ken4lowEngine
 	{
 		const size_t count = UploadSourceInstancesForEditorPicking();
 		if (count == 0 || sourceInstanceIndex >= count || objectId == 0) return;
-
 		InstanceStreamBuffer* stream = GetInstanceStream(InstanceStreamUsage::Picking);
 		if (!stream || stream->srvIndex == UINT32_MAX) return;
 
@@ -77,7 +73,8 @@ namespace Ken4lowEngine
 
 		ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		SRVManager::GetInstance()->PreDraw();
-		ObjectIdPipeline::GetInstance()->BindInstanced(commandList, objectId, false);
+		const MaterialCullMode cullMode = ResolveMaterialCullModeForWorld(material_.GetCullMode(), sourceInstances_[sourceInstanceIndex].world);
+		ObjectIdPipeline::GetInstance()->BindInstanced(commandList, objectId, false, cullMode);
 		SRVManager::GetInstance()->SetGraphicsRootDescriptorTable(0, stream->srvIndex);
 		commandList->SetGraphicsRootConstantBufferView(1, perViewAllocation.gpuAddress);
 		for (auto& mesh : model_->GetMeshes())
