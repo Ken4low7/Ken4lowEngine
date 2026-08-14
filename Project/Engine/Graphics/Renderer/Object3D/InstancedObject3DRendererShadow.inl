@@ -13,16 +13,10 @@ namespace Ken4lowEngine
 {
 	inline void InstancedObject3DRenderer::DrawShadow()
 	{
-		if (!initialized_ || !model_ || sourceInstances_.empty())
-		{
-			return;
-		}
+		if (!initialized_ || !model_ || sourceInstances_.empty()) return;
 
 		InstanceStreamBuffer* stream = GetInstanceStream(InstanceStreamUsage::Shadow);
-		if (!stream || !stream->mappedInstances || stream->srvIndex == UINT32_MAX)
-		{
-			return;
-		}
+		if (!stream || !stream->mappedInstances || stream->srvIndex == UINT32_MAX) return;
 
 		const size_t shadowInstanceCount = (std::min)(sourceInstances_.size(), maxInstanceCount_);
 		const uint64_t shadowIndexCount = model_->GetTotalIndexCount() * static_cast<uint64_t>(shadowInstanceCount);
@@ -36,22 +30,15 @@ namespace Ken4lowEngine
 		PerViewData shadowPerView{};
 		shadowPerView.viewProjection = LightManager::GetInstance()->GetActiveShadowPassLightViewProjection();
 		const FrameUploadArena::Allocation perViewAllocation = dxCommon_->GetFrameUploadArena().AllocateConstant(shadowPerView);
-		if (!perViewAllocation.IsValid())
-		{
-			return;
-		}
+		if (!perViewAllocation.IsValid()) return;
 
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		SRVManager::GetInstance()->PreDraw();
-		Object3DCommon::GetInstance()->SetInstancedShadowMapRenderSetting();
+		Object3DCommon::GetInstance()->SetInstancedShadowMapRenderSetting(ResolveEffectiveCullMode()); // MainとShadowで同じ混在鏡映フォールバックを使う。
 		commandList->SetGraphicsRootConstantBufferView(0, perViewAllocation.gpuAddress);
 		SRVManager::GetInstance()->SetGraphicsRootDescriptorTable(1, stream->srvIndex);
 
-		auto& meshes = model_->GetMeshes();
-		for (auto& mesh : meshes)
-		{
-			mesh.DrawInstanced(static_cast<UINT>(shadowInstanceCount));
-		}
+		for (auto& mesh : model_->GetMeshes()) mesh.DrawInstanced(static_cast<UINT>(shadowInstanceCount));
 	}
 
 	inline void InstancedObject3DRenderer::DrawEditorObjectId(uint32_t baseObjectId)
@@ -72,10 +59,7 @@ namespace Ken4lowEngine
 		ObjectIdPipeline::GetInstance()->BindInstanced(commandList, baseObjectId, true);
 		SRVManager::GetInstance()->SetGraphicsRootDescriptorTable(0, stream->srvIndex);
 		commandList->SetGraphicsRootConstantBufferView(1, perViewAllocation.gpuAddress);
-		for (auto& mesh : model_->GetMeshes())
-		{
-			mesh.DrawInstanced(static_cast<UINT>(count));
-		}
+		for (auto& mesh : model_->GetMeshes()) mesh.DrawInstanced(static_cast<UINT>(count));
 	}
 
 	inline void InstancedObject3DRenderer::DrawEditorInstanceObjectId(size_t sourceInstanceIndex, uint32_t objectId)
