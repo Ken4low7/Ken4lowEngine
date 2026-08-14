@@ -11,6 +11,7 @@ MESH_SOURCE = MESH_HEADER.with_suffix(".cpp")
 OBJECT_COMMON_H = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Object3D" / "Object3DCommon.h"
 OBJECT_COMMON = OBJECT_COMMON_H.with_suffix(".cpp")
 ANIMATION_PIPELINE = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Animation" / "Pipeline" / "AnimationPipelineBuilder.cpp"
+ANIMATION_SOURCE = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Animation" / "Core" / "AnimationModel.cpp"
 ANIMATION_LOD_H = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Animation" / "LOD" / "AnimationModelLODBuilder.h"
 ANIMATION_LOD_CPP = ANIMATION_LOD_H.with_suffix(".cpp")
 GAME_APPLICATION = PROJECT_ROOT / "Engine" / "Core" / "Application" / "GameApplication.cpp"
@@ -27,6 +28,7 @@ class CullingDiagnosticsFoundationTests(unittest.TestCase):
         cls.object_common_h = OBJECT_COMMON_H.read_text(encoding="utf-8")
         cls.object_common = OBJECT_COMMON.read_text(encoding="utf-8")
         cls.animation_pipeline = ANIMATION_PIPELINE.read_text(encoding="utf-8")
+        cls.animation_source = ANIMATION_SOURCE.read_text(encoding="utf-8")
         cls.animation_lod_h = ANIMATION_LOD_H.read_text(encoding="utf-8")
         cls.animation_lod_cpp = ANIMATION_LOD_CPP.read_text(encoding="utf-8")
         cls.game_application = GAME_APPLICATION.read_text(encoding="utf-8")
@@ -40,6 +42,10 @@ class CullingDiagnosticsFoundationTests(unittest.TestCase):
         self.assertIn("pipelineBindsByPath", self.diagnostics)
         self.assertIn("visibilityMeshletInstances", self.diagnostics)
         self.assertIn("normalConeCandidateMeshletInstances", self.diagnostics)
+        self.assertIn("visibilityMeshletInstancesByPath", self.diagnostics)
+        self.assertIn("normalConeCandidateDrawCallsByPath", self.diagnostics)
+        self.assertIn("normalConeCandidateMeshletInstancesByPath", self.diagnostics)
+        self.assertIn("normalConeCandidateTrianglesByPath", self.diagnostics)
         self.assertIn("GetEstimatedRasterizerRejectedTriangles", self.diagnostics)
 
     def test_mesh_builds_normal_cone_and_visibility_meshlets_without_runtime_rejection(self) -> None:
@@ -66,6 +72,16 @@ class CullingDiagnosticsFoundationTests(unittest.TestCase):
         self.assertIn("R.visibilityMeshlets = BuildVisibilityMeshlets", self.animation_lod_cpp)
         self.assertIn("meshlet.startIndex += R.startIndex", self.animation_lod_cpp)
         self.assertIn("Bind Pose基準のreference metadata", self.animation_lod_h)
+
+    def test_skinned_bind_pose_meshlet_workload_is_published_without_rejection(self) -> None:
+        self.assertIn("range.visibilityMeshlets.size()", self.animation_source)
+        self.assertIn("range.normalConeCandidateMeshletCount", self.animation_source)
+        self.assertIn("range.normalConeCandidateTriangleCount", self.animation_source)
+        self.assertIn("Bind Pose Meshletは診断だけに使い", self.animation_source)
+        self.assertIn("RecordIndexedDraw(sm.indices.size(), 1)", self.animation_source)
+        self.assertIn("visibilityMeshletInstancesByPath[3]", self.object_common)
+        self.assertIn("normalConeCandidateMeshletInstancesByPath[3]", self.object_common)
+        self.assertIn("Animated Bind-Pose Candidates", self.object_common)
 
     def test_main_render_paths_publish_active_surface_state(self) -> None:
         self.assertIn("SurfacePath::Static", self.object_common)
