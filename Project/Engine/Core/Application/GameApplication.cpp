@@ -368,6 +368,7 @@ namespace Ken4lowEngine
 
 		// 現在シーンが持つ通常の3Dモデルを最初に描画する。
 		sceneManager_->Draw3DObjects();
+		Object3DCommon::GetInstance()->EndObject3DPass(); // Main World以外のDebug/Particle/Editor drawを統計から切り離す。
 
 		// デバッグ表示、GPUパーティクル、CPUパーティクルをモデル描画後に重ねる。
 		Wireframe::GetInstance()->Draw();
