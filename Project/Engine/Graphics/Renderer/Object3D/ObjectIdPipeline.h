@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DirectXCommon.h"
+#include "Material.h"
 #include "PipelineCommon.h"
 #include "PipelineFactory.h"
 #include "PipelineStatePresets.h"
@@ -8,13 +9,10 @@
 
 #include <array>
 #include <cstdint>
-#include <utility>
 
 namespace Ken4lowEngine
 {
-	/// <summary>
-	/// Editor Picking用のObject-ID描画Pipelineを管理します。
-	/// </summary>
+	/// <summary>Editor Picking用のObject-ID描画Pipelineを管理します。</summary>
 	class ObjectIdPipeline
 	{
 	public:
@@ -28,33 +26,35 @@ namespace Ken4lowEngine
 		{
 			if (initialized_) return;
 			dxCommon_ = DirectXCommon::GetInstance();
-			CreateStaticPipeline();
-			CreateInstancedPipeline();
+			CreateStaticPipelines();
+			CreateInstancedPipelines();
 			initialized_ = true;
 		}
 
 		void Finalize()
 		{
-			staticPipeline_.Reset();
-			instancedPipeline_.Reset();
+			for (PipelineBundle& pipeline : staticPipelines_) pipeline.Reset();
+			for (PipelineBundle& pipeline : instancedPipelines_) pipeline.Reset();
 			dxCommon_ = nullptr;
 			initialized_ = false;
 		}
 
-		void BindStatic(ID3D12GraphicsCommandList* commandList, uint32_t objectId)
+		void BindStatic(ID3D12GraphicsCommandList* commandList, uint32_t objectId, MaterialCullMode cullMode = MaterialCullMode::Back)
 		{
 			if (!initialized_) Initialize();
-			commandList->SetGraphicsRootSignature(staticPipeline_.rootSignature.Get());
-			commandList->SetPipelineState(staticPipeline_.pipelineState.Get());
+			const PipelineBundle& pipeline = staticPipelines_[ToIndex(cullMode)];
+			commandList->SetGraphicsRootSignature(pipeline.rootSignature.Get());
+			commandList->SetPipelineState(pipeline.pipelineState.Get());
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			commandList->SetGraphicsRoot32BitConstant(1, objectId, 0);
 		}
 
-		void BindInstanced(ID3D12GraphicsCommandList* commandList, uint32_t baseObjectId, bool addInstanceId)
+		void BindInstanced(ID3D12GraphicsCommandList* commandList, uint32_t baseObjectId, bool addInstanceId, MaterialCullMode cullMode = MaterialCullMode::Back)
 		{
 			if (!initialized_) Initialize();
-			commandList->SetGraphicsRootSignature(instancedPipeline_.rootSignature.Get());
-			commandList->SetPipelineState(instancedPipeline_.pipelineState.Get());
+			const PipelineBundle& pipeline = instancedPipelines_[ToIndex(cullMode)];
+			commandList->SetGraphicsRootSignature(pipeline.rootSignature.Get());
+			commandList->SetPipelineState(pipeline.pipelineState.Get());
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			const uint32_t constants[2] = { baseObjectId, addInstanceId ? 1u : 0u };
 			commandList->SetGraphicsRoot32BitConstants(2, 2, constants, 0); // Base IDとSV_InstanceID加算フラグをVSへ渡す。
@@ -65,6 +65,28 @@ namespace Ken4lowEngine
 		~ObjectIdPipeline() = default;
 		ObjectIdPipeline(const ObjectIdPipeline&) = delete;
 		ObjectIdPipeline& operator=(const ObjectIdPipeline&) = delete;
+
+		static size_t ToIndex(MaterialCullMode cullMode)
+		{
+			switch (cullMode)
+			{
+			case MaterialCullMode::Front: return 1;
+			case MaterialCullMode::None: return 2;
+			case MaterialCullMode::Back:
+			default: return 0;
+			}
+		}
+
+		static D3D12_RASTERIZER_DESC MakeRasterizer(MaterialCullMode cullMode)
+		{
+			switch (cullMode)
+			{
+			case MaterialCullMode::Front: return PipelineStatePresets::MakeRasterizerCullFront();
+			case MaterialCullMode::None: return PipelineStatePresets::MakeRasterizerCullNone();
+			case MaterialCullMode::Back:
+			default: return PipelineStatePresets::MakeRasterizerCullBack();
+			}
+		}
 
 		static std::array<D3D12_INPUT_ELEMENT_DESC, 3> MakeInputLayout()
 		{
@@ -85,14 +107,14 @@ namespace Ken4lowEngine
 			return program;
 		}
 
-		GraphicsPipelineDesc MakeCommonPipelineDesc(ShaderProgram program, const D3D12_INPUT_LAYOUT_DESC& inputLayout, const wchar_t* debugName)
+		GraphicsPipelineDesc MakeCommonPipelineDesc(const ShaderProgram& program, const D3D12_INPUT_LAYOUT_DESC& inputLayout, const wchar_t* debugName, MaterialCullMode cullMode)
 		{
 			GraphicsPipelineDesc desc{};
 			desc.debugName = debugName;
-			desc.shaders = std::move(program);
+			desc.shaders = program;
 			desc.inputLayout = inputLayout;
 			desc.blendState = PipelineStatePresets::MakeBlendOpaque();
-			desc.rasterizerState = PipelineStatePresets::MakeRasterizerCullBack();
+			desc.rasterizerState = MakeRasterizer(cullMode); // Picking PassもMain Surfaceと同じ面だけを書き込む。
 			desc.depthStencilState = PipelineStatePresets::MakeDepthReadWrite();
 			desc.rtvFormats[0] = DXGI_FORMAT_R32_UINT;
 			desc.numRenderTargets = 1;
@@ -101,7 +123,7 @@ namespace Ken4lowEngine
 			return desc;
 		}
 
-		void CreateStaticPipeline()
+		void CreateStaticPipelines()
 		{
 			const auto inputElements = MakeInputLayout();
 			const D3D12_INPUT_LAYOUT_DESC inputLayout{ inputElements.data(), static_cast<UINT>(inputElements.size()) };
@@ -117,14 +139,17 @@ namespace Ken4lowEngine
 			rootDesc.NumParameters = static_cast<UINT>(rootParameters.size());
 			rootDesc.pParameters = rootParameters.data();
 			rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-			GraphicsPipelineDesc pipelineDesc = MakeCommonPipelineDesc(
-				CompileProgram(L"Resources/Shaders/EditorPicking/ObjectIdStatic.VS.hlsl", L"Resources/Shaders/EditorPicking/ObjectId.PS.hlsl"),
-				inputLayout,
-				L"ObjectIdStaticPipeline");
-			staticPipeline_ = dxCommon_->GetPipelineFactory().CreateGraphicsPipeline(pipelineDesc, rootDesc);
+
+			const ShaderProgram program = CompileProgram(L"Resources/Shaders/EditorPicking/ObjectIdStatic.VS.hlsl", L"Resources/Shaders/EditorPicking/ObjectId.PS.hlsl");
+			constexpr std::array<MaterialCullMode, 3> modes{ MaterialCullMode::Back, MaterialCullMode::Front, MaterialCullMode::None };
+			for (size_t i = 0; i < modes.size(); ++i)
+			{
+				GraphicsPipelineDesc desc = MakeCommonPipelineDesc(program, inputLayout, L"ObjectIdStaticPipeline", modes[i]);
+				staticPipelines_[i] = dxCommon_->GetPipelineFactory().CreateGraphicsPipeline(desc, rootDesc);
+			}
 		}
 
-		void CreateInstancedPipeline()
+		void CreateInstancedPipelines()
 		{
 			const auto inputElements = MakeInputLayout();
 			const D3D12_INPUT_LAYOUT_DESC inputLayout{ inputElements.data(), static_cast<UINT>(inputElements.size()) };
@@ -149,16 +174,19 @@ namespace Ken4lowEngine
 			rootDesc.NumParameters = static_cast<UINT>(rootParameters.size());
 			rootDesc.pParameters = rootParameters.data();
 			rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-			GraphicsPipelineDesc pipelineDesc = MakeCommonPipelineDesc(
-				CompileProgram(L"Resources/Shaders/EditorPicking/ObjectIdInstanced.VS.hlsl", L"Resources/Shaders/EditorPicking/ObjectIdInstanced.PS.hlsl"),
-				inputLayout,
-				L"ObjectIdInstancedPipeline");
-			instancedPipeline_ = dxCommon_->GetPipelineFactory().CreateGraphicsPipeline(pipelineDesc, rootDesc);
+
+			const ShaderProgram program = CompileProgram(L"Resources/Shaders/EditorPicking/ObjectIdInstanced.VS.hlsl", L"Resources/Shaders/EditorPicking/ObjectIdInstanced.PS.hlsl");
+			constexpr std::array<MaterialCullMode, 3> modes{ MaterialCullMode::Back, MaterialCullMode::Front, MaterialCullMode::None };
+			for (size_t i = 0; i < modes.size(); ++i)
+			{
+				GraphicsPipelineDesc desc = MakeCommonPipelineDesc(program, inputLayout, L"ObjectIdInstancedPipeline", modes[i]);
+				instancedPipelines_[i] = dxCommon_->GetPipelineFactory().CreateGraphicsPipeline(desc, rootDesc);
+			}
 		}
 
 		DirectXCommon* dxCommon_ = nullptr;
-		PipelineBundle staticPipeline_{};
-		PipelineBundle instancedPipeline_{};
+		std::array<PipelineBundle, 3> staticPipelines_{};
+		std::array<PipelineBundle, 3> instancedPipelines_{};
 		bool initialized_ = false;
 	};
 } // namespace Ken4lowEngine
