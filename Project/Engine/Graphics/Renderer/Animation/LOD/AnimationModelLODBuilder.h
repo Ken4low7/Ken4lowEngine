@@ -1,6 +1,7 @@
 #pragma once
 #include "DX12Include.h"
 #include "ModelData.h"
+#include "Engine/Graphics/Culling/MeshletVisibility.h"
 
 
 namespace Ken4lowEngine
@@ -49,6 +50,9 @@ namespace Ken4lowEngine
 				uint32_t indexCount = 0;
 				D3D12_GPU_DESCRIPTOR_HANDLE baseColorSrvGpuHandle{}; // t2用
 				MaterialCullMode cullMode = MaterialCullMode::Back; // ImportしたdoubleSidedをLOD統合後も失わない。
+				std::vector<VisibilityMeshlet> visibilityMeshlets; // Bind Pose基準のreference metadata。Skinned頂点の実Cullにはまだ使わない。
+				uint32_t normalConeCandidateMeshletCount = 0;
+				uint32_t normalConeCandidateTriangleCount = 0;
 			};
 			std::vector<SubMeshRange> subMeshRanges; // subMeshごとに分割
 		};
