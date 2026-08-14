@@ -1,5 +1,7 @@
 #pragma once
 #include "PipelineCommon.h"
+#include "Material.h"
+#include <array>
 
 namespace Ken4lowEngine
 {
@@ -12,11 +14,13 @@ namespace Ken4lowEngine
 	public:
 		void Initialize(PipelineFactory& factory, DXCCompilerManager* dxcManager, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat);
 		void Finalize();
-		const PipelineBundle& GetDefault() const { return defaultPipeline_; }
+		const PipelineBundle& GetDefault(MaterialCullMode cullMode = MaterialCullMode::Back) const;
 		const PipelineBundle& GetShadow() const { return shadowPipeline_; }
 
 	private:
-		PipelineBundle defaultPipeline_{};
+		static size_t ToCullModeIndex(MaterialCullMode cullMode);
+
+		std::array<PipelineBundle, 3> defaultPipelines_{};
 		PipelineBundle shadowPipeline_{};
 	};
 }
