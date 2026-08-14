@@ -9,6 +9,7 @@
 
 #include <filesystem>
 #include <string>
+#include <vector>
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -67,8 +68,46 @@ namespace Ken4lowEngine
 		void DrawMenuItems()
 		{
 			const bool canCreate = EditorPlayController::GetInstance()->IsEditing() && state_ == State::Idle;
+			const SceneDefinition* currentDefinition = sceneManager_ ? &sceneManager_->GetCurrentSceneDefinition() : nullptr;
+			const std::string currentSceneId = currentDefinition && !currentDefinition->id.empty()
+				? currentDefinition->id
+				: std::string("(none)");
+
+			ImGui::Text("Current: %s", currentSceneId.c_str());
+			if (currentDefinition && !currentDefinition->levelPath.empty())
+			{
+				ImGui::TextDisabled("%s", currentDefinition->levelPath.c_str());
+			}
+			ImGui::Separator();
+
 			if (ImGui::MenuItem("New Scene...", nullptr, false, canCreate)) RequestNewScene();
-			ImGui::TextDisabled("Scene = Level JSON / Runtime Class = DataDrivenScene");
+
+			const std::vector<std::string> sceneIds = sceneManager_
+				? sceneManager_->GetAvailableSceneIds()
+				: std::vector<std::string>{};
+			if (ImGui::BeginMenu("Open Scene", !sceneIds.empty()))
+			{
+				for (const std::string& sceneId : sceneIds)
+				{
+					const bool isCurrent = sceneId == currentSceneId;
+					const SceneDefinition* definition = sceneManager_->FindSceneDefinition(sceneId);
+					const bool dataScene = definition && definition->className == "DataDrivenScene" && !definition->levelPath.empty();
+					const std::string label = sceneId + (dataScene ? "  [Data]" : "  [C++]") + "##SceneMenu" + sceneId;
+					if (ImGui::MenuItem(label.c_str(), nullptr, isCurrent, !isCurrent))
+					{
+						sceneManager_->ChangeScene(sceneId); // Scene切替はGpuSafeSceneTransitionを通して次の安全な境界で適用する。
+					}
+					if (ImGui::IsItemHovered() && definition && !definition->levelPath.empty())
+					{
+						ImGui::SetTooltip("%s", definition->levelPath.c_str());
+					}
+				}
+				ImGui::EndMenu();
+			}
+
+			ImGui::Separator();
+			ImGui::TextDisabled("Data Scenes: Resources/JSON/Levels/*.json");
+			ImGui::TextDisabled("Create -> Save -> appears automatically in Scene UI");
 		}
 #endif
 
