@@ -103,9 +103,17 @@ namespace Ken4lowEngine
 				ImGui::Text("Candidate Draw Calls: %llu", toUll(stats.normalConeCandidateDrawCalls));
 				ImGui::Text("Candidate Meshlet Instances: %llu", toUll(stats.normalConeCandidateMeshletInstances));
 				ImGui::Text("Candidate Triangles: %llu", toUll(stats.normalConeCandidateTriangles));
+				ImGui::Separator();
+				ImGui::Text("Meshlets Static / Alpha / Instanced / Animated: %llu / %llu / %llu / %llu",
+					toUll(stats.visibilityMeshletInstancesByPath[0]), toUll(stats.visibilityMeshletInstancesByPath[1]),
+					toUll(stats.visibilityMeshletInstancesByPath[2]), toUll(stats.visibilityMeshletInstancesByPath[3]));
+				ImGui::Text("Animated Bind-Pose Candidates: draws %llu | meshlets %llu | triangles %llu",
+					toUll(stats.normalConeCandidateDrawCallsByPath[3]),
+					toUll(stats.normalConeCandidateMeshletInstancesByPath[3]),
+					toUll(stats.normalConeCandidateTrianglesByPath[3]));
 				ImGui::Text("Meshlet Budget: 64 vertices / 126 triangles");
 				ImGui::Text("Runtime Normal Cone Culling: OFF");
-				ImGui::TextDisabled("CPU Meshlet bounds/cones are generated for reference statistics; rendered output still uses the original full Mesh draw.");
+				ImGui::TextDisabled("Animated values use bind-pose metadata only; skinned output is never rejected from these counters yet.");
 			}
 		}
 		ImGui::End();
