@@ -429,6 +429,10 @@ namespace Ken4lowEngine
 		const Animation* GetAnimationByIndex(int index) const;
 		float AdvanceAnimationTime(float timeSeconds, float deltaTime, float duration) const;
 		void ResetCrossFadeState();
+		Matrix4x4 GetCullWorldMatrix() const;
+		MaterialCullMode ResolveSubmeshCullMode(MaterialCullMode importedCullMode, const Matrix4x4& worldMatrix) const;
+		bool HasSurfaceCullMode(MaterialCullMode cullMode) const;
+		void DrawSkinned(MaterialCullMode cullMode);
 
 		/// <summary>
 		/// 現在のアニメーション時刻に基づいて、ジョイント変換などを更新します。
@@ -469,6 +473,7 @@ namespace Ken4lowEngine
 
 		WorldTransform worldTransform; // ワールド変換情報
 		Material material_;            // マテリアル情報
+		bool materialCullOverrideEnabled_ = false; // MaterialDescを明示適用した時だけImport済みSubMesh Cullを上書きする。
 
 		DirectXCommon* dxCommon_ = nullptr;  // DirectX共通クラス
 		Camera* camera_ = nullptr;            // カメラ
