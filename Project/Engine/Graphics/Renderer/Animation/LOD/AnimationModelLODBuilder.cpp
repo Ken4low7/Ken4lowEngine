@@ -184,6 +184,7 @@ namespace Ken4lowEngine
 			LODEntry::SubMeshRange R{};
 			R.startIndex = startIndex;								 // 開始インデックス
 			R.indexCount = static_cast<uint32_t>(sm.indices.size()); // インデックス数
+			R.cullMode = sm.material.GetCullMode(); // LOD結合後もSubMeshの表裏契約を描画Rangeへ保持する。
 
 			// インデックスコピー
 			for (uint32_t idx : sm.indices)	out.indices.push_back(idx + baseVertex);
