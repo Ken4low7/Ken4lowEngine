@@ -194,7 +194,8 @@ namespace Ken4lowEngine
 
 			GraphicsPipelineDesc desc{};
 			desc.blendState = PipelineStatePresets::MakeBlendOpaque();
-			desc.rasterizerState = PipelineStatePresets::MakeRasterizerCullNone();
+			// Phase15.1: 通常の3D三角形は裏面をRasterizerで落とし、不要なPixel Shader実行を避ける。
+			desc.rasterizerState = PipelineStatePresets::MakeRasterizerCullBack();
 			desc.depthStencilState = PipelineStatePresets::MakeDepthReadWrite();
 			desc.numRenderTargets = 1;
 			desc.rtvFormats[0] = rtvFormat;
