@@ -26,6 +26,7 @@ namespace Ken4lowEngine
 			static constexpr const char* SourceKind = "sourceKind";
 			static constexpr const char* PreferPbrWorkflow = "preferPbrWorkflow";
 			static constexpr const char* CullMode = "cullMode";
+			static constexpr const char* BlendMode = "blendMode";
 
 			static constexpr const char* Legacy = "legacy";
 			static constexpr const char* LegacyColor = "color";
@@ -60,5 +61,7 @@ namespace Ken4lowEngine
 		static MaterialSourceKind SourceKindFromString(const std::string& text);
 		static const char* ToString(MaterialCullMode cullMode);
 		static MaterialCullMode CullModeFromString(const std::string& text);
+		static const char* ToString(MaterialBlendMode blendMode);
+		static MaterialBlendMode BlendModeFromString(const std::string& text);
 	};
 }
