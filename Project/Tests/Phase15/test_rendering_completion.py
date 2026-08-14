@@ -119,11 +119,16 @@ class RenderingCompletionContractTests(unittest.TestCase):
         self.assertIn('text == "none"', self.material_json_cpp)
         self.assertIn("desc.cullMode = normalizedSource.cullMode", self.material_source_cpp)
 
-    def test_skinned_pipeline_keeps_back_cull_until_batch_grouping_step(self) -> None:
-        create_pso = self.animation_pipeline[self.animation_pipeline.index("void AnimationPipelineBuilder::CreatePSO()") :]
-        self.assertIn("rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK", create_pso)
-        self.assertIn("rasterizerDesc.DepthClipEnable = TRUE", create_pso)
-        self.assertIn("CullMode別グループ", self.animation_pipeline_h)
+    def test_skinned_pipeline_has_back_front_and_two_sided_pso_variants(self) -> None:
+        self.assertIn("SetRenderSetting(MaterialCullMode", self.animation_pipeline_h)
+        self.assertIn("graphicsPipelineStateFront_", self.animation_pipeline_h)
+        self.assertIn("graphicsPipelineStateTwoSided_", self.animation_pipeline_h)
+        self.assertIn("MakeAnimationRasterizer", self.animation_pipeline)
+        self.assertIn("MakeRasterizerCullFront", self.animation_pipeline)
+        self.assertIn("MakeRasterizerCullNone", self.animation_pipeline)
+        self.assertIn("createPipeline(MaterialCullMode::Back", self.animation_pipeline)
+        self.assertIn("createPipeline(MaterialCullMode::Front", self.animation_pipeline)
+        self.assertIn("createPipeline(MaterialCullMode::None", self.animation_pipeline)
 
     def test_phase15_documents_forward_deferred_and_hzb_targets(self) -> None:
         self.assertIn("15.2 — Forward Renderer Completion", self.phase_doc)
