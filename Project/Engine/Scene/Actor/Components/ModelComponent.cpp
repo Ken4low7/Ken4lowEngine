@@ -93,19 +93,19 @@ namespace Ken4lowEngine
 		object3D_->Update();
 	}
 
-	bool ModelComponent::SubmitForwardOpaque(ForwardRenderQueue& queue)
+	bool ModelComponent::SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode)
 	{
 		if (!visible_ || !IsActiveInHierarchy() || !object3D_ || object3D_->IsAlphaBlendEnabled())
 		{
 			return false;
 		}
 
-		const ForwardRenderPolicy policy = ResolveForwardRenderPolicy(object3D_->GetBlendMode());
-		if (policy.bucket != ForwardRenderBucket::Opaque)
+		if (object3D_->GetBlendMode() != expectedBlendMode)
 		{
-			return false; // Masked/Transparent/AdditiveはPSO移行が完了するまで既存Draw経路へ残す。
+			return false;
 		}
 
+		const ForwardRenderPolicy policy = ResolveForwardRenderPolicy(expectedBlendMode);
 		ForwardRenderItem item{};
 		item.payload = object3D_.get();
 		item.draw = [](void* payload)
@@ -119,8 +119,18 @@ namespace Ken4lowEngine
 			return false;
 		}
 
-		lastForwardQueueSerial_ = queue.GetFrameSerial();
+		lastForwardQueueSerial_ = queue.GetFrameSerial(); // Opaque/Maskedのどちらでも同じFrame serialで通常Drawの二重実行を抑止する。
 		return true;
+	}
+
+	bool ModelComponent::SubmitForwardOpaque(ForwardRenderQueue& queue)
+	{
+		return SubmitForwardBucket(queue, MaterialBlendMode::Opaque);
+	}
+
+	bool ModelComponent::SubmitForwardMasked(ForwardRenderQueue& queue)
+	{
+		return SubmitForwardBucket(queue, MaterialBlendMode::Masked);
 	}
 
 	void ModelComponent::Draw()
@@ -128,13 +138,14 @@ namespace Ken4lowEngine
 		if (visible_ && object3D_)
 		{
 			ForwardRenderQueue* queue = ForwardRenderQueue::GetInstance();
-			const bool alreadyDrawnByOpaqueQueue =
+			const ForwardRenderPolicy policy = ResolveForwardRenderPolicy(object3D_->GetBlendMode());
+			const bool alreadyDrawnByForwardQueue =
 				queue->IsFrameActive() &&
 				queue->GetFrameSerial() == lastForwardQueueSerial_ &&
-				queue->WasBucketExecuted(ForwardRenderBucket::Opaque);
-			if (alreadyDrawnByOpaqueQueue)
+				queue->WasBucketExecuted(policy.bucket);
+			if (alreadyDrawnByForwardQueue)
 			{
-				return; // Actor::Drawは維持しつつ、同じScene 3D passでOpaque Modelだけ二重描画を防ぐ。
+				return; // Actor::Drawは維持しつつ、同じScene 3D passでQueue済みModelの二重描画を防ぐ。
 			}
 			object3D_->Draw();
 		}
