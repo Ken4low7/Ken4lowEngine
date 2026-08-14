@@ -137,6 +137,7 @@ namespace Ken4lowEngine
 		}
 
 		material_.ApplyDesc(desc);
+		materialCullOverrideEnabled_ = true; // 明示MaterialはImport済みSubMeshのCull設定より優先する。
 		materialTextureSlots_.ApplyDesc(desc); // BaseColorを含む5 SlotをAnimation Pipelineへまとめて反映する。
 	}
 
@@ -148,6 +149,7 @@ namespace Ken4lowEngine
 		}
 
 		material_.ResetToDefault();
+		materialCullOverrideEnabled_ = false; // Reset後はglTF/Assimp由来のSubMesh Cull Modeへ戻す。
 		materialTextureSlots_.Reset(); // BaseColorはモデル既定へ戻し、追加Slotは中立Textureへ戻す。
 	}
 
@@ -298,6 +300,41 @@ namespace Ken4lowEngine
 		const float dy = camPos.y - objPos.y;
 		const float dz = camPos.z - objPos.z;
 		return dx * dx + dy * dy + dz * dz;
+	}
+
+	Matrix4x4 AnimationModel::GetCullWorldMatrix() const
+	{
+		return wvpData_ ? wvpData_->World : Matrix4x4::MakeAffineMatrix(worldTransform.scale_, worldTransform.rotate_, worldTransform.translate_);
+	}
+
+	MaterialCullMode AnimationModel::ResolveSubmeshCullMode(MaterialCullMode importedCullMode, const Matrix4x4& worldMatrix) const
+	{
+		const MaterialCullMode sourceCullMode = materialCullOverrideEnabled_ ? material_.GetCullMode() : importedCullMode;
+		return ResolveMaterialCullModeForWorld(sourceCullMode, worldMatrix); // Import値・明示Override・鏡映Transformを同じ規約で解決する。
+	}
+
+	bool AnimationModel::HasSurfaceCullMode(MaterialCullMode cullMode) const
+	{
+		if (lodController_.IsCulled()) { return false; }
+		const Matrix4x4 cullWorld = GetCullWorldMatrix();
+
+		if (skinningCS_.IsSkinningModel())
+		{
+			const int lodIndex = lodController_.GetLODIndex();
+			if (lodIndex < 0 || lodIndex >= static_cast<int>(lods_.size())) { return false; }
+			for (const auto& range : lods_[lodIndex].subMeshRanges)
+			{
+				if (ResolveSubmeshCullMode(range.cullMode, cullWorld) == cullMode) { return true; }
+			}
+			return false;
+		}
+
+		const size_t subCount = std::min(animationMesh_ ? animationMesh_->GetSubmeshCount() : size_t{ 0 }, modelData.subMeshes.size());
+		for (size_t index = 0; index < subCount; ++index)
+		{
+			if (ResolveSubmeshCullMode(modelData.subMeshes[index].material.GetCullMode(), cullWorld) == cullMode) { return true; }
+		}
+		return false;
 	}
 
 	const Animation* AnimationModel::GetCurrentAnimation() const
@@ -729,13 +766,8 @@ namespace Ken4lowEngine
 		// コンピュートでスキニング（個体差だけを束ねて実行）
 		if (useComputeSkinning_ && skinningCS_.IsSkinningModel()) DispatchSkinningCS();
 
-		// Graphics 一括セット（スタンドアロン用）
+		// GraphicsはSubMesh Surfaceごとに必要なPSOだけを選ぶ。
 		SRVManager::GetInstance()->PreDraw();
-		const Matrix4x4 cullWorld = wvpData_ ? wvpData_->World : Matrix4x4::MakeAffineMatrix(worldTransform.scale_, worldTransform.rotate_, worldTransform.translate_);
-		const MaterialCullMode effectiveCullMode = ResolveMaterialCullModeForWorld(material_.GetCullMode(), cullWorld);
-		AnimationPipelineBuilder::GetInstance()->SetRenderSetting(effectiveCullMode); // 単体描画もMaterialと鏡映Transformに対応したPSOを選ぶ。
-
-		// スキン済みメッシュを描画（個体差だけを束ねて実行）
 		DrawSkinned();
 	}
 
@@ -763,7 +795,7 @@ namespace Ken4lowEngine
 			if (m->IsVisible()) m->DispatchSkinningCS();
 		}
 
-		// GraphicsはCull Modeごとに最大3グループへまとめ、モデル単位のPSO切り替えを避ける。
+		// Surface Cull Modeごとに最大3グループへまとめ、1モデル内の混在SubMeshも同じBatch契約で描く。
 		SRVManager::GetInstance()->PreDraw();
 		const MaterialCullMode cullModes[] = { MaterialCullMode::Back, MaterialCullMode::Front, MaterialCullMode::None };
 		for (const MaterialCullMode cullMode : cullModes)
@@ -771,16 +803,13 @@ namespace Ken4lowEngine
 			bool pipelineBound = false;
 			for (auto& m : models)
 			{
-				if (!m || !m->IsVisible()) continue;
-				const Matrix4x4 cullWorld = m->wvpData_ ? m->wvpData_->World : Matrix4x4::MakeAffineMatrix(m->worldTransform.scale_, m->worldTransform.rotate_, m->worldTransform.translate_);
-				const MaterialCullMode effectiveCullMode = ResolveMaterialCullModeForWorld(m->material_.GetCullMode(), cullWorld);
-				if (effectiveCullMode != cullMode) continue;
+				if (!m || !m->IsVisible() || !m->HasSurfaceCullMode(cullMode)) continue;
 				if (!pipelineBound)
 				{
 					AnimationPipelineBuilder::GetInstance()->SetRenderSetting(cullMode);
 					pipelineBound = true;
 				}
-				m->DrawSkinned();
+				m->DrawSkinned(cullMode);
 			}
 		}
 	}
@@ -849,14 +878,13 @@ namespace Ken4lowEngine
 		UAVManager::GetInstance()->PreDispatch();
 		AnimationPipelineBuilder::GetInstance()->SetComputeSetting();
 
-		// Compute パス（全体で一回）
 		for (auto* m : models)
 		{
 			if (!m) continue;
 			if (m->IsVisible()) m->DispatchSkinningCS();
 		}
 
-		// 生ポインタBatchも同じCull Modeグルーピング契約に揃える。
+		// 生ポインタBatchもSubMesh Surface単位のCull Modeグルーピングへ揃える。
 		SRVManager::GetInstance()->PreDraw();
 		const MaterialCullMode cullModes[] = { MaterialCullMode::Back, MaterialCullMode::Front, MaterialCullMode::None };
 		for (const MaterialCullMode cullMode : cullModes)
@@ -864,16 +892,13 @@ namespace Ken4lowEngine
 			bool pipelineBound = false;
 			for (auto* m : models)
 			{
-				if (!m || !m->IsVisible()) continue;
-				const Matrix4x4 cullWorld = m->wvpData_ ? m->wvpData_->World : Matrix4x4::MakeAffineMatrix(m->worldTransform.scale_, m->worldTransform.rotate_, m->worldTransform.translate_);
-				const MaterialCullMode effectiveCullMode = ResolveMaterialCullModeForWorld(m->material_.GetCullMode(), cullWorld);
-				if (effectiveCullMode != cullMode) continue;
+				if (!m || !m->IsVisible() || !m->HasSurfaceCullMode(cullMode)) continue;
 				if (!pipelineBound)
 				{
 					AnimationPipelineBuilder::GetInstance()->SetRenderSetting(cullMode);
 					pipelineBound = true;
 				}
-				m->DrawSkinned();
+				m->DrawSkinned(cullMode);
 			}
 		}
 	}
@@ -904,6 +929,7 @@ namespace Ken4lowEngine
 		shadowParameterData_ = nullptr;
 		shadowMapHandle_ = {};
 		materialTextureSlots_.Clear(); // Clear後に破棄済みTexture Handleを再利用しない。
+		materialCullOverrideEnabled_ = false;
 
 		// --- LOD 側で確保した UAV ヒープの SRV/UAV インデックスを解放 ---
 		for (auto& L : lods_)
@@ -1153,66 +1179,66 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	void AnimationModel::DrawSkinned()
 	{
-		if (lodController_.IsCulled()) { return; } // 描画もしない
-		if (!dxCommon_) { return; }
-		if (lods_.empty()) { return; }
+		if (lodController_.IsCulled()) { return; }
+		const MaterialCullMode cullModes[] = { MaterialCullMode::Back, MaterialCullMode::Front, MaterialCullMode::None };
+		for (const MaterialCullMode cullMode : cullModes)
+		{
+			if (!HasSurfaceCullMode(cullMode)) continue;
+			AnimationPipelineBuilder::GetInstance()->SetRenderSetting(cullMode);
+			DrawSkinned(cullMode);
+		}
+	}
+
+	void AnimationModel::DrawSkinned(MaterialCullMode cullMode)
+	{
+		if (lodController_.IsCulled()) { return; }
+		if (!dxCommon_ || lods_.empty()) { return; }
 
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
-
 		const int lodIndex = lodController_.GetLODIndex();
-		if (lodIndex < 0 || lodIndex >= (int)lods_.size()) { return; }
-
+		if (lodIndex < 0 || lodIndex >= static_cast<int>(lods_.size())) { return; }
 		auto& L = lods_[lodIndex];
+		const Matrix4x4 cullWorld = GetCullWorldMatrix();
 
 		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 4, environmentMapHandle_); // t1: 環境マップ
 		commandList->SetGraphicsRootConstantBufferView(7, shadowParameterResource_->GetGPUVirtualAddress());
 		commandList->SetGraphicsRootDescriptorTable(8, shadowMapHandle_);
 		materialTextureSlots_.BindAdditionalSlots(commandList, 10, 11, 12, 13); // t6:MR t7:Normal t8:AO t9:Emissive
+		material_.SetPipeline();
+		commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
+		commandList->SetGraphicsRootConstantBufferView(3, cameraResource->GetGPUVirtualAddress());
 
-		// VB/IB
 		if (skinningCS_.IsSkinningModel())
 		{
-			commandList->IASetVertexBuffers(0, 1, &L.skinnedVBV);  // ← 1本だけ
+			commandList->IASetVertexBuffers(0, 1, &L.skinnedVBV);
 			commandList->IASetIndexBuffer(&L.ibv);
-
-			// マテリアル＆描画
-			material_.SetPipeline();
-
-			// ルート定数バッファ
-			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());     // WVP (b#1)
-			commandList->SetGraphicsRootConstantBufferView(3, cameraResource->GetGPUVirtualAddress());  // カメラ (b#3)
 
 			for (const auto& range : L.subMeshRanges)
 			{
+				if (ResolveSubmeshCullMode(range.cullMode, cullWorld) != cullMode) continue;
 				const D3D12_GPU_DESCRIPTOR_HANDLE baseColorHandle =
 					materialTextureSlots_.ResolveBaseColor(range.baseColorSrvGpuHandle);
-				TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 2, baseColorHandle); // Overrideは全LODのSubMeshへ共通適用する。
-				commandList->DrawIndexedInstanced(range.indexCount, 1, range.startIndex, 0, 0);
+				TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 2, baseColorHandle);
+				commandList->DrawIndexedInstanced(range.indexCount, 1, range.startIndex, 0, 0); // 結合IBは維持したままSurface Groupだけを選択描画する。
 			}
+			return;
 		}
-		else
+
+		const size_t subCount = std::min(animationMesh_ ? animationMesh_->GetSubmeshCount() : size_t{ 0 }, modelData.subMeshes.size());
+		for (size_t i = 0; i < subCount; ++i)
 		{
-			// 非CS: AnimationMesh が複数VB/IB対応済み前提でループ
-			material_.SetPipeline();
-			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(3, cameraResource->GetGPUVirtualAddress());
+			const auto& sm = modelData.subMeshes[i];
+			if (ResolveSubmeshCullMode(sm.material.GetCullMode(), cullWorld) != cullMode) continue;
 
-			const size_t subCount = animationMesh_ ? animationMesh_->GetSubmeshCount() : 0;
-			for (size_t i = 0; i < subCount; ++i)
-			{
-				const auto& vbv = animationMesh_->GetVertexBufferView(i);
-				const auto& ibv = animationMesh_->GetIndexBufferView(i);
+			const auto& vbv = animationMesh_->GetVertexBufferView(i);
+			const auto& ibv = animationMesh_->GetIndexBufferView(i);
+			commandList->IASetVertexBuffers(0, 1, &vbv);
+			commandList->IASetIndexBuffer(&ibv);
 
-				commandList->IASetVertexBuffers(0, 1, &vbv);
-				commandList->IASetIndexBuffer(&ibv);
-
-				// マテリアルSRV（InitializeLODs と同様、subMeshes[i] のテクスチャを使用）
-				const auto& sm = modelData.subMeshes[i];
-				const D3D12_GPU_DESCRIPTOR_HANDLE baseColorHandle = materialTextureSlots_.ResolveBaseColor(
-					AnimationModelLODBuilder::LoadSrvOrFallback(sm.material.textureFilePath));
-				TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 2, baseColorHandle); // 非CS Pathも同じBinding結果を使う。
-				commandList->DrawIndexedInstanced(UINT(sm.indices.size()), 1, 0, 0, 0);
-			}
+			const D3D12_GPU_DESCRIPTOR_HANDLE baseColorHandle = materialTextureSlots_.ResolveBaseColor(
+				AnimationModelLODBuilder::LoadSrvOrFallback(sm.material.textureFilePath));
+			TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 2, baseColorHandle);
+			commandList->DrawIndexedInstanced(UINT(sm.indices.size()), 1, 0, 0, 0);
 		}
 	}
 
