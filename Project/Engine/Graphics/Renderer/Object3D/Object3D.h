@@ -10,6 +10,7 @@
 #include "Model.h"
 #include "ObjectIdPipeline.h"
 
+#include <array>
 #include <cstdint>
 #include <fstream>
 #include <sstream>
@@ -63,10 +64,21 @@ namespace Ken4lowEngine
 		{
 			if (!dxCommon_ || !model_ || objectId == 0) return;
 			ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
-			const MaterialCullMode cullMode = ResolveMaterialCullModeForWorld(material_.GetCullMode(), worldTransform_.matWorld_);
-			ObjectIdPipeline::GetInstance()->BindStatic(commandList, objectId, cullMode); // PickingもMain描画と同じ面を選択対象にする。
-			worldTransform_.SetPipeline(0);
-			for (auto& mesh : model_->GetMeshes()) mesh.Draw();
+			auto& meshes = model_->GetMeshes();
+			std::array<std::vector<size_t>, 3> meshGroups{};
+			for (size_t meshIndex = 0; meshIndex < meshes.size(); ++meshIndex)
+			{
+				meshGroups[static_cast<size_t>(ResolveSubmeshCullMode(meshIndex))].push_back(meshIndex);
+			}
+
+			for (size_t groupIndex = 0; groupIndex < meshGroups.size(); ++groupIndex)
+			{
+				if (meshGroups[groupIndex].empty()) continue;
+				const MaterialCullMode cullMode = static_cast<MaterialCullMode>(groupIndex);
+				ObjectIdPipeline::GetInstance()->BindStatic(commandList, objectId, cullMode); // PickingもSubMeshごとの実際の表示面だけを選択対象にする。
+				worldTransform_.SetPipeline(0);
+				for (const size_t meshIndex : meshGroups[groupIndex]) meshes[meshIndex].Draw();
+			}
 		}
 
 		void SetModel(const std::string& filePath);
@@ -81,7 +93,7 @@ namespace Ken4lowEngine
 		void SetMetallic(float metallic) { material_.SetMetallic(metallic); }
 		void SetRoughness(float roughness) { material_.SetRoughness(roughness); }
 		void SetEmissiveFactor(const Vector4& emissiveFactor) { material_.SetEmissiveFactor(emissiveFactor); } // ゲーム側の脈動演出からObject3Dの発光量を安全に変更する。
-		void SetCullMode(MaterialCullMode cullMode) { material_.SetCullMode(cullMode); }
+		void SetCullMode(MaterialCullMode cullMode) { material_.SetCullMode(cullMode); materialCullOverrideEnabled_ = true; }
 		MaterialCullMode GetCullMode() const { return material_.GetCullMode(); }
 		void SetCamera(Camera* camera) { camera_ = camera; }
 		void SetReflectivity(float reflectivity) { material_.SetReflection(reflectivity); }
@@ -118,6 +130,7 @@ namespace Ken4lowEngine
 		BoundingSphere TransformLocalBounds(const BoundingSphere& localBounds) const;
 		bool HasWorldBounds() const;
 		bool HasMeshWorldBounds(size_t meshIndex) const;
+		MaterialCullMode ResolveSubmeshCullMode(size_t meshIndex) const;
 		void DrawInternal(const std::vector<size_t>* meshIndices);
 		void DrawBoundsDebug(const BoundingSphere& bounds, bool visible) const;
 
@@ -140,6 +153,7 @@ namespace Ken4lowEngine
 		DissolveSetting dissolveSetting_{};
 		ShadowParameterForGPU shadowParameterData_{}; // GPUへ渡す直前までCPU stagingに保持し、Frame Upload Arenaへコピーする。
 		D3D12_GPU_DESCRIPTOR_HANDLE shadowMapHandle_{};
+		bool materialCullOverrideEnabled_ = false; // 明示指定がない間はImportされたSubMeshのdoubleSided/Cull情報を優先する。
 		bool frustumCullingEnabled_ = true;
 		bool isStageObjectCullingUnit_ = false;
 		bool ignoreStageChunkCulling_ = false;
