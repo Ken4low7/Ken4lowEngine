@@ -4,6 +4,8 @@
 #include "Actor.h"
 #include "AssetPathSelector.h"
 #include "MaterialRepository.h"
+#include "CameraManager.h"
+#include "Engine/Graphics/Renderer/Forward/ForwardRenderQueue.h"
 
 #include <Camera.h>
 #include <Matrix4x4.h>
@@ -17,6 +19,22 @@
 
 namespace Ken4lowEngine
 {
+	namespace
+	{
+		float CalculateForwardSortDepth(const Object3D& object3D)
+		{
+			const BoundingSphere bounds = object3D.GetWorldBoundsForCulling();
+			const Vector3 cameraPosition = CameraManager::GetInstance()->GetActiveCameraPosition();
+			const Vector3 cameraForward = CameraManager::GetInstance()->GetActiveCameraForward();
+			const Vector3 toObject = {
+				bounds.center.x - cameraPosition.x,
+				bounds.center.y - cameraPosition.y,
+				bounds.center.z - cameraPosition.z,
+			};
+			return toObject.x * cameraForward.x + toObject.y * cameraForward.y + toObject.z * cameraForward.z;
+		}
+	}
+
 	void ModelComponent::Initialize()
 	{
 		SceneComponent::Initialize();
@@ -75,10 +93,49 @@ namespace Ken4lowEngine
 		object3D_->Update();
 	}
 
+	bool ModelComponent::SubmitForwardOpaque(ForwardRenderQueue& queue)
+	{
+		if (!visible_ || !IsActiveInHierarchy() || !object3D_ || object3D_->IsAlphaBlendEnabled())
+		{
+			return false;
+		}
+
+		const ForwardRenderPolicy policy = ResolveForwardRenderPolicy(object3D_->GetBlendMode());
+		if (policy.bucket != ForwardRenderBucket::Opaque)
+		{
+			return false; // Masked/Transparent/AdditiveはPSO移行が完了するまで既存Draw経路へ残す。
+		}
+
+		ForwardRenderItem item{};
+		item.payload = object3D_.get();
+		item.draw = [](void* payload)
+		{
+			static_cast<Object3D*>(payload)->Draw();
+		};
+		item.policy = policy;
+		item.sortDepth = CalculateForwardSortDepth(*object3D_);
+		if (!queue.Submit(item))
+		{
+			return false;
+		}
+
+		lastForwardQueueSerial_ = queue.GetFrameSerial();
+		return true;
+	}
+
 	void ModelComponent::Draw()
 	{
 		if (visible_ && object3D_)
 		{
+			ForwardRenderQueue* queue = ForwardRenderQueue::GetInstance();
+			const bool alreadyDrawnByOpaqueQueue =
+				queue->IsFrameActive() &&
+				queue->GetFrameSerial() == lastForwardQueueSerial_ &&
+				queue->WasBucketExecuted(ForwardRenderBucket::Opaque);
+			if (alreadyDrawnByOpaqueQueue)
+			{
+				return; // Actor::Drawは維持しつつ、同じScene 3D passでOpaque Modelだけ二重描画を防ぐ。
+			}
 			object3D_->Draw();
 		}
 	}
