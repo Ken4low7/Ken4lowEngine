@@ -39,29 +39,30 @@ namespace Ken4lowEngine
 		BoundingSphere bounds{};
 		if (indexCount == 0 || startIndex >= indices.size()) { return bounds; }
 
+		// Windows.h の min/max マクロに展開されない呼び方で数値限界値を取得する。
 		Vector3 minPosition{
-			std::numeric_limits<float>::max(),
-			std::numeric_limits<float>::max(),
-			std::numeric_limits<float>::max()
+			(std::numeric_limits<float>::max)(),
+			(std::numeric_limits<float>::max)(),
+			(std::numeric_limits<float>::max)()
 		};
 		Vector3 maxPosition{
-			std::numeric_limits<float>::lowest(),
-			std::numeric_limits<float>::lowest(),
-			std::numeric_limits<float>::lowest()
+			(std::numeric_limits<float>::lowest)(),
+			(std::numeric_limits<float>::lowest)(),
+			(std::numeric_limits<float>::lowest)()
 		};
 		bool hasVertex = false;
-		const uint32_t endIndex = std::min<uint32_t>(startIndex + indexCount, static_cast<uint32_t>(indices.size()));
+		const uint32_t endIndex = (std::min)(startIndex + indexCount, static_cast<uint32_t>(indices.size()));
 		for (uint32_t index = startIndex; index < endIndex; ++index)
 		{
 			const uint32_t vertexIndex = indices[index];
 			if (vertexIndex >= vertices.size()) { continue; }
 			const Vector3 position{ vertices[vertexIndex].position.x, vertices[vertexIndex].position.y, vertices[vertexIndex].position.z };
-			minPosition.x = std::min(minPosition.x, position.x);
-			minPosition.y = std::min(minPosition.y, position.y);
-			minPosition.z = std::min(minPosition.z, position.z);
-			maxPosition.x = std::max(maxPosition.x, position.x);
-			maxPosition.y = std::max(maxPosition.y, position.y);
-			maxPosition.z = std::max(maxPosition.z, position.z);
+			minPosition.x = (std::min)(minPosition.x, position.x);
+			minPosition.y = (std::min)(minPosition.y, position.y);
+			minPosition.z = (std::min)(minPosition.z, position.z);
+			maxPosition.x = (std::max)(maxPosition.x, position.x);
+			maxPosition.y = (std::max)(maxPosition.y, position.y);
+			maxPosition.z = (std::max)(maxPosition.z, position.z);
 			hasVertex = true;
 		}
 		if (!hasVertex) { return bounds; }
@@ -73,7 +74,7 @@ namespace Ken4lowEngine
 			const uint32_t vertexIndex = indices[index];
 			if (vertexIndex >= vertices.size()) { continue; }
 			const Vector3 position{ vertices[vertexIndex].position.x, vertices[vertexIndex].position.y, vertices[vertexIndex].position.z };
-			radius = std::max(radius, Vector3::Length(position - bounds.center));
+			radius = (std::max)(radius, Vector3::Length(position - bounds.center));
 		}
 		bounds.radius = radius;
 		return bounds;
@@ -87,8 +88,8 @@ namespace Ken4lowEngine
 		std::vector<VisibilityMeshlet> meshlets;
 		if (vertices.empty() || indices.size() < 3) { return meshlets; }
 
-		settings.maxVertices = std::max(settings.maxVertices, 3u);
-		settings.maxTriangles = std::max(settings.maxTriangles, 1u);
+		settings.maxVertices = (std::max)(settings.maxVertices, 3u);
+		settings.maxTriangles = (std::max)(settings.maxTriangles, 1u);
 		std::unordered_set<uint32_t> uniqueVertices;
 		uint32_t meshletStartIndex = 0;
 		uint32_t meshletIndexCount = 0;
