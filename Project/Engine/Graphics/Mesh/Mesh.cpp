@@ -10,7 +10,8 @@ namespace Ken4lowEngine
 	{
 		vertices = modelVertices;
 		indices = modelIndices;
-		normalCone_ = BuildNormalCone(vertices, indices); // Runtime cullはまだ行わず、将来のMeshlet判定用メタデータだけ先に生成する。
+		normalCone_ = BuildNormalCone(vertices, indices);
+		visibilityMeshlets_ = BuildVisibilityMeshlets(vertices, indices); // Draw rangeは変えず、64頂点/126三角形単位のVisibility metadataだけ生成する。
 		auto* device = DirectXCommon::GetInstance()->GetDevice();
 
 		vertexResource = ResourceManager::CreateBufferResource(device, sizeof(VertexData) * vertices.size());
@@ -46,7 +47,19 @@ namespace Ken4lowEngine
 		commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 		commandList->IASetIndexBuffer(&indexBufferView);
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		CullingDiagnostics::GetInstance()->RecordIndexedDraw(indices.size(), instanceCount, normalCone_.IsBackfaceCullCandidate());
-		commandList->DrawIndexedInstanced(static_cast<UINT>(indices.size()), instanceCount, 0, 0, startInstanceLocation); // 選択Instanceだけを描けるよう開始Instanceを渡す。
+
+		uint64_t normalConeCandidateMeshlets = 0;
+		uint64_t normalConeCandidateTriangles = 0;
+		for (const VisibilityMeshlet& meshlet : visibilityMeshlets_)
+		{
+			if (!meshlet.normalCone.IsBackfaceCullCandidate()) { continue; }
+			++normalConeCandidateMeshlets;
+			normalConeCandidateTriangles += meshlet.triangleCount;
+		}
+		CullingDiagnostics::GetInstance()->RecordIndexedDraw(
+			indices.size(), instanceCount, visibilityMeshlets_.size(),
+			normalConeCandidateMeshlets, normalConeCandidateTriangles);
+
+		commandList->DrawIndexedInstanced(static_cast<UINT>(indices.size()), instanceCount, 0, 0, startInstanceLocation); // Runtime Meshlet CullはまだOFFなので従来Drawを維持する。
 	}
 } // namespace Ken4lowEngine
