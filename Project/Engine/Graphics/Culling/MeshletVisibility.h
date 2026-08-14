@@ -4,6 +4,7 @@
 #include "NormalCone.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <unordered_set>
@@ -18,6 +19,16 @@ namespace Ken4lowEngine
 	};
 
 	/// <summary>
+	/// RuntimeのMaterialCullModeへ接続する前に、Normal Coneの符号規約を検証するCPU reference用Cull Modeです。
+	/// </summary>
+	enum class MeshletReferenceCullMode : uint8_t
+	{
+		Back = 0,
+		Front,
+		None,
+	};
+
+	/// <summary>
 	/// 既存Index Bufferの連続Rangeを壊さずに保持する、Visibility判定用のCPU Meshletメタデータです。
 	/// </summary>
 	struct VisibilityMeshlet
@@ -29,6 +40,74 @@ namespace Ken4lowEngine
 		BoundingSphere bounds{};
 		NormalCone normalCone{};
 	};
+
+	/// <summary>
+	/// Runtime rejectionを行わず、CPU上で「安全に棄却可能か」だけを返す参照判定結果です。
+	/// </summary>
+	struct MeshletVisibilityReferenceResult
+	{
+		MeshletReferenceCullMode effectiveCullMode = MeshletReferenceCullMode::Back;
+		bool evaluated = false;
+		bool rejected = false;
+		float axisViewDot = 0.0f;
+		float rejectionThreshold = 1.0f;
+	};
+
+	inline MeshletReferenceCullMode ResolveMeshletReferenceCullModeForMirroring(
+		MeshletReferenceCullMode cullMode,
+		bool mirrored)
+	{
+		if (!mirrored || cullMode == MeshletReferenceCullMode::None) { return cullMode; }
+		return cullMode == MeshletReferenceCullMode::Back
+			? MeshletReferenceCullMode::Front
+			: MeshletReferenceCullMode::Back;
+	}
+
+	inline MeshletVisibilityReferenceResult EvaluateMeshletVisibilityReference(
+		const VisibilityMeshlet& meshlet,
+		const Vector3& cameraPosition,
+		MeshletReferenceCullMode cullMode,
+		bool mirrored = false)
+	{
+		MeshletVisibilityReferenceResult result{};
+		result.effectiveCullMode = ResolveMeshletReferenceCullModeForMirroring(cullMode, mirrored);
+		if (result.effectiveCullMode == MeshletReferenceCullMode::None) { return result; }
+		if (!meshlet.normalCone.IsBackfaceCullCandidate()) { return result; }
+
+		const Vector3 toCamera = cameraPosition - meshlet.bounds.center;
+		const float distanceSquared = Vector3::LengthSquared(toCamera);
+		const float radius = (std::max)(meshlet.bounds.radius, 0.0f);
+		if (distanceSquared <= (std::max)(radius * radius, 1.0e-12f))
+		{
+			return result; // CameraがBounds内/極近傍なら中心方向だけでは安全な判定ができない。
+		}
+
+		const float distance = std::sqrt(distanceSquared);
+		const Vector3 viewToCamera = toCamera / distance;
+		result.axisViewDot = std::clamp(Vector3::Dot(meshlet.normalCone.axis, viewToCamera), -1.0f, 1.0f);
+
+		const float angularRadius = std::asin(std::clamp(radius / distance, 0.0f, 1.0f));
+		const float conservativeHalfAngle = meshlet.normalCone.GetHalfAngleRadians() + angularRadius;
+		constexpr float kHalfPi = 1.57079632679489661923f;
+		if (conservativeHalfAngle >= kHalfPi)
+		{
+			return result; // Wide Coneまたは近距離Boundsはreference段階では棄却しない。
+		}
+
+		result.rejectionThreshold = std::sin(conservativeHalfAngle);
+		result.evaluated = true;
+
+		// CPU referenceでは「Cross法線・Meshlet中心→Cameraのdotが正」をFront-facing側として固定する。
+		if (result.effectiveCullMode == MeshletReferenceCullMode::Back)
+		{
+			result.rejected = result.axisViewDot <= -result.rejectionThreshold;
+		}
+		else
+		{
+			result.rejected = result.axisViewDot >= result.rejectionThreshold;
+		}
+		return result;
+	}
 
 	inline BoundingSphere BuildMeshletBounds(
 		const std::vector<VertexData>& vertices,
