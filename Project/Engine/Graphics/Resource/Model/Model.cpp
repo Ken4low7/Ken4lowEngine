@@ -38,10 +38,12 @@ namespace Ken4lowEngine
 		meshes_.clear();
 		materialSRVs_.clear();
 		materialUsePointSampling_.clear();
+		materialCullModes_.clear();
 
 		meshes_.reserve(modelData_.subMeshes.size());
 		materialSRVs_.reserve(modelData_.subMeshes.size());
 		materialUsePointSampling_.reserve(modelData_.subMeshes.size());
+		materialCullModes_.reserve(modelData_.subMeshes.size());
 
 		static const std::string kDefaultTexturePath = "Effects/white.dds";
 
@@ -59,6 +61,7 @@ namespace Ken4lowEngine
 			materialSRVs_.push_back(TextureManager::GetInstance()->GetSrvHandleGPU(texturePath));
 			// face/pixel系はデフォルトで Point Sampling を有効化し、まず見た目のぼやけを防ぐ。
 			materialUsePointSampling_.push_back(ShouldUsePointSampling(texturePath));
+			materialCullModes_.push_back(sub.material.GetCullMode()); // Import時のdoubleSided等をGPU Mesh生成後も失わない。
 
 			Mesh mesh{};
 			mesh.Initialize(sub.vertices, sub.indices);
