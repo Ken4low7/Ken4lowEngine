@@ -81,7 +81,7 @@ namespace Ken4lowEngine
 		cone.minDot = 1.0f;
 		for (const Vector3& normal : triangleNormals)
 		{
-			cone.minDot = std::min(cone.minDot, Vector3::Dot(cone.axis, normal));
+			cone.minDot = (std::min)(cone.minDot, Vector3::Dot(cone.axis, normal)); // Windows.h の min マクロ展開を避ける。
 		}
 		cone.minDot = std::clamp(cone.minDot, -1.0f, 1.0f);
 		cone.valid = true;
