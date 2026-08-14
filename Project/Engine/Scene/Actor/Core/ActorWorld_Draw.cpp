@@ -62,12 +62,14 @@ namespace Ken4lowEngine
 			{
 				if (modelComponent)
 				{
-					modelComponent->SubmitForwardOpaque(*forwardQueue); // Phase15.2最初の移行対象は通常Opaque Modelだけに限定する。
+					modelComponent->SubmitForwardOpaque(*forwardQueue);
+					modelComponent->SubmitForwardMasked(*forwardQueue); // MaskedもDepthWriteするためOpaque直後の専用Bucketへ収集する。
 				}
 			}
 		}
 
 		forwardQueue->ExecuteBucket(ForwardRenderBucket::Opaque);
+		forwardQueue->ExecuteBucket(ForwardRenderBucket::Masked);
 
 		for (auto& actor : actors_)
 		{
