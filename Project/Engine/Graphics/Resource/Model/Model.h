@@ -64,12 +64,16 @@ namespace Ken4lowEngine
 		// マテリアルのポイントサンプリングフラグの取得
 		const std::vector<bool>& GetMaterialPointSamplingFlags() const { return materialUsePointSampling_; }
 
+		// ImportされたSubMeshごとのCull Modeを描画側へ公開する。
+		const std::vector<MaterialCullMode>& GetMaterialCullModes() const { return materialCullModes_; }
+
 	private: /// ---------- メンバ変数 ---------- ///
 
 		ModelData modelData_;
 		std::vector<Mesh> meshes_;
 		std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> materialSRVs_;
 		std::vector<bool> materialUsePointSampling_{};
+		std::vector<MaterialCullMode> materialCullModes_{};
 		BoundingSphere localBounds_{};
 		bool hasLocalBounds_ = false;
 		std::vector<BoundingSphere> meshLocalBounds_{};
