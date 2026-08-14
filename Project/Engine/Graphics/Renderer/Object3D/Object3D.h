@@ -95,6 +95,7 @@ namespace Ken4lowEngine
 		void SetEmissiveFactor(const Vector4& emissiveFactor) { material_.SetEmissiveFactor(emissiveFactor); } // ゲーム側の脈動演出からObject3Dの発光量を安全に変更する。
 		void SetCullMode(MaterialCullMode cullMode) { material_.SetCullMode(cullMode); materialCullOverrideEnabled_ = true; }
 		MaterialCullMode GetCullMode() const { return material_.GetCullMode(); }
+		MaterialBlendMode GetBlendMode() const { return material_.GetBlendMode(); } // Forward QueueはGPU定数ではなくMaterial分類だけを参照する。
 		void SetCamera(Camera* camera) { camera_ = camera; }
 		void SetReflectivity(float reflectivity) { material_.SetReflection(reflectivity); }
 		void ApplyMaterialDesc(const MaterialDesc& desc);
