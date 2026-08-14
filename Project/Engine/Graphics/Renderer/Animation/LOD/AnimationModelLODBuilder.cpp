@@ -182,18 +182,29 @@ namespace Ken4lowEngine
 
 			// インデックスコピー（baseVertex を足す）
 			LODEntry::SubMeshRange R{};
-			R.startIndex = startIndex;								 // 開始インデックス
-			R.indexCount = static_cast<uint32_t>(sm.indices.size()); // インデックス数
+			R.startIndex = startIndex;
+			R.indexCount = static_cast<uint32_t>(sm.indices.size());
 			R.cullMode = sm.material.GetCullMode(); // LOD結合後もSubMeshの表裏契約を描画Rangeへ保持する。
+			R.visibilityMeshlets = BuildVisibilityMeshlets(sm.vertices, sm.indices);
+			for (VisibilityMeshlet& meshlet : R.visibilityMeshlets)
+			{
+				meshlet.startIndex += R.startIndex; // 将来のSkinned Draw分割に備え、結合IB上のRangeへ合わせる。
+				if (!meshlet.normalCone.IsBackfaceCullCandidate()) { continue; }
+				++R.normalConeCandidateMeshletCount;
+				R.normalConeCandidateTriangleCount += meshlet.triangleCount;
+			}
 
 			// インデックスコピー
-			for (uint32_t idx : sm.indices)	out.indices.push_back(idx + baseVertex);
+			for (uint32_t idx : sm.indices)
+			{
+				out.indices.push_back(idx + baseVertex);
+			}
 
 			// オフセット更新
 			startIndex += R.indexCount;
 
 			// マテリアルSRVはここでは未設定（Initialize側で設定）
-			out.ranges.push_back(R);
+			out.ranges.push_back(std::move(R));
 
 			// 頂点オフセット更新
 			baseVertex += static_cast<uint32_t>(sm.vertices.size());
