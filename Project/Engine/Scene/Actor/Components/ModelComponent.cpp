@@ -108,10 +108,24 @@ namespace Ken4lowEngine
 		const ForwardRenderPolicy policy = ResolveForwardRenderPolicy(expectedBlendMode);
 		ForwardRenderItem item{};
 		item.payload = object3D_.get();
-		item.draw = [](void* payload)
+		if (policy.bucket == ForwardRenderBucket::Transparent)
 		{
-			static_cast<Object3D*>(payload)->Draw();
-		};
+			item.draw = [](void* payload)
+			{
+				Object3D* object3D = static_cast<Object3D*>(payload);
+				const bool previousAlphaBlend = object3D->IsAlphaBlendEnabled();
+				object3D->SetAlphaBlendEnabled(true); // Transparent Queueだけ既存のAlpha PSOを使い、Legacy設定は描画後に必ず戻す。
+				object3D->Draw();
+				object3D->SetAlphaBlendEnabled(previousAlphaBlend);
+			};
+		}
+		else
+		{
+			item.draw = [](void* payload)
+			{
+				static_cast<Object3D*>(payload)->Draw();
+			};
+		}
 		item.policy = policy;
 		item.sortDepth = CalculateForwardSortDepth(*object3D_);
 		if (!queue.Submit(item))
@@ -119,7 +133,7 @@ namespace Ken4lowEngine
 			return false;
 		}
 
-		lastForwardQueueSerial_ = queue.GetFrameSerial(); // Opaque/Maskedのどちらでも同じFrame serialで通常Drawの二重実行を抑止する。
+		lastForwardQueueSerial_ = queue.GetFrameSerial(); // Queueへ所有権を渡したModelは同じFrameのActor::Drawから除外する。
 		return true;
 	}
 
@@ -133,19 +147,22 @@ namespace Ken4lowEngine
 		return SubmitForwardBucket(queue, MaterialBlendMode::Masked);
 	}
 
+	bool ModelComponent::SubmitForwardTransparent(ForwardRenderQueue& queue)
+	{
+		return SubmitForwardBucket(queue, MaterialBlendMode::Transparent);
+	}
+
 	void ModelComponent::Draw()
 	{
 		if (visible_ && object3D_)
 		{
 			ForwardRenderQueue* queue = ForwardRenderQueue::GetInstance();
-			const ForwardRenderPolicy policy = ResolveForwardRenderPolicy(object3D_->GetBlendMode());
-			const bool alreadyDrawnByForwardQueue =
+			const bool alreadySubmittedToForwardQueue =
 				queue->IsFrameActive() &&
-				queue->GetFrameSerial() == lastForwardQueueSerial_ &&
-				queue->WasBucketExecuted(policy.bucket);
-			if (alreadyDrawnByForwardQueue)
+				queue->GetFrameSerial() == lastForwardQueueSerial_;
+			if (alreadySubmittedToForwardQueue)
 			{
-				return; // Actor::Drawは維持しつつ、同じScene 3D passでQueue済みModelの二重描画を防ぐ。
+				return; // TransparentをActor::Drawより後で実行できるよう、Queue所有中は直接Drawしない。
 			}
 			object3D_->Draw();
 		}
