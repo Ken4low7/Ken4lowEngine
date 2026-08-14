@@ -10,21 +10,26 @@ The target is a renderer with explicit visibility rules, a completed Forward pat
 
 ### Implemented baseline
 
-- Static `Object3D` opaque rendering uses back-face culling.
-- Static `Object3D` alpha rendering inherits the same back-face rule while keeping depth read-only.
-- Instanced `Object3D` rendering uses back-face culling.
-- Skinned / animated meshes use back-face culling.
-- Shadow and Editor Object-ID pipelines already use back-face culling.
+- Static `Object3D` opaque and alpha rendering use back-face culling by default.
+- Instanced `Object3D` rendering uses back-face culling by default.
+- Skinned / animated meshes currently use back-face culling as the batch-safe baseline.
 - Rasterizer presets explicitly define `FrontCounterClockwise = FALSE`, so Ken4lowEngine treats clockwise triangles as front faces consistently.
-- `CullBack`, `CullFront`, and `CullNone` presets are available for later material-level selection.
+- `MaterialCullMode` exposes `Back / Front / None` and defaults to `Back`.
+- Static opaque/alpha and Instanced Object3D create dedicated PSO variants for all three Material cull modes.
+- Material ImGui exposes `Back`, `Front`, and `None (Two Sided)` without putting rasterizer state into the Material constant buffer.
+- Material JSON persists `cullMode` as `back / front / none`; old or unknown input falls back to `back`.
+- Static mirrored/negative-scale transforms flip `Back <-> Front` from the world-matrix handedness determinant.
+- Instanced draws use the same handedness rule; if normal and mirrored instances are mixed in one draw, the renderer conservatively falls back to `None` so geometry never disappears because one PSO cannot represent two winding signs at once.
+- Directional/Spot/CSM depth shadows and Point-light linear-depth shadows select the same Material cull mode as their main Object3D path.
+- Editor Object-ID picking provides Back/Front/None PSOs and follows the visible-surface cull mode, including mirrored static objects and instanced fallback behavior.
 
 Back-face culling is intentionally based on triangle winding in the D3D12 rasterizer. Vertex normals remain a lighting input; they are not used to decide whether an individual triangle is front-facing.
 
 ### Remaining 15.1 work
 
-- Add material-level `Back / Front / None` selection so foliage, cloth, cards, and other intentionally double-sided assets can opt out.
-- Import two-sided material metadata from model assets where available.
-- Add a debug visualization / counter for culled triangle workload where useful.
+- Split skinned/animated batches by effective `MaterialCullMode`, then add Front/None PSOs without breaking the current batch contract.
+- Import two-sided material metadata from model assets where available, including glTF `doubleSided` where the importer exposes it.
+- Add a debug visualization / counter for material cull modes and estimated culled triangle workload where useful.
 - Evaluate meshlet normal-cone culling after the basic material/rasterizer contract is stable.
 
 ## 15.2 — Forward Renderer Completion
