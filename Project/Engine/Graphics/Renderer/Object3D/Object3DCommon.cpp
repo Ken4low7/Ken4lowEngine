@@ -3,12 +3,14 @@
 #include "DirectXCommon.h"
 #include "CameraManager.h"
 #include "DebugCamera.h"
+#include "Engine/Graphics/Culling/CullingDiagnostics.h"
 
 #include <algorithm>
 #include <cmath>
 
 #ifdef USE_IMGUI
 #include "ImGuiManager.h"
+#include <imgui.h>
 #endif // USE_IMGUI
 
 namespace Ken4lowEngine
@@ -46,11 +48,60 @@ namespace Ken4lowEngine
 	{
 		frustumCullingSystem_.ResetStatistics();
 		frustumCullingSystem_.BuildFrustum(GetCullingViewProjectionMatrix());
+		CullingDiagnostics::GetInstance()->BeginMainPass(); // Shadowとは分け、Main 3D passだけのSurface統計を毎フレーム取り直す。
 	}
 
 	void Object3DCommon::DrawImGui()
 	{
-		// Frustum Culling の確認 UI は ApplicationLayer の Controller に集約する。
+#ifdef USE_IMGUI
+		if (ImGui::Begin("Culling Statistics"))
+		{
+			const auto* diagnostics = CullingDiagnostics::GetInstance();
+			const auto& stats = diagnostics->GetSnapshot();
+			const auto toUll = [](uint64_t value) { return static_cast<unsigned long long>(value); };
+
+			if (ImGui::CollapsingHeader("Frustum", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				const int totalObjects = GetTotalObjectCount();
+				const int totalMeshes = GetTotalMeshCount();
+				const float objectCullRate = totalObjects > 0 ? 100.0f * static_cast<float>(GetCulledObjectCount()) / static_cast<float>(totalObjects) : 0.0f;
+				const float meshCullRate = totalMeshes > 0 ? 100.0f * static_cast<float>(GetCulledMeshCount()) / static_cast<float>(totalMeshes) : 0.0f;
+				ImGui::Text("Frustum Culling: %s", IsFrustumCullingEnabled() ? "ON" : "OFF");
+				ImGui::Text("Objects: submitted %d / drawn %d / culled %d (%.1f%%)", totalObjects, GetDrawnObjectCount(), GetCulledObjectCount(), objectCullRate);
+				ImGui::Text("Meshes:  submitted %d / drawn %d / culled %d (%.1f%%)", totalMeshes, GetDrawnMeshCount(), GetCulledMeshCount(), meshCullRate);
+				ImGui::Text("Missing Bounds Draws: %d", GetMissingBoundsDrawnObjectCount());
+			}
+
+			if (ImGui::CollapsingHeader("Surface / Rasterizer", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::Text("Tracked Indexed Draw Calls: %llu", toUll(stats.indexedDrawCalls));
+				ImGui::Text("Submitted Surface Instances: %llu", toUll(stats.submittedSurfaceInstances));
+				ImGui::Text("Submitted Triangles: %llu", toUll(stats.submittedTriangles));
+				ImGui::Separator();
+				ImGui::Text("Back   : draws %llu | triangles %llu", toUll(stats.drawCallsByCullMode[0]), toUll(stats.trianglesByCullMode[0]));
+				ImGui::Text("Front  : draws %llu | triangles %llu", toUll(stats.drawCallsByCullMode[1]), toUll(stats.trianglesByCullMode[1]));
+				ImGui::Text("TwoSide: draws %llu | triangles %llu", toUll(stats.drawCallsByCullMode[2]), toUll(stats.trianglesByCullMode[2]));
+				ImGui::Text("One-Sided Triangles: %llu", toUll(diagnostics->GetOneSidedTriangleCount()));
+				ImGui::Text("Estimated Back-Face Rejects*: %llu", toUll(diagnostics->GetEstimatedRasterizerRejectedTriangles()));
+				ImGui::TextDisabled("* Diagnostic 50%% estimate only; it is not a GPU pipeline-statistics query.");
+				ImGui::Separator();
+				ImGui::Text("PSO Binds Back / Front / TwoSide: %llu / %llu / %llu",
+					toUll(stats.pipelineBindsByCullMode[0]), toUll(stats.pipelineBindsByCullMode[1]), toUll(stats.pipelineBindsByCullMode[2]));
+				ImGui::Text("PSO Binds Static / Alpha / Instanced / Animated: %llu / %llu / %llu / %llu",
+					toUll(stats.pipelineBindsByPath[0]), toUll(stats.pipelineBindsByPath[1]),
+					toUll(stats.pipelineBindsByPath[2]), toUll(stats.pipelineBindsByPath[3]));
+			}
+
+			if (ImGui::CollapsingHeader("Normal Cone Foundation", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::Text("Candidate Draw Calls: %llu", toUll(stats.normalConeCandidateDrawCalls));
+				ImGui::Text("Candidate Triangles: %llu", toUll(stats.normalConeCandidateTriangles));
+				ImGui::Text("Runtime Normal Cone Culling: OFF");
+				ImGui::TextDisabled("Mesh now builds CPU normal-cone metadata. Runtime rejection stays OFF until conservative Meshlet bounds/cones are wired.");
+			}
+		}
+		ImGui::End();
+#endif // USE_IMGUI
 	}
 
 	Matrix4x4 Object3DCommon::GetCullingViewProjectionMatrix() const
@@ -82,6 +133,7 @@ namespace Ken4lowEngine
 
 	void Object3DCommon::SetRenderSetting(MaterialCullMode cullMode)
 	{
+		CullingDiagnostics::GetInstance()->SetActiveSurface(cullMode, CullingDiagnostics::SurfacePath::Static);
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		const PipelineBundle& pipeline = pipelineSet_.GetDefault(cullMode);
 
@@ -96,6 +148,7 @@ namespace Ken4lowEngine
 
 	void Object3DCommon::SetAlphaRenderSetting(MaterialCullMode cullMode)
 	{
+		CullingDiagnostics::GetInstance()->SetActiveSurface(cullMode, CullingDiagnostics::SurfacePath::Alpha);
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		const PipelineBundle& pipeline = pipelineSet_.GetAlpha(cullMode);
 
@@ -110,6 +163,7 @@ namespace Ken4lowEngine
 
 	void Object3DCommon::SetInstancedRenderSetting(MaterialCullMode cullMode)
 	{
+		CullingDiagnostics::GetInstance()->SetActiveSurface(cullMode, CullingDiagnostics::SurfacePath::Instanced);
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		const PipelineBundle& pipeline = instancedPipelineSet_.GetDefault(cullMode);
 
