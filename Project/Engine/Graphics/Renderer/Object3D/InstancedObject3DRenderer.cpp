@@ -44,26 +44,12 @@ namespace Ken4lowEngine
 			for (size_t streamIndex = 0; streamIndex < kInstanceStreamCount; ++streamIndex)
 			{
 				InstanceStreamBuffer& stream = instanceFrameBuffers_[frameIndex].streams[streamIndex];
-				stream.resource = ResourceManager::CreateBufferResource(
-					dxCommon_->GetDevice(),
-					sizeof(InstanceData) * maxInstanceCount_);
-				if (!stream.resource)
-				{
-					throw std::runtime_error("InstancedObject3DRenderer failed to create frame instance buffer");
-				}
-
+				stream.resource = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(InstanceData) * maxInstanceCount_);
+				if (!stream.resource) throw std::runtime_error("InstancedObject3DRenderer failed to create frame instance buffer");
 				const HRESULT mapResult = stream.resource->Map(0, nullptr, reinterpret_cast<void**>(&stream.mappedInstances));
-				if (FAILED(mapResult) || !stream.mappedInstances)
-				{
-					throw std::runtime_error("InstancedObject3DRenderer failed to map frame instance buffer");
-				}
-
+				if (FAILED(mapResult) || !stream.mappedInstances) throw std::runtime_error("InstancedObject3DRenderer failed to map frame instance buffer");
 				stream.srvIndex = srvManager->Allocate();
-				srvManager->CreateSRVForStructureBuffer(
-					stream.srvIndex,
-					stream.resource.Get(),
-					static_cast<UINT>(maxInstanceCount_),
-					sizeof(InstanceData));
+				srvManager->CreateSRVForStructureBuffer(stream.srvIndex, stream.resource.Get(), static_cast<UINT>(maxInstanceCount_), sizeof(InstanceData));
 			}
 		}
 
@@ -97,10 +83,7 @@ namespace Ken4lowEngine
 		{
 			for (InstanceStreamBuffer& stream : frame.streams)
 			{
-				if (stream.resource && stream.mappedInstances)
-				{
-					stream.resource->Unmap(0, nullptr);
-				}
+				if (stream.resource && stream.mappedInstances) stream.resource->Unmap(0, nullptr);
 				stream.mappedInstances = nullptr;
 				stream.resource.Reset();
 				if (stream.srvIndex != UINT32_MAX)
@@ -132,7 +115,7 @@ namespace Ken4lowEngine
 
 	bool InstancedObject3DRenderer::SetInstances(const std::vector<InstanceData>& instances)
 	{
-		if (!initialized_ || instances.size() > maxInstanceCount_) { return false; }
+		if (!initialized_ || instances.size() > maxInstanceCount_) return false;
 		sourceInstances_ = instances;
 		instanceCount_ = frustumCullingEnabled_ ? 0 : sourceInstances_.size();
 		return true;
@@ -140,7 +123,7 @@ namespace Ken4lowEngine
 
 	bool InstancedObject3DRenderer::SetWorldMatrices(const std::vector<Matrix4x4>& worldMatrices, const Vector4& color)
 	{
-		if (!initialized_ || worldMatrices.size() > maxInstanceCount_) { return false; }
+		if (!initialized_ || worldMatrices.size() > maxInstanceCount_) return false;
 		std::vector<InstanceData> instances(worldMatrices.size());
 		for (size_t i = 0; i < worldMatrices.size(); ++i)
 		{
@@ -153,7 +136,7 @@ namespace Ken4lowEngine
 
 	bool InstancedObject3DRenderer::SetTransforms(const std::vector<InstanceTransform>& transforms)
 	{
-		if (!initialized_ || transforms.size() > maxInstanceCount_) { return false; }
+		if (!initialized_ || transforms.size() > maxInstanceCount_) return false;
 		std::vector<InstanceData> instances;
 		instances.reserve(transforms.size());
 		for (const auto& transform : transforms)
@@ -169,31 +152,21 @@ namespace Ken4lowEngine
 
 	void InstancedObject3DRenderer::ApplyMaterialDesc(const MaterialDesc& desc)
 	{
-		if (!initialized_)
-		{
-			return; // GPU Material未初期化時はTextureロードを含む反映処理を行わない。
-		}
-		material_.ApplyDesc(desc); // 全インスタンスで共有する既存MaterialCBDataへBinding結果を反映する。
+		if (!initialized_) return; // GPU Material未初期化時はTextureロードを含む反映処理を行わない。
+		material_.ApplyDesc(desc);
 		materialTextureSlots_.ApplyDesc(desc);
 		RestoreModelMaterials();
-
 		if (materialTextureSlots_.HasBaseColorOverride())
 		{
-			for (D3D12_GPU_DESCRIPTOR_HANDLE& baseColor : materialSRVs_)
-			{
-				baseColor = materialTextureSlots_.ResolveBaseColor(baseColor); // BaseColor Overrideを全SubMesh/Instanceへ適用する。
-			}
+			for (D3D12_GPU_DESCRIPTOR_HANDLE& baseColor : materialSRVs_) baseColor = materialTextureSlots_.ResolveBaseColor(baseColor);
 		}
 		materialUsePointSampling_.assign(materialSRVs_.size(), desc.legacy.usePointSampling);
 	}
 
 	void InstancedObject3DRenderer::ResetMaterialBinding()
 	{
-		if (!initialized_)
-		{
-			return;
-		}
-		material_.ResetToDefault(); // Binding解除時は既存Forwardの既定値へ戻す。
+		if (!initialized_) return;
+		material_.ResetToDefault();
 		materialTextureSlots_.Reset();
 		RestoreModelMaterials();
 	}
@@ -202,26 +175,44 @@ namespace Ken4lowEngine
 	{
 		materialSRVs_.clear();
 		materialUsePointSampling_.clear();
-		if (!model_)
-		{
-			return;
-		}
-
+		if (!model_) return;
 		materialSRVs_ = model_->GetMaterialSRVs();
 		materialUsePointSampling_ = model_->GetMaterialPointSamplingFlags();
 	}
 
 	void InstancedObject3DRenderer::SetFrustumCullingEnabled(bool enabled)
 	{
-		if (frustumCullingEnabled_ == enabled) { return; }
+		if (frustumCullingEnabled_ == enabled) return;
 		frustumCullingEnabled_ = enabled;
+	}
+
+	MaterialCullMode InstancedObject3DRenderer::ResolveEffectiveCullMode() const
+	{
+		const MaterialCullMode baseCullMode = material_.GetCullMode();
+		if (baseCullMode == MaterialCullMode::None || sourceInstances_.empty()) return baseCullMode;
+
+		bool hasNormalHandedness = false;
+		bool hasMirroredHandedness = false;
+		for (const InstanceData& instance : sourceInstances_)
+		{
+			if (CalculateWorldHandednessDeterminant(instance.world) < 0.0f) hasMirroredHandedness = true;
+			else hasNormalHandedness = true;
+			if (hasNormalHandedness && hasMirroredHandedness)
+			{
+				return MaterialCullMode::None; // 1 Drawに両方の巻き順が混在する場合は欠損を避けるため両面描画へ退避する。
+			}
+		}
+
+		if (hasMirroredHandedness)
+		{
+			return baseCullMode == MaterialCullMode::Back ? MaterialCullMode::Front : MaterialCullMode::Back;
+		}
+		return baseCullMode;
 	}
 
 	uint32_t InstancedObject3DRenderer::GetCurrentFrameIndex() const
 	{
-		return dxCommon_ && dxCommon_->GetCommandManager()
-			? dxCommon_->GetCommandManager()->GetCurrentFrameIndex()
-			: 0u;
+		return dxCommon_ && dxCommon_->GetCommandManager() ? dxCommon_->GetCommandManager()->GetCurrentFrameIndex() : 0u;
 	}
 
 	InstancedObject3DRenderer::InstanceStreamBuffer* InstancedObject3DRenderer::GetInstanceStream(InstanceStreamUsage usage)
@@ -287,21 +278,16 @@ namespace Ken4lowEngine
 				worldBounds.radius = localBounds.radius * std::max({ scaleX, scaleY, scaleZ });
 				visible = frustum.Intersects(worldBounds);
 			}
-			if (visible && instanceCount_ < maxInstanceCount_)
-			{
-				stream->mappedInstances[instanceCount_++] = instance;
-			}
+			if (visible && instanceCount_ < maxInstanceCount_) stream->mappedInstances[instanceCount_++] = instance;
 		}
 	}
 
 	void InstancedObject3DRenderer::Draw()
 	{
-		if (!initialized_ || !model_ || sourceInstances_.empty()) { return; }
+		if (!initialized_ || !model_ || sourceInstances_.empty()) return;
 
 		perViewData_.viewProjection = CameraManager::GetInstance()->GetActiveViewProjectionMatrix();
-		// Main描画は現在FrameのMain専用Instance Streamだけへ可視データを書き込む。
-		UpdateVisibleInstances(perViewData_.viewProjection);
-
+		UpdateVisibleInstances(perViewData_.viewProjection); // Main描画は現在FrameのMain専用Instance Streamだけへ可視データを書き込む。
 		if (instanceCount_ == 0)
 		{
 			estimatedDrawIndexCount_ = 0;
@@ -311,13 +297,11 @@ namespace Ken4lowEngine
 
 		const uint64_t modelIndexCount = model_->GetTotalIndexCount();
 		estimatedDrawIndexCount_ = modelIndexCount * static_cast<uint64_t>(instanceCount_);
-
 		if (debugIndexBudget_ > 0 && estimatedDrawIndexCount_ > debugIndexBudget_)
 		{
 			drawSkippedByBudget_ = true;
 			return; // 高ポリゴンモデルの極端なInstanced DrawによるTDRを防ぐ。
 		}
-
 		drawSkippedByBudget_ = false;
 
 		const Vector3 cameraPosition = CameraManager::GetInstance()->GetActiveCameraPosition();
@@ -340,16 +324,11 @@ namespace Ken4lowEngine
 		const FrameUploadArena::Allocation dissolveAllocation = frameUploadArena.AllocateConstant(dissolveData_);
 		const FrameUploadArena::Allocation shadowParameterAllocation = frameUploadArena.AllocateConstant(shadowParameterData_);
 		InstanceStreamBuffer* stream = GetInstanceStream(InstanceStreamUsage::Main);
-		if (!stream || stream->srvIndex == UINT32_MAX ||
-			!perViewAllocation.IsValid() || !cameraAllocation.IsValid() ||
-			!dissolveAllocation.IsValid() || !shadowParameterAllocation.IsValid())
-		{
-			return;
-		}
+		if (!stream || stream->srvIndex == UINT32_MAX || !perViewAllocation.IsValid() || !cameraAllocation.IsValid() || !dissolveAllocation.IsValid() || !shadowParameterAllocation.IsValid()) return;
 
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		SRVManager::GetInstance()->PreDraw();
-		Object3DCommon::GetInstance()->SetInstancedRenderSetting(material_.GetCullMode()); // 全Instanceで共有するMaterial Cull Modeに対応したPSOを選ぶ。
+		Object3DCommon::GetInstance()->SetInstancedRenderSetting(ResolveEffectiveCullMode());
 		material_.SetPipeline(0);
 		commandList->SetGraphicsRootConstantBufferView(1, perViewAllocation.gpuAddress);
 		commandList->SetGraphicsRootConstantBufferView(3, cameraAllocation.gpuAddress);
