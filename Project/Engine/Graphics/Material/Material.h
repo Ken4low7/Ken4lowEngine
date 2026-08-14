@@ -9,6 +9,13 @@
 namespace Ken4lowEngine
 {
 
+enum class MaterialCullMode : uint8_t
+{
+	Back = 0,
+	Front,
+	None,
+};
+
 struct LegacyMaterialDesc
 {
 	Vector4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -40,6 +47,7 @@ struct MaterialDesc
 	LegacyMaterialDesc legacy;
 	PbrMaterialDesc pbr;
 	bool preferPbrWorkflow = false;
+	MaterialCullMode cullMode = MaterialCullMode::Back; // Phase15.1: 通常Materialは裏面カリングを既定とする。
 };
 
 class MaterialTextureSlots
@@ -115,10 +123,13 @@ public:
 	void SetNormalScale(float normalScale) { materialData_->normalScale = normalScale; }
 	void SetOcclusionStrength(float occlusionStrength) { materialData_->occlusionStrength = occlusionStrength; }
 	void SetEmissiveFactor(const Vector4& emissiveFactor) { materialData_->emissiveFactor = emissiveFactor; } // 発光量を毎フレーム変更できるようCPU側の値へ直接反映する。
+	void SetCullMode(MaterialCullMode cullMode) { cullMode_ = cullMode; }
+	MaterialCullMode GetCullMode() const { return cullMode_; }
 
 private:
 	MaterialCBData materialCpuData_{};
 	MaterialCBData* materialData_ = &materialCpuData_;
 	mutable PerFrameUploadBuffer<MaterialCBData> materialBuffers_;
+	MaterialCullMode cullMode_ = MaterialCullMode::Back;
 };
 } // namespace Ken4lowEngine
