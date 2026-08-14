@@ -114,6 +114,7 @@ namespace Ken4lowEngine
 		materialData_->textureFlags = 0;
 		materialData_->padding[0] = materialData_->padding[1] = materialData_->padding[2] = 0.0f;
 		cullMode_ = MaterialCullMode::Back; // 通常Materialは表面だけを描画し、両面は明示Opt-inにする。
+		blendMode_ = MaterialBlendMode::Opaque; // 旧MaterialはForward Opaqueへ安全にフォールバックする。
 	}
 
 	void Material::ApplyDesc(const MaterialDesc& desc)
@@ -137,6 +138,7 @@ namespace Ken4lowEngine
 		if (usePbr && !desc.pbr.occlusionTexturePath.empty()) materialData_->textureFlags |= 1u << 2;
 		if (usePbr && !desc.pbr.emissiveTexturePath.empty()) materialData_->textureFlags |= 1u << 3;
 		cullMode_ = desc.cullMode;
+		blendMode_ = desc.blendMode;
 	}
 
 	void Material::Update()
@@ -181,6 +183,13 @@ namespace Ken4lowEngine
 			ImGui::DragFloat("Normal Scale##Material", &materialData_->normalScale, 0.01f, 0.0f, 2.0f);
 			ImGui::DragFloat("AO Strength##Material", &materialData_->occlusionStrength, 0.01f, 0.0f, 1.0f);
 			ImGui::ColorEdit4("Emissive##Material", &materialData_->emissiveFactor.x);
+
+			const char* blendModeNames[] = { "Opaque", "Masked", "Transparent", "Additive" };
+			int blendModeIndex = static_cast<int>(blendMode_);
+			if (ImGui::Combo("Blend Mode##Material", &blendModeIndex, blendModeNames, IM_ARRAYSIZE(blendModeNames)))
+			{
+				blendMode_ = static_cast<MaterialBlendMode>(blendModeIndex); // Forward Queue分類をMaterial Inspectorから明示できるようにする。
+			}
 
 			const char* cullModeNames[] = { "Back", "Front", "None (Two Sided)" };
 			int cullModeIndex = static_cast<int>(cullMode_);
