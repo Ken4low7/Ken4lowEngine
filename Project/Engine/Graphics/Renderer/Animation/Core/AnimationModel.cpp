@@ -731,7 +731,9 @@ namespace Ken4lowEngine
 
 		// Graphics 一括セット（スタンドアロン用）
 		SRVManager::GetInstance()->PreDraw();
-		AnimationPipelineBuilder::GetInstance()->SetRenderSetting();
+		const Matrix4x4 cullWorld = wvpData_ ? wvpData_->World : Matrix4x4::MakeAffineMatrix(worldTransform.scale_, worldTransform.rotate_, worldTransform.translate_);
+		const MaterialCullMode effectiveCullMode = ResolveMaterialCullModeForWorld(material_.GetCullMode(), cullWorld);
+		AnimationPipelineBuilder::GetInstance()->SetRenderSetting(effectiveCullMode); // 単体描画もMaterialと鏡映Transformに対応したPSOを選ぶ。
 
 		// スキン済みメッシュを描画（個体差だけを束ねて実行）
 		DrawSkinned();
@@ -761,13 +763,25 @@ namespace Ken4lowEngine
 			if (m->IsVisible()) m->DispatchSkinningCS();
 		}
 
-		// Graphics パス（全体で一回）
+		// GraphicsはCull Modeごとに最大3グループへまとめ、モデル単位のPSO切り替えを避ける。
 		SRVManager::GetInstance()->PreDraw();
-		AnimationPipelineBuilder::GetInstance()->SetRenderSetting();
-		for (auto& m : models)
+		const MaterialCullMode cullModes[] = { MaterialCullMode::Back, MaterialCullMode::Front, MaterialCullMode::None };
+		for (const MaterialCullMode cullMode : cullModes)
 		{
-			if (!m) continue;
-			if (m->IsVisible()) m->DrawSkinned();
+			bool pipelineBound = false;
+			for (auto& m : models)
+			{
+				if (!m || !m->IsVisible()) continue;
+				const Matrix4x4 cullWorld = m->wvpData_ ? m->wvpData_->World : Matrix4x4::MakeAffineMatrix(m->worldTransform.scale_, m->worldTransform.rotate_, m->worldTransform.translate_);
+				const MaterialCullMode effectiveCullMode = ResolveMaterialCullModeForWorld(m->material_.GetCullMode(), cullWorld);
+				if (effectiveCullMode != cullMode) continue;
+				if (!pipelineBound)
+				{
+					AnimationPipelineBuilder::GetInstance()->SetRenderSetting(cullMode);
+					pipelineBound = true;
+				}
+				m->DrawSkinned();
+			}
 		}
 	}
 
@@ -842,15 +856,25 @@ namespace Ken4lowEngine
 			if (m->IsVisible()) m->DispatchSkinningCS();
 		}
 
-		// Graphics パス（全体で一回）
+		// 生ポインタBatchも同じCull Modeグルーピング契約に揃える。
 		SRVManager::GetInstance()->PreDraw();
-		AnimationPipelineBuilder::GetInstance()->SetRenderSetting();
-
-		// Graphics パス（全体で一回）
-		for (auto* m : models)
+		const MaterialCullMode cullModes[] = { MaterialCullMode::Back, MaterialCullMode::Front, MaterialCullMode::None };
+		for (const MaterialCullMode cullMode : cullModes)
 		{
-			if (!m) continue;
-			if (m->IsVisible()) m->DrawSkinned();
+			bool pipelineBound = false;
+			for (auto* m : models)
+			{
+				if (!m || !m->IsVisible()) continue;
+				const Matrix4x4 cullWorld = m->wvpData_ ? m->wvpData_->World : Matrix4x4::MakeAffineMatrix(m->worldTransform.scale_, m->worldTransform.rotate_, m->worldTransform.translate_);
+				const MaterialCullMode effectiveCullMode = ResolveMaterialCullModeForWorld(m->material_.GetCullMode(), cullWorld);
+				if (effectiveCullMode != cullMode) continue;
+				if (!pipelineBound)
+				{
+					AnimationPipelineBuilder::GetInstance()->SetRenderSetting(cullMode);
+					pipelineBound = true;
+				}
+				m->DrawSkinned();
+			}
 		}
 	}
 
