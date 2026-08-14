@@ -34,15 +34,18 @@ The target is a renderer with explicit visibility rules, a completed Forward pat
 - Main-pass culling diagnostics are explicitly scoped around Scene 3D rendering so Shadow, Picking, Debug Wireframe, Particles, and Editor overlays do not contaminate the counters.
 - Each static/instanced `Mesh` builds CPU `NormalCone` metadata and bounded Visibility Meshlets while preserving the existing full VB/IB draw path.
 - Visibility Meshlets currently use a reference budget of 64 unique vertices / 126 triangles and retain a local Bounding Sphere + Normal Cone for later conservative visibility evaluation.
+- A CPU/reference Meshlet evaluator now resolves Back/Front/Two-Sided and mirrored winding without changing the actual draw range. It expands the Normal Cone half-angle by the Bounding Sphere angular radius so near-camera or spatially wide Meshlets are not over-culled by a center-only test.
+- Deterministic reference cases cover front-facing, back-facing, Front-cull, mirrored, wide-cone, Two-Sided, and bounding-sphere safety behavior.
 - Runtime Normal Cone rejection remains disabled; the current diagnostics report candidate Meshlet workload without removing rendered geometry.
 
 Back-face culling is intentionally based on triangle winding in the D3D12 rasterizer. Vertex normals remain a lighting input; they are not used to decide whether an individual triangle is front-facing.
 
+The CPU reference currently defines a positive dot between the geometric Cross normal and the Meshlet-center-to-camera direction as the front-facing side. This sign contract must still be compared against real D3D12 output before it is allowed to remove draw work.
+
 ### Remaining 15.1 work
 
-- Add a CPU/reference Meshlet visibility evaluator and validate winding/sign conventions before enabling any Normal Cone rejection.
-- Add deterministic reference cases for front-facing, back-facing, mirrored, wide-cone, and Two-Sided surfaces.
 - Extend Visibility Meshlet metadata/counters to the animated/skinned path after the static reference is stable.
+- Compare the CPU reference result against representative Windows/DX12 scenes, including mirrored and Two-Sided assets.
 - Keep actual runtime rejection disabled until Windows/DX12 visual comparison confirms the reference evaluator.
 
 ## 15.2 — Forward Renderer Completion
