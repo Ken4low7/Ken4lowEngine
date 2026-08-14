@@ -118,6 +118,7 @@ namespace Ken4lowEngine
 		uint32_t GetCurrentFrameIndex() const;
 		InstanceStreamBuffer* GetInstanceStream(InstanceStreamUsage usage);
 		const InstanceStreamBuffer* GetInstanceStream(InstanceStreamUsage usage) const;
+		MaterialCullMode ResolveEffectiveCullMode() const;
 
 		DirectXCommon* dxCommon_ = nullptr;
 		std::shared_ptr<Model> model_;
