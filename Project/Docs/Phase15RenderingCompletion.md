@@ -12,7 +12,7 @@ The target is a renderer with explicit visibility rules, a completed Forward pat
 
 - Static `Object3D` opaque and alpha rendering use back-face culling by default.
 - Instanced `Object3D` rendering uses back-face culling by default.
-- Skinned / animated meshes currently use back-face culling as the batch-safe baseline.
+- Skinned / animated rendering owns Back/Front/None PSO variants; existing batch call sites still use the Back default until cull-mode grouping is wired.
 - Rasterizer presets explicitly define `FrontCounterClockwise = FALSE`, so Ken4lowEngine treats clockwise triangles as front faces consistently.
 - `MaterialCullMode` exposes `Back / Front / None` and defaults to `Back`.
 - Static opaque/alpha and Instanced Object3D create dedicated PSO variants for all three Material cull modes.
@@ -27,7 +27,7 @@ Back-face culling is intentionally based on triangle winding in the D3D12 raster
 
 ### Remaining 15.1 work
 
-- Split skinned/animated batches by effective `MaterialCullMode`, then add Front/None PSOs without breaking the current batch contract.
+- Split skinned/animated batches by effective `MaterialCullMode` and route each group through the already-created Back/Front/None PSOs.
 - Import two-sided material metadata from model assets where available, including glTF `doubleSided` where the importer exposes it.
 - Add a debug visualization / counter for material cull modes and estimated culled triangle workload where useful.
 - Evaluate meshlet normal-cone culling after the basic material/rasterizer contract is stable.
