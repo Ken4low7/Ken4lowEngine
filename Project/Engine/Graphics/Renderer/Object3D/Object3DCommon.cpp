@@ -149,14 +149,14 @@ namespace Ken4lowEngine
 		pointShadowPassData_.lightPositionAndFar = { light.position.x, light.position.y, light.position.z, farZ };
 	}
 
-	void Object3DCommon::SetShadowMapRenderSetting()
+	void Object3DCommon::SetShadowMapRenderSetting(MaterialCullMode cullMode)
 	{
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		const LightManager::ShadowCasterType casterType = LightManager::GetInstance()->GetActiveShadowCasterType();
 		const bool isLocalLinearShadow = casterType == LightManager::ShadowCasterType::Point || casterType == LightManager::ShadowCasterType::Spot;
 		const PipelineBundle& pipeline = isLocalLinearShadow
-			? shadowCasterPipelineSet_.GetObjectPoint()
-			: shadowCasterPipelineSet_.GetObjectDepth();
+			? shadowCasterPipelineSet_.GetObjectPoint(cullMode)
+			: shadowCasterPipelineSet_.GetObjectDepth(cullMode);
 
 		commandList->SetGraphicsRootSignature(pipeline.rootSignature.Get());
 		commandList->SetPipelineState(pipeline.pipelineState.Get());
@@ -172,14 +172,14 @@ namespace Ken4lowEngine
 		}
 	}
 
-	void Object3DCommon::SetInstancedShadowMapRenderSetting()
+	void Object3DCommon::SetInstancedShadowMapRenderSetting(MaterialCullMode cullMode)
 	{
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		const LightManager::ShadowCasterType casterType = LightManager::GetInstance()->GetActiveShadowCasterType();
 		const bool isLocalLinearShadow = casterType == LightManager::ShadowCasterType::Point || casterType == LightManager::ShadowCasterType::Spot;
 		const PipelineBundle& pipeline = isLocalLinearShadow
-			? shadowCasterPipelineSet_.GetInstancedPoint()
-			: shadowCasterPipelineSet_.GetInstancedDepth();
+			? shadowCasterPipelineSet_.GetInstancedPoint(cullMode)
+			: shadowCasterPipelineSet_.GetInstancedDepth(cullMode);
 
 		commandList->SetGraphicsRootSignature(pipeline.rootSignature.Get());
 		commandList->SetPipelineState(pipeline.pipelineState.Get());
