@@ -41,6 +41,10 @@ namespace Ken4lowEngine
 			std::array<uint64_t, kSurfacePathCount> pipelineBindsByPath{};
 			std::array<uint64_t, kSurfacePathCount> drawCallsByPath{};
 			std::array<uint64_t, kSurfacePathCount> trianglesByPath{};
+			std::array<uint64_t, kSurfacePathCount> visibilityMeshletInstancesByPath{};
+			std::array<uint64_t, kSurfacePathCount> normalConeCandidateDrawCallsByPath{};
+			std::array<uint64_t, kSurfacePathCount> normalConeCandidateMeshletInstancesByPath{};
+			std::array<uint64_t, kSurfacePathCount> normalConeCandidateTrianglesByPath{};
 		};
 
 		static CullingDiagnostics* GetInstance()
@@ -84,11 +88,13 @@ namespace Ken4lowEngine
 			const size_t cullIndex = ToCullIndex(activeCullMode_);
 			const size_t pathIndex = ToPathIndex(activeSurfacePath_);
 			const uint64_t triangleCount = (indexCount / 3ull) * instanceCount;
+			const uint64_t visibilityMeshletInstances = visibilityMeshletCount * instanceCount;
 
 			++snapshot_.indexedDrawCalls;
 			snapshot_.submittedSurfaceInstances += instanceCount;
 			snapshot_.submittedTriangles += triangleCount;
-			snapshot_.visibilityMeshletInstances += visibilityMeshletCount * instanceCount;
+			snapshot_.visibilityMeshletInstances += visibilityMeshletInstances;
+			snapshot_.visibilityMeshletInstancesByPath[pathIndex] += visibilityMeshletInstances;
 			++snapshot_.drawCallsByCullMode[cullIndex];
 			snapshot_.trianglesByCullMode[cullIndex] += triangleCount;
 			++snapshot_.drawCallsByPath[pathIndex];
@@ -96,9 +102,14 @@ namespace Ken4lowEngine
 
 			if (activeCullMode_ != MaterialCullMode::None && normalConeCandidateMeshletCount > 0)
 			{
+				const uint64_t candidateMeshletInstances = normalConeCandidateMeshletCount * instanceCount;
+				const uint64_t candidateTriangles = normalConeCandidateTriangleCount * instanceCount;
 				++snapshot_.normalConeCandidateDrawCalls;
-				snapshot_.normalConeCandidateMeshletInstances += normalConeCandidateMeshletCount * instanceCount;
-				snapshot_.normalConeCandidateTriangles += normalConeCandidateTriangleCount * instanceCount;
+				snapshot_.normalConeCandidateMeshletInstances += candidateMeshletInstances;
+				snapshot_.normalConeCandidateTriangles += candidateTriangles;
+				++snapshot_.normalConeCandidateDrawCallsByPath[pathIndex];
+				snapshot_.normalConeCandidateMeshletInstancesByPath[pathIndex] += candidateMeshletInstances;
+				snapshot_.normalConeCandidateTrianglesByPath[pathIndex] += candidateTriangles;
 			}
 		}
 
