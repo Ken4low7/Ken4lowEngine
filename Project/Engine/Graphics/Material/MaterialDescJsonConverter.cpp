@@ -29,6 +29,7 @@ namespace Ken4lowEngine
 		source.materialName = JsonReadUtil::ReadStringOr(root, Keys::MaterialName, source.materialName);
 		source.sourcePath = JsonReadUtil::ReadStringOr(root, Keys::SourcePath, source.sourcePath);
 		source.preferPbrWorkflow = JsonReadUtil::ReadBoolOr(root, Keys::PreferPbrWorkflow, source.preferPbrWorkflow);
+		source.cullMode = CullModeFromString(JsonReadUtil::ReadStringOr(root, Keys::CullMode, "back")); // 旧JsonはBackへフォールバックする。
 
 		// 欠損キーはSource既定値へフォールバックする。JsonReadUtilへ寄せてもMaterialDescのキー規約と既存Json互換は変えない。
 		source.legacyColor = JsonReadUtil::ReadVector4Or(legacy, Keys::LegacyColor, source.legacyColor);
@@ -89,6 +90,7 @@ namespace Ken4lowEngine
 		json[Keys::SourcePath] = normalized.sourcePath;
 		json[Keys::SourceKind] = ToString(normalized.sourceKind);
 		json[Keys::PreferPbrWorkflow] = normalized.preferPbrWorkflow;
+		json[Keys::CullMode] = ToString(normalized.cullMode);
 
 		json[Keys::Legacy] = {
 			{ Keys::LegacyColor, ToJsonVector4(normalized.legacyColor) },
@@ -149,18 +151,30 @@ namespace Ken4lowEngine
 
 	MaterialSourceKind MaterialDescJsonConverter::SourceKindFromString(const std::string& text)
 	{
-		if (text == "json")
-		{
-			return MaterialSourceKind::Json;
-		}
-		if (text == "gltf")
-		{
-			return MaterialSourceKind::Gltf;
-		}
-		if (text == "materialEditor")
-		{
-			return MaterialSourceKind::MaterialEditor;
-		}
+		if (text == "json") return MaterialSourceKind::Json;
+		if (text == "gltf") return MaterialSourceKind::Gltf;
+		if (text == "materialEditor") return MaterialSourceKind::MaterialEditor;
 		return MaterialSourceKind::Manual;
+	}
+
+	const char* MaterialDescJsonConverter::ToString(MaterialCullMode cullMode)
+	{
+		switch (cullMode)
+		{
+		case MaterialCullMode::Front:
+			return "front";
+		case MaterialCullMode::None:
+			return "none";
+		case MaterialCullMode::Back:
+		default:
+			return "back";
+		}
+	}
+
+	MaterialCullMode MaterialDescJsonConverter::CullModeFromString(const std::string& text)
+	{
+		if (text == "front") return MaterialCullMode::Front;
+		if (text == "none" || text == "twoSided" || text == "two-sided") return MaterialCullMode::None;
+		return MaterialCullMode::Back; // 未知値も安全な通常描画へフォールバックする。
 	}
 }
