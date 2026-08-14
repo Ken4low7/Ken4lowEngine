@@ -3,6 +3,7 @@
 #include "LightManager.h"
 #include "AnimationShaderManifest.h"
 #include "PipelineStatePresets.h"
+#include "Engine/Graphics/Culling/CullingDiagnostics.h"
 #include <LogString.h>
 #include <ShaderCompiler.h>
 #include <BlendStateFactory.h>
@@ -72,6 +73,7 @@ namespace Ken4lowEngine
 
 	void AnimationPipelineBuilder::SetRenderSetting(MaterialCullMode cullMode)
 	{
+		CullingDiagnostics::GetInstance()->SetActiveSurface(cullMode, CullingDiagnostics::SurfacePath::Animated); // Animation PSO bindもMain pass統計へ統合する。
 		auto commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		commandList->SetGraphicsRootSignature(rootSignature.Get());
 		commandList->SetPipelineState(GetPipelineState(cullMode)); // Skinned BatchもMaterial Cull ModeごとのPSOを共有する。
