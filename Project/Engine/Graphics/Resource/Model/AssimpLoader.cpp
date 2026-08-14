@@ -256,12 +256,25 @@ namespace Ken4lowEngine
 			}
 
 			// -------------------------------------------------
-			// マテリアルからテクスチャ参照を解決
+			// マテリアルからテクスチャ参照とSurface契約を解決
 			// -------------------------------------------------
 			aiMaterial* material = nullptr;
 			if (mesh->mMaterialIndex < scene->mNumMaterials)
 			{
 				material = scene->mMaterials[mesh->mMaterialIndex];
+			}
+
+			if (material)
+			{
+				int twoSided = 0;
+				if (material->Get(AI_MATKEY_TWOSIDED, twoSided) == AI_SUCCESS && twoSided != 0)
+				{
+					sub.material.SetCullMode(MaterialCullMode::None); // glTF doubleSided等をSubMeshの両面描画契約として保持する。
+				}
+				else
+				{
+					sub.material.SetCullMode(MaterialCullMode::Back);
+				}
 			}
 
 			if (material && material->GetTextureCount(aiTextureType_DIFFUSE) > 0)
