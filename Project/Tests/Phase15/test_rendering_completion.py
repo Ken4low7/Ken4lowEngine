@@ -21,7 +21,10 @@ INSTANCED_SHADOW = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Object3D
 ANIMATION_PIPELINE = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Animation" / "Pipeline" / "AnimationPipelineBuilder.cpp"
 ANIMATION_PIPELINE_H = ANIMATION_PIPELINE.with_suffix(".h")
 ANIMATION_SOURCE = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Animation" / "Core" / "AnimationModel.cpp"
+ANIMATION_HEADER = ANIMATION_SOURCE.with_suffix(".h")
 ANIMATION_SHADOW = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Animation" / "Core" / "AnimationModelShadow.inl"
+ANIMATION_LOD_H = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Animation" / "LOD" / "AnimationModelLODBuilder.h"
+ANIMATION_LOD_CPP = ANIMATION_LOD_H.with_suffix(".cpp")
 OBJECT_ID_PIPELINE = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Object3D" / "ObjectIdPipeline.h"
 ASSIMP_LOADER = PROJECT_ROOT / "Engine" / "Graphics" / "Resource" / "Model" / "AssimpLoader.cpp"
 MODEL_HEADER = PROJECT_ROOT / "Engine" / "Graphics" / "Resource" / "Model" / "Model.h"
@@ -51,7 +54,10 @@ class RenderingCompletionContractTests(unittest.TestCase):
             "animation_pipeline": ANIMATION_PIPELINE,
             "animation_pipeline_h": ANIMATION_PIPELINE_H,
             "animation_source": ANIMATION_SOURCE,
+            "animation_header": ANIMATION_HEADER,
             "animation_shadow": ANIMATION_SHADOW,
+            "animation_lod_h": ANIMATION_LOD_H,
+            "animation_lod_cpp": ANIMATION_LOD_CPP,
             "object_id_pipeline": OBJECT_ID_PIPELINE,
             "assimp_loader": ASSIMP_LOADER,
             "model_header": MODEL_HEADER,
@@ -157,17 +163,31 @@ class RenderingCompletionContractTests(unittest.TestCase):
         self.assertIn("createPipeline(MaterialCullMode::Front", self.animation_pipeline)
         self.assertIn("createPipeline(MaterialCullMode::None", self.animation_pipeline)
 
-    def test_skinned_batches_group_models_by_effective_cull_mode(self) -> None:
-        self.assertIn("const MaterialCullMode cullModes[]", self.animation_source)
-        self.assertIn("ResolveMaterialCullModeForWorld(m->material_.GetCullMode(), cullWorld)", self.animation_source)
-        self.assertIn("if (effectiveCullMode != cullMode) continue", self.animation_source)
-        self.assertIn("SetRenderSetting(cullMode)", self.animation_source)
+    def test_animation_lod_ranges_preserve_imported_submesh_cull_mode(self) -> None:
+        self.assertIn("MaterialCullMode cullMode = MaterialCullMode::Back", self.animation_lod_h)
+        self.assertIn("R.cullMode = sm.material.GetCullMode()", self.animation_lod_cpp)
+
+    def test_animated_surface_groups_route_mixed_submeshes(self) -> None:
+        self.assertIn("HasSurfaceCullMode", self.animation_header)
+        self.assertIn("DrawSkinned(MaterialCullMode cullMode)", self.animation_header)
+        self.assertIn("ResolveSubmeshCullMode", self.animation_header)
+        self.assertIn("m->HasSurfaceCullMode(cullMode)", self.animation_source)
+        self.assertIn("m->DrawSkinned(cullMode)", self.animation_source)
+        self.assertIn("ResolveSubmeshCullMode(range.cullMode, cullWorld) != cullMode", self.animation_source)
+        self.assertIn("ResolveSubmeshCullMode(sm.material.GetCullMode(), cullWorld) != cullMode", self.animation_source)
         self.assertGreaterEqual(self.animation_source.count("bool pipelineBound = false"), 2)
 
-    def test_skinned_single_and_shadow_draws_resolve_mirrored_winding(self) -> None:
-        self.assertIn("SetRenderSetting(effectiveCullMode)", self.animation_source)
-        self.assertIn("ResolveMaterialCullModeForWorld(material_.GetCullMode(), shadowWorld)", self.animation_shadow)
-        self.assertIn("SetShadowMapRenderSetting(effectiveCullMode)", self.animation_shadow)
+    def test_animated_material_override_can_replace_imported_cull_mode(self) -> None:
+        self.assertIn("materialCullOverrideEnabled_", self.animation_header)
+        self.assertIn("materialCullOverrideEnabled_ = true", self.animation_source)
+        self.assertIn("materialCullOverrideEnabled_ = false", self.animation_source)
+        self.assertIn("materialCullOverrideEnabled_ ? material_.GetCullMode() : importedCullMode", self.animation_source)
+
+    def test_animated_shadow_uses_submesh_surface_groups(self) -> None:
+        self.assertIn("ResolveSubmeshCullMode(range.cullMode, shadowWorld)", self.animation_shadow)
+        self.assertIn("ResolveSubmeshCullMode(modelData.subMeshes[index].material.GetCullMode(), shadowWorld)", self.animation_shadow)
+        self.assertIn("SetShadowMapRenderSetting(cullMode)", self.animation_shadow)
+        self.assertIn("RootSignature切替後にShadow行列を再Bindする", self.animation_shadow)
 
     def test_assimp_preserves_two_sided_surface_metadata(self) -> None:
         self.assertIn("AI_MATKEY_TWOSIDED", self.assimp_loader)
