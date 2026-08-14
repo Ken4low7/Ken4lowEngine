@@ -151,6 +151,20 @@ namespace Ken4lowEngine
 			return desc;
 		}
 
+		D3D12_RASTERIZER_DESC MakeMaterialRasterizer(MaterialCullMode cullMode)
+		{
+			switch (cullMode)
+			{
+			case MaterialCullMode::Front:
+				return PipelineStatePresets::MakeRasterizerCullFront();
+			case MaterialCullMode::None:
+				return PipelineStatePresets::MakeRasterizerCullNone();
+			case MaterialCullMode::Back:
+			default:
+				return PipelineStatePresets::MakeRasterizerCullBack();
+			}
+		}
+
 		GraphicsPipelineDesc MakeShadowPipelineDesc(const D3D12_INPUT_LAYOUT_DESC& inputLayout)
 		{
 			GraphicsPipelineDesc desc{};
@@ -186,6 +200,7 @@ namespace Ken4lowEngine
 		ComPtr<IDxcBlob> psBlob = ShaderCompiler::CompileShader(ps, dxcManager);
 		ComPtr<IDxcBlob> shadowVsBlob = ShaderCompiler::CompileShader(shadowVs, dxcManager);
 
+		auto createSurfacePipeline = [&](MaterialCullMode cullMode, const wchar_t* debugName, PipelineBundle& destination)
 		{
 			std::array<D3D12_DESCRIPTOR_RANGE, 12> ranges{};
 			std::array<D3D12_ROOT_PARAMETER, kCount> parameters{};
@@ -194,8 +209,7 @@ namespace Ken4lowEngine
 
 			GraphicsPipelineDesc desc{};
 			desc.blendState = PipelineStatePresets::MakeBlendOpaque();
-			// Phase15.1: 通常の3D三角形は裏面をRasterizerで落とし、不要なPixel Shader実行を避ける。
-			desc.rasterizerState = PipelineStatePresets::MakeRasterizerCullBack();
+			desc.rasterizerState = MakeMaterialRasterizer(cullMode); // Instanced描画もMaterialのSurface契約と同じPSOを選ぶ。
 			desc.depthStencilState = PipelineStatePresets::MakeDepthReadWrite();
 			desc.numRenderTargets = 1;
 			desc.rtvFormats[0] = rtvFormat;
@@ -204,14 +218,16 @@ namespace Ken4lowEngine
 			desc.sampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 			desc.sampleCount = 1;
 			desc.inputLayout = inputLayout;
-			desc.debugName = L"Object3D.Instanced";
+			desc.debugName = debugName;
 			desc.shaders.vertexShader.blob = vsBlob;
 			desc.shaders.pixelShader.blob = psBlob;
+			destination = factory.CreateGraphicsPipeline(desc, rootDesc);
+			if (destination.pipelineState) destination.pipelineState->SetName(debugName);
+		};
 
-			defaultPipeline_ = factory.CreateGraphicsPipeline(desc, rootDesc);
-			if (defaultPipeline_.rootSignature) { defaultPipeline_.rootSignature->SetName(L"Object3D.Instanced.RootSignature"); }
-			if (defaultPipeline_.pipelineState) { defaultPipeline_.pipelineState->SetName(L"Object3D.Instanced.PSO"); }
-		}
+		createSurfacePipeline(MaterialCullMode::Back, L"Object3D.Instanced.Back", defaultPipeline_);
+		createSurfacePipeline(MaterialCullMode::Front, L"Object3D.Instanced.Front", defaultFrontPipeline_);
+		createSurfacePipeline(MaterialCullMode::None, L"Object3D.Instanced.TwoSided", defaultTwoSidedPipeline_);
 
 		{
 			D3D12_DESCRIPTOR_RANGE instanceRange{};
@@ -221,16 +237,31 @@ namespace Ken4lowEngine
 			GraphicsPipelineDesc desc = MakeShadowPipelineDesc(inputLayout);
 			desc.debugName = L"Object3D.InstancedShadow";
 			desc.shaders.vertexShader.blob = shadowVsBlob;
-
 			shadowPipeline_ = factory.CreateGraphicsPipeline(desc, rootDesc);
 			if (shadowPipeline_.rootSignature) { shadowPipeline_.rootSignature->SetName(L"Object3D.InstancedShadow.RootSignature"); }
 			if (shadowPipeline_.pipelineState) { shadowPipeline_.pipelineState->SetName(L"Object3D.InstancedShadow.PSO"); }
 		}
 	}
 
+	const PipelineBundle& InstancedObject3DPipelineSet::GetDefault(MaterialCullMode cullMode) const
+	{
+		switch (cullMode)
+		{
+		case MaterialCullMode::Front:
+			return defaultFrontPipeline_;
+		case MaterialCullMode::None:
+			return defaultTwoSidedPipeline_;
+		case MaterialCullMode::Back:
+		default:
+			return defaultPipeline_;
+		}
+	}
+
 	void InstancedObject3DPipelineSet::Finalize()
 	{
 		shadowPipeline_.Reset();
+		defaultTwoSidedPipeline_.Reset();
+		defaultFrontPipeline_.Reset();
 		defaultPipeline_.Reset();
 	}
 }
