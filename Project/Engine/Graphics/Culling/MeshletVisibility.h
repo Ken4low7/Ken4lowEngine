@@ -117,7 +117,7 @@ namespace Ken4lowEngine
 			uint32_t newUniqueVertices = 0;
 			for (uint32_t corner = 0; corner < 3; ++corner)
 			{
-				if (!uniqueVertices.contains(indices[start + corner])) { ++newUniqueVertices; }
+				if (uniqueVertices.find(indices[start + corner]) == uniqueVertices.end()) { ++newUniqueVertices; }
 			}
 
 			const uint32_t currentTriangles = meshletIndexCount / 3u;
