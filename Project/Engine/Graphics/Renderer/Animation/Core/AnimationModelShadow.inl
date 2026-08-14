@@ -133,7 +133,8 @@ namespace Ken4lowEngine
 		shadowTransformData_->WorldInversedTranspose = Matrix4x4::Transpose(Matrix4x4::Inverse(shadowWorld));
 
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
-		Object3DCommon::GetInstance()->SetShadowMapRenderSetting();
+		const MaterialCullMode effectiveCullMode = ResolveMaterialCullModeForWorld(material_.GetCullMode(), shadowWorld);
+		Object3DCommon::GetInstance()->SetShadowMapRenderSetting(effectiveCullMode); // Main描画と同じ表面契約をSkinned Shadowにも適用する。
 		commandList->SetGraphicsRootConstantBufferView(0, shadowTransformResource_->GetGPUVirtualAddress());
 
 		if (skinningCS_.IsSkinningModel())
