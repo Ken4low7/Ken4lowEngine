@@ -20,6 +20,7 @@ namespace Ken4lowEngine
 		MaterialDesc desc{};
 		desc.preferPbrWorkflow = false;
 		desc.cullMode = MaterialCullMode::Back;
+		desc.blendMode = MaterialBlendMode::Opaque;
 		desc.legacy.color = color;
 		desc.legacy.shininess = shininess;
 		desc.legacy.reflection = reflection;
@@ -45,6 +46,7 @@ namespace Ken4lowEngine
 		MaterialDesc desc{};
 		desc.preferPbrWorkflow = true;
 		desc.cullMode = MaterialCullMode::Back;
+		desc.blendMode = MaterialBlendMode::Opaque;
 		desc.pbr.baseColorFactor = baseColorFactor;
 		desc.pbr.metallicFactor = metallicFactor;
 		desc.pbr.roughnessFactor = roughnessFactor;
@@ -68,6 +70,7 @@ namespace Ken4lowEngine
 		MaterialDesc desc{};
 		desc.preferPbrWorkflow = normalizedSource.preferPbrWorkflow;
 		desc.cullMode = normalizedSource.cullMode; // Rasterizer設定もMaterial Sourceから描画用Descへ引き継ぐ。
+		desc.blendMode = normalizedSource.blendMode; // Forward Queue分類もSourceから描画用Descへ失わず引き継ぐ。
 
 		desc.legacy.color = normalizedSource.legacyColor;
 		desc.legacy.shininess = normalizedSource.legacyShininess;
