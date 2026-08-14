@@ -1,5 +1,7 @@
 #pragma once
 #include "PipelineCommon.h"
+#include "Material.h"
+#include <array>
 
 namespace Ken4lowEngine
 {
@@ -17,13 +19,15 @@ namespace Ken4lowEngine
 
 		void Finalize();
 
-		const PipelineBundle& GetDefault() const { return defaultPipeline_; }
-		const PipelineBundle& GetAlpha() const { return alphaPipeline_; }
+		const PipelineBundle& GetDefault(MaterialCullMode cullMode = MaterialCullMode::Back) const;
+		const PipelineBundle& GetAlpha(MaterialCullMode cullMode = MaterialCullMode::Back) const;
 		const PipelineBundle& GetShadow() const { return shadowPipeline_; }
 
 	private:
-		PipelineBundle defaultPipeline_{};
-		PipelineBundle alphaPipeline_{};
+		static size_t ToCullModeIndex(MaterialCullMode cullMode);
+
+		std::array<PipelineBundle, 3> defaultPipelines_{};
+		std::array<PipelineBundle, 3> alphaPipelines_{};
 		PipelineBundle shadowPipeline_{};
 	};
 } // namespace Ken4lowEngine
