@@ -33,9 +33,9 @@ namespace Ken4lowEngine
 
 	public: /// ---------- 描画設定関数 ---------- ///
 
-		void SetRenderSetting();
-		void SetAlphaRenderSetting();
-		void SetInstancedRenderSetting();
+		void SetRenderSetting(MaterialCullMode cullMode = MaterialCullMode::Back);
+		void SetAlphaRenderSetting(MaterialCullMode cullMode = MaterialCullMode::Back);
+		void SetInstancedRenderSetting(MaterialCullMode cullMode = MaterialCullMode::Back);
 		void SetShadowMapRenderSetting();
 		void SetInstancedShadowMapRenderSetting();
 		bool ShouldDrawObject(const BoundingSphere& worldBounds, bool objectCullingEnabled, bool hasBounds, bool isStageObject = false);
