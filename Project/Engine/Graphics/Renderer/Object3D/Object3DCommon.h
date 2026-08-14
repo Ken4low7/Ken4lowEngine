@@ -29,6 +29,7 @@ namespace Ken4lowEngine
 		void Initialize(DirectXCommon* dxCommon);
 		void Finalize();
 		void BeginObject3DPass();
+		void EndObject3DPass();
 		void DrawImGui();
 
 	public: /// ---------- 描画設定関数 ---------- ///
