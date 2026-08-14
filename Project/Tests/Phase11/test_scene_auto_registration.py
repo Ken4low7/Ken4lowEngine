@@ -7,6 +7,7 @@ FACTORY_HEADER = PROJECT_ROOT / "ApplicationLayer" / "SceneManagement" / "SceneF
 FACTORY_SOURCE = FACTORY_HEADER.with_suffix(".cpp")
 SCENE_MANAGER_HEADER = PROJECT_ROOT / "Engine" / "Scene" / "Management" / "SceneManager.h"
 EDITOR_WINDOW_SOURCE = PROJECT_ROOT / "Engine" / "Editor" / "EditorWindowManager.cpp"
+EDITOR_SCENE_CONTROLLER = PROJECT_ROOT / "Engine" / "Editor" / "EditorSceneDeferredController.h"
 GAME_APPLICATION_SOURCE = PROJECT_ROOT / "Engine" / "Core" / "Application" / "GameApplication.cpp"
 SAMPLE_SCENE_HEADER = PROJECT_ROOT / "ApplicationLayer" / "Scene" / "SampleScene" / "SampleScene.h"
 
@@ -18,6 +19,7 @@ class SceneAutoRegistrationTests(unittest.TestCase):
         cls.factory_cpp = FACTORY_SOURCE.read_text(encoding="utf-8")
         cls.scene_manager_h = SCENE_MANAGER_HEADER.read_text(encoding="utf-8")
         cls.editor_cpp = EDITOR_WINDOW_SOURCE.read_text(encoding="utf-8")
+        cls.editor_scene_controller = EDITOR_SCENE_CONTROLLER.read_text(encoding="utf-8")
         cls.game_application_cpp = GAME_APPLICATION_SOURCE.read_text(encoding="utf-8")
         cls.sample_scene_h = SAMPLE_SCENE_HEADER.read_text(encoding="utf-8")
 
@@ -28,10 +30,12 @@ class SceneAutoRegistrationTests(unittest.TestCase):
         self.assertIn("GetRegisteredSceneNames", self.factory_h)
         self.assertIn("GetSceneCreators().contains", self.factory_cpp)
 
-    def test_scene_manager_only_exposes_creatable_scenes(self) -> None:
+    def test_scene_manager_only_exposes_real_creatable_scenes(self) -> None:
         self.assertIn("GetAvailableSceneIds", self.scene_manager_h)
         self.assertIn("CanCreateScene", self.scene_manager_h)
         self.assertIn("representedClasses", self.scene_manager_h)
+        self.assertIn('definition.className == "DataDrivenScene" && definition.levelPath.empty()', self.scene_manager_h)
+        self.assertIn('className == "DataDrivenScene"', self.scene_manager_h)
 
     def test_scene_window_is_data_driven(self) -> None:
         self.assertIn("GetAvailableSceneIds", self.editor_cpp)
@@ -39,6 +43,14 @@ class SceneAutoRegistrationTests(unittest.TestCase):
         self.assertNotIn('ImGui::Button("StageSelectScene")', self.editor_cpp)
         self.assertNotIn('ImGui::Button("GamePlayScene")', self.editor_cpp)
         self.assertNotIn('ImGui::Button("DebugScene")', self.editor_cpp)
+
+    def test_imgui_scene_menu_can_create_and_open_scenes(self) -> None:
+        self.assertIn('ImGui::MenuItem("New Scene..."', self.editor_scene_controller)
+        self.assertIn('ImGui::BeginMenu("Open Scene"', self.editor_scene_controller)
+        self.assertIn("GetAvailableSceneIds", self.editor_scene_controller)
+        self.assertIn("FindSceneDefinition", self.editor_scene_controller)
+        self.assertIn("sceneManager_->ChangeScene(sceneId)", self.editor_scene_controller)
+        self.assertIn("Resources/JSON/Levels/*.json", self.editor_scene_controller)
 
     def test_sample_scene_is_editable_actor_world_scene(self) -> None:
         self.assertIn("class SampleScene final : public BaseScene", self.sample_scene_h)
