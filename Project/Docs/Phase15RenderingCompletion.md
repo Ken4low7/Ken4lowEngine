@@ -63,12 +63,23 @@ Planned rendering order:
 7. Post effects
 8. UI
 
-Required work:
+### Implemented foundation
 
-- explicit render queues / material blend modes
-- stable opaque/masked/transparent ordering contracts
-- shared lighting/shadow bindings
-- Forward diagnostics and GPU timings
+- `MaterialBlendMode` defines the high-level material classes `Opaque / Masked / Transparent / Additive` independently from the low-level D3D12 `BlendMode` presets.
+- Existing and unknown Material data defaults to `Opaque`, so introducing Forward queues does not silently move old content into a transparent pass.
+- Material JSON persists `blendMode` as `opaque / masked / transparent / additive`, and the Material ImGui inspector exposes the same four modes.
+- `ForwardRenderPolicy` maps each Material class to one stable Forward bucket, low-level blend state, depth-write contract, alpha-test requirement, and sort direction.
+- Opaque and Masked are depth-writing and front-to-back; Transparent uses normal alpha blend with depth writes disabled and back-to-front sorting; Additive uses additive blend with depth writes disabled and back-to-front sorting.
+- The policy header is included by the Object3D renderer so Debug/Release C++ compilation validates the contract even before legacy direct draws are migrated into actual queue submission.
+
+### Remaining 15.2 work
+
+- replace legacy direct Object3D submission with explicit Forward queue items
+- implement stable Opaque / Masked / Transparent / Additive queue ordering
+- add Masked alpha-cutoff shader/PSO support without treating it as ordinary transparency
+- route Transparent/Additive through depth-read/no-depth-write PSOs
+- share lighting/shadow binding contracts across all Forward buckets
+- add Forward queue diagnostics and GPU timings
 
 ## 15.3 — Deferred Renderer
 
