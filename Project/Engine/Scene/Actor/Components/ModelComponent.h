@@ -52,6 +52,7 @@ namespace Ken4lowEngine
 		std::vector<ComponentProperty> CreateProperties(bool includeModelPath = true);
 		bool SubmitForwardOpaque(ForwardRenderQueue& queue);
 		bool SubmitForwardMasked(ForwardRenderQueue& queue);
+		bool SubmitForwardTransparent(ForwardRenderQueue& queue);
 
 	private:
 		bool SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode);
