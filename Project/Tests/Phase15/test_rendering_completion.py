@@ -98,6 +98,22 @@ class RenderingCompletionContractTests(unittest.TestCase):
         self.assertIn("GetDefault(MaterialCullMode", self.object_pipeline)
         self.assertIn("GetAlpha(MaterialCullMode", self.object_pipeline)
 
+    def test_static_object_routes_imported_submesh_cull_modes(self) -> None:
+        self.assertIn("ResolveSubmeshCullMode", self.object_header)
+        self.assertIn("materialCullOverrideEnabled_", self.object_header)
+        self.assertIn("model_->GetMaterialCullModes()", self.object_source)
+        self.assertIn("visibleMeshesByCullMode", self.object_source)
+        self.assertIn("bindSurfaceState(cullMode)", self.object_source)
+        self.assertIn("meshesByCullMode", self.object_source)
+        self.assertIn("SetShadowMapRenderSetting(cullMode)", self.object_source)
+        self.assertIn("meshGroups[static_cast<size_t>(ResolveSubmeshCullMode(meshIndex))]", self.object_header)
+
+    def test_static_material_override_can_replace_imported_cull_mode(self) -> None:
+        self.assertIn("materialCullOverrideEnabled_ = true", self.object_header)
+        self.assertIn("materialCullOverrideEnabled_ = true", self.object_source)
+        self.assertIn("materialCullOverrideEnabled_ = false", self.object_source)
+        self.assertIn("if (!materialCullOverrideEnabled_ && model_)", self.object_source)
+
     def test_instanced_pipeline_builds_material_cull_variants(self) -> None:
         self.assertIn("MakeMaterialRasterizer", self.instanced_pipeline)
         self.assertIn("Object3D.Instanced.Back", self.instanced_pipeline)
@@ -111,7 +127,7 @@ class RenderingCompletionContractTests(unittest.TestCase):
         self.assertIn("MakeShadowRasterizer(MaterialCullMode", self.shadow_pipeline)
         self.assertIn("MakeRasterizerCullFront", self.shadow_pipeline)
         self.assertIn("MakeRasterizerCullNone", self.shadow_pipeline)
-        self.assertIn("SetShadowMapRenderSetting(effectiveCullMode)", self.object_source)
+        self.assertIn("SetShadowMapRenderSetting(cullMode)", self.object_source)
         self.assertIn("SetInstancedShadowMapRenderSetting(ResolveEffectiveCullMode())", self.instanced_shadow)
 
     def test_editor_picking_uses_material_cull_mode(self) -> None:
@@ -119,6 +135,7 @@ class RenderingCompletionContractTests(unittest.TestCase):
         self.assertIn("instancedPipelines_", self.object_id_pipeline)
         self.assertIn("MakeRasterizer(cullMode)", self.object_id_pipeline)
         self.assertIn("BindStatic(commandList, objectId, cullMode)", self.object_header)
+        self.assertIn("ResolveSubmeshCullMode(meshIndex)", self.object_header)
         self.assertIn("BindInstanced(commandList, baseObjectId, true, ResolveEffectiveCullMode())", self.instanced_shadow)
 
     def test_material_json_round_trips_cull_mode_and_keeps_legacy_default(self) -> None:
