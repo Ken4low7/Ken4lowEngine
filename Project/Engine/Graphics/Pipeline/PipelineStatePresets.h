@@ -8,6 +8,7 @@ namespace Ken4lowEngine::PipelineStatePresets
 	D3D12_BLEND_DESC MakeBlendOpaque();
 
 	D3D12_RASTERIZER_DESC MakeRasterizerCullBack();
+	D3D12_RASTERIZER_DESC MakeRasterizerCullFront();
 	D3D12_RASTERIZER_DESC MakeRasterizerCullNone();
 
 	D3D12_DEPTH_STENCIL_DESC MakeDepthDisable();
