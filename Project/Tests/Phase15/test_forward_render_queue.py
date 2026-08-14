@@ -70,33 +70,46 @@ class ForwardRenderQueueFoundationTests(unittest.TestCase):
         self.assertIn("void ExecuteBucket(ForwardRenderBucket bucket)", self.forward_queue)
         self.assertIn("void EndFrame()", self.forward_queue)
 
-    def test_static_model_component_submits_opaque_and_masked_depth_writing_buckets(self) -> None:
+    def test_static_model_component_submits_opaque_masked_and_transparent_buckets(self) -> None:
         self.assertIn("GetBlendMode() const", self.object3d_h)
         self.assertIn("SubmitForwardOpaque", self.model_component_h)
         self.assertIn("SubmitForwardMasked", self.model_component_h)
+        self.assertIn("SubmitForwardTransparent", self.model_component_h)
         self.assertIn("SubmitForwardBucket", self.model_component_h)
         self.assertIn("object3D_->IsAlphaBlendEnabled()", self.model_component_cpp)
         self.assertIn("object3D_->GetBlendMode() != expectedBlendMode", self.model_component_cpp)
         self.assertIn("MaterialBlendMode::Opaque", self.model_component_cpp)
         self.assertIn("MaterialBlendMode::Masked", self.model_component_cpp)
+        self.assertIn("MaterialBlendMode::Transparent", self.model_component_cpp)
+        self.assertIn("policy.bucket == ForwardRenderBucket::Transparent", self.model_component_cpp)
+        self.assertIn("object3D->SetAlphaBlendEnabled(true)", self.model_component_cpp)
+        self.assertIn("object3D->SetAlphaBlendEnabled(previousAlphaBlend)", self.model_component_cpp)
         self.assertIn("item.sortDepth = CalculateForwardSortDepth", self.model_component_cpp)
         self.assertIn("lastForwardQueueSerial_ = queue.GetFrameSerial()", self.model_component_cpp)
-        self.assertIn("alreadyDrawnByForwardQueue", self.model_component_cpp)
 
-    def test_actor_world_executes_opaque_then_masked_before_legacy_component_draws(self) -> None:
+    def test_queued_model_is_owned_by_forward_queue_for_the_entire_frame(self) -> None:
+        self.assertIn("alreadySubmittedToForwardQueue", self.model_component_cpp)
+        self.assertIn("queue->IsFrameActive()", self.model_component_cpp)
+        self.assertIn("queue->GetFrameSerial() == lastForwardQueueSerial_", self.model_component_cpp)
+
+    def test_actor_world_executes_transparent_after_legacy_world_draws(self) -> None:
         begin_index = self.actor_world_draw.index("forwardQueue->BeginFrame()")
         opaque_submit_index = self.actor_world_draw.index("SubmitForwardOpaque")
         masked_submit_index = self.actor_world_draw.index("SubmitForwardMasked")
+        transparent_submit_index = self.actor_world_draw.index("SubmitForwardTransparent")
         opaque_execute_index = self.actor_world_draw.index("ExecuteBucket(ForwardRenderBucket::Opaque)")
         masked_execute_index = self.actor_world_draw.index("ExecuteBucket(ForwardRenderBucket::Masked)")
         legacy_draw_index = self.actor_world_draw.index("actor->Draw()")
+        transparent_execute_index = self.actor_world_draw.index("ExecuteBucket(ForwardRenderBucket::Transparent)")
         end_index = self.actor_world_draw.index("forwardQueue->EndFrame()")
         self.assertLess(begin_index, opaque_submit_index)
         self.assertLess(opaque_submit_index, masked_submit_index)
-        self.assertLess(masked_submit_index, opaque_execute_index)
+        self.assertLess(masked_submit_index, transparent_submit_index)
+        self.assertLess(transparent_submit_index, opaque_execute_index)
         self.assertLess(opaque_execute_index, masked_execute_index)
         self.assertLess(masked_execute_index, legacy_draw_index)
-        self.assertLess(legacy_draw_index, end_index)
+        self.assertLess(legacy_draw_index, transparent_execute_index)
+        self.assertLess(transparent_execute_index, end_index)
 
     def test_forward_policy_is_compiled_by_object_renderer(self) -> None:
         self.assertIn("Engine/Graphics/Renderer/Forward/ForwardRenderQueue.h", self.object_common_h)
