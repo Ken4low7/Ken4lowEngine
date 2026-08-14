@@ -14,9 +14,11 @@ The target is a renderer with explicit visibility rules, a completed Forward pat
 - Static `Object3D` routes imported per-SubMesh cull metadata into actual Main, Shadow, and Editor Object-ID draws by grouping visible meshes into Back/Front/None surface groups.
 - Static `Object3D` uses imported SubMesh cull metadata until an Object-level Material cull mode is explicitly selected; `ResetMaterialBinding()` returns to imported metadata.
 - Instanced `Object3D` rendering uses back-face culling by default.
-- Skinned / animated rendering owns Back/Front/None PSO variants and batches visible models by effective `MaterialCullMode`, so a batch uses at most three surface PSO groups instead of switching per model.
-- Skinned single draws resolve the same effective cull mode before binding the graphics PSO.
-- Skinned shadows resolve the material cull mode from the actual shadow world matrix, including mirrored / negative-scale transforms.
+- Skinned / animated rendering owns Back/Front/None PSO variants and batches visible surfaces by effective `MaterialCullMode`, so a batch uses at most three PSO groups even when one model contains mixed surface modes.
+- Animation LOD flattening preserves each imported SubMesh cull mode on `SubMeshRange`; a combined skinned VB/IB can therefore draw body surfaces with Back and hair/cloth cards with None without splitting the skinning output buffer.
+- Animated non-CS rendering uses the same imported SubMesh material cull metadata as the skinned path.
+- Animated MaterialDesc overrides imported SubMesh cull metadata explicitly; `ResetMaterialBinding()` returns to imported values.
+- Animated shadows group skinned and non-CS SubMeshes by the same effective surface cull mode as the main pass, including mirrored / negative-scale transforms.
 - Rasterizer presets explicitly define `FrontCounterClockwise = FALSE`, so Ken4lowEngine treats clockwise triangles as front faces consistently.
 - `MaterialCullMode` exposes `Back / Front / None` and defaults to `Back`.
 - Static opaque/alpha and Instanced Object3D create dedicated PSO variants for all three Material cull modes.
@@ -33,7 +35,6 @@ Back-face culling is intentionally based on triangle winding in the D3D12 raster
 
 ### Remaining 15.1 work
 
-- Route imported per-SubMesh cull metadata into animated/skinned SubMesh ranges; current animated model-level batches support cull modes, but mixed cull modes inside one model still need range-level grouping.
 - Add a debug visualization / counter for material cull modes and estimated culled triangle workload where useful.
 - Evaluate meshlet normal-cone culling after the basic material/rasterizer contract is stable.
 
