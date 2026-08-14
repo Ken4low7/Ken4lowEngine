@@ -11,6 +11,7 @@
 #include <UAVManager.h>
 #include <GameTimer.h>
 #include <LightManager.h>
+#include "Engine/Graphics/Culling/CullingDiagnostics.h"
 #include <chrono>
 #include <cmath>
 
@@ -1066,13 +1067,10 @@ namespace Ken4lowEngine
 			{
 				// カメラ行列取得
 				const Matrix4x4& viewProjectionMatrix = CameraManager::GetInstance()->GetActiveViewProjectionMatrix();
-
-				// ワールドビュー射影行列計算
 				worldViewProjectionMatrix = Matrix4x4::Multiply(worldMatrix, viewProjectionMatrix);
 			}
 			else
 			{
-				// カメラ無し → ワールド行列のみ
 				worldViewProjectionMatrix = worldMatrix;
 			}
 
@@ -1219,6 +1217,9 @@ namespace Ken4lowEngine
 				const D3D12_GPU_DESCRIPTOR_HANDLE baseColorHandle =
 					materialTextureSlots_.ResolveBaseColor(range.baseColorSrvGpuHandle);
 				TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 2, baseColorHandle);
+				CullingDiagnostics::GetInstance()->RecordIndexedDraw(
+					range.indexCount, 1, range.visibilityMeshlets.size(),
+					range.normalConeCandidateMeshletCount, range.normalConeCandidateTriangleCount); // Bind Pose Meshletは診断だけに使い、Skinned Draw自体は削らない。
 				commandList->DrawIndexedInstanced(range.indexCount, 1, range.startIndex, 0, 0); // 結合IBは維持したままSurface Groupだけを選択描画する。
 			}
 			return;
@@ -1238,6 +1239,7 @@ namespace Ken4lowEngine
 			const D3D12_GPU_DESCRIPTOR_HANDLE baseColorHandle = materialTextureSlots_.ResolveBaseColor(
 				AnimationModelLODBuilder::LoadSrvOrFallback(sm.material.textureFilePath));
 			TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 2, baseColorHandle);
+			CullingDiagnostics::GetInstance()->RecordIndexedDraw(sm.indices.size(), 1); // 非CS AnimationもSurface/Triangle統計には含める。
 			commandList->DrawIndexedInstanced(UINT(sm.indices.size()), 1, 0, 0, 0);
 		}
 	}
