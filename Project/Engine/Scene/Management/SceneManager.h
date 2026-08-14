@@ -50,6 +50,7 @@ namespace Ken4lowEngine
 			{
 				if (sceneId.empty() || definition.className.empty()) continue;
 				if (!sceneFactory_->CanCreateScene(definition.className)) continue;
+				if (definition.className == "DataDrivenScene" && definition.levelPath.empty()) continue; // 実Levelを持たないFallback名はEditorのScene一覧へ出さない。
 #ifndef _DEBUG
 				if (definition.editorOnly) continue;
 #endif
@@ -59,12 +60,13 @@ namespace Ken4lowEngine
 
 			for (const std::string& className : sceneFactory_->GetRegisteredSceneNames())
 			{
+				if (className == "DataDrivenScene") continue; // 共通Runtime Classそのものはユーザーが開くSceneではない。
 				if (representedClasses.contains(className)) continue;
 				if (seenIds.insert(className).second) result.push_back(className);
 			}
 
 			std::sort(result.begin(), result.end());
-			return result; // Registry定義とC++自己登録を統合し、実際に生成可能なSceneだけEditorへ公開する。
+			return result; // C++特殊Sceneと実Levelを持つData SceneだけをEditorへ公開する。
 		}
 
 		[[nodiscard]] bool IsTransitioning() const { return isTransitioning_ || (sceneTransition_ && sceneTransition_->IsBusy()); }
