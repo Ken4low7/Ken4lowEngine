@@ -48,6 +48,7 @@ namespace Ken4lowEngine
 				uint32_t startIndex = 0;
 				uint32_t indexCount = 0;
 				D3D12_GPU_DESCRIPTOR_HANDLE baseColorSrvGpuHandle{}; // t2用
+				MaterialCullMode cullMode = MaterialCullMode::Back; // ImportしたdoubleSidedをLOD統合後も失わない。
 			};
 			std::vector<SubMeshRange> subMeshRanges; // subMeshごとに分割
 		};
