@@ -21,6 +21,9 @@ INSTANCED_SHADOW = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Object3D
 ANIMATION_PIPELINE = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Animation" / "Pipeline" / "AnimationPipelineBuilder.cpp"
 ANIMATION_PIPELINE_H = ANIMATION_PIPELINE.with_suffix(".h")
 OBJECT_ID_PIPELINE = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Object3D" / "ObjectIdPipeline.h"
+ASSIMP_LOADER = PROJECT_ROOT / "Engine" / "Graphics" / "Resource" / "Model" / "AssimpLoader.cpp"
+MODEL_HEADER = PROJECT_ROOT / "Engine" / "Graphics" / "Resource" / "Model" / "Model.h"
+MODEL_SOURCE = MODEL_HEADER.with_suffix(".cpp")
 PHASE_DOC = PROJECT_ROOT / "Docs" / "Phase15RenderingCompletion.md"
 
 
@@ -46,6 +49,9 @@ class RenderingCompletionContractTests(unittest.TestCase):
             "animation_pipeline": ANIMATION_PIPELINE,
             "animation_pipeline_h": ANIMATION_PIPELINE_H,
             "object_id_pipeline": OBJECT_ID_PIPELINE,
+            "assimp_loader": ASSIMP_LOADER,
+            "model_header": MODEL_HEADER,
+            "model_source": MODEL_SOURCE,
             "phase_doc": PHASE_DOC,
         }
         for name, path in paths.items():
@@ -129,6 +135,13 @@ class RenderingCompletionContractTests(unittest.TestCase):
         self.assertIn("createPipeline(MaterialCullMode::Back", self.animation_pipeline)
         self.assertIn("createPipeline(MaterialCullMode::Front", self.animation_pipeline)
         self.assertIn("createPipeline(MaterialCullMode::None", self.animation_pipeline)
+
+    def test_assimp_preserves_two_sided_surface_metadata(self) -> None:
+        self.assertIn("AI_MATKEY_TWOSIDED", self.assimp_loader)
+        self.assertIn("SetCullMode(MaterialCullMode::None)", self.assimp_loader)
+        self.assertIn("SetCullMode(MaterialCullMode::Back)", self.assimp_loader)
+        self.assertIn("GetMaterialCullModes", self.model_header)
+        self.assertIn("materialCullModes_.push_back(sub.material.GetCullMode())", self.model_source)
 
     def test_phase15_documents_forward_deferred_and_hzb_targets(self) -> None:
         self.assertIn("15.2 — Forward Renderer Completion", self.phase_doc)
