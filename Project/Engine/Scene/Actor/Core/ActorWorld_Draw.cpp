@@ -3,12 +3,14 @@
 #include "ColliderComponent.h"
 #include "GaugeComponent.h"
 #include "LightComponent.h"
+#include "ModelComponent.h"
 #include "SpriteComponent.h"
 #include "TextComponent.h"
 #include "WorldGaugeComponent.h"
 #include "WorldSpriteComponent.h"
 #include "WorldTextComponent.h"
 
+#include "Engine/Graphics/Renderer/Forward/ForwardRenderQueue.h"
 #include "LightManager.h"
 #include "SceneComponent.h"
 #include "SpriteManager.h"
@@ -45,6 +47,28 @@ namespace Ken4lowEngine
 	{
 		SyncLightComponentsToLightManager(); // 描画直前のLightComponent設定をLightManagerへ渡す
 
+		ForwardRenderQueue* forwardQueue = ForwardRenderQueue::GetInstance();
+		forwardQueue->BeginFrame();
+
+		for (auto& actor : actors_)
+		{
+			if (!actor || actor->IsPendingDestroy() || !actor->IsActive() || IsHiddenByEditorOutliner(*actor))
+			{
+				continue;
+			}
+
+			const auto modelComponents = actor->GetComponents<ModelComponent>();
+			for (ModelComponent* modelComponent : modelComponents)
+			{
+				if (modelComponent)
+				{
+					modelComponent->SubmitForwardOpaque(*forwardQueue); // Phase15.2最初の移行対象は通常Opaque Modelだけに限定する。
+				}
+			}
+		}
+
+		forwardQueue->ExecuteBucket(ForwardRenderBucket::Opaque);
+
 		for (auto& actor : actors_)
 		{
 			if (!actor || actor->IsPendingDestroy() || !actor->IsActive() || IsHiddenByEditorOutliner(*actor))
@@ -52,9 +76,11 @@ namespace Ken4lowEngine
 				continue; // 無効またはEditorで非表示のActorは通常描画対象から外す
 			}
 
-			// 通常描画を持つActorだけが内部Component経由で描画される
+			// Queue未移行Componentと派生Actor独自描画は従来経路を維持する。Queue済みModelComponentは内部で二重描画を抑止する。
 			actor->Draw();
 		}
+
+		forwardQueue->EndFrame();
 	}
 
 	void ActorWorld::PrepareRenderState()
