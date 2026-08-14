@@ -268,7 +268,8 @@ namespace Ken4lowEngine
 		{
 			GraphicsPipelineDesc desc{};
 			desc.blendState = PipelineStatePresets::MakeBlendOpaque();
-			desc.rasterizerState = PipelineStatePresets::MakeRasterizerCullNone();
+			// Phase15.1: 頂点巻き順をRasterizerへ任せ、通常3Dの裏面をPixel Shaderへ流さない。
+			desc.rasterizerState = PipelineStatePresets::MakeRasterizerCullBack();
 			desc.depthStencilState = PipelineStatePresets::MakeDepthReadWrite();
 			desc.numRenderTargets = 1;
 			desc.rtvFormats[0] = rtvFormat;
@@ -355,7 +356,7 @@ namespace Ken4lowEngine
 			desc.shaders.vertexShader.blob = objectVsBlob;
 			desc.shaders.pixelShader.blob = objectPsBlob;
 
-			alphaPipeline_ = factory.CreateGraphicsPipeline(desc, rootSigDesc); // 残像はDepthを読みつつ書き込まず、後続の本体描画を妨げない。
+			alphaPipeline_ = factory.CreateGraphicsPipeline(desc, rootSigDesc); // 残像も通常3Dと同じ裏面カリング契約を使い、Depthだけ読み取り専用にする。
 
 			if (alphaPipeline_.rootSignature) alphaPipeline_.rootSignature->SetName(L"Object3D.Alpha.RootSignature");
 			if (alphaPipeline_.pipelineState) alphaPipeline_.pipelineState->SetName(L"Object3D.Alpha.PSO");
