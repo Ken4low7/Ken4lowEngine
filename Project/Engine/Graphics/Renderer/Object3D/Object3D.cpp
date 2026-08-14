@@ -14,6 +14,7 @@
 #include "Wireframe.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 
@@ -44,6 +45,7 @@ namespace Ken4lowEngine
 		dissolveMaskHandle_ = TextureManager::GetInstance()->GetSrvHandleGPU("Effects/Masks/noise.dds");
 		worldTransform_.Initialize();
 		material_.Initialize();
+		materialCullOverrideEnabled_ = false;
 		materialTextureSlots_.Reset(); // 追加Texture Slotへ常に有効な中立SRVを設定する。
 		InitializeCameraResource();
 		InitializeDissolveResource();
@@ -103,7 +105,12 @@ namespace Ken4lowEngine
 			ImGui::DragFloat3("Rotation##rot", &worldTransform_.rotate_.x, 0.01f);
 			ImGui::DragFloat3("Scale##scl", &worldTransform_.scale_.x, 0.01f);
 			ImGui::Checkbox("Object Frustum Culling", &frustumCullingEnabled_);
+			const MaterialCullMode previousCullMode = material_.GetCullMode();
 			material_.DrawImGui();
+			if (material_.GetCullMode() != previousCullMode)
+			{
+				materialCullOverrideEnabled_ = true; // Editorで明示変更した後はImport値よりObject単位設定を優先する。
+			}
 		}
 		ImGui::PopID();
 #endif // USE_IMGUI
@@ -142,39 +149,56 @@ namespace Ken4lowEngine
 		const FrameUploadArena::Allocation shadowParameterAllocation = frameUploadArena.AllocateConstant(shadowParameterData_);
 		if (!cameraAllocation.IsValid() || !dissolveAllocation.IsValid() || !shadowParameterAllocation.IsValid()) return;
 
-		const MaterialCullMode effectiveCullMode = ResolveMaterialCullModeForWorld(material_.GetCullMode(), worldTransform_.matWorld_);
-		if (alphaBlendEnabled_) object3DCommon->SetAlphaRenderSetting(effectiveCullMode);
-		else object3DCommon->SetRenderSetting(effectiveCullMode); // Main/Shadow/Pickingで同じ巻き順補正を使えるCull Modeへ解決する。
-
-		material_.SetPipeline();
-		worldTransform_.SetPipeline();
-		commandList->SetGraphicsRootConstantBufferView(3, cameraAllocation.gpuAddress);
-		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 4, environmentMapHandle_);
-		commandList->SetGraphicsRootConstantBufferView(7, dissolveAllocation.gpuAddress);
-		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 8, dissolveMaskHandle_);
-		commandList->SetGraphicsRootConstantBufferView(9, shadowParameterAllocation.gpuAddress);
-		commandList->SetGraphicsRootDescriptorTable(10, shadowMapHandle_);
-		materialTextureSlots_.BindAdditionalSlots(commandList, 12, 13, 14, 15);
-
 		auto& meshes = model_->GetMeshes();
+		std::array<std::vector<size_t>, 3> visibleMeshesByCullMode{};
 		const size_t drawCount = meshIndices ? meshIndices->size() : meshes.size();
 		for (size_t drawIndex = 0; drawIndex < drawCount; ++drawIndex)
 		{
-			const size_t i = meshIndices ? (*meshIndices)[drawIndex] : drawIndex;
-			if (i >= meshes.size()) continue;
-			const BoundingSphere meshBounds = GetMeshWorldBounds(i);
-			const bool hasMeshBounds = HasMeshWorldBounds(i);
+			const size_t meshIndex = meshIndices ? (*meshIndices)[drawIndex] : drawIndex;
+			if (meshIndex >= meshes.size()) continue;
+			const BoundingSphere meshBounds = GetMeshWorldBounds(meshIndex);
+			const bool hasMeshBounds = HasMeshWorldBounds(meshIndex);
 			const bool skipMeshFrustumForStageChunk = (meshIndices != nullptr) && isStageObjectCullingUnit_;
 			const bool meshVisible = skipMeshFrustumForStageChunk ? true : object3DCommon->ShouldDrawMesh(meshBounds, frustumCullingEnabled_, hasMeshBounds);
 			DrawBoundsDebug(meshBounds, meshVisible);
 			if (!meshVisible) continue;
-			if (i < materialSRVs_.size())
+
+			const MaterialCullMode cullMode = ResolveSubmeshCullMode(meshIndex);
+			visibleMeshesByCullMode[static_cast<size_t>(cullMode)].push_back(meshIndex);
+		}
+
+		auto bindSurfaceState = [&](MaterialCullMode cullMode)
+		{
+			if (alphaBlendEnabled_) object3DCommon->SetAlphaRenderSetting(cullMode);
+			else object3DCommon->SetRenderSetting(cullMode);
+			material_.SetPipeline();
+			worldTransform_.SetPipeline();
+			commandList->SetGraphicsRootConstantBufferView(3, cameraAllocation.gpuAddress);
+			TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 4, environmentMapHandle_);
+			commandList->SetGraphicsRootConstantBufferView(7, dissolveAllocation.gpuAddress);
+			TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 8, dissolveMaskHandle_);
+			commandList->SetGraphicsRootConstantBufferView(9, shadowParameterAllocation.gpuAddress);
+			commandList->SetGraphicsRootDescriptorTable(10, shadowMapHandle_);
+			materialTextureSlots_.BindAdditionalSlots(commandList, 12, 13, 14, 15);
+		};
+
+		for (size_t groupIndex = 0; groupIndex < visibleMeshesByCullMode.size(); ++groupIndex)
+		{
+			const auto& meshGroup = visibleMeshesByCullMode[groupIndex];
+			if (meshGroup.empty()) continue;
+			const MaterialCullMode cullMode = static_cast<MaterialCullMode>(groupIndex);
+			bindSurfaceState(cullMode); // Cull ModeごとにRoot/PSOを一度だけ束縛し、SubMesh単位の両面情報を実描画へ反映する。
+
+			for (const size_t meshIndex : meshGroup)
 			{
-				TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 2, materialSRVs_[i]);
-				material_.SetUsePointSampling(i < materialUsePointSampling_.size() ? materialUsePointSampling_[i] : false);
-				material_.Update();
+				if (meshIndex < materialSRVs_.size())
+				{
+					TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 2, materialSRVs_[meshIndex]);
+					material_.SetUsePointSampling(meshIndex < materialUsePointSampling_.size() ? materialUsePointSampling_[meshIndex] : false);
+					material_.Update();
+				}
+				meshes[meshIndex].Draw();
 			}
-			meshes[i].Draw();
 		}
 	}
 
@@ -186,10 +210,22 @@ namespace Ken4lowEngine
 		const FrameUploadArena::Allocation shadowTransformAllocation = dxCommon_->GetFrameUploadArena().AllocateConstant(shadowTransformData_);
 		if (!shadowTransformAllocation.IsValid()) return;
 
-		const MaterialCullMode effectiveCullMode = ResolveMaterialCullModeForWorld(material_.GetCullMode(), worldTransform_.matWorld_);
-		Object3DCommon::GetInstance()->SetShadowMapRenderSetting(effectiveCullMode); // 両面Materialと鏡映TransformをShadow Casterにも一致させる。
-		commandList->SetGraphicsRootConstantBufferView(0, shadowTransformAllocation.gpuAddress);
-		for (auto& mesh : model_->GetMeshes()) mesh.Draw();
+		auto& meshes = model_->GetMeshes();
+		std::array<std::vector<size_t>, 3> meshesByCullMode{};
+		for (size_t meshIndex = 0; meshIndex < meshes.size(); ++meshIndex)
+		{
+			meshesByCullMode[static_cast<size_t>(ResolveSubmeshCullMode(meshIndex))].push_back(meshIndex);
+		}
+
+		for (size_t groupIndex = 0; groupIndex < meshesByCullMode.size(); ++groupIndex)
+		{
+			const auto& meshGroup = meshesByCullMode[groupIndex];
+			if (meshGroup.empty()) continue;
+			const MaterialCullMode cullMode = static_cast<MaterialCullMode>(groupIndex);
+			Object3DCommon::GetInstance()->SetShadowMapRenderSetting(cullMode);
+			commandList->SetGraphicsRootConstantBufferView(0, shadowTransformAllocation.gpuAddress); // ShadowもMainと同じSubMesh Surface契約で描画する。
+			for (const size_t meshIndex : meshGroup) meshes[meshIndex].Draw();
+		}
 	}
 
 	void Object3D::SetModel(const std::string& filePath)
@@ -206,6 +242,7 @@ namespace Ken4lowEngine
 	void Object3D::ApplyMaterialDesc(const MaterialDesc& desc)
 	{
 		material_.ApplyDesc(desc);
+		materialCullOverrideEnabled_ = true;
 		materialTextureSlots_.ApplyDesc(desc);
 		materialSRVs_.clear();
 		materialUsePointSampling_.clear();
@@ -224,6 +261,7 @@ namespace Ken4lowEngine
 	void Object3D::ResetMaterialBinding()
 	{
 		material_.ResetToDefault();
+		materialCullOverrideEnabled_ = false; // Reset後はモデルImport時のSubMesh Cull Modeへ戻す。
 		materialTextureSlots_.Reset();
 		materialSRVs_.clear();
 		materialUsePointSampling_.clear();
@@ -310,6 +348,17 @@ namespace Ken4lowEngine
 
 	bool Object3D::HasWorldBounds() const { return model_ && model_->HasLocalBounds(); }
 	bool Object3D::HasMeshWorldBounds(size_t meshIndex) const { return model_ && model_->HasMeshLocalBounds(meshIndex); }
+
+	MaterialCullMode Object3D::ResolveSubmeshCullMode(size_t meshIndex) const
+	{
+		MaterialCullMode cullMode = material_.GetCullMode();
+		if (!materialCullOverrideEnabled_ && model_)
+		{
+			const auto& importedCullModes = model_->GetMaterialCullModes();
+			if (meshIndex < importedCullModes.size()) cullMode = importedCullModes[meshIndex];
+		}
+		return ResolveMaterialCullModeForWorld(cullMode, worldTransform_.matWorld_); // Import値と負Scale補正を1箇所で解決する。
+	}
 
 	void Object3D::DrawBoundsDebug(const BoundingSphere& bounds, bool visible) const
 	{
