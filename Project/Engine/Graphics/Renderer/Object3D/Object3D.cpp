@@ -31,6 +31,18 @@ namespace Ken4lowEngine
 				lowered.find("characters/") != std::string::npos ||
 				lowered.find("skin") != std::string::npos; // Player・Enemyを含む低解像度キャラクタースキンは補間せず描画する。
 		}
+
+		MaterialCullMode ResolveCullModeForWorld(MaterialCullMode cullMode, const Matrix4x4& world)
+		{
+			if (cullMode == MaterialCullMode::None) return cullMode;
+			const float determinant =
+				world.m[0][0] * (world.m[1][1] * world.m[2][2] - world.m[1][2] * world.m[2][1]) -
+				world.m[0][1] * (world.m[1][0] * world.m[2][2] - world.m[1][2] * world.m[2][0]) +
+				world.m[0][2] * (world.m[1][0] * world.m[2][1] - world.m[1][1] * world.m[2][0]);
+			if (determinant >= 0.0f) return cullMode;
+			// 負Scaleで頂点巻き順が反転した場合はFront/Backを入れ替えて見た目の表面を維持する。
+			return cullMode == MaterialCullMode::Back ? MaterialCullMode::Front : MaterialCullMode::Back;
+		}
 	}
 
 	/// -------------------------------------------------------------
@@ -166,8 +178,9 @@ namespace Ken4lowEngine
 			return;
 		}
 
-		if (alphaBlendEnabled_) object3DCommon->SetAlphaRenderSetting();
-		else object3DCommon->SetRenderSetting(); // 残像だけAlpha Pipelineへ切り替え、通常Object3Dの描画契約は維持する。
+		const MaterialCullMode effectiveCullMode = ResolveCullModeForWorld(material_.GetCullMode(), worldTransform_.matWorld_);
+		if (alphaBlendEnabled_) object3DCommon->SetAlphaRenderSetting(effectiveCullMode);
+		else object3DCommon->SetRenderSetting(effectiveCullMode); // Materialと負Scaleを解決したCull ModeでPSOを選択する。
 
 		material_.SetPipeline();
 		worldTransform_.SetPipeline();
