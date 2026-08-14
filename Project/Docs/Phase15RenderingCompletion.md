@@ -70,14 +70,17 @@ Planned rendering order:
 - Material JSON persists `blendMode` as `opaque / masked / transparent / additive`, and the Material ImGui inspector exposes the same four modes.
 - `ForwardRenderPolicy` maps each Material class to one stable Forward bucket, low-level blend state, depth-write contract, alpha-test requirement, and sort direction.
 - Opaque and Masked are depth-writing and front-to-back; Transparent uses normal alpha blend with depth writes disabled and back-to-front sorting; Additive uses additive blend with depth writes disabled and back-to-front sorting.
-- The policy header is included by the Object3D renderer so Debug/Release C++ compilation validates the contract even before legacy direct draws are migrated into actual queue submission.
+- `ForwardRenderQueue` now owns executable `ForwardRenderItem` buckets, stable sorting, callback execution, submission-order tie breaking, and a frame-local Begin/Execute/End lifecycle.
+- `ModelComponent` submits non-legacy-alpha `Opaque` objects using camera-forward depth from the world bounding-sphere center; equal-depth items preserve submission order.
+- `ActorWorld::Draw()` now collects all eligible static `ModelComponent` opaque items first, executes the Opaque bucket front-to-back, then calls the existing virtual `Actor::Draw()` path for unqueued/legacy components.
+- A queue serial prevents the queued `ModelComponent` from being drawn twice while keeping derived Actor draw overrides and direct Object3D callers compatible.
+- Masked, Transparent, Additive, legacy alpha Object3D, animated/skinned, instanced, billboard, particle, Shadow, and Editor Picking paths are intentionally not migrated by this first queue step.
 
 ### Remaining 15.2 work
 
-- replace legacy direct Object3D submission with explicit Forward queue items
-- implement stable Opaque / Masked / Transparent / Additive queue ordering
-- add Masked alpha-cutoff shader/PSO support without treating it as ordinary transparency
-- route Transparent/Additive through depth-read/no-depth-write PSOs
+- migrate Masked objects into their explicit Forward bucket and add alpha-cutoff shader/PSO support
+- route Transparent/Additive through depth-read/no-depth-write PSOs and back-to-front queue execution
+- migrate animated/skinned and instanced opaque geometry to the same queue contract where appropriate
 - share lighting/shadow binding contracts across all Forward buckets
 - add Forward queue diagnostics and GPU timings
 
