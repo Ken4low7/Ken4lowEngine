@@ -264,12 +264,29 @@ namespace Ken4lowEngine
 			return desc;
 		}
 
-		GraphicsPipelineDesc MakeBaseObject3DDesc(DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, const D3D12_INPUT_LAYOUT_DESC& inputLayout)
+		D3D12_RASTERIZER_DESC MakeMaterialRasterizer(MaterialCullMode cullMode)
+		{
+			switch (cullMode)
+			{
+			case MaterialCullMode::Front:
+				return PipelineStatePresets::MakeRasterizerCullFront();
+			case MaterialCullMode::None:
+				return PipelineStatePresets::MakeRasterizerCullNone();
+			case MaterialCullMode::Back:
+			default:
+				return PipelineStatePresets::MakeRasterizerCullBack();
+			}
+		}
+
+		GraphicsPipelineDesc MakeBaseObject3DDesc(
+			DXGI_FORMAT rtvFormat,
+			DXGI_FORMAT dsvFormat,
+			const D3D12_INPUT_LAYOUT_DESC& inputLayout,
+			MaterialCullMode cullMode)
 		{
 			GraphicsPipelineDesc desc{};
 			desc.blendState = PipelineStatePresets::MakeBlendOpaque();
-			// Phase15.1: 頂点巻き順をRasterizerへ任せ、通常3Dの裏面をPixel Shaderへ流さない。
-			desc.rasterizerState = PipelineStatePresets::MakeRasterizerCullBack();
+			desc.rasterizerState = MakeMaterialRasterizer(cullMode); // MaterialのSurface契約をPSOのRasterizerへ直接反映する。
 			desc.depthStencilState = PipelineStatePresets::MakeDepthReadWrite();
 			desc.numRenderTargets = 1;
 			desc.rtvFormats[0] = rtvFormat;
@@ -308,7 +325,6 @@ namespace Ken4lowEngine
 		assert(dxcManager != nullptr);
 
 		auto inputElements = MakeObject3DInputLayout();
-
 		D3D12_INPUT_LAYOUT_DESC inputLayout{};
 		inputLayout.pInputElementDescs = inputElements.data();
 		inputLayout.NumElements = static_cast<UINT>(inputElements.size());
@@ -325,62 +341,81 @@ namespace Ken4lowEngine
 		ComPtr<IDxcBlob> objectPsBlob = ShaderCompiler::CompileShader(objectPs, dxcManager);
 		ComPtr<IDxcBlob> shadowVsBlob = ShaderCompiler::CompileShader(shadowVs, dxcManager);
 
+		auto createSurfacePipeline = [&](MaterialCullMode cullMode, bool alpha, const wchar_t* debugName, PipelineBundle& destination)
 		{
 			std::array<D3D12_DESCRIPTOR_RANGE, 11> ranges{};
 			std::array<D3D12_ROOT_PARAMETER, Object3DRootParameterIndex::kCount> rootParameters{};
 			std::array<D3D12_STATIC_SAMPLER_DESC, 3> staticSamplers{};
-
 			D3D12_ROOT_SIGNATURE_DESC rootSigDesc = MakeObject3DRootSignatureDesc(ranges, rootParameters, staticSamplers);
 
-			GraphicsPipelineDesc desc = MakeBaseObject3DDesc(rtvFormat, dsvFormat, inputLayout);
-			desc.debugName = L"Object3D.Default";
+			GraphicsPipelineDesc desc = MakeBaseObject3DDesc(rtvFormat, dsvFormat, inputLayout, cullMode);
+			if (alpha)
+			{
+				desc.blendState = PipelineStatePresets::MakeBlendAlpha();
+				desc.depthStencilState = PipelineStatePresets::MakeDepthReadOnly();
+			}
+			desc.debugName = debugName;
 			desc.shaders.vertexShader.blob = objectVsBlob;
 			desc.shaders.pixelShader.blob = objectPsBlob;
+			destination = factory.CreateGraphicsPipeline(desc, rootSigDesc);
+			if (destination.pipelineState) destination.pipelineState->SetName(debugName);
+		};
 
-			defaultPipeline_ = factory.CreateGraphicsPipeline(desc, rootSigDesc);
-
-			if (defaultPipeline_.rootSignature) defaultPipeline_.rootSignature->SetName(L"Object3D.Default.RootSignature");
-			if (defaultPipeline_.pipelineState) defaultPipeline_.pipelineState->SetName(L"Object3D.Default.PSO");
-		}
-
-		{
-			std::array<D3D12_DESCRIPTOR_RANGE, 11> ranges{};
-			std::array<D3D12_ROOT_PARAMETER, Object3DRootParameterIndex::kCount> rootParameters{};
-			std::array<D3D12_STATIC_SAMPLER_DESC, 3> staticSamplers{};
-
-			D3D12_ROOT_SIGNATURE_DESC rootSigDesc = MakeObject3DRootSignatureDesc(ranges, rootParameters, staticSamplers);
-			GraphicsPipelineDesc desc = MakeBaseObject3DDesc(rtvFormat, dsvFormat, inputLayout);
-			desc.blendState = PipelineStatePresets::MakeBlendAlpha();
-			desc.depthStencilState = PipelineStatePresets::MakeDepthReadOnly();
-			desc.debugName = L"Object3D.Alpha";
-			desc.shaders.vertexShader.blob = objectVsBlob;
-			desc.shaders.pixelShader.blob = objectPsBlob;
-
-			alphaPipeline_ = factory.CreateGraphicsPipeline(desc, rootSigDesc); // 残像も通常3Dと同じ裏面カリング契約を使い、Depthだけ読み取り専用にする。
-
-			if (alphaPipeline_.rootSignature) alphaPipeline_.rootSignature->SetName(L"Object3D.Alpha.RootSignature");
-			if (alphaPipeline_.pipelineState) alphaPipeline_.pipelineState->SetName(L"Object3D.Alpha.PSO");
-		}
+		createSurfacePipeline(MaterialCullMode::Back, false, L"Object3D.Default.Back", defaultPipeline_);
+		createSurfacePipeline(MaterialCullMode::Front, false, L"Object3D.Default.Front", defaultFrontPipeline_);
+		createSurfacePipeline(MaterialCullMode::None, false, L"Object3D.Default.TwoSided", defaultTwoSidedPipeline_);
+		createSurfacePipeline(MaterialCullMode::Back, true, L"Object3D.Alpha.Back", alphaPipeline_);
+		createSurfacePipeline(MaterialCullMode::Front, true, L"Object3D.Alpha.Front", alphaFrontPipeline_);
+		createSurfacePipeline(MaterialCullMode::None, true, L"Object3D.Alpha.TwoSided", alphaTwoSidedPipeline_);
 
 		{
 			std::array<D3D12_ROOT_PARAMETER, 1> rootParameters{};
 			D3D12_ROOT_SIGNATURE_DESC rootSigDesc = MakeShadowRootSignatureDesc(rootParameters);
-
 			GraphicsPipelineDesc desc = MakeBaseShadowDesc(inputLayout);
 			desc.debugName = L"Object3D.Shadow";
 			desc.shaders.vertexShader.blob = shadowVsBlob;
-
 			shadowPipeline_ = factory.CreateGraphicsPipeline(desc, rootSigDesc);
-
 			if (shadowPipeline_.rootSignature) shadowPipeline_.rootSignature->SetName(L"Object3D.Shadow.RootSignature");
 			if (shadowPipeline_.pipelineState) shadowPipeline_.pipelineState->SetName(L"Object3D.Shadow.PSO");
+		}
+	}
+
+	const PipelineBundle& Object3DPipelineSet::GetDefault(MaterialCullMode cullMode) const
+	{
+		switch (cullMode)
+		{
+		case MaterialCullMode::Front:
+			return defaultFrontPipeline_;
+		case MaterialCullMode::None:
+			return defaultTwoSidedPipeline_;
+		case MaterialCullMode::Back:
+		default:
+			return defaultPipeline_;
+		}
+	}
+
+	const PipelineBundle& Object3DPipelineSet::GetAlpha(MaterialCullMode cullMode) const
+	{
+		switch (cullMode)
+		{
+		case MaterialCullMode::Front:
+			return alphaFrontPipeline_;
+		case MaterialCullMode::None:
+			return alphaTwoSidedPipeline_;
+		case MaterialCullMode::Back:
+		default:
+			return alphaPipeline_;
 		}
 	}
 
 	void Object3DPipelineSet::Finalize()
 	{
 		defaultPipeline_.Reset();
+		defaultFrontPipeline_.Reset();
+		defaultTwoSidedPipeline_.Reset();
 		alphaPipeline_.Reset();
+		alphaFrontPipeline_.Reset();
+		alphaTwoSidedPipeline_.Reset();
 		shadowPipeline_.Reset();
 	}
 } // namespace Ken4lowEngine
