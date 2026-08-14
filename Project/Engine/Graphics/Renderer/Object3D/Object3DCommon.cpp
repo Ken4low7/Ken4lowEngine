@@ -80,10 +80,10 @@ namespace Ken4lowEngine
 		return cameraManager->GetActiveViewProjectionMatrix();
 	}
 
-	void Object3DCommon::SetRenderSetting()
+	void Object3DCommon::SetRenderSetting(MaterialCullMode cullMode)
 	{
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
-		const PipelineBundle& pipeline = pipelineSet_.GetDefault();
+		const PipelineBundle& pipeline = pipelineSet_.GetDefault(cullMode);
 
 		commandList->SetGraphicsRootSignature(pipeline.rootSignature.Get());
 		commandList->SetPipelineState(pipeline.pipelineState.Get());
@@ -94,10 +94,10 @@ namespace Ken4lowEngine
 		LightManager::GetInstance()->BindExtendedShadowResources(16, 17, 18);
 	}
 
-	void Object3DCommon::SetAlphaRenderSetting()
+	void Object3DCommon::SetAlphaRenderSetting(MaterialCullMode cullMode)
 	{
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
-		const PipelineBundle& pipeline = pipelineSet_.GetAlpha();
+		const PipelineBundle& pipeline = pipelineSet_.GetAlpha(cullMode);
 
 		commandList->SetGraphicsRootSignature(pipeline.rootSignature.Get());
 		commandList->SetPipelineState(pipeline.pipelineState.Get());
@@ -108,10 +108,10 @@ namespace Ken4lowEngine
 		LightManager::GetInstance()->BindExtendedShadowResources(16, 17, 18); // 残像も通常Object3Dと同じLight・Shadow契約で描画する。
 	}
 
-	void Object3DCommon::SetInstancedRenderSetting()
+	void Object3DCommon::SetInstancedRenderSetting(MaterialCullMode cullMode)
 	{
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
-		const PipelineBundle& pipeline = instancedPipelineSet_.GetDefault();
+		const PipelineBundle& pipeline = instancedPipelineSet_.GetDefault(cullMode);
 
 		commandList->SetGraphicsRootSignature(pipeline.rootSignature.Get());
 		commandList->SetPipelineState(pipeline.pipelineState.Get());
