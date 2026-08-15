@@ -9,6 +9,15 @@
 
 namespace Ken4lowEngine
 {
+	struct GpuParticleForwardPacketStats
+	{
+		uint64_t queueFrameSerial = 0;
+		size_t transparentPackets = 0;
+		size_t additivePackets = 0;
+
+		size_t GetTotalPackets() const { return transparentPackets + additivePackets; }
+	};
+
 	/// <summary>
 	/// GPU Particle全体をCPU粒子単位へ分解せず、Blend分類ごとのSystem PacketとしてForward Queueへ接続します。
 	/// Particle内部の可視抽出・Alpha Depth Sort・Indirect Drawは従来どおりGPU側で完結させます。
@@ -31,7 +40,8 @@ namespace Ken4lowEngine
 			if (!manager) return false;
 
 			lastSubmittedQueueSerial_ = queue.GetFrameSerial();
-			lastSubmittedPacketCount_ = 0;
+			lastPacketStats_ = {};
+			lastPacketStats_.queueFrameSerial = queue.GetFrameSerial();
 
 			transparentPacket_.manager = manager;
 			transparentPacket_.pass = GpuParticleForwardDrawPass::Transparent;
@@ -41,16 +51,25 @@ namespace Ken4lowEngine
 			bool submitted = false;
 			if (HasActiveEmitters(*manager, GpuParticleForwardDrawPass::Transparent))
 			{
-				submitted |= SubmitPacket(queue, transparentPacket_, MaterialBlendMode::Transparent);
+				if (SubmitPacket(queue, transparentPacket_, MaterialBlendMode::Transparent))
+				{
+					++lastPacketStats_.transparentPackets;
+					submitted = true;
+				}
 			}
 			if (HasActiveEmitters(*manager, GpuParticleForwardDrawPass::Additive))
 			{
-				submitted |= SubmitPacket(queue, additivePacket_, MaterialBlendMode::Additive);
+				if (SubmitPacket(queue, additivePacket_, MaterialBlendMode::Additive))
+				{
+					++lastPacketStats_.additivePackets;
+					submitted = true;
+				}
 			}
 			return submitted;
 		}
 
-		size_t GetLastSubmittedPacketCount() const { return lastSubmittedPacketCount_; }
+		size_t GetLastSubmittedPacketCount() const { return lastPacketStats_.GetTotalPackets(); }
+		const GpuParticleForwardPacketStats& GetLastPacketStats() const { return lastPacketStats_; }
 
 	private:
 		struct RenderPacket
@@ -99,16 +118,14 @@ namespace Ken4lowEngine
 
 			// 1 Render Groupが複数Emitterを跨ぐためCPU側に単一の正確なDepthは存在しない。
 			// QueueではBlend大分類とstable orderを保証し、Alpha粒子の厳密な深度順は既存GPU Bitonic Sortへ委譲する。
-			if (!queue.Submit(item)) return false;
-			++lastSubmittedPacketCount_;
-			return true;
+			return queue.Submit(item);
 		}
 
 		GpuParticleForwardRenderBridge() = default;
 
 		RenderPacket transparentPacket_{};
 		RenderPacket additivePacket_{};
+		GpuParticleForwardPacketStats lastPacketStats_{};
 		uint64_t lastSubmittedQueueSerial_ = 0;
-		size_t lastSubmittedPacketCount_ = 0;
 	};
 } // namespace Ken4lowEngine
