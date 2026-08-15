@@ -65,6 +65,7 @@ namespace Ken4lowEngine
 		size_t GetVisibleInstanceCount() const { return instanceCount_; }
 		size_t GetMaxInstanceCount() const { return maxInstanceCount_; }
 		MaterialBlendMode GetBlendMode() const { return material_.GetBlendMode(); } // Forward QueueはRenderer内部Materialの分類だけを参照する。
+		float CalculateForwardSortDepth() const;
 		void SetDebugIndexBudget(uint64_t budget) { debugIndexBudget_ = budget; }
 		uint64_t GetEstimatedDrawIndexCount() const { return estimatedDrawIndexCount_; }
 		bool WasDrawSkippedByBudget() const { return drawSkippedByBudget_; }
@@ -138,6 +139,7 @@ namespace Ken4lowEngine
 		D3D12_GPU_DESCRIPTOR_HANDLE dissolveMaskHandle_{};
 		bool initialized_ = false;
 		std::vector<InstanceData> sourceInstances_{};
+		std::vector<InstanceData> visibleInstanceScratch_{};
 		bool frustumCullingEnabled_ = false;
 		uint64_t debugIndexBudget_ = 50'000'000ull;
 		uint64_t estimatedDrawIndexCount_ = 0;
