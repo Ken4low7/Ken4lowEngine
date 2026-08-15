@@ -26,6 +26,7 @@ namespace Ken4lowEngine
 		Vector3 position{};
 		Vector3 normal{ 0.0f, 1.0f, 0.0f };
 		float strength = 1.0f;
+		float surfaceTolerance = 0.025f;
 		PlanarReflectionUpdateMode updateMode = PlanarReflectionUpdateMode::EveryFrame;
 		bool enabled = true;
 	};
@@ -34,7 +35,9 @@ namespace Ken4lowEngine
 	{
 		D3D12_GPU_DESCRIPTOR_HANDLE texture{};
 		Matrix4x4 reflectedViewProjection = Matrix4x4::MakeIdentity();
+		Vector3 planePosition{};
 		Vector3 planeNormal{ 0.0f, 1.0f, 0.0f };
+		float surfaceTolerance = 0.025f;
 		float strength = 0.0f;
 		bool valid = false;
 	};
@@ -111,6 +114,7 @@ namespace Ken4lowEngine
 			const Actor* receiverActor = nullptr;
 			PlanarReflectionDesc desc{};
 			std::unique_ptr<SurfaceTarget> target;
+			Matrix4x4 capturedViewProjection = Matrix4x4::MakeIdentity();
 			bool captured = false;
 			bool dirty = true;
 			uint64_t captureRevision = 0;
