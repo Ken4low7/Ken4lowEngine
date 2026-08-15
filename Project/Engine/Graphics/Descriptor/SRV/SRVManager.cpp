@@ -111,6 +111,28 @@ namespace Ken4lowEngine
 		dxCommon_->GetDevice()->CreateShaderResourceView(pResource, &srvDesc, GetCPUDescriptorHandle(srvIndex));
 	}
 
+	void SRVManager::CreateSRVForTexture3D(uint32_t srvIndex, ID3D12Resource* pResource, DXGI_FORMAT Format, UINT MipLevels)
+	{
+		if (!pResource)
+		{
+			throw std::runtime_error("pResource is null in CreateSRVForTexture3D");
+		}
+		if (srvIndex >= kMaxSRVCount)
+		{
+			throw std::runtime_error("srvIndex out of bounds in CreateSRVForTexture3D");
+		}
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+		srvDesc.Format = Format;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
+		srvDesc.Texture3D.MostDetailedMip = 0;
+		srvDesc.Texture3D.MipLevels = MipLevels;
+		srvDesc.Texture3D.ResourceMinLODClamp = 0.0f;
+		// Phase17のVolume Textureも既存Persistent SRV allocatorを共有し、描画側Descriptor寿命を2D Textureと揃える。
+		dxCommon_->GetDevice()->CreateShaderResourceView(pResource, &srvDesc, GetCPUDescriptorHandle(srvIndex));
+	}
+
 	void SRVManager::CreateSRVForStructureBuffer(uint32_t srvIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride)
 	{
 		if (!pResource)

@@ -79,6 +79,48 @@ namespace Ken4lowEngine
 		dxCommon_->GetDevice()->CreateShaderResourceView(pResource, &srv, GetCPUDescriptorHandle(srvIndex));
 	}
 
+	void UAVManager::CreateUAVForTexture3D(
+		uint32_t uavIndex,
+		ID3D12Resource* pResource,
+		DXGI_FORMAT Format,
+		UINT depth,
+		UINT mipSlice)
+	{
+		if (!pResource) throw std::runtime_error("pResource is null in CreateUAVForTexture3D");
+		if (uavIndex >= kMaxUAVCount) throw std::runtime_error("uavIndex out of bounds in CreateUAVForTexture3D");
+		if (depth == 0) throw std::runtime_error("Texture3D UAV depth must be greater than zero");
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+		uavDesc.Format = Format;
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+		uavDesc.Texture3D.MipSlice = mipSlice;
+		uavDesc.Texture3D.FirstWSlice = 0;
+		uavDesc.Texture3D.WSize = depth;
+
+		// Volume Clearも通常Dispatchと同じView契約を使えるよう、shader-visible / CPU-onlyへ同じ3D UAVを生成する。
+		dxCommon_->GetDevice()->CreateUnorderedAccessView(pResource, nullptr, &uavDesc, GetCPUDescriptorHandle(uavIndex));
+		dxCommon_->GetDevice()->CreateUnorderedAccessView(pResource, nullptr, &uavDesc, GetClearCPUDescriptorHandle(uavIndex));
+	}
+
+	void UAVManager::CreateSRVForTexture3DOnThisHeap(
+		uint32_t srvIndex,
+		ID3D12Resource* pResource,
+		DXGI_FORMAT Format,
+		UINT MipLevels)
+	{
+		if (!pResource) throw std::runtime_error("pResource is null in CreateSRVForTexture3DOnThisHeap");
+		if (srvIndex >= kMaxUAVCount) throw std::runtime_error("srvIndex out of bounds in CreateSRVForTexture3DOnThisHeap");
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
+		srv.Format = Format;
+		srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
+		srv.Texture3D.MostDetailedMip = 0;
+		srv.Texture3D.MipLevels = MipLevels;
+		srv.Texture3D.ResourceMinLODClamp = 0.0f;
+		dxCommon_->GetDevice()->CreateShaderResourceView(pResource, &srv, GetCPUDescriptorHandle(srvIndex));
+	}
+
 	void UAVManager::CreateUAVForBuffer(uint32_t uavIndex, ID3D12Resource* pResource, UINT64 bufferSize)
 	{
 		if (!pResource) throw std::runtime_error("pResource is null in CreateUAVForBuffer");

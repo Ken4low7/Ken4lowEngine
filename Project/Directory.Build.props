@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
-  <!-- Phase 16のGPU Fluid実装を既存巨大vcxprojへ直接追記せず、main projectだけへ追加登録する。 -->
+  <!-- Phase 16/17のGPU Fluid実装を既存巨大vcxprojへ直接追記せず、main projectだけへ追加登録する。 -->
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Ken4lowEngine'">
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Resource\GpuFluidGridResource.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidVelocityAdvectionPass.cpp" />
@@ -15,6 +15,8 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\FluidEmitterComponent.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\GpuFluidColliderObstacleAdapter.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Editor\GpuFluidDiagnosticsPanel.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Resource\GpuVolumetricFluidGridResource.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidResetPass.cpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidEmitterTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidObstacleTypes.h" />
@@ -34,6 +36,9 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\GpuFluidColliderObstacleAdapter.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Editor\GpuFluidDiagnosticsPanel.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Shader\Manifest\GpuFluidShaderManifest.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Data\GpuVolumetricFluidTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Resource\GpuVolumetricFluidGridResource.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidResetPass.h" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidCommon.hlsli" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVelocityAdvection.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidDivergence.CS.hlsl" />
@@ -47,5 +52,6 @@
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidObstacleRaster.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidForward.VS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidForward.PS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidCommon.hlsli" />
   </ItemGroup>
 </Project>
