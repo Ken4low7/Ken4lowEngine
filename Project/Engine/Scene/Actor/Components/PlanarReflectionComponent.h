@@ -7,8 +7,19 @@
 
 namespace Ken4lowEngine
 {
+	enum class PlanarReflectionFacePreset : uint8_t
+	{
+		PositiveX = 0,
+		NegativeX,
+		PositiveY,
+		NegativeY,
+		PositiveZ,
+		NegativeZ,
+	};
+
 	/// <summary>
 	/// 同じActorのModelComponentを鏡面Receiverとして扱うPlanar Reflection Componentです。
+	/// 1 Componentを1枚の鏡面として扱い、同一Actorへ最大6面まで追加できます。
 	/// Local +Yを鏡面法線として使用し、既定ではReceiver Modelの最外面へ自動Fitします。
 	/// </summary>
 	class PlanarReflectionComponent : public SceneComponent
@@ -44,6 +55,7 @@ namespace Ken4lowEngine
 		float GetSurfaceTolerance() const { return surfaceTolerance_; }
 		void SetClipPlaneBias(float bias);
 		float GetClipPlaneBias() const { return clipPlaneBias_; }
+		void SetFacePreset(PlanarReflectionFacePreset preset);
 		Vector3 GetPlaneNormal() const;
 		Vector3 GetPlanePosition() const;
 
