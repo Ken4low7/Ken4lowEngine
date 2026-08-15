@@ -98,6 +98,7 @@ namespace Ken4lowEngine
 		PlanarReflectionDesc sanitized = desc;
 		sanitized.normal = Vector3::NormalizeSafe(desc.normal, { 0.0f, 1.0f, 0.0f });
 		sanitized.strength = std::clamp(desc.strength, 0.0f, 1.0f);
+		sanitized.surfaceTolerance = std::clamp(desc.surfaceTolerance, 0.001f, 1.0f);
 		return sanitized;
 	}
 
@@ -124,6 +125,7 @@ namespace Ken4lowEngine
 		const bool cameraInputChanged =
 			!PlanarReflectionDetail::SameVector(surface->desc.position, sanitized.position) ||
 			!PlanarReflectionDetail::SameVector(surface->desc.normal, sanitized.normal) ||
+			!PlanarReflectionDetail::NearlyEqual(surface->desc.surfaceTolerance, sanitized.surfaceTolerance) ||
 			surface->desc.enabled != sanitized.enabled ||
 			surface->receiverActor != receiverActor;
 		surface->receiverActor = receiverActor;
@@ -403,6 +405,7 @@ namespace Ken4lowEngine
 		isCapturing_ = false;
 
 		if (!succeeded) return false;
+		surface.capturedViewProjection = reflectedView.viewProjection; // Captureに実際に使った行列を保存し、Main描画側で再計算しない。
 		surface.captured = true;
 		surface.dirty = false;
 		surface.captureRevision = ++captureSerial_;
@@ -417,6 +420,10 @@ namespace Ken4lowEngine
 		if (!surface || !surface->owner || !surface->desc.enabled || !surface->captured || !surface->target) return binding;
 		if (surface->target->srvIndex == UINT32_MAX) return binding;
 		binding.texture = SRVManager::GetInstance()->GetGPUDescriptorHandle(surface->target->srvIndex);
+		binding.reflectedViewProjection = surface->capturedViewProjection;
+		binding.planePosition = surface->desc.position;
+		binding.planeNormal = surface->desc.normal;
+		binding.surfaceTolerance = surface->desc.surfaceTolerance;
 		binding.strength = surface->desc.strength;
 		binding.valid = binding.texture.ptr != 0;
 		return binding;
