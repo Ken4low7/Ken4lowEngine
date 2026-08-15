@@ -8,16 +8,21 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidScalarAdvectionPass.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidForcePass.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidEmitterInjectionPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidObstacleRasterPass.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\FluidEmitterComponent.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\GpuFluidColliderObstacleAdapter.cpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidEmitterTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidObstacleTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Resource\GpuFluidGridResource.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidVelocityAdvectionPass.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidPressureProjectionPass.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidScalarAdvectionPass.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidForcePass.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidEmitterInjectionPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidObstacleRasterPass.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\FluidEmitterComponent.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\GpuFluidColliderObstacleAdapter.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Shader\Manifest\GpuFluidShaderManifest.h" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidCommon.hlsli" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVelocityAdvection.CS.hlsl" />
@@ -29,5 +34,6 @@
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVorticityConfinement.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidBuoyancy.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidEmitterInjection.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidObstacleRaster.CS.hlsl" />
   </ItemGroup>
 </Project>

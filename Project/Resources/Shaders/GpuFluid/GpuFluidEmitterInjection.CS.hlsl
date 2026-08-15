@@ -33,6 +33,7 @@ Texture2D<float2> gVelocityRead : register(t0);
 Texture2D<float> gDensityRead : register(t1);
 Texture2D<float> gTemperatureRead : register(t2);
 StructuredBuffer<GpuFluidEmitterGpuData> gEmitters : register(t3);
+Texture2D<uint> gObstacle : register(t4);
 
 RWTexture2D<float2> gVelocityWrite : register(u0);
 RWTexture2D<float> gDensityWrite : register(u1);
@@ -47,12 +48,20 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 	}
 
 	const uint2 cell = dispatchThreadId.xy;
+	if (gObstacle.Load(int3(cell, 0)) != 0u)
+	{
+		// Solid CellへSourceを蓄積せず、Collider内部に古い流体値も残さない。
+		gVelocityWrite[cell] = 0.0f;
+		gDensityWrite[cell] = 0.0f;
+		gTemperatureWrite[cell] = 0.0f;
+		return;
+	}
+
 	const float2 cellCenter = float2(cell) + 0.5f;
 	float2 velocity = gVelocityRead.Load(int3(cell, 0));
 	float density = gDensityRead.Load(int3(cell, 0));
 	float temperature = gTemperatureRead.Load(int3(cell, 0));
 
-	// 全Emitterを1 Dispatch内で合成し、R16F Typed UAV Loadへ依存せずSRV→UAV ping-pongを維持する。
 	for (uint emitterIndex = 0; emitterIndex < gEmitterCount; ++emitterIndex)
 	{
 		const GpuFluidEmitterGpuData emitter = gEmitters[emitterIndex];

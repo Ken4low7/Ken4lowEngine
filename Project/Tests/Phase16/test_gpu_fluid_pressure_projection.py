@@ -49,6 +49,7 @@ def test_divergence_uses_centered_velocity_difference():
     assert "velocityTop.y - velocityBottom.y" in shader
     assert "0.5f * gFluid.invCellSize" in shader
     assert "GpuFluidClampCell" in shader
+    assert "Texture2D<uint> gObstacle : register(t2)" in shader
 
 
 def test_pressure_jacobi_uses_poisson_stencil():
@@ -58,6 +59,7 @@ def test_pressure_jacobi_uses_poisson_stencil():
     assert "* 0.25f" in shader
     assert "Texture2D<float> gDivergence : register(t0);" in shader
     assert "Texture2D<float> gPressureRead : register(t1);" in shader
+    assert "Texture2D<uint> gObstacle : register(t2);" in shader
     assert "RWTexture2D<float> gPressureWrite : register(u0);" in shader
 
 
@@ -68,6 +70,8 @@ def test_projection_subtracts_pressure_gradient_and_closes_domain_boundary():
     assert "projectedVelocity.y = 0.0f" in shader
     assert "pressureRight - pressureLeft" in shader
     assert "pressureTop - pressureBottom" in shader
+    assert "solidLeft" in shader
+    assert "solidTop" in shader
 
 
 def test_pressure_pass_clears_pressure_iterates_and_swaps_velocity():
@@ -79,13 +83,14 @@ def test_pressure_pass_clears_pressure_iterates_and_swaps_velocity():
     assert "velocity.Swap();" in source
     assert "simulationDesc.pressureIterations" in source
     assert source.count("InsertUavBarrier") >= 4
+    assert "GetObstacle()" in source
 
 
 def test_pressure_projection_uses_one_shared_root_signature_contract():
     source = _read(PASS_CPP)
-    assert "D3D12_ROOT_PARAMETER rootParameters[4]" in source
-    assert "BaseShaderRegister = 0" in source
-    assert "BaseShaderRegister = 1" in source
+    assert "D3D12_ROOT_PARAMETER rootParameters[5]" in source
+    assert "D3D12_DESCRIPTOR_RANGE srvRanges[3]" in source
+    assert "BaseShaderRegister = i" in source
     assert "D3D12_DESCRIPTOR_RANGE_TYPE_UAV" in source
     assert "SetComputeRootSignature(rootSignature_.Get())" in source
 

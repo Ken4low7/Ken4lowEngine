@@ -23,18 +23,9 @@ bool GpuFluidPressureProjectionPass::Initialize()
 	}
 
 	if (!CreateRootSignature() ||
-		!CreatePipelineState(
-			GpuFluidComputeShaderId::Divergence,
-			divergencePipelineState_,
-			L"GpuFluid.Divergence.PSO") ||
-		!CreatePipelineState(
-			GpuFluidComputeShaderId::PressureJacobi,
-			pressureJacobiPipelineState_,
-			L"GpuFluid.PressureJacobi.PSO") ||
-		!CreatePipelineState(
-			GpuFluidComputeShaderId::Projection,
-			projectionPipelineState_,
-			L"GpuFluid.Projection.PSO"))
+		!CreatePipelineState(GpuFluidComputeShaderId::Divergence, divergencePipelineState_, L"GpuFluid.Divergence.PSO") ||
+		!CreatePipelineState(GpuFluidComputeShaderId::PressureJacobi, pressureJacobiPipelineState_, L"GpuFluid.PressureJacobi.PSO") ||
+		!CreatePipelineState(GpuFluidComputeShaderId::Projection, projectionPipelineState_, L"GpuFluid.Projection.PSO"))
 	{
 		Finalize();
 		return false;
@@ -91,16 +82,10 @@ bool GpuFluidPressureProjectionPass::Dispatch(
 		return false;
 	}
 
-	// ClearUnorderedAccessViewFloatとCompute Dispatchが同じshader-visible heapを参照するよう先に固定する。
 	UAVManager::GetInstance()->PreDispatch();
-
 	if (!ClearPressure(commandList, grid) ||
 		!DispatchDivergence(commandList, grid, constantAllocation.gpuAddress) ||
-		!DispatchPressureJacobi(
-			commandList,
-			grid,
-			constantAllocation.gpuAddress,
-			simulationDesc.pressureIterations) ||
+		!DispatchPressureJacobi(commandList, grid, constantAllocation.gpuAddress, simulationDesc.pressureIterations) ||
 		!DispatchProjection(commandList, grid, constantAllocation.gpuAddress))
 	{
 		return false;
@@ -112,36 +97,26 @@ bool GpuFluidPressureProjectionPass::Dispatch(
 
 bool GpuFluidPressureProjectionPass::CreateRootSignature()
 {
-	D3D12_ROOT_PARAMETER rootParameters[4]{};
+	D3D12_ROOT_PARAMETER rootParameters[5]{};
 
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
 	rootParameters[0].Descriptor.RegisterSpace = 0;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	D3D12_DESCRIPTOR_RANGE srvRange0{};
-	srvRange0.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	srvRange0.NumDescriptors = 1;
-	srvRange0.BaseShaderRegister = 0;
-	srvRange0.RegisterSpace = 0;
-	srvRange0.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
-	rootParameters[1].DescriptorTable.pDescriptorRanges = &srvRange0;
-	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-	D3D12_DESCRIPTOR_RANGE srvRange1{};
-	srvRange1.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	srvRange1.NumDescriptors = 1;
-	srvRange1.BaseShaderRegister = 1;
-	srvRange1.RegisterSpace = 0;
-	srvRange1.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
-	rootParameters[2].DescriptorTable.pDescriptorRanges = &srvRange1;
-	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	D3D12_DESCRIPTOR_RANGE srvRanges[3]{};
+	for (uint32_t i = 0; i < 3; ++i)
+	{
+		srvRanges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srvRanges[i].NumDescriptors = 1;
+		srvRanges[i].BaseShaderRegister = i;
+		srvRanges[i].RegisterSpace = 0;
+		srvRanges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		rootParameters[i + 1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameters[i + 1].DescriptorTable.NumDescriptorRanges = 1;
+		rootParameters[i + 1].DescriptorTable.pDescriptorRanges = &srvRanges[i];
+		rootParameters[i + 1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	}
 
 	D3D12_DESCRIPTOR_RANGE uavRange{};
 	uavRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
@@ -149,13 +124,12 @@ bool GpuFluidPressureProjectionPass::CreateRootSignature()
 	uavRange.BaseShaderRegister = 0;
 	uavRange.RegisterSpace = 0;
 	uavRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[4].DescriptorTable.NumDescriptorRanges = 1;
+	rootParameters[4].DescriptorTable.pDescriptorRanges = &uavRange;
+	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
-	rootParameters[3].DescriptorTable.pDescriptorRanges = &uavRange;
-	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-	// Divergence/Jacobi/Projectionで同じRootSignatureを共有し、Pass切替時の契約差分を減らす。
+	// Divergence/Jacobi/Projectionでt2のObstacle Maskまで共有し、Solid境界の契約を1つに揃える。
 	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
 	rootSignatureDesc.NumParameters = _countof(rootParameters);
 	rootSignatureDesc.pParameters = rootParameters;
@@ -174,19 +148,16 @@ bool GpuFluidPressureProjectionPass::CreateRootSignature()
 	{
 		if (errorBlob)
 		{
-			Log(std::string(
-				static_cast<const char*>(errorBlob->GetBufferPointer()),
-				errorBlob->GetBufferSize()));
+			Log(std::string(static_cast<const char*>(errorBlob->GetBufferPointer()), errorBlob->GetBufferSize()));
 		}
 		return false;
 	}
 
-	const HRESULT createResult = dxCommon_->GetDevice()->CreateRootSignature(
+	return SUCCEEDED(dxCommon_->GetDevice()->CreateRootSignature(
 		0,
 		signatureBlob->GetBufferPointer(),
 		signatureBlob->GetBufferSize(),
-		IID_PPV_ARGS(&rootSignature_));
-	return SUCCEEDED(createResult);
+		IID_PPV_ARGS(&rootSignature_)));
 }
 
 bool GpuFluidPressureProjectionPass::CreatePipelineState(
@@ -195,15 +166,12 @@ bool GpuFluidPressureProjectionPass::CreatePipelineState(
 	const wchar_t* debugName)
 {
 	const ShaderDescriptor& shaderDesc = GpuFluidShaderManifest::GetCompute(shaderId);
-	if (shaderDesc.stage != ShaderStage::Compute ||
-		shaderDesc.rootSignature != RootSignatureType::Compute)
+	if (shaderDesc.stage != ShaderStage::Compute || shaderDesc.rootSignature != RootSignatureType::Compute)
 	{
 		return false;
 	}
 
-	ComPtr<IDxcBlob> computeShader = ShaderCompiler::CompileShader(
-		shaderDesc,
-		dxCommon_->GetDXCCompilerManager());
+	ComPtr<IDxcBlob> computeShader = ShaderCompiler::CompileShader(shaderDesc, dxCommon_->GetDXCCompilerManager());
 	if (!computeShader)
 	{
 		return false;
@@ -211,16 +179,8 @@ bool GpuFluidPressureProjectionPass::CreatePipelineState(
 
 	D3D12_COMPUTE_PIPELINE_STATE_DESC pipelineDesc{};
 	pipelineDesc.pRootSignature = rootSignature_.Get();
-	pipelineDesc.CS =
-	{
-		computeShader->GetBufferPointer(),
-		computeShader->GetBufferSize()
-	};
-
-	const HRESULT createResult = dxCommon_->GetDevice()->CreateComputePipelineState(
-		&pipelineDesc,
-		IID_PPV_ARGS(&pipelineState));
-	if (FAILED(createResult))
+	pipelineDesc.CS = { computeShader->GetBufferPointer(), computeShader->GetBufferSize() };
+	if (FAILED(dxCommon_->GetDevice()->CreateComputePipelineState(&pipelineDesc, IID_PPV_ARGS(&pipelineState))))
 	{
 		return false;
 	}
@@ -250,10 +210,7 @@ bool GpuFluidPressureProjectionPass::ClearPressure(
 			return false;
 		}
 
-		GpuFluidGridResource::Transition(
-			commandList,
-			texture,
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		GpuFluidGridResource::Transition(commandList, texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		commandList->ClearUnorderedAccessViewFloat(
 			descriptorManager->GetGPUDescriptorHandle(texture.uavIndex),
 			descriptorManager->GetClearCPUDescriptorHandle(texture.uavIndex),
@@ -274,37 +231,29 @@ bool GpuFluidPressureProjectionPass::DispatchDivergence(
 {
 	GpuFluidTexture2D& velocity = grid.GetVelocity().Read();
 	GpuFluidTexture2D& divergence = grid.GetDivergence();
-	if (!velocity.IsValid() || !divergence.IsValid())
+	GpuFluidTexture2D& obstacle = grid.GetObstacle();
+	if (!velocity.IsValid() || !divergence.IsValid() || !obstacle.IsValid())
 	{
 		return false;
 	}
 
-	GpuFluidGridResource::Transition(
-		commandList,
-		velocity,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	GpuFluidGridResource::Transition(
-		commandList,
-		divergence,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	GpuFluidGridResource::Transition(commandList, velocity, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, divergence, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	UAVManager* descriptorManager = UAVManager::GetInstance();
+	UAVManager* descriptors = UAVManager::GetInstance();
+	const auto obstacleSrv = descriptors->GetGPUDescriptorHandle(obstacle.computeSrvIndex);
 	commandList->SetComputeRootSignature(rootSignature_.Get());
 	commandList->SetPipelineState(divergencePipelineState_.Get());
 	commandList->SetComputeRootConstantBufferView(0, constantBufferAddress);
-	commandList->SetComputeRootDescriptorTable(
-		1,
-		descriptorManager->GetGPUDescriptorHandle(velocity.computeSrvIndex));
-	commandList->SetComputeRootDescriptorTable(
-		3,
-		descriptorManager->GetGPUDescriptorHandle(divergence.uavIndex));
+	commandList->SetComputeRootDescriptorTable(1, descriptors->GetGPUDescriptorHandle(velocity.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(2, obstacleSrv);
+	commandList->SetComputeRootDescriptorTable(3, obstacleSrv);
+	commandList->SetComputeRootDescriptorTable(4, descriptors->GetGPUDescriptorHandle(divergence.uavIndex));
 	DispatchGrid(commandList, grid.GetGridDesc());
 
 	GpuFluidGridResource::InsertUavBarrier(commandList, divergence.resource.Get());
-	GpuFluidGridResource::Transition(
-		commandList,
-		divergence,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, divergence, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	++dispatchCount_;
 	return true;
 }
@@ -321,19 +270,21 @@ bool GpuFluidPressureProjectionPass::DispatchPressureJacobi(
 	}
 
 	GpuFluidTexture2D& divergence = grid.GetDivergence();
+	GpuFluidTexture2D& obstacle = grid.GetObstacle();
 	GpuFluidPingPongField& pressure = grid.GetPressure();
-	UAVManager* descriptorManager = UAVManager::GetInstance();
+	if (!divergence.IsValid() || !obstacle.IsValid())
+	{
+		return false;
+	}
 
-	GpuFluidGridResource::Transition(
-		commandList,
-		divergence,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, divergence, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	UAVManager* descriptors = UAVManager::GetInstance();
 	commandList->SetComputeRootSignature(rootSignature_.Get());
 	commandList->SetPipelineState(pressureJacobiPipelineState_.Get());
 	commandList->SetComputeRootConstantBufferView(0, constantBufferAddress);
-	commandList->SetComputeRootDescriptorTable(
-		1,
-		descriptorManager->GetGPUDescriptorHandle(divergence.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(1, descriptors->GetGPUDescriptorHandle(divergence.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(3, descriptors->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
 
 	for (uint32_t iteration = 0; iteration < iterationCount; ++iteration)
 	{
@@ -344,29 +295,14 @@ bool GpuFluidPressureProjectionPass::DispatchPressureJacobi(
 			return false;
 		}
 
-		GpuFluidGridResource::Transition(
-			commandList,
-			read,
-			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		GpuFluidGridResource::Transition(
-			commandList,
-			write,
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-		commandList->SetComputeRootDescriptorTable(
-			2,
-			descriptorManager->GetGPUDescriptorHandle(read.computeSrvIndex));
-		commandList->SetComputeRootDescriptorTable(
-			3,
-			descriptorManager->GetGPUDescriptorHandle(write.uavIndex));
+		GpuFluidGridResource::Transition(commandList, read, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		GpuFluidGridResource::Transition(commandList, write, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		commandList->SetComputeRootDescriptorTable(2, descriptors->GetGPUDescriptorHandle(read.computeSrvIndex));
+		commandList->SetComputeRootDescriptorTable(4, descriptors->GetGPUDescriptorHandle(write.uavIndex));
 		DispatchGrid(commandList, grid.GetGridDesc());
 
-		// Jacobiの各反復結果を次反復のSRVから確実に読める状態へ揃えてからping-pongする。
 		GpuFluidGridResource::InsertUavBarrier(commandList, write.resource.Get());
-		GpuFluidGridResource::Transition(
-			commandList,
-			write,
-			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		GpuFluidGridResource::Transition(commandList, write, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		pressure.Swap();
 		++dispatchCount_;
 	}
@@ -383,44 +319,29 @@ bool GpuFluidPressureProjectionPass::DispatchProjection(
 	GpuFluidTexture2D& velocityRead = velocity.Read();
 	GpuFluidTexture2D& velocityWrite = velocity.Write();
 	GpuFluidTexture2D& pressure = grid.GetPressure().Read();
-	if (!velocityRead.IsValid() || !velocityWrite.IsValid() || !pressure.IsValid())
+	GpuFluidTexture2D& obstacle = grid.GetObstacle();
+	if (!velocityRead.IsValid() || !velocityWrite.IsValid() || !pressure.IsValid() || !obstacle.IsValid())
 	{
 		return false;
 	}
 
-	GpuFluidGridResource::Transition(
-		commandList,
-		velocityRead,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	GpuFluidGridResource::Transition(
-		commandList,
-		pressure,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	GpuFluidGridResource::Transition(
-		commandList,
-		velocityWrite,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	GpuFluidGridResource::Transition(commandList, velocityRead, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, pressure, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, velocityWrite, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	UAVManager* descriptorManager = UAVManager::GetInstance();
+	UAVManager* descriptors = UAVManager::GetInstance();
 	commandList->SetComputeRootSignature(rootSignature_.Get());
 	commandList->SetPipelineState(projectionPipelineState_.Get());
 	commandList->SetComputeRootConstantBufferView(0, constantBufferAddress);
-	commandList->SetComputeRootDescriptorTable(
-		1,
-		descriptorManager->GetGPUDescriptorHandle(velocityRead.computeSrvIndex));
-	commandList->SetComputeRootDescriptorTable(
-		2,
-		descriptorManager->GetGPUDescriptorHandle(pressure.computeSrvIndex));
-	commandList->SetComputeRootDescriptorTable(
-		3,
-		descriptorManager->GetGPUDescriptorHandle(velocityWrite.uavIndex));
+	commandList->SetComputeRootDescriptorTable(1, descriptors->GetGPUDescriptorHandle(velocityRead.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(2, descriptors->GetGPUDescriptorHandle(pressure.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(3, descriptors->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(4, descriptors->GetGPUDescriptorHandle(velocityWrite.uavIndex));
 	DispatchGrid(commandList, grid.GetGridDesc());
 
 	GpuFluidGridResource::InsertUavBarrier(commandList, velocityWrite.resource.Get());
-	GpuFluidGridResource::Transition(
-		commandList,
-		velocityWrite,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, velocityWrite, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	velocity.Swap();
 	++dispatchCount_;
 	return true;
@@ -430,10 +351,8 @@ void GpuFluidPressureProjectionPass::DispatchGrid(
 	ID3D12GraphicsCommandList* commandList,
 	const GpuFluidGridDesc& gridDesc) const
 {
-	const uint32_t groupCountX =
-		(gridDesc.width + kThreadGroupSizeX - 1u) / kThreadGroupSizeX;
-	const uint32_t groupCountY =
-		(gridDesc.height + kThreadGroupSizeY - 1u) / kThreadGroupSizeY;
+	const uint32_t groupCountX = (gridDesc.width + kThreadGroupSizeX - 1u) / kThreadGroupSizeX;
+	const uint32_t groupCountY = (gridDesc.height + kThreadGroupSizeY - 1u) / kThreadGroupSizeY;
 	commandList->Dispatch(groupCountX, groupCountY, 1);
 }
 

@@ -115,7 +115,7 @@ bool GpuFluidScalarAdvectionPass::DispatchAll(
 
 	UAVManager::GetInstance()->PreDispatch();
 
-	// DensityとTemperatureは同じ速度場とCBを共有し、1Step内の重複Upload/状態設定を最小化する。
+	// DensityとTemperatureは同じ速度場・Obstacle・CBを共有し、1Step内の重複Uploadを最小化する。
 	return DispatchInternal(
 		commandList,
 		grid,
@@ -162,37 +162,24 @@ bool GpuFluidScalarAdvectionPass::DispatchInternal(
 	GpuFluidTexture2D& velocity = grid.GetVelocity().Read();
 	GpuFluidTexture2D& scalarRead = scalarField->Read();
 	GpuFluidTexture2D& scalarWrite = scalarField->Write();
-	if (!velocity.IsValid() || !scalarRead.IsValid() || !scalarWrite.IsValid())
+	GpuFluidTexture2D& obstacle = grid.GetObstacle();
+	if (!velocity.IsValid() || !scalarRead.IsValid() || !scalarWrite.IsValid() || !obstacle.IsValid())
 	{
 		return false;
 	}
 
-	GpuFluidGridResource::Transition(
-		commandList,
-		velocity,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	GpuFluidGridResource::Transition(
-		commandList,
-		scalarRead,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	GpuFluidGridResource::Transition(
-		commandList,
-		scalarWrite,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	GpuFluidGridResource::Transition(commandList, velocity, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, scalarRead, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, scalarWrite, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	UAVManager* descriptorManager = UAVManager::GetInstance();
 	commandList->SetComputeRootSignature(rootSignature_.Get());
 	commandList->SetPipelineState(pipelineState_.Get());
 	commandList->SetComputeRootConstantBufferView(0, constantBufferAddress);
-	commandList->SetComputeRootDescriptorTable(
-		1,
-		descriptorManager->GetGPUDescriptorHandle(velocity.computeSrvIndex));
-	commandList->SetComputeRootDescriptorTable(
-		2,
-		descriptorManager->GetGPUDescriptorHandle(scalarRead.computeSrvIndex));
-	commandList->SetComputeRootDescriptorTable(
-		3,
-		descriptorManager->GetGPUDescriptorHandle(scalarWrite.uavIndex));
+	commandList->SetComputeRootDescriptorTable(1, descriptorManager->GetGPUDescriptorHandle(velocity.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(2, descriptorManager->GetGPUDescriptorHandle(scalarRead.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(3, descriptorManager->GetGPUDescriptorHandle(scalarWrite.uavIndex));
 
 	const float scalarConstants[4] =
 	{
@@ -202,14 +189,11 @@ bool GpuFluidScalarAdvectionPass::DispatchInternal(
 		0.0f
 	};
 	commandList->SetComputeRoot32BitConstants(4, 4, scalarConstants, 0);
+	commandList->SetComputeRootDescriptorTable(5, descriptorManager->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
 	DispatchGrid(commandList, grid.GetGridDesc());
 
-	// Scalar出力を次Stepの入力として安全に再利用できる状態へ戻してからping-pongする。
 	GpuFluidGridResource::InsertUavBarrier(commandList, scalarWrite.resource.Get());
-	GpuFluidGridResource::Transition(
-		commandList,
-		scalarWrite,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, scalarWrite, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	scalarField->Swap();
 
 	++dispatchCount_;
@@ -256,7 +240,7 @@ float GpuFluidScalarAdvectionPass::ResolveDissipation(
 
 bool GpuFluidScalarAdvectionPass::CreateRootSignature()
 {
-	D3D12_ROOT_PARAMETER rootParameters[5]{};
+	D3D12_ROOT_PARAMETER rootParameters[6]{};
 
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
@@ -269,7 +253,6 @@ bool GpuFluidScalarAdvectionPass::CreateRootSignature()
 	velocitySrvRange.BaseShaderRegister = 0;
 	velocitySrvRange.RegisterSpace = 0;
 	velocitySrvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
 	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
 	rootParameters[1].DescriptorTable.pDescriptorRanges = &velocitySrvRange;
@@ -281,7 +264,6 @@ bool GpuFluidScalarAdvectionPass::CreateRootSignature()
 	scalarSrvRange.BaseShaderRegister = 1;
 	scalarSrvRange.RegisterSpace = 0;
 	scalarSrvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
 	rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
 	rootParameters[2].DescriptorTable.pDescriptorRanges = &scalarSrvRange;
@@ -293,18 +275,27 @@ bool GpuFluidScalarAdvectionPass::CreateRootSignature()
 	scalarUavRange.BaseShaderRegister = 0;
 	scalarUavRange.RegisterSpace = 0;
 	scalarUavRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
 	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
 	rootParameters[3].DescriptorTable.pDescriptorRanges = &scalarUavRange;
 	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	// b1の4 DWORDをRoot Constants化し、Density/Temperature切替のためだけにUpload Bufferを増やさない。
 	rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 	rootParameters[4].Constants.ShaderRegister = 1;
 	rootParameters[4].Constants.RegisterSpace = 0;
 	rootParameters[4].Constants.Num32BitValues = 4;
 	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_DESCRIPTOR_RANGE obstacleSrvRange{};
+	obstacleSrvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	obstacleSrvRange.NumDescriptors = 1;
+	obstacleSrvRange.BaseShaderRegister = 2;
+	obstacleSrvRange.RegisterSpace = 0;
+	obstacleSrvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	rootParameters[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[5].DescriptorTable.NumDescriptorRanges = 1;
+	rootParameters[5].DescriptorTable.pDescriptorRanges = &obstacleSrvRange;
+	rootParameters[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_STATIC_SAMPLER_DESC sampler{};
 	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -339,27 +330,23 @@ bool GpuFluidScalarAdvectionPass::CreateRootSignature()
 	{
 		if (errorBlob)
 		{
-			Log(std::string(
-				static_cast<const char*>(errorBlob->GetBufferPointer()),
-				errorBlob->GetBufferSize()));
+			Log(std::string(static_cast<const char*>(errorBlob->GetBufferPointer()), errorBlob->GetBufferSize()));
 		}
 		return false;
 	}
 
-	const HRESULT createResult = dxCommon_->GetDevice()->CreateRootSignature(
+	return SUCCEEDED(dxCommon_->GetDevice()->CreateRootSignature(
 		0,
 		signatureBlob->GetBufferPointer(),
 		signatureBlob->GetBufferSize(),
-		IID_PPV_ARGS(&rootSignature_));
-	return SUCCEEDED(createResult);
+		IID_PPV_ARGS(&rootSignature_)));
 }
 
 bool GpuFluidScalarAdvectionPass::CreatePipelineState()
 {
 	const ShaderDescriptor& shaderDesc =
 		GpuFluidShaderManifest::GetCompute(GpuFluidComputeShaderId::ScalarAdvection);
-	if (shaderDesc.stage != ShaderStage::Compute ||
-		shaderDesc.rootSignature != RootSignatureType::Compute)
+	if (shaderDesc.stage != ShaderStage::Compute || shaderDesc.rootSignature != RootSignatureType::Compute)
 	{
 		return false;
 	}
@@ -374,26 +361,18 @@ bool GpuFluidScalarAdvectionPass::CreatePipelineState()
 
 	D3D12_COMPUTE_PIPELINE_STATE_DESC pipelineDesc{};
 	pipelineDesc.pRootSignature = rootSignature_.Get();
-	pipelineDesc.CS =
-	{
-		computeShader->GetBufferPointer(),
-		computeShader->GetBufferSize()
-	};
-
-	const HRESULT createResult = dxCommon_->GetDevice()->CreateComputePipelineState(
+	pipelineDesc.CS = { computeShader->GetBufferPointer(), computeShader->GetBufferSize() };
+	return SUCCEEDED(dxCommon_->GetDevice()->CreateComputePipelineState(
 		&pipelineDesc,
-		IID_PPV_ARGS(&pipelineState_));
-	return SUCCEEDED(createResult);
+		IID_PPV_ARGS(&pipelineState_)));
 }
 
 void GpuFluidScalarAdvectionPass::DispatchGrid(
 	ID3D12GraphicsCommandList* commandList,
 	const GpuFluidGridDesc& gridDesc) const
 {
-	const uint32_t groupCountX =
-		(gridDesc.width + kThreadGroupSizeX - 1u) / kThreadGroupSizeX;
-	const uint32_t groupCountY =
-		(gridDesc.height + kThreadGroupSizeY - 1u) / kThreadGroupSizeY;
+	const uint32_t groupCountX = (gridDesc.width + kThreadGroupSizeX - 1u) / kThreadGroupSizeX;
+	const uint32_t groupCountY = (gridDesc.height + kThreadGroupSizeY - 1u) / kThreadGroupSizeY;
 	commandList->Dispatch(groupCountX, groupCountY, 1);
 }
 

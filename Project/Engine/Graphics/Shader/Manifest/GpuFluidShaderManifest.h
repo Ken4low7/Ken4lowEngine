@@ -17,6 +17,7 @@ enum class GpuFluidComputeShaderId : uint32_t
 	VorticityConfinement,
 	Buoyancy,
 	EmitterInjection,
+	ObstacleRaster,
 };
 
 class GpuFluidShaderManifest
@@ -64,7 +65,6 @@ public:
 		}
 		case GpuFluidComputeShaderId::VorticityConfinement:
 		{
-			// Curl中間場を読み、Velocity ping-pongへ渦補強力を書き戻す。
 			static const ShaderDescriptor desc{ L"GpuFluidVorticityConfinementCS", L"Resources/Shaders/GpuFluid/GpuFluidVorticityConfinement.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
 			return desc;
 		}
@@ -75,8 +75,13 @@ public:
 		}
 		case GpuFluidComputeShaderId::EmitterInjection:
 		{
-			// Source注入は局所UAV加算だけなので専用Shaderへ分離し、Advectionのping-pong契約を汚さない。
 			static const ShaderDescriptor desc{ L"GpuFluidEmitterInjectionCS", L"Resources/Shaders/GpuFluid/GpuFluidEmitterInjection.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+			return desc;
+		}
+		case GpuFluidComputeShaderId::ObstacleRaster:
+		{
+			// Physics Collider群をR8_UINT Solid Maskへ毎Step再構築し、動的Obstacleにも同じ経路を使う。
+			static const ShaderDescriptor desc{ L"GpuFluidObstacleRasterCS", L"Resources/Shaders/GpuFluid/GpuFluidObstacleRaster.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
 			return desc;
 		}
 		default:

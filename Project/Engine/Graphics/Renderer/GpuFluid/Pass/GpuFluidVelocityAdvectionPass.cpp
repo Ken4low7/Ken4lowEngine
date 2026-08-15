@@ -55,7 +55,8 @@ bool GpuFluidVelocityAdvectionPass::Dispatch(
 
 	const GpuFluidGridDesc& gridDesc = grid.GetGridDesc();
 	if (gridDesc.width != simulationDesc.grid.width ||
-		gridDesc.height != simulationDesc.grid.height)
+		gridDesc.height != simulationDesc.grid.height ||
+		gridDesc.cellSize != simulationDesc.grid.cellSize)
 	{
 		return false;
 	}
@@ -78,19 +79,15 @@ bool GpuFluidVelocityAdvectionPass::Dispatch(
 	GpuFluidPingPongField& velocity = grid.GetVelocity();
 	GpuFluidTexture2D& read = velocity.Read();
 	GpuFluidTexture2D& write = velocity.Write();
-	if (!read.IsValid() || !write.IsValid())
+	GpuFluidTexture2D& obstacle = grid.GetObstacle();
+	if (!read.IsValid() || !write.IsValid() || !obstacle.IsValid())
 	{
 		return false;
 	}
 
-	GpuFluidGridResource::Transition(
-		commandList,
-		read,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	GpuFluidGridResource::Transition(
-		commandList,
-		write,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	GpuFluidGridResource::Transition(commandList, read, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, write, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	UAVManager* descriptorManager = UAVManager::GetInstance();
 	descriptorManager->PreDispatch();
@@ -98,25 +95,17 @@ bool GpuFluidVelocityAdvectionPass::Dispatch(
 	commandList->SetComputeRootSignature(rootSignature_.Get());
 	commandList->SetPipelineState(pipelineState_.Get());
 	commandList->SetComputeRootConstantBufferView(0, constantAllocation.gpuAddress);
-	commandList->SetComputeRootDescriptorTable(
-		1,
-		descriptorManager->GetGPUDescriptorHandle(read.computeSrvIndex));
-	commandList->SetComputeRootDescriptorTable(
-		2,
-		descriptorManager->GetGPUDescriptorHandle(write.uavIndex));
+	commandList->SetComputeRootDescriptorTable(1, descriptorManager->GetGPUDescriptorHandle(read.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(2, descriptorManager->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(3, descriptorManager->GetGPUDescriptorHandle(write.uavIndex));
 
-	const uint32_t groupCountX =
-		(gridDesc.width + kThreadGroupSizeX - 1u) / kThreadGroupSizeX;
-	const uint32_t groupCountY =
-		(gridDesc.height + kThreadGroupSizeY - 1u) / kThreadGroupSizeY;
+	const uint32_t groupCountX = (gridDesc.width + kThreadGroupSizeX - 1u) / kThreadGroupSizeX;
+	const uint32_t groupCountY = (gridDesc.height + kThreadGroupSizeY - 1u) / kThreadGroupSizeY;
 	commandList->Dispatch(groupCountX, groupCountY, 1);
 
-	// 書き込み完了を次Passへ可視化してから、出力Textureを新しいRead側へ昇格させる。
+	// Obstacle-aware Advectionでも既存のRead/Write世代契約を変えず、Barrier後にだけSwapする。
 	GpuFluidGridResource::InsertUavBarrier(commandList, write.resource.Get());
-	GpuFluidGridResource::Transition(
-		commandList,
-		write,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, write, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	velocity.Swap();
 
 	++dispatchCount_;
@@ -125,24 +114,26 @@ bool GpuFluidVelocityAdvectionPass::Dispatch(
 
 bool GpuFluidVelocityAdvectionPass::CreateRootSignature()
 {
-	D3D12_ROOT_PARAMETER rootParameters[3]{};
+	D3D12_ROOT_PARAMETER rootParameters[4]{};
 
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
 	rootParameters[0].Descriptor.RegisterSpace = 0;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	D3D12_DESCRIPTOR_RANGE srvRange{};
-	srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	srvRange.NumDescriptors = 1;
-	srvRange.BaseShaderRegister = 0;
-	srvRange.RegisterSpace = 0;
-	srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
-	rootParameters[1].DescriptorTable.pDescriptorRanges = &srvRange;
-	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	D3D12_DESCRIPTOR_RANGE srvRanges[2]{};
+	for (uint32_t i = 0; i < 2; ++i)
+	{
+		srvRanges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srvRanges[i].NumDescriptors = 1;
+		srvRanges[i].BaseShaderRegister = i;
+		srvRanges[i].RegisterSpace = 0;
+		srvRanges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		rootParameters[i + 1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameters[i + 1].DescriptorTable.NumDescriptorRanges = 1;
+		rootParameters[i + 1].DescriptorTable.pDescriptorRanges = &srvRanges[i];
+		rootParameters[i + 1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	}
 
 	D3D12_DESCRIPTOR_RANGE uavRange{};
 	uavRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
@@ -150,11 +141,10 @@ bool GpuFluidVelocityAdvectionPass::CreateRootSignature()
 	uavRange.BaseShaderRegister = 0;
 	uavRange.RegisterSpace = 0;
 	uavRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
-	rootParameters[2].DescriptorTable.pDescriptorRanges = &uavRange;
-	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
+	rootParameters[3].DescriptorTable.pDescriptorRanges = &uavRange;
+	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_STATIC_SAMPLER_DESC sampler{};
 	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -189,27 +179,23 @@ bool GpuFluidVelocityAdvectionPass::CreateRootSignature()
 	{
 		if (errorBlob)
 		{
-			Log(std::string(
-				static_cast<const char*>(errorBlob->GetBufferPointer()),
-				errorBlob->GetBufferSize()));
+			Log(std::string(static_cast<const char*>(errorBlob->GetBufferPointer()), errorBlob->GetBufferSize()));
 		}
 		return false;
 	}
 
-	const HRESULT createResult = dxCommon_->GetDevice()->CreateRootSignature(
+	return SUCCEEDED(dxCommon_->GetDevice()->CreateRootSignature(
 		0,
 		signatureBlob->GetBufferPointer(),
 		signatureBlob->GetBufferSize(),
-		IID_PPV_ARGS(&rootSignature_));
-	return SUCCEEDED(createResult);
+		IID_PPV_ARGS(&rootSignature_)));
 }
 
 bool GpuFluidVelocityAdvectionPass::CreatePipelineState()
 {
 	const ShaderDescriptor& shaderDesc =
 		GpuFluidShaderManifest::GetCompute(GpuFluidComputeShaderId::VelocityAdvection);
-	if (shaderDesc.stage != ShaderStage::Compute ||
-		shaderDesc.rootSignature != RootSignatureType::Compute)
+	if (shaderDesc.stage != ShaderStage::Compute || shaderDesc.rootSignature != RootSignatureType::Compute)
 	{
 		return false;
 	}
@@ -224,16 +210,10 @@ bool GpuFluidVelocityAdvectionPass::CreatePipelineState()
 
 	D3D12_COMPUTE_PIPELINE_STATE_DESC pipelineDesc{};
 	pipelineDesc.pRootSignature = rootSignature_.Get();
-	pipelineDesc.CS =
-	{
-		computeShader->GetBufferPointer(),
-		computeShader->GetBufferSize()
-	};
-
-	const HRESULT createResult = dxCommon_->GetDevice()->CreateComputePipelineState(
+	pipelineDesc.CS = { computeShader->GetBufferPointer(), computeShader->GetBufferSize() };
+	return SUCCEEDED(dxCommon_->GetDevice()->CreateComputePipelineState(
 		&pipelineDesc,
-		IID_PPV_ARGS(&pipelineState_));
-	return SUCCEEDED(createResult);
+		IID_PPV_ARGS(&pipelineState_)));
 }
 
 } // namespace Ken4lowEngine

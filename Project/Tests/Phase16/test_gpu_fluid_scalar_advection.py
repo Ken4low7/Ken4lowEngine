@@ -78,5 +78,3 @@ def test_phase16_document_marks_scalar_advection_complete():
     doc = _read(DOC)
     assert "[x] 16.5 Density / Temperature" in doc
     assert "GpuFluidScalarAdvectionPass" in doc
-    assert "DispatchAll()" in doc
-    assert "Next implementation target — 16.6" in doc

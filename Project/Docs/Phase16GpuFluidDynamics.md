@@ -9,8 +9,7 @@ Phase 16 introduces a 2D Eulerian GPU fluid solver as the base for Phase 17 volu
 - Use ping-pong resources for fields that are repeatedly read and written by compute passes.
 - Keep resource-state tracking inside the fluid resource layer.
 - Keep CPU/HLSL constant-buffer layouts explicitly mirrored and size-checked.
-- Start with FP16 fields to keep bandwidth and memory pressure low enough for stress testing.
-- Convert Scene components into plain renderer source data instead of passing Actor/Component objects into compute passes.
+- Convert Scene/Physics objects into plain renderer source data instead of passing Actor/Component objects into compute passes.
 
 ## Phase 16 field layout
 
@@ -35,124 +34,96 @@ At 256x256 the logical field storage is about 1.56 MiB before allocation/alignme
 - [x] 16.5 Density / Temperature
 - [x] 16.6 Vorticity / Buoyancy
 - [x] 16.7 FluidEmitterComponent
-  - `SceneComponent`-based emitter with world position
-  - JSON / Inspector properties for radius, velocity, density, temperature, and falloff
-  - `GpuFluidEmitterSource` renderer-facing data contract
-  - arbitrary 2D world-plane mapping through `GpuFluidDomainMapping`
-  - CPU culling for disabled / completely out-of-domain emitters
-  - one batched emitter upload and one compute dispatch
-  - SRV -> UAV ping-pong without typed UAV load dependency
-  - automatic `ComponentFactory` registration
-- [ ] 16.8 Collider / Obstacle
+- [x] 16.8 Collider / Obstacle
+  - `GpuFluidObstacleSource` / 96-byte GPU obstacle contract
+  - `GpuFluidColliderObstacleAdapter` for Physics Collider collection
+  - Sphere / AABB / OBB support
+  - Trigger / disabled / non-physics Collider filtering through `IsCollisionEnabledForPhysics()`
+  - one full-grid obstacle raster dispatch into `R8_UINT`
+  - empty-obstacle GPU clear path
+  - obstacle-aware velocity/scalar advection
+  - obstacle-aware divergence / Jacobi / projection
+  - obstacle-aware vorticity / buoyancy
+  - obstacle-aware emitter injection
+  - solid-cell zeroing and no-through-flow boundary behavior
 - [ ] 16.9 Forward Rendering
 - [ ] 16.10 Editor / Diagnostics / Stress Test
 
-## 16.3 Velocity Advection flow
+## 16.3 Velocity advection
 
-`GpuFluidVelocityAdvectionPass` uses semi-Lagrangian backtrace and velocity ping-pong.
+`GpuFluidVelocityAdvectionPass` uses semi-Lagrangian backtrace and velocity ping-pong. Phase 16.8 adds an obstacle SRV: solid destination cells are written as zero, and a backtrace landing in a solid cell is clamped back to the current fluid cell instead of sampling through the wall.
 
-1. Transition velocity read texture to `NON_PIXEL_SHADER_RESOURCE`.
-2. Transition velocity write texture to `UNORDERED_ACCESS`.
-3. Backtrace each cell using velocity in world-units/sec.
-4. Bilinearly sample the source position.
-5. Apply velocity dissipation.
-6. Insert a UAV barrier and swap velocity.
-
-## 16.4 Pressure projection flow
+## 16.4 Pressure projection
 
 `GpuFluidPressureProjectionPass` makes velocity approximately divergence-free.
 
-1. Clear both pressure ping-pong textures.
+1. Clear pressure ping-pong textures.
 2. Compute centered-difference divergence.
 3. Solve `p = (pL + pR + pB + pT - div * h^2) / 4` with Jacobi iterations.
 4. Subtract `grad(p)` from velocity.
-5. Remove normal velocity on the outer domain boundary.
+5. Remove normal velocity on domain and obstacle boundaries.
 6. Swap velocity.
 
-With the default `pressureIterations = 40`, one pressure-projection call records 42 compute dispatches.
+Obstacle cells write zero divergence/pressure/velocity. For a fluid cell adjacent to a solid cell, Jacobi and projection use the center pressure for that neighbor, giving a simple Neumann pressure boundary. Projection then explicitly removes the velocity component normal to a neighboring solid cell.
 
-## 16.5 Scalar advection flow
+With the default `pressureIterations = 40`, one pressure-projection call still records 42 compute dispatches.
 
-`GpuFluidScalarAdvectionPass` transports density and temperature with the projected velocity field using one shared shader/PSO.
+## 16.5 Scalar advection
 
-`DispatchAll()` records two compute dispatches and shares one simulation constant-buffer allocation.
+`GpuFluidScalarAdvectionPass` transports density and temperature with one shared shader/PSO. Solid destination cells become zero and backtraces that enter a solid cell are stopped at the current fluid cell.
 
 ## 16.6 Force flow
 
-`GpuFluidForcePass` applies vorticity confinement and buoyancy.
-
-`omega = d(vy)/dx - d(vx)/dy`
-
-`N = normalize(grad(abs(omega)))`
-
-`u' = u + dt * vorticityStrength * (N_y, -N_x) * omega`
-
-Buoyancy uses:
-
-`F_b = buoyancy * (temperature - ambientTemperature) - smokeWeight * density`
-
-`DispatchAll()` records three compute dispatches: curl, vorticity confinement, and buoyancy.
+`GpuFluidForcePass` applies vorticity confinement and buoyancy. Curl treats solid-neighbor velocities as zero, confinement does not generate curl gradients through solid cells, and all force passes write zero velocity inside solids.
 
 ## 16.7 Fluid emitter flow
 
-`FluidEmitterComponent` inherits from `SceneComponent`, so its world position becomes the source center while its source velocity remains an explicitly editable world-space vector. The Component is serialized through `ComponentPropertyUtility` and self-registers with `ComponentFactory`.
-
-Renderer-facing source data is separated from Scene ownership:
-
 `FluidEmitterComponent -> GpuFluidEmitterSource -> GpuFluidEmitterInjectionPass`
 
-### Domain mapping
+`GpuFluidDomainMapping` defines the 2D simulation plane using world-space `origin`, `axisU`, and `axisV`. Active emitters are compacted into one upload allocation and processed in one full-grid compute dispatch. Phase 16.8 adds the obstacle mask to this pass so velocity, density, and temperature are never injected into solid cells.
 
-`GpuFluidDomainMapping` defines the 2D simulation plane with:
+## 16.8 Collider / Obstacle flow
 
-- `origin`: lower-left grid corner in world space
-- `axisU`: grid X direction in world space
-- `axisV`: grid Y direction in world space
+### Physics adapter
 
-The axes must be non-zero and approximately orthogonal. The default mapping is world XY. World position is converted to cell coordinates on the CPU, while source velocity is projected onto the two domain axes and remains in world-units/sec.
+`GpuFluidColliderObstacleAdapter` reads existing `ColliderComponent` objects without changing their physics behavior. It accepts only colliders for which `Collider::IsCollisionEnabledForPhysics()` is true, so triggers and disabled/query-only colliders do not become fluid walls.
 
-### Batched source upload
+Supported primitive mapping:
 
-Each active source is converted to a 48-byte `GpuFluidEmitterGpuData` element. Disabled emitters and emitters completely outside the domain are removed before upload. All remaining elements are copied into one `FrameUploadArena` allocation and bound as a root `StructuredBuffer` SRV.
+- Sphere -> world-space sphere
+- AABB -> world-space axis-aligned box
+- OBB -> world-space oriented box with the collider's three normalized basis axes
+- Capsule / Segment -> deferred; existing `ColliderComponent` does not currently build these primitives in its transform sync path
 
-Binding contract:
+The adapter can build one source or collect all valid collider sources from an `ActorWorld`.
+
+### World-space rasterization
+
+Obstacle primitives stay in world space. `GpuFluidObstacleRasterPass` converts each fluid cell center back into a world point using the same domain mapping used by emitters:
+
+`world = origin + axisU * ((x + 0.5) * cellSize) + axisV * ((y + 0.5) * cellSize)`
+
+The compute shader tests that world point against each uploaded obstacle and writes `1` for solid or `0` for fluid into the existing `R8_UINT` obstacle texture. Because every cell is rewritten each dispatch, moving or removed colliders do not leave stale obstacle cells. If there are no active obstacles, the mask is cleared with `ClearUnorderedAccessViewUint` and no compute dispatch is recorded.
+
+Raster binding contract:
 
 | Root parameter | Shader register | Resource |
 |---:|---|---|
 | 0 | `b0` | `GpuFluidSimulationConstants` |
-| 1 | `b1` | emitter count as four root DWORDs |
-| 2 | `t0` | velocity read texture |
-| 3 | `t1` | density read texture |
-| 4 | `t2` | temperature read texture |
-| 5 | `t3` | `StructuredBuffer<GpuFluidEmitterGpuData>` |
-| 6 | `u0` | velocity write texture |
-| 7 | `u1` | density write texture |
-| 8 | `u2` | temperature write texture |
+| 1 | `b1` | domain origin/axes, cell size, obstacle count |
+| 2 | `t0` | root `StructuredBuffer<GpuFluidObstacleGpuData>` |
+| 3 | `u0` | `R8_UINT` obstacle mask |
 
-The shader runs once over the full grid, reads the current velocity/density/temperature values, loops over the compact emitter array, accumulates source contributions, and writes all three fields to their opposite ping-pong textures. This avoids requiring typed UAV loads for the FP16 fields and keeps the same SRV-read/UAV-write contract as the other simulation passes.
+### Recommended runtime order
 
-Source contribution uses radial falloff:
+`Obstacle Raster -> Emitter Injection -> Velocity Advection -> Projection -> Scalar Advection -> Vorticity/Buoyancy -> Projection`
 
-`w = pow(saturate(1 - distance / radius), falloffExponent)`
-
-and integrates per-second rates with the simulation step:
-
-- `velocity += sourceVelocity * velocityStrength * w * dt`
-- `density += densityRate * w * dt`
-- `temperature += temperatureRate * w * dt`
-
-After one dispatch the three outputs receive UAV barriers, transition to SRV state, and swap together. With one or many active emitters the injection stage records exactly one compute dispatch; with no active emitters it records none and does not swap fields.
-
-Recommended runtime order is:
-
-`Emitter Injection -> Velocity Advection -> Projection -> Scalar Advection -> Vorticity/Buoyancy -> Projection`
-
-The pass intentionally does not own `ActorWorld` enumeration. A runtime owner can collect active `FluidEmitterComponent::BuildEmitterSource()` values and submit them as a vector, keeping Renderer code independent from Scene classes.
+Obstacle rasterization should happen before any stage that reads the mask. A moving physics collider can therefore update the solid mask every simulation step without rebuilding the fluid resources.
 
 ## Build integration
 
 `Project/Directory.Build.props` registers all Phase 16 C++ and shader files only for the `Ken4lowEngine` project.
 
-## Next implementation target — 16.8
+## Next implementation target — 16.9
 
-Use the existing `R8_UINT` obstacle field as a solid-cell mask. Add obstacle raster/update APIs, make divergence/Jacobi/projection/force/source passes respect solid cells, and establish no-through-flow boundary behavior that can later be fed by engine Collider components.
+Add forward rendering for the 2D fluid fields. Density should become the primary visual channel, with optional temperature/debug visualization, domain transform support, obstacle masking, and a renderer-facing API that does not couple the simulation passes to Scene ownership.

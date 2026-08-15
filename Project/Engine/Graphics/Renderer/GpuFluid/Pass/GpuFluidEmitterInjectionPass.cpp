@@ -105,9 +105,11 @@ bool GpuFluidEmitterInjectionPass::Dispatch(
 	GpuFluidTexture2D& densityWrite = density.Write();
 	GpuFluidTexture2D& temperatureRead = temperature.Read();
 	GpuFluidTexture2D& temperatureWrite = temperature.Write();
+	GpuFluidTexture2D& obstacle = grid.GetObstacle();
 	if (!velocityRead.IsValid() || !velocityWrite.IsValid() ||
 		!densityRead.IsValid() || !densityWrite.IsValid() ||
-		!temperatureRead.IsValid() || !temperatureWrite.IsValid())
+		!temperatureRead.IsValid() || !temperatureWrite.IsValid() ||
+		!obstacle.IsValid())
 	{
 		return false;
 	}
@@ -115,6 +117,7 @@ bool GpuFluidEmitterInjectionPass::Dispatch(
 	GpuFluidGridResource::Transition(commandList, velocityRead, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuFluidGridResource::Transition(commandList, densityRead, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuFluidGridResource::Transition(commandList, temperatureRead, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuFluidGridResource::Transition(commandList, velocityWrite, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	GpuFluidGridResource::Transition(commandList, densityWrite, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	GpuFluidGridResource::Transition(commandList, temperatureWrite, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -140,13 +143,14 @@ bool GpuFluidEmitterInjectionPass::Dispatch(
 	commandList->SetComputeRootDescriptorTable(6, descriptorManager->GetGPUDescriptorHandle(velocityWrite.uavIndex));
 	commandList->SetComputeRootDescriptorTable(7, descriptorManager->GetGPUDescriptorHandle(densityWrite.uavIndex));
 	commandList->SetComputeRootDescriptorTable(8, descriptorManager->GetGPUDescriptorHandle(temperatureWrite.uavIndex));
+	commandList->SetComputeRootDescriptorTable(9, descriptorManager->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
 
 	const GpuFluidGridDesc& gridDesc = grid.GetGridDesc();
 	const uint32_t groupCountX = (gridDesc.width + kThreadGroupSizeX - 1u) / kThreadGroupSizeX;
 	const uint32_t groupCountY = (gridDesc.height + kThreadGroupSizeY - 1u) / kThreadGroupSizeY;
 	commandList->Dispatch(groupCountX, groupCountY, 1);
 
-	// 全Sourceを1 Dispatchで合成し、3フィールドを同じ世代へ揃えてからまとめてping-pongする。
+	// Obstacle内へのSource注入をShader側で0化しつつ、3フィールドを同じ世代へ揃えてSwapする。
 	GpuFluidGridResource::InsertUavBarrier(commandList, velocityWrite.resource.Get());
 	GpuFluidGridResource::InsertUavBarrier(commandList, densityWrite.resource.Get());
 	GpuFluidGridResource::InsertUavBarrier(commandList, temperatureWrite.resource.Get());
@@ -181,7 +185,7 @@ bool GpuFluidEmitterInjectionPass::ValidateDispatchContext(
 
 bool GpuFluidEmitterInjectionPass::CreateRootSignature()
 {
-	D3D12_ROOT_PARAMETER rootParameters[9]{};
+	D3D12_ROOT_PARAMETER rootParameters[10]{};
 
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
@@ -226,6 +230,17 @@ bool GpuFluidEmitterInjectionPass::CreateRootSignature()
 		rootParameters[i + 6].DescriptorTable.pDescriptorRanges = &uavRanges[i];
 		rootParameters[i + 6].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	}
+
+	D3D12_DESCRIPTOR_RANGE obstacleSrvRange{};
+	obstacleSrvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	obstacleSrvRange.NumDescriptors = 1;
+	obstacleSrvRange.BaseShaderRegister = 4;
+	obstacleSrvRange.RegisterSpace = 0;
+	obstacleSrvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	rootParameters[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[9].DescriptorTable.NumDescriptorRanges = 1;
+	rootParameters[9].DescriptorTable.pDescriptorRanges = &obstacleSrvRange;
+	rootParameters[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
 	rootSignatureDesc.NumParameters = _countof(rootParameters);
