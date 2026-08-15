@@ -157,11 +157,6 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     float3 baseColor = gMaterial.color.rgb * textureColor.rgb;
 
-    float3 reflectionDir = reflect(-viewDir, normal);
-    float3 environmentColor = gEnvironmentTexture.Sample(gSampler, reflectionDir).rgb;
-    float fresnel = ComputeFresnelSchlick(saturate(dot(normal, viewDir)), 0.02f);
-    float envBlend = saturate(gMaterial.reflectionRate * 0.12f + fresnel * 0.03f);
-
     float3 shadedColor = 0.0.xxx;
     if (gMaterial.pbrEnabled > 0.5f)
     {
@@ -213,9 +208,23 @@ PixelShaderOutput main(VertexShaderOutput input)
     }
     else
     {
-        // Legacy経路は既存Phong/Blinn系の見た目とLight/Shadow挙動を守るため残す。
+        // Legacyは反射率0を明確なEnvironment OFFとして扱い、未設定Materialへ勝手にSkyBoxを混ぜない。
         shadedColor = baseColor * lighting;
-        shadedColor = lerp(shadedColor, environmentColor, envBlend);
+        const float reflectionRate = saturate(gMaterial.reflectionRate);
+        if (reflectionRate > 0.0f)
+        {
+            float3 reflectionDir = reflect(-viewDir, normal);
+            uint environmentWidth = 0;
+            uint environmentHeight = 0;
+            uint environmentMipLevels = 1;
+            gEnvironmentTexture.GetDimensions(0, environmentWidth, environmentHeight, environmentMipLevels);
+            float maxMipLevel = (environmentMipLevels > 0) ? float(environmentMipLevels - 1) : 0.0f;
+            float reflectionMipLevel = saturate(gMaterial.roughness) * maxMipLevel;
+            float3 environmentColor = gEnvironmentTexture.SampleLevel(gSampler, reflectionDir, reflectionMipLevel).rgb;
+            float fresnel = ComputeFresnelSchlick(saturate(dot(normal, viewDir)), 0.02f);
+            float envBlend = saturate(reflectionRate * (0.12f + fresnel * 0.03f));
+            shadedColor = lerp(shadedColor, environmentColor, envBlend);
+        }
     }
 
     shadedColor = ApplyFog(shadedColor, worldPosition, gCamera.worldPosition, gLightingSettings);
