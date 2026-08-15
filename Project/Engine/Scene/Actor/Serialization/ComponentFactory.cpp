@@ -19,6 +19,7 @@
 #include "InstancedModelComponent.h"
 #include "LightComponent.h"
 #include "ModelComponent.h"
+#include "PlanarReflectionComponent.h"
 #include "ReflectionProbeComponent.h"
 #include "RigidbodyComponent.h"
 #include "SkeletalMeshComponent.h"
@@ -114,6 +115,8 @@ namespace Ken4lowEngine
 
 			MakeComponentTypeInfo<ReflectionProbeComponent>("ReflectionProbeComponent", true, "リフレクションプローブ", "描画", "周囲の静的3DシーンをCubemapへCaptureし、近傍Materialの局所反射に使用します。"),
 
+			MakeComponentTypeInfo<PlanarReflectionComponent>("PlanarReflectionComponent", false, "プラナーリフレクション", "描画", "同じActorのModelComponentを鏡面として、反射CameraからSceneを再描画します。"),
+
 			MakeComponentTypeInfo<CameraComponent>("CameraComponent", false, "カメラコンポーネント", "カメラ", "Actorを視点として使うためのカメラ機能を追加します。"),
 
 			MakeComponentTypeInfo<ColliderComponent>("ColliderComponent", true, "コライダーコンポーネント", "物理", "Actorに衝突判定用の形状と当たり判定設定を追加します。"),
@@ -166,7 +169,7 @@ namespace Ken4lowEngine
 	{
 		if (!owner)
 		{
-			return nullptr; // Actorがnullptrの場合はComponentを生成しない
+			return nullptr; // 所有Actorが無い場合はRootComponentを生成できない
 		}
 
 		const ComponentTypeInfo* typeInfo = FindComponentType(className);
