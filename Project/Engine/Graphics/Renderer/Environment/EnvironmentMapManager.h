@@ -106,34 +106,32 @@ namespace Ken4lowEngine
 			return AdoptLoadedCubeMap(texturePath);
 		}
 
-		bool MirrorIntoLegacyBinding(const std::string& texturePath)
+		bool MirrorIntoLegacyBinding(const std::string& texturePath, const DirectX::TexMetadata& metadata)
 		{
 			TextureManager* textureManager = TextureManager::GetInstance();
 			const std::string& legacyPath = GetFallbackEnvironmentMapPath();
 			textureManager->LoadTexture(legacyPath);
 
-			const uint32_t sourceIndex = textureManager->GetSrvIndex(texturePath);
 			const uint32_t legacyIndex = textureManager->GetSrvIndex(legacyPath);
-			if (sourceIndex == UINT32_MAX || legacyIndex == UINT32_MAX)
+			ID3D12Resource* sourceResource = textureManager->GetResource(texturePath);
+			ID3D12Device* device = DirectXCommon::GetInstance()->GetDevice();
+			if (legacyIndex == UINT32_MAX || !sourceResource || !device)
 			{
 				return false;
-			}
-			if (sourceIndex == legacyIndex)
-			{
-				return true;
 			}
 
-			ID3D12Device* device = DirectXCommon::GetInstance()->GetDevice();
-			if (!device)
-			{
-				return false;
-			}
-			device->CopyDescriptorsSimple(
-				1,
-				SRVManager::GetInstance()->GetCPUDescriptorHandle(legacyIndex),
-				SRVManager::GetInstance()->GetCPUDescriptorHandle(sourceIndex),
-				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-			return true; // 旧AnimationModelが保持するdescriptor slotも同じScene Environmentへ追従させる。
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+			srvDesc.Format = metadata.format;
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+			srvDesc.TextureCube.MostDetailedMip = 0;
+			srvDesc.TextureCube.MipLevels = UINT_MAX;
+			srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+			device->CreateShaderResourceView(
+				sourceResource,
+				&srvDesc,
+				SRVManager::GetInstance()->GetCPUDescriptorHandle(legacyIndex));
+			return true; // 旧AnimationModelのdescriptor slotも現在SceneのCubemapを指す互換Bridgeにする。
 		}
 
 		bool AdoptLoadedCubeMap(const std::string& texturePath)
@@ -151,7 +149,7 @@ namespace Ken4lowEngine
 					return false; // TextureCubeを要求するShaderへ2D Textureを誤Bindしない。
 				}
 				const D3D12_GPU_DESCRIPTOR_HANDLE handle = textureManager->GetSrvHandleGPU(texturePath);
-				if (handle.ptr == 0 || !MirrorIntoLegacyBinding(texturePath))
+				if (handle.ptr == 0 || !MirrorIntoLegacyBinding(texturePath, metadata))
 				{
 					return false;
 				}
