@@ -64,6 +64,7 @@ namespace Ken4lowEngine
 		size_t GetInstanceCount() const { return sourceInstances_.size(); }
 		size_t GetVisibleInstanceCount() const { return instanceCount_; }
 		size_t GetMaxInstanceCount() const { return maxInstanceCount_; }
+		MaterialBlendMode GetBlendMode() const { return material_.GetBlendMode(); } // Forward QueueはRenderer内部Materialの分類だけを参照する。
 		void SetDebugIndexBudget(uint64_t budget) { debugIndexBudget_ = budget; }
 		uint64_t GetEstimatedDrawIndexCount() const { return estimatedDrawIndexCount_; }
 		bool WasDrawSkippedByBudget() const { return drawSkippedByBudget_; }
