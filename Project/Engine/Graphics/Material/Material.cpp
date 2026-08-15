@@ -10,7 +10,7 @@
 
 namespace Ken4lowEngine
 {
-	static_assert(sizeof(Material::MaterialCBData) == 144, "MaterialCBData must match the HLSL b0 layout.");
+	static_assert(sizeof(Material::MaterialCBData) == 224, "MaterialCBData must match the HLSL b0 layout.");
 
 	namespace
 	{
@@ -120,7 +120,9 @@ namespace Ken4lowEngine
 		materialData_->textureFlags = 0;
 		materialData_->reflectionSourceAvailable = 0.0f;
 		materialData_->planarReflectionEnabled = 0.0f;
-		materialData_->planarReflectionStrength = 0.0f; // Planar反射はDraw Scopeだけで有効にし、通常Materialへ状態を持ち越さない。
+		materialData_->planarReflectionStrength = 0.0f;
+		materialData_->planarReflectionViewProjection = Matrix4x4::MakeIdentity();
+		materialData_->planarReflectionPlaneNormal = { 0.0f, 1.0f, 0.0f, 0.0f }; // Planar反射はDraw Scopeだけで有効にし、通常Materialへ状態を持ち越さない。
 		cullMode_ = MaterialCullMode::Back; // 通常Materialは表面だけを描画し、両面は明示Opt-inにする。
 		blendMode_ = MaterialBlendMode::Opaque; // 旧MaterialはForward Opaqueへ安全にフォールバックする。
 	}
@@ -146,7 +148,9 @@ namespace Ken4lowEngine
 		if (usePbr && !desc.pbr.occlusionTexturePath.empty()) materialData_->textureFlags |= 1u << 2;
 		if (usePbr && !desc.pbr.emissiveTexturePath.empty()) materialData_->textureFlags |= 1u << 3;
 		materialData_->planarReflectionEnabled = 0.0f;
-		materialData_->planarReflectionStrength = 0.0f; // MaterialAsset適用時も前Drawの一時Planar状態を永続値へ混ぜない。
+		materialData_->planarReflectionStrength = 0.0f;
+		materialData_->planarReflectionViewProjection = Matrix4x4::MakeIdentity();
+		materialData_->planarReflectionPlaneNormal = { 0.0f, 1.0f, 0.0f, 0.0f }; // MaterialAsset適用時も前Drawの一時Planar状態を永続値へ混ぜない。
 		cullMode_ = desc.cullMode;
 		blendMode_ = desc.blendMode;
 	}
@@ -170,6 +174,21 @@ namespace Ken4lowEngine
 		drawData.planarReflectionStrength = drawData.planarReflectionEnabled > 0.5f
 			? std::clamp(planarBinding.strength, 0.0f, 1.0f)
 			: 0.0f;
+		if (drawData.planarReflectionEnabled > 0.5f)
+		{
+			drawData.planarReflectionViewProjection = planarBinding.reflectedViewProjection;
+			drawData.planarReflectionPlaneNormal = {
+				planarBinding.planeNormal.x,
+				planarBinding.planeNormal.y,
+				planarBinding.planeNormal.z,
+				0.0f,
+			};
+		}
+		else
+		{
+			drawData.planarReflectionViewProjection = Matrix4x4::MakeIdentity();
+			drawData.planarReflectionPlaneNormal = { 0.0f, 1.0f, 0.0f, 0.0f };
+		}
 		const FrameUploadArena::Allocation allocation = dxCommon->GetFrameUploadArena().AllocateConstant(drawData);
 		if (!allocation.IsValid()) return;
 
