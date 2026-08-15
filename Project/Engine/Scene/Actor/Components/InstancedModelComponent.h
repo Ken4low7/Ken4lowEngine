@@ -66,6 +66,8 @@ namespace Ken4lowEngine
 		std::vector<ComponentProperty> CreateProperties(bool includeModelPath = true);
 		bool SubmitForwardOpaque(ForwardRenderQueue& queue);
 		bool SubmitForwardMasked(ForwardRenderQueue& queue);
+		bool SubmitForwardTransparent(ForwardRenderQueue& queue);
+		bool SubmitForwardAdditive(ForwardRenderQueue& queue);
 
 		size_t GetEditableInstanceCount() const { return instanceTransforms_.size(); }
 		bool GetInstanceLocalTransform(size_t instanceIndex, InstanceTransform& outTransform) const;
