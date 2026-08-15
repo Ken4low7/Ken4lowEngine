@@ -20,6 +20,7 @@ namespace Ken4lowEngine
 
 		const PipelineBundle& GetDefault(MaterialCullMode cullMode = MaterialCullMode::Back) const;
 		const PipelineBundle& GetAlpha(MaterialCullMode cullMode = MaterialCullMode::Back) const;
+		const PipelineBundle& GetAdditive(MaterialCullMode cullMode = MaterialCullMode::Back) const;
 		const PipelineBundle& GetShadow() const { return shadowPipeline_; }
 
 	private:
@@ -29,6 +30,9 @@ namespace Ken4lowEngine
 		PipelineBundle alphaPipeline_{};
 		PipelineBundle alphaFrontPipeline_{};
 		PipelineBundle alphaTwoSidedPipeline_{};
+		PipelineBundle additivePipeline_{};
+		PipelineBundle additiveFrontPipeline_{};
+		PipelineBundle additiveTwoSidedPipeline_{};
 		PipelineBundle shadowPipeline_{};
 	};
 } // namespace Ken4lowEngine
