@@ -14,6 +14,7 @@
 #include "WorldTextComponent.h"
 
 #include "Engine/Graphics/Renderer/Forward/ForwardRenderQueue.h"
+#include "Engine/Graphics/Renderer/GpuParticle/Renderer/GpuParticleForwardRenderBridge.h"
 #include "LightManager.h"
 #include "SceneComponent.h"
 #include "SpriteManager.h"
@@ -108,6 +109,8 @@ namespace Ken4lowEngine
 				}
 			}
 		}
+
+		GpuParticleForwardRenderBridge::GetInstance()->Submit(*forwardQueue); // GPU Particleは粒子単位ではなくSystem Packetとして透明系Bucketへ接続する。
 
 		forwardQueue->ExecuteBucket(ForwardRenderBucket::Opaque);
 		forwardQueue->ExecuteBucket(ForwardRenderBucket::Masked);
