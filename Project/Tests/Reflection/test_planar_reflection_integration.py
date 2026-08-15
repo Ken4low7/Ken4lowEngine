@@ -90,12 +90,22 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertIn("PlanarReflectionManager::ScopedDrawBinding", self.model)
         self.assertIn("object3D_->Draw()", self.model)
 
-    def test_material_layout_reuses_existing_two_float_padding(self) -> None:
+    def test_model_builds_projective_data_from_same_reflected_camera_contract(self) -> None:
+        self.assertIn("BuildPlanarReflectionViewProjection", self.model)
+        self.assertIn("ReflectPoint", self.model)
+        self.assertIn("ReflectVector", self.model)
+        self.assertIn("planarBinding.planeNormal = planar->GetPlaneNormal()", self.model)
+        self.assertIn("planarBinding.reflectedViewProjection", self.model)
+        self.assertIn("Matrix4x4::LookAt", self.model)
+
+    def test_material_layout_carries_planar_projection_without_root_growth(self) -> None:
         self.assertIn("float planarReflectionEnabled;", self.material_h)
         self.assertIn("float planarReflectionStrength;", self.material_h)
-        self.assertNotIn("float padding[2];", self.material_h)
-        self.assertIn("sizeof(Material::MaterialCBData) == 144", self.material_cpp)
+        self.assertIn("Matrix4x4 planarReflectionViewProjection;", self.material_h)
+        self.assertIn("Vector4 planarReflectionPlaneNormal;", self.material_h)
+        self.assertIn("sizeof(Material::MaterialCBData) == 224", self.material_cpp)
         self.assertIn("GetCurrentDrawBinding", self.material_cpp)
+        self.assertIn("planarBinding.reflectedViewProjection", self.material_cpp)
         self.assertIn("emissiveOrPlanar", self.material_cpp)
 
     def test_planar_texture_reuses_object_t9_slot_without_root_growth(self) -> None:
@@ -105,12 +115,19 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertIn("planarReflectionEnabled", self.shader)
         self.assertIn("planarReflectionStrength", self.shader)
 
-    def test_shader_uses_screen_projected_planar_sampling_without_double_flip(self) -> None:
-        self.assertIn("gEmissiveTexture.GetDimensions", self.shader)
-        self.assertIn("input.position.xy / planarSize", self.shader)
+    def test_shader_uses_reflected_view_projection_instead_of_screen_copy(self) -> None:
+        self.assertIn("gMaterial.planarReflectionViewProjection", self.shader)
+        self.assertIn("mul(float4(worldPosition, 1.0f), gMaterial.planarReflectionViewProjection)", self.shader)
+        self.assertIn("reflectedClip.xy / reflectedClip.w", self.shader)
+        self.assertIn("SampleLevel(gLinearSampler, planarUv, 0.0f)", self.shader)
+        self.assertNotIn("input.position.xy / planarSize", self.shader)
         self.assertNotIn("planarUv.x = 1.0f - planarUv.x", self.shader)
-        self.assertIn("SampleLevel(gLinearSampler, saturate(planarUv), 0.0f)", self.shader)
-        self.assertIn("lerp(shadedColor, planarColor", self.shader)
+
+    def test_shader_masks_non_planar_faces_by_world_normal(self) -> None:
+        self.assertIn("planarReflectionPlaneNormal", self.shader)
+        self.assertIn("abs(dot(normal, planarNormal))", self.shader)
+        self.assertIn("kPlanarNormalAlignmentThreshold", self.shader)
+        self.assertIn("surfaceAlignment >= kPlanarNormalAlignmentThreshold", self.shader)
 
 
 if __name__ == "__main__":
