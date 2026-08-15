@@ -5,7 +5,9 @@
 #include "AssetPathSelector.h"
 #include "MaterialRepository.h"
 #include "CameraManager.h"
+#include "Engine/Graphics/Renderer/Environment/EnvironmentMapManager.h"
 #include "Engine/Graphics/Renderer/Forward/ForwardRenderQueue.h"
+#include "Engine/Graphics/Renderer/Reflection/ReflectionProbeManager.h"
 
 #include <Camera.h>
 #include <Matrix4x4.h>
@@ -106,10 +108,10 @@ namespace Ken4lowEngine
 		}
 
 		ForwardRenderItem item = MakeForwardRenderItem(
-			object3D_.get(),
+			this,
 			[](void* payload)
 			{
-				static_cast<Object3D*>(payload)->Draw(); // Blend PSOはObject3DがMaterialBlendModeから選ぶためQueue側は描画呼び出しだけを所有する。
+				static_cast<ModelComponent*>(payload)->DrawWithReflectionBinding(); // Queue実行時に現在Viewと局所Probeを解決し、Capture後のMain Viewも復元する。
 			},
 			expectedBlendMode,
 			CalculateForwardSortDepth(*object3D_));
@@ -154,8 +156,19 @@ namespace Ken4lowEngine
 			{
 				return; // 透明系Bucketを後段実行できるよう、Queue所有中は直接Drawしない。
 			}
-			object3D_->Draw();
+			DrawWithReflectionBinding();
 		}
+	}
+
+	void ModelComponent::DrawReflectionCapture()
+	{
+		if (!visible_ || !IsActiveInHierarchy() || !object3D_) return;
+		const MaterialBlendMode blendMode = object3D_->GetBlendMode();
+		if (blendMode == MaterialBlendMode::Transparent || blendMode == MaterialBlendMode::Additive)
+		{
+			return; // 初期Probe CaptureはDepthが安定するOpaque/Maskedだけを対象にし、透明物は後続拡張へ分離する。
+		}
+		DrawWithReflectionBinding();
 	}
 
 	void ModelComponent::DrawShadow()
@@ -317,6 +330,26 @@ namespace Ken4lowEngine
 		}
 		ImGui::TextDisabled("状態: %s", materialBindingStatus_.c_str());
 #endif // USE_IMGUI
+	}
+
+	void ModelComponent::PrepareForCurrentRenderView()
+	{
+		if (!object3D_) return;
+		RefreshWorldTransform();
+		RefreshSharedMaterialBinding();
+		SyncTransformToObject3D();
+		object3D_->Update(); // Probeの各Face/Main ViewごとにWVPとCamera定数をDraw直前に作り直す。
+	}
+
+	void ModelComponent::DrawWithReflectionBinding()
+	{
+		if (!object3D_) return;
+		PrepareForCurrentRenderView();
+		EnvironmentMapManager* environmentManager = EnvironmentMapManager::GetInstance();
+		const D3D12_GPU_DESCRIPTOR_HANDLE reflectionHandle =
+			ReflectionProbeManager::GetInstance()->ResolveReflectionHandle(GetWorldPosition());
+		EnvironmentMapManager::ScopedDrawOverride reflectionScope(environmentManager, reflectionHandle);
+		object3D_->Draw();
 	}
 
 	void ModelComponent::SyncTransformToObject3D()
