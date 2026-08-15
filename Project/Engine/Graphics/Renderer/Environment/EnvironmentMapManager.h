@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace Ken4lowEngine
 {
@@ -15,6 +16,35 @@ namespace Ken4lowEngine
 	class EnvironmentMapManager
 	{
 	public:
+		class ScopedDrawOverride
+		{
+		public:
+			ScopedDrawOverride(EnvironmentMapManager* manager, D3D12_GPU_DESCRIPTOR_HANDLE handle)
+				: manager_(manager)
+			{
+				if (manager_ && handle.ptr != 0)
+				{
+					manager_->PushDrawEnvironmentOverride(handle);
+					active_ = true;
+				}
+			}
+
+			~ScopedDrawOverride()
+			{
+				if (active_ && manager_)
+				{
+					manager_->PopDrawEnvironmentOverride();
+				}
+			}
+
+			ScopedDrawOverride(const ScopedDrawOverride&) = delete;
+			ScopedDrawOverride& operator=(const ScopedDrawOverride&) = delete;
+
+		private:
+			EnvironmentMapManager* manager_ = nullptr;
+			bool active_ = false;
+		};
+
 		static EnvironmentMapManager* GetInstance()
 		{
 			static EnvironmentMapManager instance;
@@ -63,7 +93,29 @@ namespace Ken4lowEngine
 		D3D12_GPU_DESCRIPTOR_HANDLE GetEnvironmentMapHandle()
 		{
 			EnsureEnvironmentMap();
-			return environmentMapHandle_;
+			return drawEnvironmentOverrides_.empty() ? environmentMapHandle_ : drawEnvironmentOverrides_.back();
+		}
+
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGlobalEnvironmentMapHandle()
+		{
+			EnsureEnvironmentMap();
+			return environmentMapHandle_; // Reflection Probe Capture中は局所Overrideを無視してSkyBox Environmentへ戻す。
+		}
+
+		void PushDrawEnvironmentOverride(D3D12_GPU_DESCRIPTOR_HANDLE handle)
+		{
+			if (handle.ptr != 0)
+			{
+				drawEnvironmentOverrides_.push_back(handle); // Object単位の局所ProbeだけDraw区間へ限定して差し替える。
+			}
+		}
+
+		void PopDrawEnvironmentOverride()
+		{
+			if (!drawEnvironmentOverrides_.empty())
+			{
+				drawEnvironmentOverrides_.pop_back();
+			}
 		}
 
 		const std::string& GetEnvironmentMapPath()
@@ -167,6 +219,7 @@ namespace Ken4lowEngine
 		std::string skyBoxTexturePath_{};
 		std::string environmentMapPath_{};
 		D3D12_GPU_DESCRIPTOR_HANDLE environmentMapHandle_{};
+		std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> drawEnvironmentOverrides_{};
 		uint64_t revision_ = 0;
 		bool explicitOverrideEnabled_ = false;
 	};
