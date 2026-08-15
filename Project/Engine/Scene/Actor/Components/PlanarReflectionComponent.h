@@ -1,0 +1,75 @@
+#pragma once
+
+#include "SceneComponent.h"
+#include "Engine/Graphics/Renderer/Reflection/PlanarReflectionManager.h"
+
+#include <string>
+
+namespace Ken4lowEngine
+{
+	/// <summary>
+	/// 同じActorのModelComponentを鏡面Receiverとして扱うPlanar Reflection Componentです。
+	/// Local +Yを鏡面法線として使用し、Component位置が反射平面上の点になります。
+	/// </summary>
+	class PlanarReflectionComponent : public SceneComponent
+	{
+	public:
+		void Initialize() override;
+		void Update(float deltaTime) override;
+		void UpdateEditor(float deltaTime) override;
+		void Draw() override;
+		void DrawImGui() override;
+		void Finalize() override;
+
+		std::string GetClassTypeName() const override { return "PlanarReflectionComponent"; }
+		void ToJson(nlohmann::json& outJson) const override;
+		void FromJson(const nlohmann::json& inJson) override;
+
+		void SyncToManager(bool forceDirty = false);
+		void RequestCapture();
+
+		void SetEnabled(bool enabled) { enabled_ = enabled; }
+		bool IsEnabled() const { return enabled_; }
+		void SetStrength(float strength);
+		float GetStrength() const { return strength_; }
+		void SetUpdateMode(PlanarReflectionUpdateMode updateMode) { updateMode_ = updateMode; }
+		PlanarReflectionUpdateMode GetUpdateMode() const { return updateMode_; }
+		void SetFlipNormal(bool flip) { flipNormal_ = flip; }
+		bool IsNormalFlipped() const { return flipNormal_; }
+		Vector3 GetPlaneNormal() const;
+
+	private:
+		PlanarReflectionDesc BuildDesc() const;
+
+		bool enabled_ = true;
+		float strength_ = 1.0f;
+		PlanarReflectionUpdateMode updateMode_ = PlanarReflectionUpdateMode::EveryFrame;
+		bool flipNormal_ = false;
+		bool debugPlaneVisible_ = true;
+		float debugPlaneSize_ = 2.0f;
+	};
+} // namespace Ken4lowEngine
+
+#ifdef max
+#pragma push_macro("max")
+#undef max
+#define KEN4LOW_PLANAR_REFLECTION_COMPONENT_RESTORE_MAX
+#endif
+
+#ifdef min
+#pragma push_macro("min")
+#undef min
+#define KEN4LOW_PLANAR_REFLECTION_COMPONENT_RESTORE_MIN
+#endif
+
+#include "PlanarReflectionComponent.inl" // ImGui値のclampをWindowsマクロから保護する。
+
+#ifdef KEN4LOW_PLANAR_REFLECTION_COMPONENT_RESTORE_MIN
+#pragma pop_macro("min")
+#undef KEN4LOW_PLANAR_REFLECTION_COMPONENT_RESTORE_MIN
+#endif
+
+#ifdef KEN4LOW_PLANAR_REFLECTION_COMPONENT_RESTORE_MAX
+#pragma pop_macro("max")
+#undef KEN4LOW_PLANAR_REFLECTION_COMPONENT_RESTORE_MAX
+#endif
