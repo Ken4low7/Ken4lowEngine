@@ -105,7 +105,7 @@ float3 SamplePlanarReflectionTexture(uint surfaceIndex, float2 uv)
     case 3u: return gPlanarReflectionTextures[3].SampleLevel(gLinearSampler, uv, 0.0f).rgb;
     case 4u: return gPlanarReflectionTextures[4].SampleLevel(gLinearSampler, uv, 0.0f).rgb;
     case 5u: return gPlanarReflectionTextures[5].SampleLevel(gLinearSampler, uv, 0.0f).rgb;
-    default: return 0.0.xxx;
+    default: return float3(0.0f, 0.0f, 0.0f);
     }
 }
 
@@ -215,7 +215,7 @@ PixelShaderOutput main(VertexShaderOutput input)
     float4 edgeColor = gDissolveSetting.edgeColor * (1.0f - edge);
     float dissolveBlend = 1.0f - step(maskValue, gDissolveSetting.threshold);
 
-    float3 shadedColor = 0.0.xxx;
+    float3 shadedColor = float3(0.0f, 0.0f, 0.0f);
     if (gMaterial.pbrEnabled > 0.5f)
     {
         // PBRはMaterial単位で明示ONの時だけ使い、Legacy描画の初期見た目を維持する。
@@ -245,7 +245,7 @@ PixelShaderOutput main(VertexShaderOutput input)
             occlusion = lerp(1.0f, sampledOcclusion, saturate(gMaterial.occlusionStrength));
         }
 
-        float3 emissiveSample = 1.0.xxx;
+        float3 emissiveSample = float3(1.0f, 1.0f, 1.0f);
         if ((gMaterial.textureFlags & MATERIAL_TEXTURE_EMISSIVE) != 0)
         {
             emissiveSample = gEmissiveTexture.Sample(gLinearSampler, transformedUV.xy).rgb;
@@ -261,7 +261,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         surface.viewDir = viewDir;
 
         float3 directPbr = DirectLightingPBR(gPunctualLights, gLightInfo.gLightCount, worldPosition, surface, gShadowParameter, gShadowMap, gExtendedShadowParameter, gCsmShadowMaps, gPointShadowMap, gShadowSampler);
-        float3 ibl = 0.0.xxx;
+        float3 ibl = float3(0.0f, 0.0f, 0.0f);
         if (gMaterial.reflectionSourceAvailable > 0.5f)
         {
             ibl = EvaluatePbrIBLFallback(surface, gEnvironmentTexture, gLinearSampler, gLightingSettings);
@@ -301,7 +301,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         const uint surfaceCount = min(gPlanarReflection.surfaceCount, kMaxPlanarReflectionSurfaces);
         int selectedSurface = -1;
         float selectedPlaneDistance = 1.0e20f;
-        float2 selectedUv = 0.0.xx;
+        float2 selectedUv = float2(0.0f, 0.0f);
 
         [unroll]
         for (uint surfaceIndex = 0u; surfaceIndex < kMaxPlanarReflectionSurfaces; ++surfaceIndex)
@@ -332,7 +332,9 @@ PixelShaderOutput main(VertexShaderOutput input)
             float2 planarUv = float2(
                 reflectedNdc.x * 0.5f + 0.5f,
                 -reflectedNdc.y * 0.5f + 0.5f);
-            if (!all(planarUv >= 0.0.xx) || !all(planarUv <= 1.0.xx))
+            const float2 uvMin = float2(0.0f, 0.0f);
+            const float2 uvMax = float2(1.0f, 1.0f);
+            if (!all(planarUv >= uvMin) || !all(planarUv <= uvMax))
             {
                 continue;
             }
