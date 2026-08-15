@@ -25,7 +25,8 @@ struct Material
     float planarReflectionEnabled;
     float planarReflectionStrength;
     float4x4 planarReflectionViewProjection;
-    float4 planarReflectionPlaneNormal;
+    float4 planarReflectionPlane;
+    float4 planarReflectionSurfaceParams;
 };
 
 struct Camera
@@ -269,9 +270,11 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     if (gMaterial.planarReflectionEnabled > 0.5f)
     {
-        const float3 planarNormal = normalize(gMaterial.planarReflectionPlaneNormal.xyz);
+        const float3 planarNormal = normalize(gMaterial.planarReflectionPlane.xyz);
         const float surfaceAlignment = abs(dot(normal, planarNormal));
-        if (surfaceAlignment >= kPlanarNormalAlignmentThreshold)
+        const float planeDistance = abs(dot(float4(worldPosition, 1.0f), gMaterial.planarReflectionPlane));
+        const float planeTolerance = max(gMaterial.planarReflectionSurfaceParams.x, 0.001f);
+        if (surfaceAlignment >= kPlanarNormalAlignmentThreshold && planeDistance <= planeTolerance)
         {
             float4 reflectedClip = mul(float4(worldPosition, 1.0f), gMaterial.planarReflectionViewProjection);
             if (reflectedClip.w > 1e-5f)
@@ -285,7 +288,7 @@ PixelShaderOutput main(VertexShaderOutput input)
                 if (all(planarUv >= uvMin) && all(planarUv <= uvMax))
                 {
                     float3 planarColor = gEmissiveTexture.SampleLevel(gLinearSampler, planarUv, 0.0f).rgb;
-                    shadedColor = lerp(shadedColor, planarColor, saturate(gMaterial.planarReflectionStrength)); // 鏡面と平行なPixelだけを反射Cameraへ再投影して合成する。
+                    shadedColor = lerp(shadedColor, planarColor, saturate(gMaterial.planarReflectionStrength)); // 実際の鏡平面上にあるPixelだけ反射Cameraへ再投影する。
                 }
             }
         }
