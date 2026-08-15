@@ -1,12 +1,14 @@
 #include "ModelComponent.h"
 #include "SceneComponent.h"
 #include "CameraComponent.h"
+#include "PlanarReflectionComponent.h"
 #include "Actor.h"
 #include "AssetPathSelector.h"
 #include "MaterialRepository.h"
 #include "CameraManager.h"
 #include "Engine/Graphics/Renderer/Environment/EnvironmentMapManager.h"
 #include "Engine/Graphics/Renderer/Forward/ForwardRenderQueue.h"
+#include "Engine/Graphics/Renderer/Reflection/PlanarReflectionManager.h"
 #include "Engine/Graphics/Renderer/Reflection/ReflectionProbeManager.h"
 
 #include <Camera.h>
@@ -111,7 +113,7 @@ namespace Ken4lowEngine
 			this,
 			[](void* payload)
 			{
-				static_cast<ModelComponent*>(payload)->DrawWithReflectionBinding(); // Queue実行時に現在Viewと局所Probeを解決し、Capture後のMain Viewも復元する。
+				static_cast<ModelComponent*>(payload)->DrawWithReflectionBinding(); // Queue実行時に現在Viewと局所Reflectionを解決し、Capture後のMain Viewも復元する。
 			},
 			expectedBlendMode,
 			CalculateForwardSortDepth(*object3D_));
@@ -166,7 +168,7 @@ namespace Ken4lowEngine
 		const MaterialBlendMode blendMode = object3D_->GetBlendMode();
 		if (blendMode == MaterialBlendMode::Transparent || blendMode == MaterialBlendMode::Additive)
 		{
-			return; // 初期Probe CaptureはDepthが安定するOpaque/Maskedだけを対象にし、透明物は後続拡張へ分離する。
+			return; // 初期Reflection CaptureはDepthが安定するOpaque/Maskedだけを対象にし、透明物は後続拡張へ分離する。
 		}
 		DrawWithReflectionBinding();
 	}
@@ -338,17 +340,30 @@ namespace Ken4lowEngine
 		RefreshWorldTransform();
 		RefreshSharedMaterialBinding();
 		SyncTransformToObject3D();
-		object3D_->Update(); // Probeの各Face/Main ViewごとにWVPとCamera定数をDraw直前に作り直す。
+		object3D_->Update(); // Reflection Capture/Main ViewごとにWVPとCamera定数をDraw直前に作り直す。
 	}
 
 	void ModelComponent::DrawWithReflectionBinding()
 	{
 		if (!object3D_) return;
 		PrepareForCurrentRenderView();
+
 		EnvironmentMapManager* environmentManager = EnvironmentMapManager::GetInstance();
 		const D3D12_GPU_DESCRIPTOR_HANDLE reflectionHandle =
 			ReflectionProbeManager::GetInstance()->ResolveReflectionHandle(GetWorldPosition());
 		EnvironmentMapManager::ScopedDrawOverride reflectionScope(environmentManager, reflectionHandle);
+
+		PlanarReflectionManager* planarManager = PlanarReflectionManager::GetInstance();
+		PlanarReflectionBinding planarBinding{};
+		if (Actor* owner = GetOwner())
+		{
+			if (PlanarReflectionComponent* planar = owner->GetComponent<PlanarReflectionComponent>();
+				planar && planar->IsActiveInHierarchy() && planar->IsEnabled())
+			{
+				planarBinding = planarManager->ResolveBinding(planar);
+			}
+		}
+		PlanarReflectionManager::ScopedDrawBinding planarScope(planarManager, planarBinding); // 同じActorの鏡面だけReflection TextureをDraw区間へ限定して公開する。
 		object3D_->Draw();
 	}
 
