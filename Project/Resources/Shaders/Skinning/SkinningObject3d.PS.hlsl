@@ -23,7 +23,8 @@ struct Material
     float occlusionStrength; // AO Texture未接続時の定数fallback
     float4 emissiveFactor; // Emissive Textureへ乗算する発光色
     uint textureFlags; // bit0:MR bit1:Normal bit2:AO bit3:Emissive
-    float3 padding;
+    float reflectionSourceAvailable; // Probe/実EnvironmentがあるDrawだけCubemapをSampleする
+    float2 padding;
 };
 
 // カメラ
@@ -203,15 +204,19 @@ PixelShaderOutput main(VertexShaderOutput input)
         surface.viewDir = viewDir;
 
         float3 directPbr = DirectLightingPBR(gPunctualLights, gLightInfo.gLightCount, worldPosition, surface, gShadowParameter, gShadowMap, gExtendedShadowParameter, gCsmShadowMaps, gPointShadowMap, gShadowSampler);
-        float3 ibl = EvaluatePbrIBLFallback(surface, gEnvironmentTexture, gSampler, gLightingSettings);
+        float3 ibl = 0.0.xxx;
+        if (gMaterial.reflectionSourceAvailable > 0.5f)
+        {
+            ibl = EvaluatePbrIBLFallback(surface, gEnvironmentTexture, gSampler, gLightingSettings);
+        }
         shadedColor = directPbr + ibl + surface.emissive;
     }
     else
     {
-        // Legacyは反射率0を明確なEnvironment OFFとして扱い、未設定Materialへ勝手にSkyBoxを混ぜない。
+        // Legacyは反射率0または反射源なしを明確なEnvironment OFFとして扱う。
         shadedColor = baseColor * lighting;
         const float reflectionRate = saturate(gMaterial.reflectionRate);
-        if (reflectionRate > 0.0f)
+        if (reflectionRate > 0.0f && gMaterial.reflectionSourceAvailable > 0.5f)
         {
             float3 reflectionDir = reflect(-viewDir, normal);
             uint environmentWidth = 0;
