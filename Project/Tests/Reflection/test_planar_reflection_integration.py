@@ -105,9 +105,10 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertIn("planarReflectionEnabled", self.shader)
         self.assertIn("planarReflectionStrength", self.shader)
 
-    def test_shader_uses_screen_projected_planar_sampling(self) -> None:
+    def test_shader_uses_screen_projected_planar_sampling_without_double_flip(self) -> None:
         self.assertIn("gEmissiveTexture.GetDimensions", self.shader)
         self.assertIn("input.position.xy / planarSize", self.shader)
+        self.assertNotIn("planarUv.x = 1.0f - planarUv.x", self.shader)
         self.assertIn("SampleLevel(gLinearSampler, saturate(planarUv), 0.0f)", self.shader)
         self.assertIn("lerp(shadedColor, planarColor", self.shader)
 
