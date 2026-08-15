@@ -353,16 +353,17 @@ namespace Ken4lowEngine
 		EnvironmentMapManager::ScopedDrawOverride reflectionScope(environmentManager, reflectionHandle);
 
 		PlanarReflectionManager* planarManager = PlanarReflectionManager::GetInstance();
-		PlanarReflectionBinding planarBinding{};
+		PlanarReflectionDrawSet planarDrawSet{};
 		if (Actor* owner = GetOwner())
 		{
-			if (PlanarReflectionComponent* planar = owner->GetComponent<PlanarReflectionComponent>();
-				planar && planar->IsActiveInHierarchy() && planar->IsEnabled())
+			for (PlanarReflectionComponent* planar : owner->GetComponents<PlanarReflectionComponent>())
 			{
-				planarBinding = planarManager->ResolveBinding(planar); // Capture時に保存したProjection/Planeをそのまま使い、Main描画で再計算しない。
+				if (!planar || !planar->IsActiveInHierarchy() || !planar->IsEnabled()) continue;
+				planarDrawSet.Add(planarManager->ResolveBinding(planar));
+				if (planarDrawSet.count >= kMaxPlanarReflectionSurfacesPerDraw) break;
 			}
 		}
-		PlanarReflectionManager::ScopedDrawBinding planarScope(planarManager, planarBinding); // 同じActorの鏡面だけReflection TextureをDraw区間へ限定して公開する。
+		PlanarReflectionManager::ScopedDrawBinding planarScope(planarManager, planarDrawSet); // 同Actorの最大6鏡面を1 Draw Packetへまとめ、Pixelごとに対応面を選択する。
 		object3D_->Draw();
 	}
 
