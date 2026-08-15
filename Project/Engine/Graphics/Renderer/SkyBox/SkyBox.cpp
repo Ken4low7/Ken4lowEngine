@@ -236,7 +236,6 @@ namespace Ken4lowEngine
 	void SkyBox::InitializeIndexData()
 	{
 		// インデックスバッファを生成する
-		vertexResource = vertexResource;
 		indexResource = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(uint32_t) * kNumIndex);
 
 		// インデックスバッファビューを設定する
