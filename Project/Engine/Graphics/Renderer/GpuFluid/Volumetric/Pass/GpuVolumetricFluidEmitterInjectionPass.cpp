@@ -75,7 +75,7 @@ bool GpuVolumetricFluidEmitterInjectionPass::Dispatch(
 		if (activeSources.size() >= kMaxSourcesPerDispatch)
 		{
 			++lastCulledSourceCount_;
-			continue; // 1 voxelあたりのSource loopを上限256に固定し、Editor誤設定でDispatch負荷が発散しないようにする。
+			continue;
 		}
 		activeSources.push_back(gpuData);
 	}
@@ -119,9 +119,10 @@ bool GpuVolumetricFluidEmitterInjectionPass::Dispatch(
 	GpuVolumetricFluidTexture3D& densityWrite = density.Write();
 	GpuVolumetricFluidTexture3D& temperatureRead = temperature.Read();
 	GpuVolumetricFluidTexture3D& temperatureWrite = temperature.Write();
+	GpuVolumetricFluidTexture3D& obstacle = grid.GetObstacle();
 	if (!velocityRead.IsValid() || !velocityWrite.IsValid() ||
 		!densityRead.IsValid() || !densityWrite.IsValid() ||
-		!temperatureRead.IsValid() || !temperatureWrite.IsValid())
+		!temperatureRead.IsValid() || !temperatureWrite.IsValid() || !obstacle.IsValid())
 	{
 		return false;
 	}
@@ -132,6 +133,8 @@ bool GpuVolumetricFluidEmitterInjectionPass::Dispatch(
 		commandList, densityRead, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuVolumetricFluidGridResource::Transition(
 		commandList, temperatureRead, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuVolumetricFluidGridResource::Transition(
+		commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuVolumetricFluidGridResource::Transition(
 		commandList, velocityWrite, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	GpuVolumetricFluidGridResource::Transition(
@@ -166,6 +169,8 @@ bool GpuVolumetricFluidEmitterInjectionPass::Dispatch(
 		7, descriptors->GetGPUDescriptorHandle(densityWrite.uavIndex));
 	commandList->SetComputeRootDescriptorTable(
 		8, descriptors->GetGPUDescriptorHandle(temperatureWrite.uavIndex));
+	commandList->SetComputeRootDescriptorTable(
+		9, descriptors->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
 
 	const GpuVolumetricFluidGridDesc& gridDesc = grid.GetGridDesc();
 	const uint32_t groupCountX = (gridDesc.width + kThreadGroupSizeX - 1u) / kThreadGroupSizeX;
@@ -173,7 +178,7 @@ bool GpuVolumetricFluidEmitterInjectionPass::Dispatch(
 	const uint32_t groupCountZ = (gridDesc.depth + kThreadGroupSizeZ - 1u) / kThreadGroupSizeZ;
 	commandList->Dispatch(groupCountX, groupCountY, groupCountZ);
 
-	// 3 fieldを同一Dispatchで更新し、全UAVの完了を確定してから世代をまとめて切り替える。
+	// Solid voxelはShader側で3 fieldとも0化し、全UAV完了後に世代をまとめて切り替える。
 	GpuVolumetricFluidGridResource::InsertUavBarrier(commandList, velocityWrite.resource.Get());
 	GpuVolumetricFluidGridResource::InsertUavBarrier(commandList, densityWrite.resource.Get());
 	GpuVolumetricFluidGridResource::InsertUavBarrier(commandList, temperatureWrite.resource.Get());
@@ -214,7 +219,7 @@ bool GpuVolumetricFluidEmitterInjectionPass::ValidateDispatchContext(
 
 bool GpuVolumetricFluidEmitterInjectionPass::CreateRootSignature()
 {
-	D3D12_ROOT_PARAMETER rootParameters[9]{};
+	D3D12_ROOT_PARAMETER rootParameters[10]{};
 
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
@@ -259,6 +264,17 @@ bool GpuVolumetricFluidEmitterInjectionPass::CreateRootSignature()
 		rootParameters[i + 6].DescriptorTable.pDescriptorRanges = &uavRanges[i];
 		rootParameters[i + 6].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	}
+
+	D3D12_DESCRIPTOR_RANGE obstacleSrvRange{};
+	obstacleSrvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	obstacleSrvRange.NumDescriptors = 1;
+	obstacleSrvRange.BaseShaderRegister = 4;
+	obstacleSrvRange.RegisterSpace = 0;
+	obstacleSrvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	rootParameters[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[9].DescriptorTable.NumDescriptorRanges = 1;
+	rootParameters[9].DescriptorTable.pDescriptorRanges = &obstacleSrvRange;
+	rootParameters[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
 	rootSignatureDesc.NumParameters = _countof(rootParameters);

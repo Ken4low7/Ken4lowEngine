@@ -7,6 +7,7 @@ cbuffer FluidSimulationCB : register(b0)
 
 Texture3D<float4> gVelocityRead : register(t0);
 Texture3D<float4> gVorticityRead : register(t1);
+Texture3D<uint> gObstacle : register(t3);
 RWTexture3D<float4> gVelocityWrite : register(u0);
 
 [numthreads(8, 8, 4)]
@@ -20,6 +21,12 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     const int3 cell = int3(dispatchThreadId);
+    if (gObstacle.Load(int4(cell, 0)) != 0u)
+    {
+        gVelocityWrite[dispatchThreadId] = 0.0f;
+        return;
+    }
+
     const float3 omega = gVorticityRead.Load(int4(cell, 0)).xyz;
     const float centerMagnitude = length(omega);
 
@@ -30,29 +37,49 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float magnitudeBack = centerMagnitude;
     float magnitudeFront = centerMagnitude;
 
-    if (cell.x > 0)
+    const int3 leftCell = cell + int3(-1, 0, 0);
+    const int3 rightCell = cell + int3(1, 0, 0);
+    const int3 bottomCell = cell + int3(0, -1, 0);
+    const int3 topCell = cell + int3(0, 1, 0);
+    const int3 backCell = cell + int3(0, 0, -1);
+    const int3 frontCell = cell + int3(0, 0, 1);
+
+    bool blockedLeft = cell.x <= 0;
+    bool blockedRight = cell.x + 1 >= int(gFluid.gridWidth);
+    bool blockedBottom = cell.y <= 0;
+    bool blockedTop = cell.y + 1 >= int(gFluid.gridHeight);
+    bool blockedBack = cell.z <= 0;
+    bool blockedFront = cell.z + 1 >= int(gFluid.gridDepth);
+
+    if (!blockedLeft)
     {
-        magnitudeLeft = length(gVorticityRead.Load(int4(cell + int3(-1, 0, 0), 0)).xyz);
+        blockedLeft = gObstacle.Load(int4(leftCell, 0)) != 0u;
+        if (!blockedLeft) magnitudeLeft = length(gVorticityRead.Load(int4(leftCell, 0)).xyz);
     }
-    if (cell.x + 1 < int(gFluid.gridWidth))
+    if (!blockedRight)
     {
-        magnitudeRight = length(gVorticityRead.Load(int4(cell + int3(1, 0, 0), 0)).xyz);
+        blockedRight = gObstacle.Load(int4(rightCell, 0)) != 0u;
+        if (!blockedRight) magnitudeRight = length(gVorticityRead.Load(int4(rightCell, 0)).xyz);
     }
-    if (cell.y > 0)
+    if (!blockedBottom)
     {
-        magnitudeBottom = length(gVorticityRead.Load(int4(cell + int3(0, -1, 0), 0)).xyz);
+        blockedBottom = gObstacle.Load(int4(bottomCell, 0)) != 0u;
+        if (!blockedBottom) magnitudeBottom = length(gVorticityRead.Load(int4(bottomCell, 0)).xyz);
     }
-    if (cell.y + 1 < int(gFluid.gridHeight))
+    if (!blockedTop)
     {
-        magnitudeTop = length(gVorticityRead.Load(int4(cell + int3(0, 1, 0), 0)).xyz);
+        blockedTop = gObstacle.Load(int4(topCell, 0)) != 0u;
+        if (!blockedTop) magnitudeTop = length(gVorticityRead.Load(int4(topCell, 0)).xyz);
     }
-    if (cell.z > 0)
+    if (!blockedBack)
     {
-        magnitudeBack = length(gVorticityRead.Load(int4(cell + int3(0, 0, -1), 0)).xyz);
+        blockedBack = gObstacle.Load(int4(backCell, 0)) != 0u;
+        if (!blockedBack) magnitudeBack = length(gVorticityRead.Load(int4(backCell, 0)).xyz);
     }
-    if (cell.z + 1 < int(gFluid.gridDepth))
+    if (!blockedFront)
     {
-        magnitudeFront = length(gVorticityRead.Load(int4(cell + int3(0, 0, 1), 0)).xyz);
+        blockedFront = gObstacle.Load(int4(frontCell, 0)) != 0u;
+        if (!blockedFront) magnitudeFront = length(gVorticityRead.Load(int4(frontCell, 0)).xyz);
     }
 
     const float3 magnitudeGradient = 0.5f * gFluid.invCellSize * float3(
@@ -64,21 +91,21 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         ? magnitudeGradient / gradientLength
         : float3(0.0f, 0.0f, 0.0f);
 
-    // N×ωで散逸しやすい小スケールの渦を速度場へ戻す。
+    // Solid neighborはcenterMagnitude扱いにして、壁境界そのものを人工的な|omega|勾配にしない。
     const float3 confinementForce =
         gFluid.vorticityStrength * cross(normal, omega);
     float3 velocity =
         gVelocityRead.Load(int4(cell, 0)).xyz + confinementForce * gFluid.deltaTime;
 
-    if (dispatchThreadId.x == 0 || dispatchThreadId.x + 1 >= gFluid.gridWidth)
+    if (blockedLeft || blockedRight)
     {
         velocity.x = 0.0f;
     }
-    if (dispatchThreadId.y == 0 || dispatchThreadId.y + 1 >= gFluid.gridHeight)
+    if (blockedBottom || blockedTop)
     {
         velocity.y = 0.0f;
     }
-    if (dispatchThreadId.z == 0 || dispatchThreadId.z + 1 >= gFluid.gridDepth)
+    if (blockedBack || blockedFront)
     {
         velocity.z = 0.0f;
     }

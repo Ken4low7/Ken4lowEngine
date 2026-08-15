@@ -38,6 +38,7 @@ Texture3D<float4> gVelocityRead : register(t0);
 Texture3D<float> gDensityRead : register(t1);
 Texture3D<float> gTemperatureRead : register(t2);
 StructuredBuffer<GpuVolumetricFluidEmitterGpuData> gEmitters : register(t3);
+Texture3D<uint> gObstacle : register(t4);
 
 RWTexture3D<float4> gVelocityWrite : register(u0);
 RWTexture3D<float> gDensityWrite : register(u1);
@@ -50,6 +51,15 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         dispatchThreadId.y >= gFluid.gridHeight ||
         dispatchThreadId.z >= gFluid.gridDepth)
     {
+        return;
+    }
+
+    if (gObstacle.Load(int4(dispatchThreadId, 0)) != 0u)
+    {
+        // Collider内部にSource/古いScalarを蓄積せず、Collider移動時の煙の噴き出しを防ぐ。
+        gVelocityWrite[dispatchThreadId] = 0.0f;
+        gDensityWrite[dispatchThreadId] = 0.0f;
+        gTemperatureWrite[dispatchThreadId] = 0.0f;
         return;
     }
 
@@ -72,7 +82,6 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
             max(emitter.falloffExponent, 0.0001f));
         const float sourceDelta = gFluid.deltaTime * falloff;
 
-        // 1回のVolume DispatchでVelocity/Density/Temperatureを同じ球状Falloffから注入する。
         velocity += float3(emitter.velocityX, emitter.velocityY, emitter.velocityZ) *
             (emitter.velocityStrength * sourceDelta);
         density += emitter.densityRate * sourceDelta;

@@ -113,15 +113,15 @@ bool GpuVolumetricFluidPressureProjectionPass::Dispatch(
 
 bool GpuVolumetricFluidPressureProjectionPass::CreateRootSignature()
 {
-	D3D12_ROOT_PARAMETER rootParameters[4]{};
+	D3D12_ROOT_PARAMETER rootParameters[5]{};
 
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
 	rootParameters[0].Descriptor.RegisterSpace = 0;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	D3D12_DESCRIPTOR_RANGE srvRanges[2]{};
-	for (uint32_t index = 0; index < 2; ++index)
+	D3D12_DESCRIPTOR_RANGE srvRanges[3]{};
+	for (uint32_t index = 0; index < 3; ++index)
 	{
 		srvRanges[index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 		srvRanges[index].NumDescriptors = 1;
@@ -142,12 +142,12 @@ bool GpuVolumetricFluidPressureProjectionPass::CreateRootSignature()
 	uavRange.RegisterSpace = 0;
 	uavRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
-	rootParameters[3].DescriptorTable.pDescriptorRanges = &uavRange;
-	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[4].DescriptorTable.NumDescriptorRanges = 1;
+	rootParameters[4].DescriptorTable.pDescriptorRanges = &uavRange;
+	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	// 17.7でObstacle SRVを追加しやすいよう、17.4はb0/t0/t1/u0だけの共有Root契約に固定する。
+	// Divergence/Jacobi/Projectionでt2の3D Obstacle Maskまで共有し、Solid境界契約を一箇所へ揃える。
 	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
 	rootSignatureDesc.NumParameters = _countof(rootParameters);
 	rootSignatureDesc.pParameters = rootParameters;
@@ -261,39 +261,33 @@ bool GpuVolumetricFluidPressureProjectionPass::DispatchDivergence(
 {
 	GpuVolumetricFluidTexture3D& velocity = grid.GetVelocity().Read();
 	GpuVolumetricFluidTexture3D& divergence = grid.GetDivergence();
-	if (!velocity.IsValid() || !divergence.IsValid())
+	GpuVolumetricFluidTexture3D& obstacle = grid.GetObstacle();
+	if (!velocity.IsValid() || !divergence.IsValid() || !obstacle.IsValid())
 	{
 		return false;
 	}
 
 	GpuVolumetricFluidGridResource::Transition(
-		commandList,
-		velocity,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		commandList, velocity, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuVolumetricFluidGridResource::Transition(
-		commandList,
-		divergence,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuVolumetricFluidGridResource::Transition(
+		commandList, divergence, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	UAVManager* descriptors = UAVManager::GetInstance();
-	const D3D12_GPU_DESCRIPTOR_HANDLE velocitySrv =
-		descriptors->GetGPUDescriptorHandle(velocity.computeSrvIndex);
-
+	const auto velocitySrv = descriptors->GetGPUDescriptorHandle(velocity.computeSrvIndex);
 	commandList->SetComputeRootSignature(rootSignature_.Get());
 	commandList->SetPipelineState(divergencePipelineState_.Get());
 	commandList->SetComputeRootConstantBufferView(0, constantBufferAddress);
 	commandList->SetComputeRootDescriptorTable(1, velocitySrv);
-	commandList->SetComputeRootDescriptorTable(2, velocitySrv); // Shared Rootの未使用t1を有効Descriptorで埋める。
-	commandList->SetComputeRootDescriptorTable(
-		3,
-		descriptors->GetGPUDescriptorHandle(divergence.uavIndex));
+	commandList->SetComputeRootDescriptorTable(2, velocitySrv); // Divergenceではt1未使用なので有効SRVで埋める。
+	commandList->SetComputeRootDescriptorTable(3, descriptors->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(4, descriptors->GetGPUDescriptorHandle(divergence.uavIndex));
 	DispatchGrid(commandList, grid.GetGridDesc());
 
 	GpuVolumetricFluidGridResource::InsertUavBarrier(commandList, divergence.resource.Get());
 	GpuVolumetricFluidGridResource::Transition(
-		commandList,
-		divergence,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		commandList, divergence, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	++dispatchCount_;
 	return true;
 }
@@ -310,24 +304,24 @@ bool GpuVolumetricFluidPressureProjectionPass::DispatchPressureJacobi(
 	}
 
 	GpuVolumetricFluidTexture3D& divergence = grid.GetDivergence();
+	GpuVolumetricFluidTexture3D& obstacle = grid.GetObstacle();
 	GpuVolumetricFluidPingPongField& pressure = grid.GetPressure();
-	if (!divergence.IsValid())
+	if (!divergence.IsValid() || !obstacle.IsValid())
 	{
 		return false;
 	}
 
 	GpuVolumetricFluidGridResource::Transition(
-		commandList,
-		divergence,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		commandList, divergence, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuVolumetricFluidGridResource::Transition(
+		commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 	UAVManager* descriptors = UAVManager::GetInstance();
 	commandList->SetComputeRootSignature(rootSignature_.Get());
 	commandList->SetPipelineState(pressureJacobiPipelineState_.Get());
 	commandList->SetComputeRootConstantBufferView(0, constantBufferAddress);
-	commandList->SetComputeRootDescriptorTable(
-		1,
-		descriptors->GetGPUDescriptorHandle(divergence.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(1, descriptors->GetGPUDescriptorHandle(divergence.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(3, descriptors->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
 
 	for (uint32_t iteration = 0; iteration < iterationCount; ++iteration)
 	{
@@ -339,26 +333,16 @@ bool GpuVolumetricFluidPressureProjectionPass::DispatchPressureJacobi(
 		}
 
 		GpuVolumetricFluidGridResource::Transition(
-			commandList,
-			read,
-			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			commandList, read, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		GpuVolumetricFluidGridResource::Transition(
-			commandList,
-			write,
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		commandList->SetComputeRootDescriptorTable(
-			2,
-			descriptors->GetGPUDescriptorHandle(read.computeSrvIndex));
-		commandList->SetComputeRootDescriptorTable(
-			3,
-			descriptors->GetGPUDescriptorHandle(write.uavIndex));
+			commandList, write, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		commandList->SetComputeRootDescriptorTable(2, descriptors->GetGPUDescriptorHandle(read.computeSrvIndex));
+		commandList->SetComputeRootDescriptorTable(4, descriptors->GetGPUDescriptorHandle(write.uavIndex));
 		DispatchGrid(commandList, grid.GetGridDesc());
 
 		GpuVolumetricFluidGridResource::InsertUavBarrier(commandList, write.resource.Get());
 		GpuVolumetricFluidGridResource::Transition(
-			commandList,
-			write,
-			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			commandList, write, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		pressure.Swap();
 		++dispatchCount_;
 	}
@@ -375,44 +359,34 @@ bool GpuVolumetricFluidPressureProjectionPass::DispatchProjection(
 	GpuVolumetricFluidTexture3D& velocityRead = velocity.Read();
 	GpuVolumetricFluidTexture3D& velocityWrite = velocity.Write();
 	GpuVolumetricFluidTexture3D& pressure = grid.GetPressure().Read();
-	if (!velocityRead.IsValid() || !velocityWrite.IsValid() || !pressure.IsValid())
+	GpuVolumetricFluidTexture3D& obstacle = grid.GetObstacle();
+	if (!velocityRead.IsValid() || !velocityWrite.IsValid() || !pressure.IsValid() || !obstacle.IsValid())
 	{
 		return false;
 	}
 
 	GpuVolumetricFluidGridResource::Transition(
-		commandList,
-		velocityRead,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		commandList, velocityRead, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuVolumetricFluidGridResource::Transition(
-		commandList,
-		pressure,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		commandList, pressure, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuVolumetricFluidGridResource::Transition(
-		commandList,
-		velocityWrite,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuVolumetricFluidGridResource::Transition(
+		commandList, velocityWrite, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	UAVManager* descriptors = UAVManager::GetInstance();
 	commandList->SetComputeRootSignature(rootSignature_.Get());
 	commandList->SetPipelineState(projectionPipelineState_.Get());
 	commandList->SetComputeRootConstantBufferView(0, constantBufferAddress);
-	commandList->SetComputeRootDescriptorTable(
-		1,
-		descriptors->GetGPUDescriptorHandle(velocityRead.computeSrvIndex));
-	commandList->SetComputeRootDescriptorTable(
-		2,
-		descriptors->GetGPUDescriptorHandle(pressure.computeSrvIndex));
-	commandList->SetComputeRootDescriptorTable(
-		3,
-		descriptors->GetGPUDescriptorHandle(velocityWrite.uavIndex));
+	commandList->SetComputeRootDescriptorTable(1, descriptors->GetGPUDescriptorHandle(velocityRead.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(2, descriptors->GetGPUDescriptorHandle(pressure.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(3, descriptors->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(4, descriptors->GetGPUDescriptorHandle(velocityWrite.uavIndex));
 	DispatchGrid(commandList, grid.GetGridDesc());
 
 	GpuVolumetricFluidGridResource::InsertUavBarrier(commandList, velocityWrite.resource.Get());
 	GpuVolumetricFluidGridResource::Transition(
-		commandList,
-		velocityWrite,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		commandList, velocityWrite, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	velocity.Swap();
 	++dispatchCount_;
 	return true;

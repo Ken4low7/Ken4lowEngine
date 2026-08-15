@@ -8,6 +8,7 @@ cbuffer FluidSimulationCB : register(b0)
 Texture3D<float4> gVelocityRead : register(t0);
 Texture3D<float> gDensityRead : register(t1);
 Texture3D<float> gTemperatureRead : register(t2);
+Texture3D<uint> gObstacle : register(t3);
 RWTexture3D<float4> gVelocityWrite : register(u0);
 
 [numthreads(8, 8, 4)]
@@ -21,6 +22,12 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     const int3 cell = int3(dispatchThreadId);
+    if (gObstacle.Load(int4(cell, 0)) != 0u)
+    {
+        gVelocityWrite[dispatchThreadId] = 0.0f;
+        return;
+    }
+
     const float density = gDensityRead.Load(int4(cell, 0));
     const float temperature = gTemperatureRead.Load(int4(cell, 0));
     float3 velocity = gVelocityRead.Load(int4(cell, 0)).xyz;
@@ -30,16 +37,30 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         gFluid.smokeWeight * density;
     velocity.y += buoyancyForce * gFluid.deltaTime;
 
-    // Force適用中も閉じたVolume外周を破らないよう、各面の法線速度だけ0へ戻す。
-    if (dispatchThreadId.x == 0 || dispatchThreadId.x + 1 >= gFluid.gridWidth)
+    bool blockedLeft = cell.x <= 0;
+    bool blockedRight = cell.x + 1 >= int(gFluid.gridWidth);
+    bool blockedBottom = cell.y <= 0;
+    bool blockedTop = cell.y + 1 >= int(gFluid.gridHeight);
+    bool blockedBack = cell.z <= 0;
+    bool blockedFront = cell.z + 1 >= int(gFluid.gridDepth);
+
+    if (!blockedLeft) blockedLeft = gObstacle.Load(int4(cell + int3(-1, 0, 0), 0)) != 0u;
+    if (!blockedRight) blockedRight = gObstacle.Load(int4(cell + int3(1, 0, 0), 0)) != 0u;
+    if (!blockedBottom) blockedBottom = gObstacle.Load(int4(cell + int3(0, -1, 0), 0)) != 0u;
+    if (!blockedTop) blockedTop = gObstacle.Load(int4(cell + int3(0, 1, 0), 0)) != 0u;
+    if (!blockedBack) blockedBack = gObstacle.Load(int4(cell + int3(0, 0, -1), 0)) != 0u;
+    if (!blockedFront) blockedFront = gObstacle.Load(int4(cell + int3(0, 0, 1), 0)) != 0u;
+
+    // Buoyancy適用中もSolid/Domain境界を横切る法線速度だけを0へ戻す。
+    if (blockedLeft || blockedRight)
     {
         velocity.x = 0.0f;
     }
-    if (dispatchThreadId.y == 0 || dispatchThreadId.y + 1 >= gFluid.gridHeight)
+    if (blockedBottom || blockedTop)
     {
         velocity.y = 0.0f;
     }
-    if (dispatchThreadId.z == 0 || dispatchThreadId.z + 1 >= gFluid.gridDepth)
+    if (blockedBack || blockedFront)
     {
         velocity.z = 0.0f;
     }

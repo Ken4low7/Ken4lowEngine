@@ -4,15 +4,15 @@ Phase 17 extends the Phase 16 2D Eulerian solver into a true 3D volume while kee
 
 ## Design direction
 
-- Keep Phase 16 `GpuFluid*` untouched and introduce the 3D path as `GpuVolumetricFluid*`.
+- Keep Phase 16 `GpuFluid*` available and introduce the 3D path as `GpuVolumetricFluid*`.
 - Use native D3D12 `Texture3D` resources.
 - Reuse the existing graphics SRV heap and compute SRV/UAV heap.
-- Keep CPU/HLSL simulation constants explicitly mirrored.
+- Keep CPU/HLSL data layouts explicitly mirrored.
 - Start at 64x64x64 because volumetric cost grows cubically.
 - Preserve ping-pong ownership and explicit resource-state transitions from Phase 16.
-- Clear all fields deterministically before compute passes read them.
 - Keep world/domain mapping independent from Scene Components.
-- Keep Phase17 compute shaders in a dedicated manifest so 2D and 3D shader IDs remain independent.
+- Keep Phase17 compute shaders in a dedicated manifest.
+- Treat the `R8_UINT` obstacle Texture3D as a solver boundary contract, not only a visualization field.
 
 ## Roadmap
 
@@ -22,7 +22,7 @@ Phase 17 extends the Phase 16 2D Eulerian solver into a true 3D volume while kee
 - [x] 17.4 3D Divergence / Pressure / Projection
 - [x] 17.5 3D Density / Temperature / Vorticity / Buoyancy
 - [x] 17.6 3D Emitter injection
-- [ ] 17.7 Volumetric Collider / Obstacle raster
+- [x] 17.7 Volumetric Collider / Obstacle raster
 - [ ] 17.8 Volume Raymarch Rendering
 - [ ] 17.9 Depth-aware composition / lighting
 - [ ] 17.10 Editor / Diagnostics / Stress Test
@@ -31,7 +31,7 @@ Phase 17 extends the Phase 16 2D Eulerian solver into a true 3D volume while kee
 
 `GpuVolumetricFluidGridDesc` defaults to 64x64x64 with `cellSize = 0.25f`. Each axis is capped at 256 voxels because doubling all three dimensions multiplies voxel count by eight.
 
-`GpuVolumetricFluidDomainMapping` defines an oriented volume using `origin`, `axisU`, `axisV`, and `axisW`. `WorldToGrid`, `GridToWorld`, and `WorldVelocityToFluid` are shared by later emitters, obstacles, and rendering.
+`GpuVolumetricFluidDomainMapping` defines an oriented volume using `origin`, `axisU`, `axisV`, and `axisW`. `WorldToGrid`, `GridToWorld`, and `WorldVelocityToFluid` are shared by emitters, obstacles, and rendering.
 
 `GpuVolumetricFluidSimulationConstants` is 80 bytes and mirrored by `GpuVolumetricFluidCommon.hlsli`.
 
@@ -65,11 +65,11 @@ Total logical storage is 39 bytes per voxel. A 64^3 volume is about 9.75 MiB and
 
 `x_back = x - dt * velocity(x)`
 
-The shader uses `Texture3D<float4>`, linear clamp filtering, and `numthreads(8, 8, 4)`. Texture3D linear filtering supplies trilinear eight-voxel interpolation.
+The shader uses `Texture3D<float4>`, linear clamp filtering, and `numthreads(8, 8, 4)`.
 
-The pass transitions read/write states, dispatches XYZ, inserts a UAV barrier, transitions the write generation back to compute-readable state, and only then swaps velocity generations.
+After 17.7 the pass also samples the obstacle Texture3D. Solid destination voxels are forced to zero. If the backtrace source lands inside a solid voxel, the sample position falls back to the current voxel rather than pulling velocity through the wall.
 
-Obstacle handling remains deferred to 17.7.
+The pass still inserts a UAV barrier and returns the write resource to compute-readable state before swapping velocity generations.
 
 ## 17.4 3D Divergence / Pressure / Projection
 
@@ -85,7 +85,7 @@ The six-neighbor centered difference is:
 
 `div(u) = 0.5 / h * ((uR.x-uL.x) + (uT.y-uB.y) + (uF.z-uBack.z))`
 
-Velocity outside the six volume faces is treated as zero.
+Domain-outside neighbors and solid neighbors are both treated as zero velocity. Solid destination voxels write zero divergence.
 
 ### Pressure Jacobi
 
@@ -93,24 +93,19 @@ The 3D Poisson iteration uses six neighbors:
 
 `p_new = (pL + pR + pB + pT + pBack + pFront - div * h^2) / 6`
 
-Missing pressure neighbors use center pressure, giving a simple Neumann outer boundary.
+Missing domain neighbors and solid neighbors use the center pressure. This gives the outer volume and internal colliders the same simple Neumann pressure-boundary behavior. Solid destination voxels write zero pressure.
 
 ### Projection
 
-Projection subtracts the XYZ pressure gradient. Each outer face then zeros only its normal velocity component, allowing tangential wall flow while preventing volume escape.
+Projection subtracts the XYZ pressure gradient. For each axis, either a domain edge or a solid neighbor marks that face as blocked. The projected velocity then zeros only the blocked axis normal component, preserving tangential flow along collider surfaces.
 
 ## 17.5 3D Density / Temperature / Vorticity / Buoyancy
 
 ### Scalar advection
 
-`GpuVolumetricFluidScalarAdvectionPass` transports Density and Temperature with the same semi-Lagrangian Texture3D backtrace used by velocity.
+`GpuVolumetricFluidScalarAdvectionPass` transports Density and Temperature with the same semi-Lagrangian Texture3D backtrace used by velocity. `DispatchAll` shares one simulation constant upload between both scalar dispatches.
 
-One PSO is shared by both scalar fields. A `b1` root-constant block selects the field-specific dissipation value:
-
-- Density -> `densityDissipation`
-- Temperature -> `temperatureDissipation`
-
-`DispatchAll` shares one `GpuVolumetricFluidSimulationConstants` upload between both scalar dispatches. Each scalar field inserts a UAV barrier and transitions back to compute-readable state before its ping-pong swap.
+After 17.7, solid destination voxels write zero scalar and a backtrace source inside a solid falls back to the current voxel.
 
 ### 3D curl vector
 
@@ -118,21 +113,19 @@ One PSO is shared by both scalar fields. A `b1` root-constant block selects the 
 
 `curl(u) = (dw/dy - dv/dz, du/dz - dw/dx, dv/dx - du/dy)`
 
-The derivative uses the six axis-aligned velocity neighbors and centered differences. Missing velocity neighbors outside the closed volume are treated as zero. The reserved W channel remains zero.
+Solid and domain-outside velocity neighbors are treated as zero. Solid destination voxels write zero vorticity.
 
 ### Vorticity confinement
 
-`GpuVolumetricFluidVorticityConfinement.CS.hlsl` computes the gradient of curl magnitude:
+`GpuVolumetricFluidVorticityConfinement.CS.hlsl` computes:
 
 `N = normalize(grad(|omega|))`
-
-and feeds small-scale rotational energy back into velocity:
 
 `F_vort = vorticityStrength * cross(N, omega)`
 
 `velocity += F_vort * dt`
 
-Missing magnitude neighbors at the outer volume faces use the center magnitude, avoiding an artificial `|omega|` gradient through the boundary. After force application, the six outer faces zero only their normal velocity components.
+For the `|omega|` gradient, solid and outside neighbors use the center magnitude. This avoids turning the collider boundary itself into an artificial curl-magnitude gradient. Blocked faces also zero their normal velocity component after force application.
 
 ### Buoyancy
 
@@ -142,122 +135,133 @@ Buoyancy follows the Phase16 sign convention:
 
 `velocity.y += F_y * dt`
 
+Solid destination voxels write zero velocity, and solid/domain boundary faces preserve the no-normal-flow contract.
+
 ### Force pass ordering
 
 `GpuVolumetricFluidForcePass::DispatchAll` records:
 
 `Curl -> Vorticity Confinement -> Buoyancy`
 
-Force application can introduce divergence, so the future runtime manager must execute another Pressure Projection after the force stage.
+Force application can introduce divergence, so the eventual runtime manager must execute another Pressure Projection after the force stage.
 
 ## 17.6 3D Emitter injection
 
 `GpuVolumetricFluidEmitterInjectionPass` adds world-space spherical sources to Velocity, Density, and Temperature in one full-volume dispatch.
 
-### Source contract
+`GpuVolumetricFluidEmitterSource` stores world position, world velocity, radius, velocity strength, density rate, temperature rate, falloff exponent, and enabled state. `BuildGpuVolumetricFluidEmitterGpuData` converts world center and velocity through `GpuVolumetricFluidDomainMapping`.
 
-`GpuVolumetricFluidEmitterSource` stores renderer-independent Scene values:
+`GpuVolumetricFluidEmitterGpuData` is 64 bytes and mirrored by HLSL. A spherical source completely outside any of the six volume sides is rejected before upload. One dispatch accepts at most 256 sources to bound the per-voxel source loop.
 
-- world position
-- world velocity
-- world radius
-- velocity strength
-- density rate
-- temperature rate
-- falloff exponent
-- enabled state
+Velocity, Density, and Temperature read their current ping-pong generation and write the opposite generation in one `numthreads(8, 8, 4)` dispatch. All three UAV barriers complete before any field swaps.
 
-`BuildGpuVolumetricFluidEmitterGpuData` converts the source through `GpuVolumetricFluidDomainMapping`:
+After 17.7 the injection shader also consumes the obstacle mask. Solid voxels write zero Velocity, Density, and Temperature instead of accumulating source data. This prevents hidden smoke inside a collider from appearing when that collider moves away.
 
-- `WorldToGrid` converts center XYZ into voxel coordinates.
-- Radius converts from world units into voxel units with `radius / cellSize`.
-- `WorldVelocityToFluid` projects world velocity onto the domain U/V/W axes.
+The existing `FluidEmitterComponent` remains shared by 2D and 3D fluid through `BuildEmitterSource()` and `BuildVolumetricEmitterSource()`.
 
-A spherical source completely outside any of the six volume sides is rejected before upload.
+## 17.7 Volumetric Collider / Obstacle raster
 
-### GPU source layout
+### Obstacle source contract
 
-`GpuVolumetricFluidEmitterGpuData` is 64 bytes and mirrored by the HLSL StructuredBuffer element. It contains center XYZ, radius, fluid-space velocity XYZ, velocity strength, density/temperature rates, falloff exponent, and inverse radius.
+`GpuVolumetricFluidObstacleSource` supports:
 
-The injection shader evaluates spherical distance from each voxel center:
+- Sphere
+- AABB represented as an axis-aligned Box
+- OBB represented as an oriented Box
 
-`falloff = pow(saturate(1 - distance / radius), falloffExponent)`
+The GPU StructuredBuffer element is `GpuVolumetricFluidObstacleGpuData`, fixed at 96 bytes. Sphere data uses center/radius. Box data uses center, half extents, and normalized world-space X/Y/Z axes.
 
-and applies:
+Capsule and Segment remain intentionally unsupported until the Physics collider layer exposes the primitive data required for stable rasterization.
 
-`velocity += sourceVelocity * velocityStrength * dt * falloff`
+### Physics adapter
 
-`density += densityRate * dt * falloff`
+`GpuVolumetricFluidColliderObstacleAdapter` scans active `ColliderComponent` instances that are enabled for Physics collision and converts Sphere/AABB/OBB primitives into renderer-independent obstacle sources.
 
-`temperature += temperatureRate * dt * falloff`
+It is separate from the Phase16 adapter so the 2D and 3D data contracts can evolve independently while both use the same Physics collider primitives.
 
-### Batched upload and safety bound
+### CPU culling and safety bound
 
-Active GPU source data is copied into the shared `FrameUploadArena` and bound as a root `StructuredBuffer` SRV. The pass records one `numthreads(8, 8, 4)` XYZ dispatch for all accepted sources.
+Before upload, invalid sources and obstacles whose conservative bounding sphere is completely outside the volume are removed. For OBBs the half-extents vector length is used as a conservative bounding-sphere radius, avoiding false-negative domain culling.
 
-One dispatch accepts at most 256 sources. Disabled, invalid, completely out-of-volume, and over-limit sources contribute to `lastCulledSourceCount`. `lastInjectedSourceCount` reports how many sources were actually uploaded.
+One raster dispatch accepts at most 256 obstacles. `lastObstacleCount` reports uploaded obstacles and `lastCulledObstacleCount` reports invalid, out-of-volume, or over-limit sources.
 
-The 256-source cap bounds the per-voxel source loop so accidental Editor source counts cannot grow compute cost without limit.
+### Texture3D raster
 
-### Three-field generation contract
+`GpuVolumetricFluidObstacleRasterPass` writes the existing `R8_UINT` obstacle Texture3D with one `numthreads(8, 8, 4)` dispatch.
 
-Velocity, Density, and Temperature each read their current ping-pong generation and write the opposite generation in the same dispatch. After dispatch, all three write resources receive UAV barriers and return to compute-readable state before any of the three ping-pong fields swap.
+`GpuVolumetricFluidObstacleRasterConstants` is 64 bytes and supplies:
 
-Obstacle masking remains intentionally deferred to 17.7. This keeps source injection testable independently before solid voxels are introduced into every solver stage.
+- world-space domain origin
+- normalized U/V/W axes
+- cell size
+- obstacle count
 
-### Scene Component reuse
+Each voxel center is converted to world space:
 
-The existing `FluidEmitterComponent` now exposes both:
+`P = origin + U*x*cellSize + V*y*cellSize + W*z*cellSize`
 
-- `BuildEmitterSource()` for Phase16 2D fluid
-- `BuildVolumetricEmitterSource()` for Phase17 3D fluid
+The shader then tests the world point against all uploaded Sphere/Box shapes. This keeps rotated OBBs and rotated fluid domains in the same world-space containment contract.
 
-Both are built from the same serialized Scene settings. Existing Scene assets therefore do not need a separate 3D emitter component or duplicate JSON configuration.
+When obstacles are present, every voxel is explicitly rewritten to 0 or 1 each dispatch. When there are no active obstacles, the mask is cleared with `ClearUnorderedAccessViewUint`. Moving or deleted colliders therefore cannot leave stale solid voxels.
 
-### Current intended solver order
+### Solver-wide obstacle contract
 
-Once 17.7 provides obstacles, one fixed simulation step is intended to become:
+17.7 connects the mask to every simulation stage currently implemented:
+
+- Velocity Advection: solid destination zero, backtrace cannot pull through solid.
+- Scalar Advection: solid destination zero, backtrace cannot pull through solid.
+- Divergence: solid/outside neighbors contribute zero velocity.
+- Pressure Jacobi: solid/outside neighbors use center pressure.
+- Projection: solid destination zero and blocked-face normal velocity zero.
+- Curl: solid/outside neighbors contribute zero velocity.
+- Vorticity Confinement: solid/outside magnitude neighbors use center magnitude and blocked normals are zeroed.
+- Buoyancy: solid destination zero and blocked normals are zeroed.
+- Emitter Injection: solid voxels clear Velocity/Density/Temperature and receive no source injection.
+
+### Intended fixed-step order
+
+Once the runtime manager is added, the intended solver sequence is:
 
 `Obstacle -> Emitter -> Velocity Advection -> Projection -> Scalar Advection -> Curl/Vorticity/Buoyancy -> Projection`
 
+The obstacle mask must be rasterized first so all later stages in that fixed step see current Physics transforms.
+
 ## Build integration
 
-`Project/Directory.Build.props` registers all Phase17 resource/pass/data/manifest/HLSL files only for the main `Ken4lowEngine` project.
+`Project/Directory.Build.props` registers all current Phase17 data/pass/adapter/manifest/HLSL files only for the main `Ken4lowEngine` project.
 
 ## Validation
 
 `Project/Tests/Phase17` statically checks the current 3D foundation, including:
 
-- Texture3D descriptor helpers
-- grid/domain and constant-buffer contracts
+- Texture3D descriptor and grid contracts
 - deterministic reset
-- 3D velocity and scalar advection
-- six-neighbor divergence and pressure solve
-- vector Curl and vorticity confinement
-- Density/Temperature buoyancy feedback
-- 64-byte CPU/HLSL emitter layout
-- World-to-Grid XYZ emitter mapping
-- out-of-volume source culling and 256-source bound
-- StructuredBuffer upload through `FrameUploadArena`
-- one XYZ dispatch updating Velocity/Density/Temperature
-- UAV barriers before all three emitter ping-pong swaps
-- shared 2D/3D `FluidEmitterComponent` Scene settings
+- 3D velocity/scalar advection
+- six-neighbor pressure solve
+- vector Curl / confinement / buoyancy
+- 3D emitter upload and injection
+- 96-byte obstacle GPU layout and 64-byte raster constants
+- Sphere/AABB/OBB Physics adapter mapping
+- conservative obstacle domain culling and 256-obstacle cap
+- Texture3D world-space obstacle raster
+- zero-mask clear when all colliders disappear
+- obstacle SRV binding in all implemented solver stages
+- internal Neumann pressure boundary and zero normal velocity
 - shader manifest and build registration
 
 A real Windows / Visual Studio / DXC / GPU build is still required after repository integration.
 
-## Next implementation target — 17.7
+## Next implementation target — 17.8
 
-Implement **Volumetric Collider / Obstacle raster**.
+Implement **Volume Raymarch Rendering**.
 
 The next stage should add:
 
-- 3D obstacle source data for Sphere / AABB / OBB colliders
-- conservative CPU domain culling before upload
-- one `R8_UINT` Texture3D obstacle-mask raster dispatch
-- solid-voxel behavior in velocity/scalar advection
-- obstacle-aware divergence and six-neighbor pressure solve
-- zero normal velocity against internal solid faces
-- source injection suppression inside solid voxels
-- Curl / Vorticity / Buoyancy obstacle handling
-- a Collider adapter that reuses the existing Physics `ColliderComponent`
+- a world-space oriented volume box render contract
+- camera-ray / oriented-box intersection
+- Density/Temperature Texture3D sampling along the ray
+- front-to-back transmittance accumulation
+- configurable absorption, emission, step count, and early exit
+- a transparent Forward Queue packet or dedicated volume bucket without a vertex buffer
+- current active render-view camera resolution at draw execution so reflection views remain correct
+- optional Obstacle debug visualization without coupling the renderer to Physics

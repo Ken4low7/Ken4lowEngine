@@ -100,7 +100,7 @@ bool GpuVolumetricFluidScalarAdvectionPass::DispatchAll(
 
 	UAVManager::GetInstance()->PreDispatch();
 
-	// Density/Temperatureは同じVelocityとSimulation CBを共有し、1 Step内のUploadを1回にまとめる。
+	// Density/TemperatureはVelocity/Obstacle/Simulation CBを共有し、1 Step内のUploadを1回にまとめる。
 	return DispatchInternal(
 		commandList, grid, simulationDesc, GpuVolumetricFluidField::Density, allocation.gpuAddress) &&
 		DispatchInternal(
@@ -142,7 +142,8 @@ bool GpuVolumetricFluidScalarAdvectionPass::DispatchInternal(
 	GpuVolumetricFluidTexture3D& velocity = grid.GetVelocity().Read();
 	GpuVolumetricFluidTexture3D& scalarRead = scalarField->Read();
 	GpuVolumetricFluidTexture3D& scalarWrite = scalarField->Write();
-	if (!velocity.IsValid() || !scalarRead.IsValid() || !scalarWrite.IsValid())
+	GpuVolumetricFluidTexture3D& obstacle = grid.GetObstacle();
+	if (!velocity.IsValid() || !scalarRead.IsValid() || !scalarWrite.IsValid() || !obstacle.IsValid())
 	{
 		return false;
 	}
@@ -151,6 +152,8 @@ bool GpuVolumetricFluidScalarAdvectionPass::DispatchInternal(
 		commandList, velocity, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuVolumetricFluidGridResource::Transition(
 		commandList, scalarRead, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuVolumetricFluidGridResource::Transition(
+		commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuVolumetricFluidGridResource::Transition(
 		commandList, scalarWrite, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -173,6 +176,8 @@ bool GpuVolumetricFluidScalarAdvectionPass::DispatchInternal(
 		0.0f
 	};
 	commandList->SetComputeRoot32BitConstants(4, 4, scalarConstants, 0);
+	commandList->SetComputeRootDescriptorTable(
+		5, descriptors->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
 	DispatchGrid(commandList, grid.GetGridDesc());
 
 	GpuVolumetricFluidGridResource::InsertUavBarrier(commandList, scalarWrite.resource.Get());
@@ -224,7 +229,7 @@ float GpuVolumetricFluidScalarAdvectionPass::ResolveDissipation(
 
 bool GpuVolumetricFluidScalarAdvectionPass::CreateRootSignature()
 {
-	D3D12_ROOT_PARAMETER rootParameters[5]{};
+	D3D12_ROOT_PARAMETER rootParameters[6]{};
 
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
@@ -261,6 +266,17 @@ bool GpuVolumetricFluidScalarAdvectionPass::CreateRootSignature()
 	rootParameters[4].Constants.RegisterSpace = 0;
 	rootParameters[4].Constants.Num32BitValues = 4;
 	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_DESCRIPTOR_RANGE obstacleSrvRange{};
+	obstacleSrvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	obstacleSrvRange.NumDescriptors = 1;
+	obstacleSrvRange.BaseShaderRegister = 2;
+	obstacleSrvRange.RegisterSpace = 0;
+	obstacleSrvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	rootParameters[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[5].DescriptorTable.NumDescriptorRanges = 1;
+	rootParameters[5].DescriptorTable.pDescriptorRanges = &obstacleSrvRange;
+	rootParameters[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_STATIC_SAMPLER_DESC sampler{};
 	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;

@@ -13,6 +13,7 @@ cbuffer ScalarAdvectionCB : register(b1)
 
 Texture3D<float4> gVelocityRead : register(t0);
 Texture3D<float> gScalarRead : register(t1);
+Texture3D<uint> gObstacle : register(t2);
 RWTexture3D<float> gScalarWrite : register(u0);
 SamplerState gLinearClampSampler : register(s0);
 
@@ -27,6 +28,12 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     const uint3 cell = dispatchThreadId;
+    if (gObstacle.Load(int4(cell, 0)) != 0u)
+    {
+        gScalarWrite[cell] = 0.0f;
+        return;
+    }
+
     const float3 uvw = GpuVolumetricFluidCellToUvw(cell, gFluid);
     const float3 velocity =
         gVelocityRead.SampleLevel(gLinearClampSampler, uvw, 0.0f).xyz;
@@ -36,11 +43,18 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         gFluid.invGridDepth);
     const float3 backtraceUvwOffset =
         velocity * gFluid.deltaTime * gFluid.invCellSize * inverseGridSize;
-    const float3 sourceUvw = GpuVolumetricFluidClampUvwToCellCenters(
+    float3 sourceUvw = GpuVolumetricFluidClampUvwToCellCenters(
         uvw - backtraceUvwOffset,
         gFluid);
 
-    // Density/TemperatureもVelocityと同じ3D逆追跡を使い、Scalarだけ個別Dissipationを適用する。
+    const uint3 sourceCell = min(
+        uint3(sourceUvw * float3(gFluid.gridWidth, gFluid.gridHeight, gFluid.gridDepth)),
+        uint3(gFluid.gridWidth - 1u, gFluid.gridHeight - 1u, gFluid.gridDepth - 1u));
+    if (gObstacle.Load(int4(sourceCell, 0)) != 0u)
+    {
+        sourceUvw = uvw; // Density/TemperatureをSolidの向こう側から直接引き込まない。
+    }
+
     const float advectedScalar =
         gScalarRead.SampleLevel(gLinearClampSampler, sourceUvw, 0.0f);
     gScalarWrite[cell] = advectedScalar * gScalarDissipation;

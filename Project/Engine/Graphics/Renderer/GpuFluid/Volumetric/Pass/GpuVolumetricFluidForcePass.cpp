@@ -138,7 +138,7 @@ bool GpuVolumetricFluidForcePass::DispatchAll(
 
 	UAVManager::GetInstance()->PreDispatch();
 
-	// 3D Curl→Confinement→Buoyancyを同じSimulation CBで連結し、Force適用後の再ProjectionはRuntime側へ任せる。
+	// Curl→Confinement→Buoyancyを同じObstacle-aware Root契約で連結し、再ProjectionはRuntime側へ任せる。
 	return DispatchCurl(commandList, grid, allocation.gpuAddress) &&
 		DispatchVorticityConfinement(commandList, grid, allocation.gpuAddress) &&
 		DispatchBuoyancyInternal(commandList, grid, allocation.gpuAddress);
@@ -165,7 +165,7 @@ bool GpuVolumetricFluidForcePass::ValidateDispatchContext(
 
 bool GpuVolumetricFluidForcePass::CreateRootSignature()
 {
-	D3D12_ROOT_PARAMETER rootParameters[5]{};
+	D3D12_ROOT_PARAMETER rootParameters[6]{};
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
 	rootParameters[0].Descriptor.RegisterSpace = 0;
@@ -195,6 +195,17 @@ bool GpuVolumetricFluidForcePass::CreateRootSignature()
 	rootParameters[4].DescriptorTable.NumDescriptorRanges = 1;
 	rootParameters[4].DescriptorTable.pDescriptorRanges = &uavRange;
 	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_DESCRIPTOR_RANGE obstacleSrvRange{};
+	obstacleSrvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	obstacleSrvRange.NumDescriptors = 1;
+	obstacleSrvRange.BaseShaderRegister = 3;
+	obstacleSrvRange.RegisterSpace = 0;
+	obstacleSrvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	rootParameters[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[5].DescriptorTable.NumDescriptorRanges = 1;
+	rootParameters[5].DescriptorTable.pDescriptorRanges = &obstacleSrvRange;
+	rootParameters[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC desc{};
 	desc.NumParameters = _countof(rootParameters);
@@ -262,13 +273,16 @@ bool GpuVolumetricFluidForcePass::DispatchCurl(
 {
 	GpuVolumetricFluidTexture3D& velocity = grid.GetVelocity().Read();
 	GpuVolumetricFluidTexture3D& vorticity = grid.GetVorticity();
-	if (!velocity.IsValid() || !vorticity.IsValid())
+	GpuVolumetricFluidTexture3D& obstacle = grid.GetObstacle();
+	if (!velocity.IsValid() || !vorticity.IsValid() || !obstacle.IsValid())
 	{
 		return false;
 	}
 
 	GpuVolumetricFluidGridResource::Transition(
 		commandList, velocity, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuVolumetricFluidGridResource::Transition(
+		commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuVolumetricFluidGridResource::Transition(
 		commandList, vorticity, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -281,6 +295,7 @@ bool GpuVolumetricFluidForcePass::DispatchCurl(
 	commandList->SetComputeRootDescriptorTable(2, velocitySrv);
 	commandList->SetComputeRootDescriptorTable(3, velocitySrv);
 	commandList->SetComputeRootDescriptorTable(4, descriptors->GetGPUDescriptorHandle(vorticity.uavIndex));
+	commandList->SetComputeRootDescriptorTable(5, descriptors->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
 	DispatchGrid(commandList, grid.GetGridDesc());
 
 	GpuVolumetricFluidGridResource::InsertUavBarrier(commandList, vorticity.resource.Get());
@@ -299,7 +314,8 @@ bool GpuVolumetricFluidForcePass::DispatchVorticityConfinement(
 	GpuVolumetricFluidTexture3D& read = velocity.Read();
 	GpuVolumetricFluidTexture3D& write = velocity.Write();
 	GpuVolumetricFluidTexture3D& vorticity = grid.GetVorticity();
-	if (!read.IsValid() || !write.IsValid() || !vorticity.IsValid())
+	GpuVolumetricFluidTexture3D& obstacle = grid.GetObstacle();
+	if (!read.IsValid() || !write.IsValid() || !vorticity.IsValid() || !obstacle.IsValid())
 	{
 		return false;
 	}
@@ -308,6 +324,8 @@ bool GpuVolumetricFluidForcePass::DispatchVorticityConfinement(
 		commandList, read, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuVolumetricFluidGridResource::Transition(
 		commandList, vorticity, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuVolumetricFluidGridResource::Transition(
+		commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuVolumetricFluidGridResource::Transition(
 		commandList, write, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -320,6 +338,7 @@ bool GpuVolumetricFluidForcePass::DispatchVorticityConfinement(
 	commandList->SetComputeRootDescriptorTable(2, vorticitySrv);
 	commandList->SetComputeRootDescriptorTable(3, vorticitySrv);
 	commandList->SetComputeRootDescriptorTable(4, descriptors->GetGPUDescriptorHandle(write.uavIndex));
+	commandList->SetComputeRootDescriptorTable(5, descriptors->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
 	DispatchGrid(commandList, grid.GetGridDesc());
 
 	GpuVolumetricFluidGridResource::InsertUavBarrier(commandList, write.resource.Get());
@@ -340,7 +359,8 @@ bool GpuVolumetricFluidForcePass::DispatchBuoyancyInternal(
 	GpuVolumetricFluidTexture3D& write = velocity.Write();
 	GpuVolumetricFluidTexture3D& density = grid.GetDensity().Read();
 	GpuVolumetricFluidTexture3D& temperature = grid.GetTemperature().Read();
-	if (!read.IsValid() || !write.IsValid() || !density.IsValid() || !temperature.IsValid())
+	GpuVolumetricFluidTexture3D& obstacle = grid.GetObstacle();
+	if (!read.IsValid() || !write.IsValid() || !density.IsValid() || !temperature.IsValid() || !obstacle.IsValid())
 	{
 		return false;
 	}
@@ -352,6 +372,8 @@ bool GpuVolumetricFluidForcePass::DispatchBuoyancyInternal(
 	GpuVolumetricFluidGridResource::Transition(
 		commandList, temperature, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuVolumetricFluidGridResource::Transition(
+		commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuVolumetricFluidGridResource::Transition(
 		commandList, write, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	UAVManager* descriptors = UAVManager::GetInstance();
@@ -362,6 +384,7 @@ bool GpuVolumetricFluidForcePass::DispatchBuoyancyInternal(
 	commandList->SetComputeRootDescriptorTable(2, descriptors->GetGPUDescriptorHandle(density.computeSrvIndex));
 	commandList->SetComputeRootDescriptorTable(3, descriptors->GetGPUDescriptorHandle(temperature.computeSrvIndex));
 	commandList->SetComputeRootDescriptorTable(4, descriptors->GetGPUDescriptorHandle(write.uavIndex));
+	commandList->SetComputeRootDescriptorTable(5, descriptors->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
 	DispatchGrid(commandList, grid.GetGridDesc());
 
 	GpuVolumetricFluidGridResource::InsertUavBarrier(commandList, write.resource.Get());

@@ -82,13 +82,16 @@ bool GpuVolumetricFluidVelocityAdvectionPass::Dispatch(
 	GpuVolumetricFluidPingPongField& velocity = grid.GetVelocity();
 	GpuVolumetricFluidTexture3D& read = velocity.Read();
 	GpuVolumetricFluidTexture3D& write = velocity.Write();
-	if (!read.IsValid() || !write.IsValid())
+	GpuVolumetricFluidTexture3D& obstacle = grid.GetObstacle();
+	if (!read.IsValid() || !write.IsValid() || !obstacle.IsValid())
 	{
 		return false;
 	}
 
 	GpuVolumetricFluidGridResource::Transition(
 		commandList, read, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuVolumetricFluidGridResource::Transition(
+		commandList, obstacle, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	GpuVolumetricFluidGridResource::Transition(
 		commandList, write, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -101,14 +104,16 @@ bool GpuVolumetricFluidVelocityAdvectionPass::Dispatch(
 	commandList->SetComputeRootDescriptorTable(
 		1, descriptorManager->GetGPUDescriptorHandle(read.computeSrvIndex));
 	commandList->SetComputeRootDescriptorTable(
-		2, descriptorManager->GetGPUDescriptorHandle(write.uavIndex));
+		2, descriptorManager->GetGPUDescriptorHandle(obstacle.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(
+		3, descriptorManager->GetGPUDescriptorHandle(write.uavIndex));
 
 	const uint32_t groupCountX = (gridDesc.width + kThreadGroupSizeX - 1u) / kThreadGroupSizeX;
 	const uint32_t groupCountY = (gridDesc.height + kThreadGroupSizeY - 1u) / kThreadGroupSizeY;
 	const uint32_t groupCountZ = (gridDesc.depth + kThreadGroupSizeZ - 1u) / kThreadGroupSizeZ;
 	commandList->Dispatch(groupCountX, groupCountY, groupCountZ);
 
-	// 3DでもPhase16と同じ世代契約を維持し、UAV書込み完了をBarrierで確定してからRead側を切り替える。
+	// Solid voxelを跨ぐ逆追跡はShader側で止め、Barrier完了後だけ速度世代を切り替える。
 	GpuVolumetricFluidGridResource::InsertUavBarrier(commandList, write.resource.Get());
 	GpuVolumetricFluidGridResource::Transition(
 		commandList, write, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -120,23 +125,26 @@ bool GpuVolumetricFluidVelocityAdvectionPass::Dispatch(
 
 bool GpuVolumetricFluidVelocityAdvectionPass::CreateRootSignature()
 {
-	D3D12_ROOT_PARAMETER rootParameters[3]{};
+	D3D12_ROOT_PARAMETER rootParameters[4]{};
 
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
 	rootParameters[0].Descriptor.RegisterSpace = 0;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	D3D12_DESCRIPTOR_RANGE srvRange{};
-	srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	srvRange.NumDescriptors = 1;
-	srvRange.BaseShaderRegister = 0;
-	srvRange.RegisterSpace = 0;
-	srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
-	rootParameters[1].DescriptorTable.pDescriptorRanges = &srvRange;
-	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	D3D12_DESCRIPTOR_RANGE srvRanges[2]{};
+	for (uint32_t i = 0; i < 2; ++i)
+	{
+		srvRanges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		srvRanges[i].NumDescriptors = 1;
+		srvRanges[i].BaseShaderRegister = i;
+		srvRanges[i].RegisterSpace = 0;
+		srvRanges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		rootParameters[i + 1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParameters[i + 1].DescriptorTable.NumDescriptorRanges = 1;
+		rootParameters[i + 1].DescriptorTable.pDescriptorRanges = &srvRanges[i];
+		rootParameters[i + 1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	}
 
 	D3D12_DESCRIPTOR_RANGE uavRange{};
 	uavRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
@@ -144,10 +152,10 @@ bool GpuVolumetricFluidVelocityAdvectionPass::CreateRootSignature()
 	uavRange.BaseShaderRegister = 0;
 	uavRange.RegisterSpace = 0;
 	uavRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-	rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
-	rootParameters[2].DescriptorTable.pDescriptorRanges = &uavRange;
-	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
+	rootParameters[3].DescriptorTable.pDescriptorRanges = &uavRange;
+	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_STATIC_SAMPLER_DESC sampler{};
 	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;

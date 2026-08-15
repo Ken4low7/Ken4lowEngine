@@ -41,13 +41,14 @@ def test_velocity_advection_dispatches_xyz_and_swaps_after_uav_barrier():
     assert "++dispatchCount_" in source
 
 
-def test_velocity_advection_root_contract_is_cbv_srv_uav_with_linear_clamp_sampler():
+def test_velocity_advection_root_contract_is_cbv_two_srvs_uav_with_linear_clamp_sampler():
     source = read(
         "Engine/Graphics/Renderer/GpuFluid/Volumetric/Pass/"
         "GpuVolumetricFluidVelocityAdvectionPass.cpp"
     )
 
-    assert "D3D12_ROOT_PARAMETER rootParameters[3]" in source
+    assert "D3D12_ROOT_PARAMETER rootParameters[4]" in source
+    assert "D3D12_DESCRIPTOR_RANGE srvRanges[2]" in source
     assert "D3D12_ROOT_PARAMETER_TYPE_CBV" in source
     assert "D3D12_DESCRIPTOR_RANGE_TYPE_SRV" in source
     assert "D3D12_DESCRIPTOR_RANGE_TYPE_UAV" in source
@@ -56,6 +57,8 @@ def test_velocity_advection_root_contract_is_cbv_srv_uav_with_linear_clamp_sampl
     assert "sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP" in source
     assert "sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP" in source
     assert "read.computeSrvIndex" in source
+    assert "grid.GetObstacle()" in source
+    assert "obstacle.computeSrvIndex" in source
     assert "write.uavIndex" in source
 
 
@@ -66,6 +69,7 @@ def test_velocity_shader_uses_texture3d_semi_lagrangian_trilinear_sampling():
     )
 
     assert "Texture3D<float4> gVelocityRead : register(t0)" in shader
+    assert "Texture3D<uint> gObstacle : register(t1)" in shader
     assert "RWTexture3D<float4> gVelocityWrite : register(u0)" in shader
     assert "SamplerState gLinearClampSampler : register(s0)" in shader
     assert "[numthreads(8, 8, 4)]" in shader
@@ -74,6 +78,7 @@ def test_velocity_shader_uses_texture3d_semi_lagrangian_trilinear_sampling():
     assert "currentVelocity * gFluid.deltaTime * gFluid.invCellSize" in shader
     assert "GpuVolumetricFluidClampUvwToCellCenters" in shader
     assert "SampleLevel(gLinearClampSampler, sourceUvw, 0.0f)" in shader
+    assert "sourceUvw = uvw" in shader
     assert "advectedVelocity * gFluid.velocityDissipation" in shader
     assert "float4(" in shader
 

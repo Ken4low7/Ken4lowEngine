@@ -63,11 +63,13 @@ def test_pressure_projection_root_contract_and_pingpong_barriers():
         "GpuVolumetricFluidPressureProjectionPass.cpp"
     )
 
-    assert "D3D12_ROOT_PARAMETER rootParameters[4]" in source
+    assert "D3D12_ROOT_PARAMETER rootParameters[5]" in source
     assert "D3D12_ROOT_PARAMETER_TYPE_CBV" in source
-    assert "D3D12_DESCRIPTOR_RANGE srvRanges[2]" in source
+    assert "D3D12_DESCRIPTOR_RANGE srvRanges[3]" in source
     assert "D3D12_DESCRIPTOR_RANGE_TYPE_SRV" in source
     assert "D3D12_DESCRIPTOR_RANGE_TYPE_UAV" in source
+    assert "grid.GetObstacle()" in source
+    assert "obstacle.computeSrvIndex" in source
     assert "divergence.computeSrvIndex" in source
     assert "read.computeSrvIndex" in source
     assert "pressure.computeSrvIndex" in source
@@ -78,12 +80,13 @@ def test_pressure_projection_root_contract_and_pingpong_barriers():
     assert "lastPressureIterationCount_ = simulationDesc.pressureIterations" in source
 
 
-def test_3d_divergence_uses_six_velocity_neighbors_and_zero_outside_domain():
+def test_3d_divergence_uses_six_velocity_neighbors_and_zero_solid_or_outside_domain():
     shader = read(
         "Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidDivergence.CS.hlsl"
     )
 
     assert "Texture3D<float4> gVelocity : register(t0)" in shader
+    assert "Texture3D<uint> gObstacle : register(t2)" in shader
     assert "RWTexture3D<float> gDivergence : register(u0)" in shader
     assert "[numthreads(8, 8, 4)]" in shader
     for name in [
@@ -91,19 +94,22 @@ def test_3d_divergence_uses_six_velocity_neighbors_and_zero_outside_domain():
         "velocityTop", "velocityBack", "velocityFront",
     ]:
         assert name in shader
+    assert "gDivergence[dispatchThreadId] = 0.0f" in shader
+    assert "gObstacle.Load(int4(leftCell, 0)) == 0u" in shader
     assert "velocityRight.x - velocityLeft.x" in shader
     assert "velocityTop.y - velocityBottom.y" in shader
     assert "velocityFront.z - velocityBack.z" in shader
     assert "0.5f * gFluid.invCellSize" in shader
 
 
-def test_3d_jacobi_uses_six_neighbor_poisson_stencil_and_neumann_outer_boundary():
+def test_3d_jacobi_uses_six_neighbor_poisson_stencil_and_neumann_solid_boundary():
     shader = read(
         "Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidPressureJacobi.CS.hlsl"
     )
 
     assert "Texture3D<float> gDivergence : register(t0)" in shader
     assert "Texture3D<float> gPressureRead : register(t1)" in shader
+    assert "Texture3D<uint> gObstacle : register(t2)" in shader
     assert "RWTexture3D<float> gPressureWrite : register(u0)" in shader
     assert "const float centerPressure" in shader
     for name in [
@@ -112,26 +118,34 @@ def test_3d_jacobi_uses_six_neighbor_poisson_stencil_and_neumann_outer_boundary(
         "pressureBack = centerPressure", "pressureFront = centerPressure",
     ]:
         assert name in shader
+    assert "gPressureWrite[dispatchThreadId] = 0.0f" in shader
+    assert "gObstacle.Load(int4(leftCell, 0)) == 0u" in shader
     assert "divergence * cellSizeSquared" in shader
     assert "/ 6.0f" in shader
 
 
-def test_3d_projection_subtracts_xyz_pressure_gradient_and_closes_six_domain_faces():
+def test_3d_projection_subtracts_xyz_pressure_gradient_and_closes_solid_faces():
     shader = read(
         "Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidProjection.CS.hlsl"
     )
 
     assert "Texture3D<float4> gVelocityRead : register(t0)" in shader
     assert "Texture3D<float> gPressure : register(t1)" in shader
+    assert "Texture3D<uint> gObstacle : register(t2)" in shader
     assert "RWTexture3D<float4> gVelocityWrite : register(u0)" in shader
     assert "const float3 pressureGradient" in shader
     assert "pressureRight - pressureLeft" in shader
     assert "pressureTop - pressureBottom" in shader
     assert "pressureFront - pressureBack" in shader
+    assert "blockedLeft" in shader
+    assert "blockedRight" in shader
+    assert "blockedBottom" in shader
+    assert "blockedTop" in shader
+    assert "blockedBack" in shader
+    assert "blockedFront" in shader
     assert "projectedVelocity.x = 0.0f" in shader
     assert "projectedVelocity.y = 0.0f" in shader
     assert "projectedVelocity.z = 0.0f" in shader
-    assert "dispatchThreadId.z + 1 >= gFluid.gridDepth" in shader
     assert "float4(projectedVelocity, 0.0f)" in shader
 
 
