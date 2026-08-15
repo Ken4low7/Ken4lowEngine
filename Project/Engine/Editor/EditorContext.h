@@ -23,6 +23,7 @@ namespace Ken4lowEngine
 		DirectionalLight,
 		PointLight,
 		SpotLight,
+		ReflectionProbe,
 		TriggerBox,
 		TriggerSphere,
 	};
