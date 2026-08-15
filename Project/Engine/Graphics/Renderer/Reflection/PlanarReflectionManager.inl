@@ -553,15 +553,16 @@ namespace Ken4lowEngine
 		if (isCapturing_) return binding;
 		const SurfaceRuntime* surface = FindSurface(owner);
 		if (!surface || !surface->owner || !surface->desc.enabled || !surface->captured || !surface->target) return binding;
-		if (surface->target->srvIndex == UINT32_MAX) return binding;
+		if (surface->target->srvIndex == UINT32_MAX || !surface->target->color) return binding;
 		binding.srvIndex = surface->target->srvIndex;
 		binding.texture = SRVManager::GetInstance()->GetGPUDescriptorHandle(binding.srvIndex);
+		binding.resource = surface->target->color.Get();
 		binding.reflectedViewProjection = surface->capturedViewProjection;
 		binding.planePosition = surface->desc.position;
 		binding.planeNormal = surface->desc.normal;
 		binding.surfaceTolerance = surface->desc.surfaceTolerance;
 		binding.strength = surface->desc.strength;
-		binding.valid = binding.texture.ptr != 0;
+		binding.valid = binding.texture.ptr != 0 && binding.resource != nullptr;
 		return binding;
 	}
 
@@ -624,25 +625,35 @@ namespace Ken4lowEngine
 			srvManager->AllocateTransient(kMaxPlanarReflectionSurfacesPerDraw);
 		if (!allocation.IsValid()) return false;
 
-		const uint32_t fallbackSrvIndex = drawSet.surfaces[0].srvIndex;
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		srvDesc.Texture2D.MipLevels = 1;
+		srvDesc.Texture2D.PlaneSlice = 0;
+		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+		const PlanarReflectionBinding& fallbackBinding = drawSet.surfaces[0];
 		const uint32_t descriptorSize = srvManager->GetDescriptorSize();
 		for (uint32_t index = 0; index < kMaxPlanarReflectionSurfacesPerDraw; ++index)
 		{
-			const uint32_t sourceSrvIndex =
-				index < drawSet.count && drawSet.surfaces[index].srvIndex != UINT32_MAX
-				? drawSet.surfaces[index].srvIndex
-				: fallbackSrvIndex;
+			const PlanarReflectionBinding& sourceBinding =
+				index < drawSet.count && drawSet.surfaces[index].resource
+				? drawSet.surfaces[index]
+				: fallbackBinding;
+			if (!sourceBinding.resource) return false;
+
 			D3D12_CPU_DESCRIPTOR_HANDLE destination = allocation.cpuHandle;
 			destination.ptr += static_cast<SIZE_T>(descriptorSize) * index;
-			dxCommon_->GetDevice()->CopyDescriptorsSimple(
-				1,
-				destination,
-				srvManager->GetCPUDescriptorHandle(sourceSrvIndex),
-				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			dxCommon_->GetDevice()->CreateShaderResourceView(
+				sourceBinding.resource,
+				&srvDesc,
+				destination); // Shader Visible heapをコピー元にせず、Transient枠へSRVを再生成してD3D12のCopy制約を守る。
 		}
 
 		commandList->SetGraphicsRootDescriptorTable(rootParameterIndex, allocation.gpuHandle);
-		return true; // 永続SRVをFrame Transientの連続6枠へ複製し、t12～t17を1 Tableで束縛する。
+		return true;
 	}
 
 	inline PlanarReflectionDiagnostics PlanarReflectionManager::GetDiagnostics(const void* owner) const
