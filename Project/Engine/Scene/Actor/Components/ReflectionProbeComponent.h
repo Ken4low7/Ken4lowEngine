@@ -54,3 +54,5 @@ namespace Ken4lowEngine
 		bool debugBoundsVisible_ = true;
 	};
 } // namespace Ken4lowEngine
+
+#include "ReflectionProbeComponent.inl"
