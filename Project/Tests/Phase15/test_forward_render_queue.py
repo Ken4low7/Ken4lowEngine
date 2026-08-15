@@ -74,6 +74,7 @@ class ForwardRenderQueueFoundationTests(unittest.TestCase):
 
     def test_forward_queue_owns_stable_submit_sort_execute_lifecycle(self) -> None:
         self.assertIn("struct ForwardRenderItem", self.forward_queue)
+        self.assertIn("MakeForwardRenderItem", self.forward_queue)
         self.assertIn("class ForwardRenderQueue", self.forward_queue)
         self.assertIn("void BeginFrame()", self.forward_queue)
         self.assertIn("bool Submit(ForwardRenderItem item)", self.forward_queue)
@@ -107,14 +108,14 @@ class ForwardRenderQueueFoundationTests(unittest.TestCase):
         self.assertIn("SubmitForwardTransparent", self.model_component_h)
         self.assertIn("SubmitForwardAdditive", self.model_component_h)
         self.assertIn("SubmitForwardBucket", self.model_component_h)
-        self.assertIn("object3D_->IsAlphaBlendEnabled()", self.model_component_cpp)
+        self.assertNotIn("object3D_->IsAlphaBlendEnabled()", self.model_component_cpp)
         self.assertIn("object3D_->GetBlendMode() != expectedBlendMode", self.model_component_cpp)
         self.assertIn("MaterialBlendMode::Opaque", self.model_component_cpp)
         self.assertIn("MaterialBlendMode::Masked", self.model_component_cpp)
         self.assertIn("MaterialBlendMode::Transparent", self.model_component_cpp)
         self.assertIn("MaterialBlendMode::Additive", self.model_component_cpp)
-        self.assertIn("item.policy = ResolveForwardRenderPolicy(expectedBlendMode)", self.model_component_cpp)
-        self.assertIn("item.sortDepth = CalculateForwardSortDepth", self.model_component_cpp)
+        self.assertIn("MakeForwardRenderItem", self.model_component_cpp)
+        self.assertIn("CalculateForwardSortDepth(*object3D_)", self.model_component_cpp)
         self.assertIn("lastForwardQueueSerial_ = queue.GetFrameSerial()", self.model_component_cpp)
 
     def test_queued_model_is_owned_by_forward_queue_for_the_entire_frame(self) -> None:
