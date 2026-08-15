@@ -10,6 +10,7 @@
 #include "CameraManager.h"
 #include "LightManager.h"
 #include "Frustum.h"
+#include "Engine/Graphics/Renderer/Environment/EnvironmentMapManager.h"
 
 #include <algorithm>
 #include <cmath>
@@ -58,8 +59,7 @@ namespace Ken4lowEngine
 		materialTextureSlots_.Reset();
 		RestoreModelMaterials(); // Binding未指定時は共有Modelが読み込んだMaterial Textureを使用する。
 
-		TextureManager::GetInstance()->LoadTexture("SkyBox/skybox.dds");
-		environmentMapHandle_ = TextureManager::GetInstance()->GetSrvHandleGPU("SkyBox/skybox.dds");
+		EnvironmentMapManager::GetInstance()->GetEnvironmentMapHandle(); // InstancedもScene共通Cubemapを使用する。
 		TextureManager::GetInstance()->LoadTexture("Effects/Masks/noise.dds");
 		dissolveMaskHandle_ = TextureManager::GetInstance()->GetSrvHandleGPU("Effects/Masks/noise.dds");
 
@@ -401,7 +401,8 @@ namespace Ken4lowEngine
 		material_.SetPipeline(0);
 		commandList->SetGraphicsRootConstantBufferView(1, perViewAllocation.gpuAddress);
 		commandList->SetGraphicsRootConstantBufferView(3, cameraAllocation.gpuAddress);
-		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 4, environmentMapHandle_);
+		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 4,
+			EnvironmentMapManager::GetInstance()->GetEnvironmentMapHandle()); // Instancedも現在SceneのEnvironmentをDraw時に参照する。
 		commandList->SetGraphicsRootConstantBufferView(7, dissolveAllocation.gpuAddress);
 		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 8, dissolveMaskHandle_);
 		commandList->SetGraphicsRootConstantBufferView(9, shadowParameterAllocation.gpuAddress);
