@@ -252,8 +252,8 @@ PixelShaderOutput main(VertexShaderOutput input)
             float reflectionMipLevel = saturate(gMaterial.roughness) * maxMipLevel;
             float3 environmentColor = gEnvironmentTexture.SampleLevel(gLinearSampler, reflectionDir, reflectionMipLevel).rgb;
             float fresnel = ComputeFresnelSchlick(saturate(dot(normal, viewDir)), 0.02f);
-            float envBlend = saturate(reflectionRate * (0.12f + fresnel * 0.03f));
-            shadedColor = lerp(shadedColor, environmentColor, envBlend);
+            float envBlend = saturate(reflectionRate + fresnel * reflectionRate * (1.0f - reflectionRate));
+            shadedColor = lerp(shadedColor, environmentColor, envBlend); // 反射率1.0は鏡面確認に使える強さまで反映する。
         }
         shadedColor += gMaterial.emissiveFactor.rgb; // 既定値ゼロを維持し、明示されたBoss予兆などだけLegacy描画でも発光させる。
     }
