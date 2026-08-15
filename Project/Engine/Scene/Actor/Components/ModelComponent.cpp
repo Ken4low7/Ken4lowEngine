@@ -105,28 +105,13 @@ namespace Ken4lowEngine
 			return false;
 		}
 
-		const ForwardRenderPolicy policy = ResolveForwardRenderPolicy(expectedBlendMode);
 		ForwardRenderItem item{};
 		item.payload = object3D_.get();
-		if (policy.bucket == ForwardRenderBucket::Transparent)
+		item.draw = [](void* payload)
 		{
-			item.draw = [](void* payload)
-			{
-				Object3D* object3D = static_cast<Object3D*>(payload);
-				const bool previousAlphaBlend = object3D->IsAlphaBlendEnabled();
-				object3D->SetAlphaBlendEnabled(true); // Transparent Queueだけ既存のAlpha PSOを使い、Legacy設定は描画後に必ず戻す。
-				object3D->Draw();
-				object3D->SetAlphaBlendEnabled(previousAlphaBlend);
-			};
-		}
-		else
-		{
-			item.draw = [](void* payload)
-			{
-				static_cast<Object3D*>(payload)->Draw();
-			};
-		}
-		item.policy = policy;
+			static_cast<Object3D*>(payload)->Draw(); // Blend PSOはObject3DがMaterialBlendModeから選ぶためQueue側は描画呼び出しだけを所有する。
+		};
+		item.policy = ResolveForwardRenderPolicy(expectedBlendMode);
 		item.sortDepth = CalculateForwardSortDepth(*object3D_);
 		if (!queue.Submit(item))
 		{
@@ -152,6 +137,11 @@ namespace Ken4lowEngine
 		return SubmitForwardBucket(queue, MaterialBlendMode::Transparent);
 	}
 
+	bool ModelComponent::SubmitForwardAdditive(ForwardRenderQueue& queue)
+	{
+		return SubmitForwardBucket(queue, MaterialBlendMode::Additive);
+	}
+
 	void ModelComponent::Draw()
 	{
 		if (visible_ && object3D_)
@@ -162,7 +152,7 @@ namespace Ken4lowEngine
 				queue->GetFrameSerial() == lastForwardQueueSerial_;
 			if (alreadySubmittedToForwardQueue)
 			{
-				return; // TransparentをActor::Drawより後で実行できるよう、Queue所有中は直接Drawしない。
+				return; // 透明系Bucketを後段実行できるよう、Queue所有中は直接Drawしない。
 			}
 			object3D_->Draw();
 		}
