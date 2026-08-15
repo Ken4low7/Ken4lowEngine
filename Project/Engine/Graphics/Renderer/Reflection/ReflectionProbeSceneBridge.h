@@ -1,8 +1,10 @@
 #pragma once
 
 #include "ReflectionProbeManager.h"
+#include "PlanarReflectionSceneBridge.h"
 #include "ActorWorld.h"
 #include "ModelComponent.h"
+#include "PlanarReflectionComponent.h"
 #include "ReflectionProbeComponent.h"
 
 #ifdef USE_IMGUI
@@ -13,7 +15,7 @@
 
 namespace Ken4lowEngine
 {
-	/// <summary>ActorWorldをReflection Probeの登録/Captureへ接続する薄いBridgeです。</summary>
+	/// <summary>ActorWorldをReflection Capture群の登録/Captureへ接続するBridgeです。</summary>
 	class ReflectionProbeSceneBridge
 	{
 	public:
@@ -36,29 +38,41 @@ namespace Ken4lowEngine
 		{
 			SyncProbes(actorWorld);
 			actorWorld.PrepareRenderState(); // Probe内のDirect Lightingも現在SceneのLightComponent値を使う。
-			return ReflectionProbeManager::GetInstance()->CapturePending(
+			const bool probeCaptured = ReflectionProbeManager::GetInstance()->CapturePending(
 				[&actorWorld]()
 				{
 					DrawStaticScene(actorWorld);
 				});
+			const bool planarCaptured = PlanarReflectionSceneBridge::CapturePending(actorWorld); // Main SceneTargetをBindする前の既存Reflection hookをPlanarにも共有する。
+			return probeCaptured || planarCaptured;
 		}
 
 		static void DrawStaticScene(ActorWorld& actorWorld)
 		{
 			for (const auto& actor : actorWorld.GetActors())
 			{
-				if (!CanUseActor(actor.get())) continue;
+				if (!CanUseActor(actor.get()) || HasActivePlanarSurface(actor.get())) continue;
 				for (ModelComponent* model : actor->GetComponents<ModelComponent>())
 				{
 					if (model)
 					{
-						model->DrawReflectionCapture(); // v1は静的Opaque/MaskedだけをCaptureし、透明/Particleは二重描画しない。
+						model->DrawReflectionCapture(); // v1は静的Opaque/MaskedだけをCaptureし、透明/Particle/鏡面は再帰させない。
 					}
 				}
 			}
 		}
 
 	private:
+		static bool HasActivePlanarSurface(Actor* actor)
+		{
+			if (!actor) return false;
+			for (PlanarReflectionComponent* planar : actor->GetComponents<PlanarReflectionComponent>())
+			{
+				if (planar && planar->IsActiveInHierarchy() && planar->IsEnabled()) return true;
+			}
+			return false;
+		}
+
 		static bool CanUseActor(const Actor* actor)
 		{
 			if (!actor || actor->IsPendingDestroy() || !actor->IsActive()) return false;
