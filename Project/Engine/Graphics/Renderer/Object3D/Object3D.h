@@ -119,7 +119,7 @@ namespace Ken4lowEngine
 			if (!model_) return false;
 			const Vector3 direction = Vector3::NormalizeSafe(worldDirection, { 0.0f, 1.0f, 0.0f });
 			const Matrix4x4& world = worldTransform_.GetWorldMatrix();
-			float bestProjection = -std::numeric_limits<float>::max();
+			float bestProjection = std::numeric_limits<float>::lowest();
 			bool found = false;
 			for (const SubMesh& subMesh : model_->GetModelData().subMeshes)
 			{
