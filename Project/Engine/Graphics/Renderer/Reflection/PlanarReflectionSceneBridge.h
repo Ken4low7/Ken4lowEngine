@@ -28,7 +28,6 @@ namespace Ken4lowEngine
 					{
 						planar->SyncToManager(); // Editor Gizmoで鏡面を移動/回転した直後のPlaneをCaptureへ反映する。
 					}
-				}
 			}
 		}
 
@@ -45,6 +44,9 @@ namespace Ken4lowEngine
 
 		static void DrawScene(ActorWorld& actorWorld, const Actor* excludedReceiver)
 		{
+			const PlanarReflectionComponent* receiverSurface =
+				excludedReceiver ? excludedReceiver->GetComponent<PlanarReflectionComponent>() : nullptr;
+
 			for (const auto& actor : actorWorld.GetActors())
 			{
 				Actor* sceneActor = actor.get();
@@ -56,15 +58,24 @@ namespace Ken4lowEngine
 
 				for (ModelComponent* model : sceneActor->GetComponents<ModelComponent>())
 				{
-					if (model)
-					{
-						model->DrawReflectionCapture(); // まずStatic Opaque/Maskedを正確な反射Cameraから再描画する。
-					}
+					if (!model || IsFullyBehindMirrorPlane(*model, receiverSurface)) continue;
+					model->DrawReflectionCapture(); // 鏡の表側にあるOpaque/Maskedだけを反射Cameraから再描画する。
 				}
 			}
 		}
 
 	private:
+		static bool IsFullyBehindMirrorPlane(
+			const ModelComponent& model,
+			const PlanarReflectionComponent* receiverSurface)
+		{
+			if (!receiverSurface || !model.HasReflectionCaptureBounds()) return false;
+			const BoundingSphere bounds = model.GetReflectionCaptureBounds();
+			const Vector3 planeNormal = receiverSurface->GetPlaneNormal();
+			const float signedDistance = Vector3::Dot(bounds.center - receiverSurface->GetWorldPosition(), planeNormal);
+			return signedDistance + bounds.radius < -0.001f; // 完全に鏡の裏側へ入った床/壁だけを簡易Clipし、鏡像を塞がないようにする。
+		}
+
 		static bool HasActivePlanarSurface(Actor* actor)
 		{
 			if (!actor) return false;
