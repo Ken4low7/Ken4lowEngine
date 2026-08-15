@@ -30,17 +30,25 @@ float2 GpuFluidCellToUv(uint2 cell, GpuFluidSimulationConstants fluid)
 	return (float2(cell) + 0.5f) * float2(fluid.invGridWidth, fluid.invGridHeight);
 }
 
-// Clamp samplerだけに境界処理を任せず、常にセル中心範囲からサンプリングする。
-float2 GpuFluidClampUvToCellCenters(float2 uv, GpuFluidSimulationConstants fluid)
-{
-	const float2 halfTexel = 0.5f * float2(fluid.invGridWidth, fluid.invGridHeight);
-	return clamp(uv, halfTexel, 1.0f - halfTexel);
-}
-
 bool GpuFluidIsInsideGrid(int2 cell, GpuFluidSimulationConstants fluid)
 {
 	return cell.x >= 0 && cell.y >= 0 &&
 		cell.x < int(fluid.gridWidth) && cell.y < int(fluid.gridHeight);
+}
+
+// 境界外参照を端セルへ畳み、Pressure solveではNeumann境界として扱えるようにする。
+int2 GpuFluidClampCell(int2 cell, GpuFluidSimulationConstants fluid)
+{
+	return clamp(
+		cell,
+		int2(0, 0),
+		int2(int(fluid.gridWidth) - 1, int(fluid.gridHeight) - 1));
+}
+
+float2 GpuFluidClampUvToCellCenters(float2 uv, GpuFluidSimulationConstants fluid)
+{
+	const float2 halfTexel = 0.5f * float2(fluid.invGridWidth, fluid.invGridHeight);
+	return clamp(uv, halfTexel, 1.0f - halfTexel);
 }
 
 #endif // KEN4LOW_GPU_FLUID_COMMON_HLSLI

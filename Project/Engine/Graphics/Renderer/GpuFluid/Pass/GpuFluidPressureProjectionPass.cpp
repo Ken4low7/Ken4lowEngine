@@ -1,0 +1,440 @@
+#include "GpuFluidPressureProjectionPass.h"
+
+#include <DirectXCommon.h>
+#include <GpuFluidShaderManifest.h>
+#include <LogString.h>
+#include <ShaderCompiler.h>
+#include <UAVManager.h>
+
+#include <string>
+
+namespace Ken4lowEngine
+{
+
+bool GpuFluidPressureProjectionPass::Initialize()
+{
+	Finalize();
+
+	dxCommon_ = DirectXCommon::GetInstance();
+	if (dxCommon_ == nullptr || dxCommon_->GetDevice() == nullptr)
+	{
+		Finalize();
+		return false;
+	}
+
+	if (!CreateRootSignature() ||
+		!CreatePipelineState(
+			GpuFluidComputeShaderId::Divergence,
+			divergencePipelineState_,
+			L"GpuFluid.Divergence.PSO") ||
+		!CreatePipelineState(
+			GpuFluidComputeShaderId::PressureJacobi,
+			pressureJacobiPipelineState_,
+			L"GpuFluid.PressureJacobi.PSO") ||
+		!CreatePipelineState(
+			GpuFluidComputeShaderId::Projection,
+			projectionPipelineState_,
+			L"GpuFluid.Projection.PSO"))
+	{
+		Finalize();
+		return false;
+	}
+
+	rootSignature_->SetName(L"GpuFluid.PressureProjection.RootSignature");
+	dispatchCount_ = 0;
+	lastPressureIterationCount_ = 0;
+	return true;
+}
+
+void GpuFluidPressureProjectionPass::Finalize()
+{
+	projectionPipelineState_.Reset();
+	pressureJacobiPipelineState_.Reset();
+	divergencePipelineState_.Reset();
+	rootSignature_.Reset();
+	dxCommon_ = nullptr;
+	dispatchCount_ = 0;
+	lastPressureIterationCount_ = 0;
+}
+
+bool GpuFluidPressureProjectionPass::Dispatch(
+	GpuFluidGridResource& grid,
+	const GpuFluidSimulationDesc& simulationDesc,
+	float deltaTime,
+	float elapsedTime)
+{
+	if (!IsInitialized() || !grid.IsInitialized() || !simulationDesc.IsValid() || deltaTime <= 0.0f)
+	{
+		return false;
+	}
+
+	const GpuFluidGridDesc& gridDesc = grid.GetGridDesc();
+	if (gridDesc.width != simulationDesc.grid.width ||
+		gridDesc.height != simulationDesc.grid.height ||
+		gridDesc.cellSize != simulationDesc.grid.cellSize)
+	{
+		return false;
+	}
+
+	ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
+	if (commandList == nullptr)
+	{
+		return false;
+	}
+
+	const GpuFluidSimulationConstants constants =
+		BuildGpuFluidSimulationConstants(simulationDesc, deltaTime, elapsedTime);
+	const FrameUploadArena::Allocation constantAllocation =
+		dxCommon_->GetFrameUploadArena().AllocateConstant(constants);
+	if (!constantAllocation.IsValid())
+	{
+		return false;
+	}
+
+	// ClearUnorderedAccessViewFloatとCompute Dispatchが同じshader-visible heapを参照するよう先に固定する。
+	UAVManager::GetInstance()->PreDispatch();
+
+	if (!ClearPressure(commandList, grid) ||
+		!DispatchDivergence(commandList, grid, constantAllocation.gpuAddress) ||
+		!DispatchPressureJacobi(
+			commandList,
+			grid,
+			constantAllocation.gpuAddress,
+			simulationDesc.pressureIterations) ||
+		!DispatchProjection(commandList, grid, constantAllocation.gpuAddress))
+	{
+		return false;
+	}
+
+	lastPressureIterationCount_ = simulationDesc.pressureIterations;
+	return true;
+}
+
+bool GpuFluidPressureProjectionPass::CreateRootSignature()
+{
+	D3D12_ROOT_PARAMETER rootParameters[4]{};
+
+	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[0].Descriptor.ShaderRegister = 0;
+	rootParameters[0].Descriptor.RegisterSpace = 0;
+	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_DESCRIPTOR_RANGE srvRange0{};
+	srvRange0.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	srvRange0.NumDescriptors = 1;
+	srvRange0.BaseShaderRegister = 0;
+	srvRange0.RegisterSpace = 0;
+	srvRange0.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
+	rootParameters[1].DescriptorTable.pDescriptorRanges = &srvRange0;
+	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_DESCRIPTOR_RANGE srvRange1{};
+	srvRange1.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	srvRange1.NumDescriptors = 1;
+	srvRange1.BaseShaderRegister = 1;
+	srvRange1.RegisterSpace = 0;
+	srvRange1.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
+	rootParameters[2].DescriptorTable.pDescriptorRanges = &srvRange1;
+	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_DESCRIPTOR_RANGE uavRange{};
+	uavRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+	uavRange.NumDescriptors = 1;
+	uavRange.BaseShaderRegister = 0;
+	uavRange.RegisterSpace = 0;
+	uavRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
+	rootParameters[3].DescriptorTable.pDescriptorRanges = &uavRange;
+	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	// Divergence/Jacobi/Projectionで同じRootSignatureを共有し、Pass切替時の契約差分を減らす。
+	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
+	rootSignatureDesc.NumParameters = _countof(rootParameters);
+	rootSignatureDesc.pParameters = rootParameters;
+	rootSignatureDesc.NumStaticSamplers = 0;
+	rootSignatureDesc.pStaticSamplers = nullptr;
+	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+
+	ComPtr<ID3DBlob> signatureBlob;
+	ComPtr<ID3DBlob> errorBlob;
+	const HRESULT serializeResult = D3D12SerializeRootSignature(
+		&rootSignatureDesc,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		&signatureBlob,
+		&errorBlob);
+	if (FAILED(serializeResult))
+	{
+		if (errorBlob)
+		{
+			Log(std::string(
+				static_cast<const char*>(errorBlob->GetBufferPointer()),
+				errorBlob->GetBufferSize()));
+		}
+		return false;
+	}
+
+	const HRESULT createResult = dxCommon_->GetDevice()->CreateRootSignature(
+		0,
+		signatureBlob->GetBufferPointer(),
+		signatureBlob->GetBufferSize(),
+		IID_PPV_ARGS(&rootSignature_));
+	return SUCCEEDED(createResult);
+}
+
+bool GpuFluidPressureProjectionPass::CreatePipelineState(
+	GpuFluidComputeShaderId shaderId,
+	ComPtr<ID3D12PipelineState>& pipelineState,
+	const wchar_t* debugName)
+{
+	const ShaderDescriptor& shaderDesc = GpuFluidShaderManifest::GetCompute(shaderId);
+	if (shaderDesc.stage != ShaderStage::Compute ||
+		shaderDesc.rootSignature != RootSignatureType::Compute)
+	{
+		return false;
+	}
+
+	ComPtr<IDxcBlob> computeShader = ShaderCompiler::CompileShader(
+		shaderDesc,
+		dxCommon_->GetDXCCompilerManager());
+	if (!computeShader)
+	{
+		return false;
+	}
+
+	D3D12_COMPUTE_PIPELINE_STATE_DESC pipelineDesc{};
+	pipelineDesc.pRootSignature = rootSignature_.Get();
+	pipelineDesc.CS =
+	{
+		computeShader->GetBufferPointer(),
+		computeShader->GetBufferSize()
+	};
+
+	const HRESULT createResult = dxCommon_->GetDevice()->CreateComputePipelineState(
+		&pipelineDesc,
+		IID_PPV_ARGS(&pipelineState));
+	if (FAILED(createResult))
+	{
+		return false;
+	}
+
+	pipelineState->SetName(debugName);
+	return true;
+}
+
+bool GpuFluidPressureProjectionPass::ClearPressure(
+	ID3D12GraphicsCommandList* commandList,
+	GpuFluidGridResource& grid)
+{
+	if (commandList == nullptr)
+	{
+		return false;
+	}
+
+	GpuFluidPingPongField& pressure = grid.GetPressure();
+	pressure.Reset();
+	UAVManager* descriptorManager = UAVManager::GetInstance();
+	constexpr float kClearValue[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	for (GpuFluidTexture2D& texture : pressure.textures)
+	{
+		if (!texture.IsValid())
+		{
+			return false;
+		}
+
+		GpuFluidGridResource::Transition(
+			commandList,
+			texture,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		commandList->ClearUnorderedAccessViewFloat(
+			descriptorManager->GetGPUDescriptorHandle(texture.uavIndex),
+			descriptorManager->GetClearCPUDescriptorHandle(texture.uavIndex),
+			texture.resource.Get(),
+			kClearValue,
+			0,
+			nullptr);
+		GpuFluidGridResource::InsertUavBarrier(commandList, texture.resource.Get());
+	}
+
+	return true;
+}
+
+bool GpuFluidPressureProjectionPass::DispatchDivergence(
+	ID3D12GraphicsCommandList* commandList,
+	GpuFluidGridResource& grid,
+	D3D12_GPU_VIRTUAL_ADDRESS constantBufferAddress)
+{
+	GpuFluidTexture2D& velocity = grid.GetVelocity().Read();
+	GpuFluidTexture2D& divergence = grid.GetDivergence();
+	if (!velocity.IsValid() || !divergence.IsValid())
+	{
+		return false;
+	}
+
+	GpuFluidGridResource::Transition(
+		commandList,
+		velocity,
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(
+		commandList,
+		divergence,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	UAVManager* descriptorManager = UAVManager::GetInstance();
+	commandList->SetComputeRootSignature(rootSignature_.Get());
+	commandList->SetPipelineState(divergencePipelineState_.Get());
+	commandList->SetComputeRootConstantBufferView(0, constantBufferAddress);
+	commandList->SetComputeRootDescriptorTable(
+		1,
+		descriptorManager->GetGPUDescriptorHandle(velocity.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(
+		3,
+		descriptorManager->GetGPUDescriptorHandle(divergence.uavIndex));
+	DispatchGrid(commandList, grid.GetGridDesc());
+
+	GpuFluidGridResource::InsertUavBarrier(commandList, divergence.resource.Get());
+	GpuFluidGridResource::Transition(
+		commandList,
+		divergence,
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	++dispatchCount_;
+	return true;
+}
+
+bool GpuFluidPressureProjectionPass::DispatchPressureJacobi(
+	ID3D12GraphicsCommandList* commandList,
+	GpuFluidGridResource& grid,
+	D3D12_GPU_VIRTUAL_ADDRESS constantBufferAddress,
+	uint32_t iterationCount)
+{
+	if (iterationCount == 0)
+	{
+		return false;
+	}
+
+	GpuFluidTexture2D& divergence = grid.GetDivergence();
+	GpuFluidPingPongField& pressure = grid.GetPressure();
+	UAVManager* descriptorManager = UAVManager::GetInstance();
+
+	GpuFluidGridResource::Transition(
+		commandList,
+		divergence,
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	commandList->SetComputeRootSignature(rootSignature_.Get());
+	commandList->SetPipelineState(pressureJacobiPipelineState_.Get());
+	commandList->SetComputeRootConstantBufferView(0, constantBufferAddress);
+	commandList->SetComputeRootDescriptorTable(
+		1,
+		descriptorManager->GetGPUDescriptorHandle(divergence.computeSrvIndex));
+
+	for (uint32_t iteration = 0; iteration < iterationCount; ++iteration)
+	{
+		GpuFluidTexture2D& read = pressure.Read();
+		GpuFluidTexture2D& write = pressure.Write();
+		if (!read.IsValid() || !write.IsValid())
+		{
+			return false;
+		}
+
+		GpuFluidGridResource::Transition(
+			commandList,
+			read,
+			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		GpuFluidGridResource::Transition(
+			commandList,
+			write,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		commandList->SetComputeRootDescriptorTable(
+			2,
+			descriptorManager->GetGPUDescriptorHandle(read.computeSrvIndex));
+		commandList->SetComputeRootDescriptorTable(
+			3,
+			descriptorManager->GetGPUDescriptorHandle(write.uavIndex));
+		DispatchGrid(commandList, grid.GetGridDesc());
+
+		// Jacobiの各反復結果を次反復のSRVから確実に読める状態へ揃えてからping-pongする。
+		GpuFluidGridResource::InsertUavBarrier(commandList, write.resource.Get());
+		GpuFluidGridResource::Transition(
+			commandList,
+			write,
+			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		pressure.Swap();
+		++dispatchCount_;
+	}
+
+	return true;
+}
+
+bool GpuFluidPressureProjectionPass::DispatchProjection(
+	ID3D12GraphicsCommandList* commandList,
+	GpuFluidGridResource& grid,
+	D3D12_GPU_VIRTUAL_ADDRESS constantBufferAddress)
+{
+	GpuFluidPingPongField& velocity = grid.GetVelocity();
+	GpuFluidTexture2D& velocityRead = velocity.Read();
+	GpuFluidTexture2D& velocityWrite = velocity.Write();
+	GpuFluidTexture2D& pressure = grid.GetPressure().Read();
+	if (!velocityRead.IsValid() || !velocityWrite.IsValid() || !pressure.IsValid())
+	{
+		return false;
+	}
+
+	GpuFluidGridResource::Transition(
+		commandList,
+		velocityRead,
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(
+		commandList,
+		pressure,
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	GpuFluidGridResource::Transition(
+		commandList,
+		velocityWrite,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	UAVManager* descriptorManager = UAVManager::GetInstance();
+	commandList->SetComputeRootSignature(rootSignature_.Get());
+	commandList->SetPipelineState(projectionPipelineState_.Get());
+	commandList->SetComputeRootConstantBufferView(0, constantBufferAddress);
+	commandList->SetComputeRootDescriptorTable(
+		1,
+		descriptorManager->GetGPUDescriptorHandle(velocityRead.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(
+		2,
+		descriptorManager->GetGPUDescriptorHandle(pressure.computeSrvIndex));
+	commandList->SetComputeRootDescriptorTable(
+		3,
+		descriptorManager->GetGPUDescriptorHandle(velocityWrite.uavIndex));
+	DispatchGrid(commandList, grid.GetGridDesc());
+
+	GpuFluidGridResource::InsertUavBarrier(commandList, velocityWrite.resource.Get());
+	GpuFluidGridResource::Transition(
+		commandList,
+		velocityWrite,
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	velocity.Swap();
+	++dispatchCount_;
+	return true;
+}
+
+void GpuFluidPressureProjectionPass::DispatchGrid(
+	ID3D12GraphicsCommandList* commandList,
+	const GpuFluidGridDesc& gridDesc) const
+{
+	const uint32_t groupCountX =
+		(gridDesc.width + kThreadGroupSizeX - 1u) / kThreadGroupSizeX;
+	const uint32_t groupCountY =
+		(gridDesc.height + kThreadGroupSizeY - 1u) / kThreadGroupSizeY;
+	commandList->Dispatch(groupCountX, groupCountY, 1);
+}
+
+} // namespace Ken4lowEngine

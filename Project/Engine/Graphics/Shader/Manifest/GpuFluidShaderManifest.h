@@ -9,6 +9,9 @@ namespace Ken4lowEngine
 enum class GpuFluidComputeShaderId : uint32_t
 {
 	VelocityAdvection = 0,
+	Divergence,
+	PressureJacobi,
+	Projection,
 };
 
 class GpuFluidShaderManifest
@@ -24,6 +27,42 @@ public:
 			static const ShaderDescriptor desc{
 				L"GpuFluidVelocityAdvectionCS",
 				L"Resources/Shaders/GpuFluid/GpuFluidVelocityAdvection.CS.hlsl",
+				L"main",
+				L"cs_6_0",
+				ShaderStage::Compute,
+				RootSignatureType::Compute
+			};
+			return desc;
+		}
+		case GpuFluidComputeShaderId::Divergence:
+		{
+			static const ShaderDescriptor desc{
+				L"GpuFluidDivergenceCS",
+				L"Resources/Shaders/GpuFluid/GpuFluidDivergence.CS.hlsl",
+				L"main",
+				L"cs_6_0",
+				ShaderStage::Compute,
+				RootSignatureType::Compute
+			};
+			return desc;
+		}
+		case GpuFluidComputeShaderId::PressureJacobi:
+		{
+			static const ShaderDescriptor desc{
+				L"GpuFluidPressureJacobiCS",
+				L"Resources/Shaders/GpuFluid/GpuFluidPressureJacobi.CS.hlsl",
+				L"main",
+				L"cs_6_0",
+				ShaderStage::Compute,
+				RootSignatureType::Compute
+			};
+			return desc;
+		}
+		case GpuFluidComputeShaderId::Projection:
+		{
+			static const ShaderDescriptor desc{
+				L"GpuFluidProjectionCS",
+				L"Resources/Shaders/GpuFluid/GpuFluidProjection.CS.hlsl",
 				L"main",
 				L"cs_6_0",
 				ShaderStage::Compute,
