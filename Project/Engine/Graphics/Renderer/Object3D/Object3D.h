@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 #include <numbers>
+#include <limits>
 
 namespace Ken4lowEngine
 {
@@ -113,6 +114,30 @@ namespace Ken4lowEngine
 		void SetIgnoreStageChunkCulling(bool ignore) { ignoreStageChunkCulling_ = ignore; }
 		bool IsIgnoreStageChunkCulling() const { return ignoreStageChunkCulling_; }
 		bool HasWorldBoundsForCulling() const { return HasWorldBounds(); }
+		bool TryGetSupportPointAlongWorldDirection(const Vector3& worldDirection, Vector3& outPoint) const
+		{
+			if (!model_) return false;
+			const Vector3 direction = Vector3::NormalizeSafe(worldDirection, { 0.0f, 1.0f, 0.0f });
+			const Matrix4x4& world = worldTransform_.GetWorldMatrix();
+			float bestProjection = -std::numeric_limits<float>::max();
+			bool found = false;
+			for (const SubMesh& subMesh : model_->GetModelData().subMeshes)
+			{
+				for (const VertexData& vertex : subMesh.vertices)
+				{
+					const Vector3 localPosition{ vertex.position.x, vertex.position.y, vertex.position.z };
+					const Vector3 worldPosition = Vector3::Transform(localPosition, world);
+					const float projection = Vector3::Dot(worldPosition, direction);
+					if (!found || projection > bestProjection)
+					{
+						bestProjection = projection;
+						outPoint = worldPosition;
+						found = true;
+					}
+				}
+			}
+			return found; // 鏡面Auto Fitは境界球ではなく実頂点の最外面を使い、Cube上面などへ正確に合わせる。
+		}
 		void SetAlphaBlendEnabled(bool enabled)
 		{
 			alphaBlendEnabled_ = enabled;
