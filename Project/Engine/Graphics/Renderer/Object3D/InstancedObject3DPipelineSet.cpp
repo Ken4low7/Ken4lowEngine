@@ -200,7 +200,7 @@ namespace Ken4lowEngine
 		ComPtr<IDxcBlob> psBlob = ShaderCompiler::CompileShader(ps, dxcManager);
 		ComPtr<IDxcBlob> shadowVsBlob = ShaderCompiler::CompileShader(shadowVs, dxcManager);
 
-		auto createSurfacePipeline = [&](MaterialCullMode cullMode, const wchar_t* debugName, PipelineBundle& destination)
+		auto createSurfacePipeline = [&](MaterialCullMode cullMode, MaterialBlendMode blendMode, const wchar_t* debugName, PipelineBundle& destination)
 		{
 			std::array<D3D12_DESCRIPTOR_RANGE, 12> ranges{};
 			std::array<D3D12_ROOT_PARAMETER, kCount> parameters{};
@@ -209,8 +209,18 @@ namespace Ken4lowEngine
 
 			GraphicsPipelineDesc desc{};
 			desc.blendState = PipelineStatePresets::MakeBlendOpaque();
-			desc.rasterizerState = MakeMaterialRasterizer(cullMode); // Instanced描画もMaterialのSurface契約と同じPSOを選ぶ。
 			desc.depthStencilState = PipelineStatePresets::MakeDepthReadWrite();
+			if (blendMode == MaterialBlendMode::Transparent)
+			{
+				desc.blendState = PipelineStatePresets::MakeBlendAlpha();
+				desc.depthStencilState = PipelineStatePresets::MakeDepthReadOnly();
+			}
+			else if (blendMode == MaterialBlendMode::Additive)
+			{
+				desc.blendState = PipelineStatePresets::MakeBlendAdditive();
+				desc.depthStencilState = PipelineStatePresets::MakeDepthReadOnly(); // 透明系Instancingは既存Depthを参照し、後続Surfaceを遮蔽しない。
+			}
+			desc.rasterizerState = MakeMaterialRasterizer(cullMode);
 			desc.numRenderTargets = 1;
 			desc.rtvFormats[0] = rtvFormat;
 			desc.dsvFormat = dsvFormat;
@@ -225,9 +235,15 @@ namespace Ken4lowEngine
 			if (destination.pipelineState) destination.pipelineState->SetName(debugName);
 		};
 
-		createSurfacePipeline(MaterialCullMode::Back, L"Object3D.Instanced.Back", defaultPipeline_);
-		createSurfacePipeline(MaterialCullMode::Front, L"Object3D.Instanced.Front", defaultFrontPipeline_);
-		createSurfacePipeline(MaterialCullMode::None, L"Object3D.Instanced.TwoSided", defaultTwoSidedPipeline_);
+		createSurfacePipeline(MaterialCullMode::Back, MaterialBlendMode::Opaque, L"Object3D.Instanced.Back", defaultPipeline_);
+		createSurfacePipeline(MaterialCullMode::Front, MaterialBlendMode::Opaque, L"Object3D.Instanced.Front", defaultFrontPipeline_);
+		createSurfacePipeline(MaterialCullMode::None, MaterialBlendMode::Opaque, L"Object3D.Instanced.TwoSided", defaultTwoSidedPipeline_);
+		createSurfacePipeline(MaterialCullMode::Back, MaterialBlendMode::Transparent, L"Object3D.Instanced.Alpha.Back", alphaPipeline_);
+		createSurfacePipeline(MaterialCullMode::Front, MaterialBlendMode::Transparent, L"Object3D.Instanced.Alpha.Front", alphaFrontPipeline_);
+		createSurfacePipeline(MaterialCullMode::None, MaterialBlendMode::Transparent, L"Object3D.Instanced.Alpha.TwoSided", alphaTwoSidedPipeline_);
+		createSurfacePipeline(MaterialCullMode::Back, MaterialBlendMode::Additive, L"Object3D.Instanced.Additive.Back", additivePipeline_);
+		createSurfacePipeline(MaterialCullMode::Front, MaterialBlendMode::Additive, L"Object3D.Instanced.Additive.Front", additiveFrontPipeline_);
+		createSurfacePipeline(MaterialCullMode::None, MaterialBlendMode::Additive, L"Object3D.Instanced.Additive.TwoSided", additiveTwoSidedPipeline_);
 
 		{
 			D3D12_DESCRIPTOR_RANGE instanceRange{};
@@ -257,9 +273,43 @@ namespace Ken4lowEngine
 		}
 	}
 
+	const PipelineBundle& InstancedObject3DPipelineSet::GetAlpha(MaterialCullMode cullMode) const
+	{
+		switch (cullMode)
+		{
+		case MaterialCullMode::Front:
+			return alphaFrontPipeline_;
+		case MaterialCullMode::None:
+			return alphaTwoSidedPipeline_;
+		case MaterialCullMode::Back:
+		default:
+			return alphaPipeline_;
+		}
+	}
+
+	const PipelineBundle& InstancedObject3DPipelineSet::GetAdditive(MaterialCullMode cullMode) const
+	{
+		switch (cullMode)
+		{
+		case MaterialCullMode::Front:
+			return additiveFrontPipeline_;
+		case MaterialCullMode::None:
+			return additiveTwoSidedPipeline_;
+		case MaterialCullMode::Back:
+		default:
+			return additivePipeline_;
+		}
+	}
+
 	void InstancedObject3DPipelineSet::Finalize()
 	{
 		shadowPipeline_.Reset();
+		additiveTwoSidedPipeline_.Reset();
+		additiveFrontPipeline_.Reset();
+		additivePipeline_.Reset();
+		alphaTwoSidedPipeline_.Reset();
+		alphaFrontPipeline_.Reset();
+		alphaPipeline_.Reset();
 		defaultTwoSidedPipeline_.Reset();
 		defaultFrontPipeline_.Reset();
 		defaultPipeline_.Reset();
