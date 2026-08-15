@@ -48,5 +48,6 @@ namespace Ken4lowEngine
 		PostEffectChain* chain_ = nullptr;
 		PostEffectRuntimeState* runtimeState_ = nullptr;
 		PostEffectRenderTargetManager* renderTargetManager_ = nullptr;
+		bool sceneDepthOverrideActive_ = false; // SceneRT描画中だけDepthContextをBackBufferから切り離す。
 	};
 }

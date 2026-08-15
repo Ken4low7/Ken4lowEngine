@@ -71,7 +71,8 @@ public:
 					packet->renderDesc); // Draw時Active Viewを解決してReflection Camera overrideを維持する。
 			},
 			MaterialBlendMode::Transparent,
-			CalculateSortDepth(grid, domain));
+			CalculateSortDepth(grid, domain),
+			true); // Scene Depthでray終端するVolumeだけForward QueueへDepth SRV化を明示要求する。
 
 		if (!queue.Submit(item))
 		{

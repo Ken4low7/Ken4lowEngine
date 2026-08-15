@@ -85,19 +85,22 @@ namespace Ken4lowEngine
 		ForwardRenderPolicy policy{};
 		float sortDepth = 0.0f;
 		uint64_t submissionOrder = 0;
+		bool requiresShaderReadableDepth = false;
 	};
 
 	inline ForwardRenderItem MakeForwardRenderItem(
 		void* payload,
 		ForwardRenderDrawCallback draw,
 		MaterialBlendMode blendMode,
-		float sortDepth)
+		float sortDepth,
+		bool requiresShaderReadableDepth = false)
 	{
 		ForwardRenderItem item{};
 		item.payload = payload;
 		item.draw = draw;
 		item.policy = ResolveForwardRenderPolicy(blendMode); // Renderer種類に依存せずMaterial分類から同じQueue契約を生成する。
 		item.sortDepth = sortDepth;
+		item.requiresShaderReadableDepth = requiresShaderReadableDepth;
 		return item;
 	}
 
@@ -214,8 +217,19 @@ namespace Ken4lowEngine
 
 			if (bucket == ForwardRenderBucket::Transparent)
 			{
-				// Opaque/Masked/旧3D描画がDepthを書き終えた境界で、全Transparentが同じread-only Depthを共有する。
-				RenderDepthContext::GetInstance()->PrepareForShaderRead();
+				const auto& transparentItems = buckets_[bucketIndex];
+				const bool requiresDepthRead = std::any_of(
+					transparentItems.begin(),
+					transparentItems.end(),
+					[](const ForwardRenderItem& item)
+					{
+						return item.requiresShaderReadableDepth;
+					});
+				if (requiresDepthRead)
+				{
+					// Volume等が明示要求したFrameだけDepthをSRV化し、通常TransparentではRT/DSVの再Bind自体を発生させない。
+					RenderDepthContext::GetInstance()->PrepareForShaderRead();
+				}
 			}
 
 			if (executionCount_ < executionOrder_.size())

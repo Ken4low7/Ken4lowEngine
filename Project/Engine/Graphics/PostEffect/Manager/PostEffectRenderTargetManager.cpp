@@ -5,6 +5,7 @@
 #include "CameraManager.h"
 #include "Camera.h"
 #include "DebugCamera.h"
+#include "Engine/Graphics/RenderTarget/Depth/RenderDepthContext.h"
 #include "RTVManager.h"
 #include "DSVManager.h"
 #include "SRVManager.h"
@@ -39,6 +40,11 @@ namespace Ken4lowEngine
 			renderTarget.currentState = PostEffectRenderTarget::kInitialState;
 		}
 		renderTargets_.clear();
+
+		if (depthResource_)
+		{
+			RenderDepthContext::GetInstance()->ReleaseAttachment(depthResource_.Get());
+		}
 
 		// Descriptor indexの解放可否は各Manager全体の寿命設計に依存するため、
 		// Phase 4では旧PostEffectManagerと同じくResourceだけを破棄する。
@@ -77,12 +83,16 @@ namespace Ken4lowEngine
 			renderTarget.currentState = PostEffectRenderTarget::kInitialState;
 		}
 
+		if (depthResource_)
+		{
+			RenderDepthContext::GetInstance()->ReleaseAttachment(depthResource_.Get());
+		}
 		depthResource_.Reset();
 		depthResource_ = CreateDepthBufferResource(width_, height_);
 		depthResource_->SetName(L"PostEffectManager DepthBuffer");
 		DSVManager::GetInstance()->CreateDSVForTexture2D(depthDsvIndex_, depthResource_.Get());
 		dsvHandle_ = DSVManager::GetInstance()->GetCPUDescriptorHandle(depthDsvIndex_);
-		SRVManager::GetInstance()->CreateSRVForTexture2D(depthSrvIndex_, depthResource_.Get(), DXGI_FORMAT_R24_UNORM_X8_TYPELESS, 1);
+		SRVManager::GetInstance()->CreateSRVForDepthBuffer(depthSrvIndex_, depthResource_.Get());
 		depthState_ = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	}
 
@@ -158,30 +168,12 @@ namespace Ken4lowEngine
 
 	ComPtr<ID3D12Resource> PostEffectRenderTargetManager::CreateDepthBufferResource(uint32_t width, uint32_t height)
 	{
-		D3D12_RESOURCE_DESC desc{};
-		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		desc.Width = width;
-		desc.Height = height;
-		desc.DepthOrArraySize = 1;
-		desc.MipLevels = 1;
-		desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		desc.SampleDesc.Count = 1;
-		desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-
-		D3D12_CLEAR_VALUE clearValue{};
-		clearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		clearValue.DepthStencil = { 1.0f, 0 };
-		D3D12_HEAP_PROPERTIES heapProperties = {
-			D3D12_HEAP_TYPE_DEFAULT, D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
-			D3D12_MEMORY_POOL_UNKNOWN, 1, 1 };
-
-		ComPtr<ID3D12Resource> depthResource;
-		const HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
-			&heapProperties, D3D12_HEAP_FLAG_NONE, &desc,
-			D3D12_RESOURCE_STATE_DEPTH_WRITE, &clearValue, IID_PPV_ARGS(&depthResource));
-		assert(SUCCEEDED(hr));
-		return depthResource;
+		// Scene ForwardのTransparent段階から同じDepthをDSV/SRV両方で使うためResource本体はTYPELESSに統一する。
+		return RenderDepthContext::CreateShaderReadableDepth24(
+			dxCommon_->GetDevice(),
+			width,
+			height,
+			1.0f);
 	}
 
 	void PostEffectRenderTargetManager::AllocateDescriptorsAndResources()
@@ -209,7 +201,7 @@ namespace Ken4lowEngine
 		DSVManager::GetInstance()->CreateDSVForTexture2D(depthDsvIndex_, depthResource_.Get());
 		dsvHandle_ = DSVManager::GetInstance()->GetCPUDescriptorHandle(depthDsvIndex_);
 		depthSrvIndex_ = SRVManager::GetInstance()->Allocate();
-		SRVManager::GetInstance()->CreateSRVForTexture2D(depthSrvIndex_, depthResource_.Get(), DXGI_FORMAT_R24_UNORM_X8_TYPELESS, 1);
+		SRVManager::GetInstance()->CreateSRVForDepthBuffer(depthSrvIndex_, depthResource_.Get());
 		depthState_ = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	}
 

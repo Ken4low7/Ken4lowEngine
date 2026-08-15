@@ -7,6 +7,7 @@
 #include "PostEffectRuntimeState.h"
 #include "PostEffectPipelineBuilder.h"
 #include "DirectXCommon.h"
+#include "Engine/Graphics/RenderTarget/Depth/RenderDepthContext.h"
 #include "SRVManager.h"
 #include "UAVManager.h"
 #include "LogString.h"
@@ -30,10 +31,16 @@ namespace Ken4lowEngine
 		chain_ = chain;
 		runtimeState_ = runtimeState;
 		renderTargetManager_ = renderTargetManager;
+		sceneDepthOverrideActive_ = false;
 	}
 
 	void PostEffectExecutor::Finalize()
 	{
+		if (sceneDepthOverrideActive_)
+		{
+			RenderDepthContext::GetInstance()->PopOverride();
+			sceneDepthOverrideActive_ = false;
+		}
 		renderTargetManager_ = nullptr;
 		runtimeState_ = nullptr;
 		chain_ = nullptr;
@@ -136,9 +143,30 @@ namespace Ken4lowEngine
 			return;
 		}
 
+		if (sceneDepthOverrideActive_)
+		{
+			RenderDepthContext::GetInstance()->PopOverride();
+			sceneDepthOverrideActive_ = false;
+		}
+
 		TransitionTo(renderTarget, commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		TransitionDepthTo(D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = renderTargetManager_->GetDsvHandle();
+
+		RenderDepthContext* depthContext = RenderDepthContext::GetInstance();
+		RenderDepthBindingDesc depthBinding{};
+		depthBinding.resource = renderTargetManager_->GetDepthResource();
+		depthBinding.colorRtv = renderTarget.rtvHandle;
+		depthBinding.writableDsv = dsvHandle;
+		depthBinding.viewport = renderTargetManager_->GetViewport();
+		depthBinding.clearDepth = 1.0f;
+		sceneDepthOverrideActive_ = depthContext->PushOverride(depthBinding);
+		if (!sceneDepthOverrideActive_)
+		{
+			// SceneRT描画中に前FrameのMain BackBufferへfallbackするとD3D12 #904になるため、誤Bind経路を閉じる。
+			depthContext->ClearDefaultTarget();
+		}
+
 		commandList->OMSetRenderTargets(1, &renderTarget.rtvHandle, false, &dsvHandle);
 		const float clearColor[] = {
 			renderTarget.clearColor.x, renderTarget.clearColor.y,
@@ -153,7 +181,19 @@ namespace Ken4lowEngine
 	{
 		if (!renderTargetManager_ || renderTargetManager_->Empty())
 		{
+			if (sceneDepthOverrideActive_)
+			{
+				RenderDepthContext::GetInstance()->PopOverride();
+				sceneDepthOverrideActive_ = false;
+			}
 			return;
+		}
+
+		if (sceneDepthOverrideActive_)
+		{
+			// Forward Queueが異常経路でDepth Read状態を残してもPop側でWritableへ戻してからPostEffectへ渡す。
+			RenderDepthContext::GetInstance()->PopOverride();
+			sceneDepthOverrideActive_ = false;
 		}
 		TransitionDepthTo(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
