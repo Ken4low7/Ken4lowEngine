@@ -5,6 +5,7 @@ import unittest
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CAMERA_MANAGER_H = PROJECT_ROOT / "Engine" / "Graphics" / "Camera" / "Manager" / "CameraManager.h"
 CAMERA_MANAGER_CPP = PROJECT_ROOT / "Engine" / "Graphics" / "Camera" / "Manager" / "CameraManager.cpp"
+WORLD_TRANSFORM = PROJECT_ROOT / "Engine" / "Core" / "Transform" / "WorldTransform.cpp"
 PROBE_MANAGER_H = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Reflection" / "ReflectionProbeManager.h"
 PROBE_MANAGER_INL = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Reflection" / "ReflectionProbeManager.inl"
 PROBE_BRIDGE = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Reflection" / "ReflectionProbeSceneBridge.h"
@@ -22,6 +23,7 @@ class ReflectionProbeIntegrationTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.camera_h = CAMERA_MANAGER_H.read_text(encoding="utf-8")
         cls.camera_cpp = CAMERA_MANAGER_CPP.read_text(encoding="utf-8")
+        cls.world_transform = WORLD_TRANSFORM.read_text(encoding="utf-8")
         cls.manager_h = PROBE_MANAGER_H.read_text(encoding="utf-8")
         cls.manager = PROBE_MANAGER_INL.read_text(encoding="utf-8")
         cls.bridge = PROBE_BRIDGE.read_text(encoding="utf-8")
@@ -39,6 +41,11 @@ class ReflectionProbeIntegrationTests(unittest.TestCase):
         self.assertIn("PopRenderViewOverride", self.camera_h)
         self.assertIn("GetActiveRenderViewOverride", self.camera_cpp)
         self.assertIn("renderViewOverrides_.back()", self.camera_cpp)
+
+    def test_world_transform_snapshots_each_multi_view_draw(self) -> None:
+        self.assertIn("GetFrameUploadArena().AllocateConstant(transformationData_)", self.world_transform)
+        self.assertIn("allocation.gpuAddress", self.world_transform)
+        self.assertNotIn("transformationBuffers_.WriteFrame(frameIndex, transformationData_)", self.world_transform)
 
     def test_probe_target_is_texture_cube_with_six_render_faces(self) -> None:
         self.assertIn("kCubeFaceCount = 6", self.manager)
