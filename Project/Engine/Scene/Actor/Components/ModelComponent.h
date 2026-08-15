@@ -27,6 +27,7 @@ namespace Ken4lowEngine
 		void PostPhysicsUpdate(float deltaTime) override;
 		void Draw() override;
 		void DrawShadow() override;
+		void DrawReflectionCapture();
 		bool SupportsShadowCasting() const override { return true; }
 		bool SupportsEditorObjectId() const override { return true; }
 		void DrawEditorObjectId(uint32_t objectId) override
@@ -57,6 +58,8 @@ namespace Ken4lowEngine
 
 	private:
 		bool SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode);
+		void PrepareForCurrentRenderView();
+		void DrawWithReflectionBinding();
 		void SyncTransformToObject3D();
 		void ApplyMaterialBinding();
 		void RefreshSharedMaterialBinding();
