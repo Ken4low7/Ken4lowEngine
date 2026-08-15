@@ -21,7 +21,8 @@ namespace Ken4lowEngine
 		GpuParticle,
 		PostEffect,
 		ShadowMap,
-		Compute
+		Compute,
+		GpuFluid,
 	};
 
 	struct ShaderDescriptor

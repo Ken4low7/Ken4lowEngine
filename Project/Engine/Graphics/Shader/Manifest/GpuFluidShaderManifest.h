@@ -20,6 +20,12 @@ enum class GpuFluidComputeShaderId : uint32_t
 	ObstacleRaster,
 };
 
+enum class GpuFluidGraphicsShaderId : uint32_t
+{
+	ForwardVS = 0,
+	ForwardPS,
+};
+
 class GpuFluidShaderManifest
 {
 public:
@@ -86,6 +92,34 @@ public:
 		}
 		default:
 			throw std::runtime_error("GpuFluidShaderManifest::GetCompute - Unknown id");
+		}
+	}
+
+	static const ShaderDescriptor& GetGraphics(GpuFluidGraphicsShaderId id)
+	{
+		switch (id)
+		{
+		case GpuFluidGraphicsShaderId::ForwardVS:
+		{
+			// World-space QuadはSV_VertexIDで生成し、Fluid専用Vertex Bufferを不要にする。
+			static const ShaderDescriptor desc{
+				L"GpuFluidForwardVS",
+				L"Resources/Shaders/GpuFluid/GpuFluidForward.VS.hlsl",
+				L"main", L"vs_6_0", ShaderStage::Vertex, RootSignatureType::GpuFluid
+			};
+			return desc;
+		}
+		case GpuFluidGraphicsShaderId::ForwardPS:
+		{
+			static const ShaderDescriptor desc{
+				L"GpuFluidForwardPS",
+				L"Resources/Shaders/GpuFluid/GpuFluidForward.PS.hlsl",
+				L"main", L"ps_6_0", ShaderStage::Pixel, RootSignatureType::GpuFluid
+			};
+			return desc;
+		}
+		default:
+			throw std::runtime_error("GpuFluidShaderManifest::GetGraphics - Unknown id");
 		}
 	}
 };

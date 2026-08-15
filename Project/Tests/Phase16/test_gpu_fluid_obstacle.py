@@ -87,4 +87,4 @@ def test_build_manifest_and_docs_mark_phase_complete():
     assert "ObstacleRaster" in manifest
     assert "GpuFluidObstacleRaster.CS.hlsl" in manifest
     assert "- [x] 16.8 Collider / Obstacle" in docs
-    assert "## Next implementation target — 16.9" in docs
+    assert "## 16.8 Collider / Obstacle flow" in docs
