@@ -120,7 +120,8 @@ public:
 		float occlusionStrength;
 		Vector4 emissiveFactor;
 		uint32_t textureFlags;
-		float padding[3];
+		float reflectionSourceAvailable;
+		float padding[2];
 	};
 
 public:
