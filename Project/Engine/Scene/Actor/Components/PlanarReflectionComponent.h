@@ -9,7 +9,7 @@ namespace Ken4lowEngine
 {
 	/// <summary>
 	/// 同じActorのModelComponentを鏡面Receiverとして扱うPlanar Reflection Componentです。
-	/// Local +Yを鏡面法線として使用し、Component位置が反射平面上の点になります。
+	/// Local +Yを鏡面法線として使用し、既定ではReceiver Modelの最外面へ自動Fitします。
 	/// </summary>
 	class PlanarReflectionComponent : public SceneComponent
 	{
@@ -36,7 +36,14 @@ namespace Ken4lowEngine
 		PlanarReflectionUpdateMode GetUpdateMode() const { return updateMode_; }
 		void SetFlipNormal(bool flip) { flipNormal_ = flip; }
 		bool IsNormalFlipped() const { return flipNormal_; }
+		void SetAutoFitToReceiverSurface(bool enabled) { autoFitToReceiverSurface_ = enabled; }
+		bool IsAutoFitToReceiverSurfaceEnabled() const { return autoFitToReceiverSurface_; }
+		void SetPlaneOffset(float offset) { planeOffset_ = offset; }
+		float GetPlaneOffset() const { return planeOffset_; }
+		void SetSurfaceTolerance(float tolerance);
+		float GetSurfaceTolerance() const { return surfaceTolerance_; }
 		Vector3 GetPlaneNormal() const;
+		Vector3 GetPlanePosition() const;
 
 	private:
 		PlanarReflectionDesc BuildDesc() const;
@@ -45,6 +52,9 @@ namespace Ken4lowEngine
 		float strength_ = 1.0f;
 		PlanarReflectionUpdateMode updateMode_ = PlanarReflectionUpdateMode::EveryFrame;
 		bool flipNormal_ = false;
+		bool autoFitToReceiverSurface_ = true;
+		float planeOffset_ = 0.0f;
+		float surfaceTolerance_ = 0.025f;
 		bool debugPlaneVisible_ = true;
 		float debugPlaneSize_ = 2.0f;
 	};
