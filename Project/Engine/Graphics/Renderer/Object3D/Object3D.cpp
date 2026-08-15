@@ -12,6 +12,7 @@
 #include "ParameterManager.h"
 #include "SkyBox.h"
 #include "Wireframe.h"
+#include "Engine/Graphics/Renderer/Environment/EnvironmentMapManager.h"
 
 #include <algorithm>
 #include <array>
@@ -39,8 +40,7 @@ namespace Ken4lowEngine
 		dxCommon_ = DirectXCommon::GetInstance();
 		camera_ = CameraManager::GetInstance()->GetMainCamera();
 		SetModel(fileName);
-		TextureManager::GetInstance()->LoadTexture("SkyBox/skybox.dds");
-		environmentMapHandle_ = TextureManager::GetInstance()->GetSrvHandleGPU("SkyBox/skybox.dds");
+		EnvironmentMapManager::GetInstance()->GetEnvironmentMapHandle(); // SkyBox未生成時だけ共有Cubemap fallbackを遅延準備する。
 		TextureManager::GetInstance()->LoadTexture("Effects/Masks/noise.dds");
 		dissolveMaskHandle_ = TextureManager::GetInstance()->GetSrvHandleGPU("Effects/Masks/noise.dds");
 		worldTransform_.Initialize();
@@ -185,7 +185,8 @@ namespace Ken4lowEngine
 			material_.SetPipeline();
 			worldTransform_.SetPipeline();
 			commandList->SetGraphicsRootConstantBufferView(3, cameraAllocation.gpuAddress);
-			TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 4, environmentMapHandle_);
+			TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 4,
+				EnvironmentMapManager::GetInstance()->GetEnvironmentMapHandle()); // t1はScene共通EnvironmentをDraw時に解決する。
 			commandList->SetGraphicsRootConstantBufferView(7, dissolveAllocation.gpuAddress);
 			TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 8, dissolveMaskHandle_);
 			commandList->SetGraphicsRootConstantBufferView(9, shadowParameterAllocation.gpuAddress);
