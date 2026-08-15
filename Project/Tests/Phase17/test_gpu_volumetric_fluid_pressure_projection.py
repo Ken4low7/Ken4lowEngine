@@ -153,4 +153,3 @@ def test_manifest_build_and_docs_register_phase17_4():
     assert "GpuVolumetricFluidProjection.CS.hlsl" in props
     assert "- [x] 17.4 3D Divergence / Pressure / Projection" in docs
     assert "## 17.4 3D Divergence / Pressure / Projection" in docs
-    assert "## Next implementation target — 17.5" in docs

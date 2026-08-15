@@ -12,6 +12,10 @@ enum class GpuVolumetricFluidComputeShaderId : uint32_t
 	Divergence,
 	PressureJacobi,
 	Projection,
+	ScalarAdvection,
+	VorticityCurl,
+	VorticityConfinement,
+	Buoyancy,
 };
 
 /// Phase17の3D Fluid ShaderをPhase16の2D Manifestから分離し、両Solverを独立して拡張する。
@@ -54,6 +58,43 @@ public:
 			static const ShaderDescriptor desc{
 				L"GpuVolumetricFluidProjectionCS",
 				L"Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidProjection.CS.hlsl",
+				L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute
+			};
+			return desc;
+		}
+		case GpuVolumetricFluidComputeShaderId::ScalarAdvection:
+		{
+			// Density/Temperatureは同じ3D Scalar Advection Shaderを共有する。
+			static const ShaderDescriptor desc{
+				L"GpuVolumetricFluidScalarAdvectionCS",
+				L"Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidScalarAdvection.CS.hlsl",
+				L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute
+			};
+			return desc;
+		}
+		case GpuVolumetricFluidComputeShaderId::VorticityCurl:
+		{
+			static const ShaderDescriptor desc{
+				L"GpuVolumetricFluidVorticityCurlCS",
+				L"Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidVorticityCurl.CS.hlsl",
+				L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute
+			};
+			return desc;
+		}
+		case GpuVolumetricFluidComputeShaderId::VorticityConfinement:
+		{
+			static const ShaderDescriptor desc{
+				L"GpuVolumetricFluidVorticityConfinementCS",
+				L"Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidVorticityConfinement.CS.hlsl",
+				L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute
+			};
+			return desc;
+		}
+		case GpuVolumetricFluidComputeShaderId::Buoyancy:
+		{
+			static const ShaderDescriptor desc{
+				L"GpuVolumetricFluidBuoyancyCS",
+				L"Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidBuoyancy.CS.hlsl",
 				L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute
 			};
 			return desc;
