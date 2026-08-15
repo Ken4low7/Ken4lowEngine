@@ -53,6 +53,7 @@ namespace Ken4lowEngine
 		bool SubmitForwardOpaque(ForwardRenderQueue& queue);
 		bool SubmitForwardMasked(ForwardRenderQueue& queue);
 		bool SubmitForwardTransparent(ForwardRenderQueue& queue);
+		bool SubmitForwardAdditive(ForwardRenderQueue& queue);
 
 	private:
 		bool SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode);
