@@ -139,7 +139,7 @@ public:
 	MaterialCBData* GetMaterialData() { return materialData_; }
 
 	void SetColor(const Vector4& color) { materialData_->color = color; }
-	void SetShininess(float shininess) { materialData_->reflection = shininess; }
+	void SetShininess(float shininess) { materialData_->shininess = shininess; } // 光沢幅のSetterは環境反射率ではなくDirect Specularへ反映する。
 	void SetIntensity(float shininess) { materialData_->shininess = shininess; }
 	void SetReflection(float reflection) { materialData_->reflection = reflection; }
 	void SetUVTransform(const Matrix4x4& uvTransform) { materialData_->uvTransform = uvTransform; }
