@@ -18,6 +18,7 @@
 #include <PostEffectManager.h>
 #include <BlendStateFactory.h>
 #include "GpuParticleManager.h"
+#include "Engine/Graphics/Renderer/GpuFluid/Manager/GpuFluidManager.h"
 #include <GameTimer.h>
 #include <ResolutionManager.h>
 #include <FrameAllocationTracker.h>
@@ -214,6 +215,9 @@ namespace Ken4lowEngine
 		// GPUパーティクルマネージャーの初期化
 		GpuParticleManager::GetInstance()->Initialize(defaultCamera_.get());
 
+		// FluidはSRV/UAV/Camera初期化後に起動し、Framework終了時にDescriptor Managerより先に必ず破棄する。
+		GpuFluidManager::GetInstance()->Initialize();
+
 		// DebugビルドではCRT Hookを登録し、次フレームからAllocationを観測する。
 		FrameAllocationTracker::GetInstance()->Initialize();
 
@@ -255,6 +259,9 @@ namespace Ken4lowEngine
 		// TextureManager/SRVManager/DirectXCommonより先にエディタ用プレビューキャッシュを解放する。
 		EditorWindowManager::GetInstance()->FinalizeEditorServices();
 #endif // USE_IMGUI
+
+		// GPU FluidのSRV/UAVとPSOをDescriptor Manager破棄前に返却する。
+		GpuFluidManager::GetInstance()->Finalize();
 
 		// GPUパーティクルマネージャーの終了処理
 		GpuParticleManager::GetInstance()->Finalize();

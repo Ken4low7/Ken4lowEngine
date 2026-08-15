@@ -97,4 +97,3 @@ def test_manifest_build_and_docs_register_forward_renderer():
     assert "GpuFluidForward.VS.hlsl" in props
     assert "GpuFluidForward.PS.hlsl" in props
     assert "- [x] 16.9 Forward Rendering" in docs
-    assert "## Next implementation target — 16.10" in docs

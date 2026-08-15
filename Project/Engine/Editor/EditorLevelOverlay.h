@@ -9,6 +9,7 @@
 #include "EditorProfilerPanel.h"
 #include "EditorSceneDeferredController.h"
 #include "EditorWindowManager.h"
+#include "GpuFluidDiagnosticsPanel.h"
 
 #include <string>
 
@@ -25,6 +26,7 @@ namespace Ken4lowEngine
 		EditorWindowManager* windowManager = EditorWindowManager::GetInstance();
 		EditorDiagnosticsPanel::GetInstance()->Draw();
 		EditorProfilerPanel::GetInstance()->Draw(windowManager->GetSceneManager(), &windowManager->GetPerformanceMonitor());
+		GpuFluidDiagnosticsPanel::GetInstance()->Draw(); // Phase16診断はF12の独立Panelとして既存Editor Overlayの1回/Frame入口へ接続する。
 
 		EditorLevelService* levelService = EditorLevelService::GetInstance();
 		EditorLevelDeferredController* deferredController = EditorLevelDeferredController::GetInstance();

@@ -14,10 +14,12 @@
 #include "WorldTextComponent.h"
 
 #include "Engine/Graphics/Renderer/Forward/ForwardRenderQueue.h"
+#include "Engine/Graphics/Renderer/GpuFluid/Manager/GpuFluidManager.h"
 #include "Engine/Graphics/Renderer/GpuParticle/Renderer/GpuParticleForwardRenderBridge.h"
 #include "LightManager.h"
 #include "SceneComponent.h"
 #include "SpriteManager.h"
+#include <GameTimer.h>
 
 #ifdef USE_IMGUI
 #include <Editor/EditorActorStateRegistry.h>
@@ -111,6 +113,11 @@ namespace Ken4lowEngine
 		}
 
 		GpuParticleForwardRenderBridge::GetInstance()->Submit(*forwardQueue); // GPU Particleは粒子単位ではなくSystem Packetとして透明系Bucketへ接続する。
+
+		GpuFluidManager* gpuFluidManager = GpuFluidManager::GetInstance();
+		// Actor更新・Physics補正後の最新Emitter/ColliderでComputeを記録し、同じFrameのTransparent描画へ渡す。
+		gpuFluidManager->UpdateFromWorld(*this, GameTimer::GetInstance()->GetDeltaTime());
+		gpuFluidManager->SubmitForward(*forwardQueue);
 
 		forwardQueue->ExecuteBucket(ForwardRenderBucket::Opaque);
 		forwardQueue->ExecuteBucket(ForwardRenderBucket::Masked);

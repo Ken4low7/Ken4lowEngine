@@ -21,18 +21,25 @@ enum class GpuFluidField : uint32_t
 
 struct GpuFluidGridDesc
 {
+	static constexpr uint32_t kMaxDimension = 2048;
+
 	uint32_t width = 256;
 	uint32_t height = 256;
 	float cellSize = 0.1f;
 
 	[[nodiscard]] bool IsValid() const
 	{
-		return width > 0 && height > 0 && cellSize > 0.0f;
+		// Editor/Stress入力から無制限な2D Texture確保を要求できないよう、Phase16の安全上限をDesc自体で保証する。
+		return width > 0 && width <= kMaxDimension &&
+			height > 0 && height <= kMaxDimension &&
+			cellSize > 0.0f;
 	}
 };
 
 struct GpuFluidSimulationDesc
 {
+	static constexpr uint32_t kMaxPressureIterations = 256;
+
 	GpuFluidGridDesc grid{};
 	float fixedDeltaTime = 1.0f / 60.0f;
 	uint32_t pressureIterations = 40;
@@ -49,7 +56,7 @@ struct GpuFluidSimulationDesc
 	{
 		return grid.IsValid() &&
 			fixedDeltaTime > 0.0f &&
-			pressureIterations > 0 &&
+			pressureIterations > 0 && pressureIterations <= kMaxPressureIterations &&
 			maxSubsteps > 0 &&
 			velocityDissipation >= 0.0f && velocityDissipation <= 1.0f &&
 			densityDissipation >= 0.0f && densityDissipation <= 1.0f &&
