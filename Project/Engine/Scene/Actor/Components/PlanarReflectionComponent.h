@@ -42,6 +42,8 @@ namespace Ken4lowEngine
 		float GetPlaneOffset() const { return planeOffset_; }
 		void SetSurfaceTolerance(float tolerance);
 		float GetSurfaceTolerance() const { return surfaceTolerance_; }
+		void SetClipPlaneBias(float bias);
+		float GetClipPlaneBias() const { return clipPlaneBias_; }
 		Vector3 GetPlaneNormal() const;
 		Vector3 GetPlanePosition() const;
 
@@ -55,6 +57,7 @@ namespace Ken4lowEngine
 		bool autoFitToReceiverSurface_ = true;
 		float planeOffset_ = 0.0f;
 		float surfaceTolerance_ = 0.025f;
+		float clipPlaneBias_ = 0.01f;
 		bool debugPlaneVisible_ = true;
 		float debugPlaneSize_ = 2.0f;
 	};
