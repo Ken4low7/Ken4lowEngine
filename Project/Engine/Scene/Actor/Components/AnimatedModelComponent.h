@@ -13,6 +13,8 @@
 
 namespace Ken4lowEngine
 {
+	class ForwardRenderQueue;
+
 	/// -------------------------------------------------------------
 	/// ボーンを使わないNode Transform Animation付きモデルを再生するComponentクラス。
 	/// -------------------------------------------------------------
@@ -79,6 +81,10 @@ namespace Ken4lowEngine
 		bool IsPlaying() const;
 
 		std::vector<ComponentProperty> CreateProperties(bool includeModelPath = true, bool includeAnimationName = true);
+		bool SubmitForwardOpaque(ForwardRenderQueue& queue);
+		bool SubmitForwardMasked(ForwardRenderQueue& queue);
+		bool SubmitForwardTransparent(ForwardRenderQueue& queue);
+		bool SubmitForwardAdditive(ForwardRenderQueue& queue);
 
 	private:
 		bool ReloadAnimatedModel();
@@ -89,6 +95,8 @@ namespace Ken4lowEngine
 		void SyncTransformToAnimatedModel();
 		bool SelectConfiguredAnimation(bool resetTime);
 		bool EnsureAnimationSelection(bool resetTime);
+		bool SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode);
+		MaterialBlendMode ResolveForwardBlendMode() const;
 
 		/// <summary>共有AssetまたはComponent固有OverrideをAnimationModelへ反映します。</summary>
 		void ApplyMaterialBinding();
@@ -117,4 +125,6 @@ namespace Ken4lowEngine
 		bool reloadRequested_ = false;
 		bool resumeAfterReload_ = false;
 	};
-}
+} // namespace Ken4lowEngine
+
+#include "AnimatedModelComponentForward.inl"
