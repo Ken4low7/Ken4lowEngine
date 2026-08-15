@@ -28,6 +28,7 @@ namespace Ken4lowEngine
 					{
 						planar->SyncToManager(); // Editor Gizmoで鏡面を移動/回転した直後のPlaneをCaptureへ反映する。
 					}
+				}
 			}
 		}
 
@@ -44,8 +45,15 @@ namespace Ken4lowEngine
 
 		static void DrawScene(ActorWorld& actorWorld, const Actor* excludedReceiver)
 		{
-			const PlanarReflectionComponent* receiverSurface =
-				excludedReceiver ? excludedReceiver->GetComponent<PlanarReflectionComponent>() : nullptr;
+			const PlanarReflectionComponent* receiverSurface = nullptr;
+			if (excludedReceiver)
+			{
+				const auto receiverSurfaces = excludedReceiver->GetComponents<PlanarReflectionComponent>();
+				if (!receiverSurfaces.empty())
+				{
+					receiverSurface = receiverSurfaces.front(); // const Actorでは読み取り専用Component一覧からCapture対象面を取得する。
+				}
+			}
 
 			for (const auto& actor : actorWorld.GetActors())
 			{
