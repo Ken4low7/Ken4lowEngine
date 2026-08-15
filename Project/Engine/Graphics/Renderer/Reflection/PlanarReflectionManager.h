@@ -40,6 +40,7 @@ namespace Ken4lowEngine
 	{
 		D3D12_GPU_DESCRIPTOR_HANDLE texture{};
 		uint32_t srvIndex = UINT32_MAX;
+		ID3D12Resource* resource = nullptr;
 		Matrix4x4 reflectedViewProjection = Matrix4x4::MakeIdentity();
 		Vector3 planePosition{};
 		Vector3 planeNormal{ 0.0f, 1.0f, 0.0f };
@@ -55,7 +56,7 @@ namespace Ken4lowEngine
 
 		bool Add(const PlanarReflectionBinding& binding)
 		{
-			if (!binding.valid || binding.texture.ptr == 0 || binding.srvIndex == UINT32_MAX ||
+			if (!binding.valid || binding.texture.ptr == 0 || binding.srvIndex == UINT32_MAX || !binding.resource ||
 				count >= kMaxPlanarReflectionSurfacesPerDraw)
 			{
 				return false;
