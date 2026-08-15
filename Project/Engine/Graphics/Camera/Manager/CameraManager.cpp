@@ -3,6 +3,7 @@
 #include "DebugCamera.h"
 #include "Wireframe.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace Ken4lowEngine
@@ -95,9 +96,9 @@ namespace Ken4lowEngine
 	{
 		RenderViewOverride normalized = renderView;
 		normalized.forward = Vector3::NormalizeSafe(renderView.forward, { 0.0f, 0.0f, 1.0f });
-		normalized.nearClip = std::max(renderView.nearClip, 0.001f);
-		normalized.farClip = std::max(renderView.farClip, normalized.nearClip + 0.001f);
-		normalized.aspectRatio = std::max(renderView.aspectRatio, 0.001f);
+		normalized.nearClip = (std::max)(renderView.nearClip, 0.001f);
+		normalized.farClip = (std::max)(renderView.farClip, normalized.nearClip + 0.001f);
+		normalized.aspectRatio = (std::max)(renderView.aspectRatio, 0.001f); // Windowsのmaxマクロが有効でも標準関数として解決させる。
 		renderViewOverrides_.push_back(normalized); // Probeの6面描画だけActive Viewを差し替え、Main/Debug Camera本体は変更しない。
 	}
 
