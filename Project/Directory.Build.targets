@@ -4,4 +4,15 @@
     <ClCompile Remove="ApplicationLayer\SceneManagement\FadeManager\FadeManager.cpp" />
     <ClInclude Remove="ApplicationLayer\SceneManagement\FadeManager\FadeManager.h" />
   </ItemGroup>
+
+  <!-- Phase18 VFX OrchestrationはSubsystem横断層なので、既存GPU Fluid用propsと分離して登録する。 -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Ken4lowEngine'">
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Asset\VfxCueSerializer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueCompiler.cpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Asset\VfxCueSerializer.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Data\VfxCueTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueCompiler.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueProgram.h" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Vfx\Phase18\Explosion.vfx.json" />
+  </ItemGroup>
 </Project>
