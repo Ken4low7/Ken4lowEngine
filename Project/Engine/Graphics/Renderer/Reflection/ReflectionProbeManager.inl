@@ -3,7 +3,6 @@
 #include "DSVManager.h"
 #include "RTVManager.h"
 #include "SRVManager.h"
-#include "SkyBox.h"
 #include "Engine/Graphics/Renderer/Environment/EnvironmentMapManager.h"
 #include "Engine/Graphics/Renderer/Object3D/Object3DCommon.h"
 
@@ -12,7 +11,6 @@
 #include <cmath>
 #include <limits>
 #include <numbers>
-#include <string>
 
 namespace Ken4lowEngine
 {
@@ -37,7 +35,7 @@ namespace Ken4lowEngine
 		{
 			constexpr std::array<uint32_t, 4> supported{ 64, 128, 256, 512 };
 			uint32_t best = supported.front();
-			uint32_t bestDistance = std::numeric_limits<uint32_t>::max();
+			uint32_t bestDistance = (std::numeric_limits<uint32_t>::max)();
 			for (uint32_t candidate : supported)
 			{
 				const uint32_t distance = candidate > resolution ? candidate - resolution : resolution - candidate;
@@ -63,12 +61,6 @@ namespace Ken4lowEngine
 		dxCommon_ = dxCommon;
 		captureSerial_ = 0;
 		isCapturing_ = false;
-
-		if (dxCommon_)
-		{
-			captureSkyBox_ = std::make_unique<SkyBox>();
-			captureSkyBox_->Initialize(EnvironmentMapManager::GetInstance()->GetEnvironmentMapPath());
-		}
 	}
 
 	inline void ReflectionProbeManager::Finalize()
@@ -79,7 +71,6 @@ namespace Ken4lowEngine
 			cameraManager->PopRenderViewOverride(); // Capture中断時も一時Viewを残さず通常Cameraへ戻す。
 		}
 
-		captureSkyBox_.reset();
 		for (ProbeRuntime& probe : probes_)
 		{
 			if (probe.target) ReleaseTarget(*probe.target);
@@ -98,9 +89,9 @@ namespace Ken4lowEngine
 	inline ReflectionProbeDesc ReflectionProbeManager::SanitizeDesc(const ReflectionProbeDesc& desc) const
 	{
 		ReflectionProbeDesc sanitized = desc;
-		sanitized.influenceRadius = std::max(desc.influenceRadius, ReflectionProbeDetail::kMinimumProbeRadius);
-		sanitized.nearClip = std::max(desc.nearClip, ReflectionProbeDetail::kMinimumNearClip);
-		sanitized.farClip = std::max(desc.farClip, sanitized.nearClip + ReflectionProbeDetail::kMinimumFarGap);
+		sanitized.influenceRadius = (std::max)(desc.influenceRadius, ReflectionProbeDetail::kMinimumProbeRadius);
+		sanitized.nearClip = (std::max)(desc.nearClip, ReflectionProbeDetail::kMinimumNearClip);
+		sanitized.farClip = (std::max)(desc.farClip, sanitized.nearClip + ReflectionProbeDetail::kMinimumFarGap);
 		sanitized.resolution = ReflectionProbeDetail::SanitizeResolution(desc.resolution);
 		return sanitized;
 	}
@@ -331,20 +322,9 @@ namespace Ken4lowEngine
 		target.depth.Reset();
 	}
 
-	inline void ReflectionProbeManager::SyncCaptureSkyBox()
-	{
-		if (!captureSkyBox_) return;
-		const std::string& environmentPath = EnvironmentMapManager::GetInstance()->GetEnvironmentMapPath();
-		if (!environmentPath.empty() && captureSkyBox_->GetTexturePath() != environmentPath)
-		{
-			captureSkyBox_->SetTexture(environmentPath);
-		}
-	}
-
 	inline bool ReflectionProbeManager::CaptureProbe(ProbeRuntime& probe, const std::function<void()>& drawStaticScene)
 	{
 		if (!EnsureTarget(probe) || !probe.target) return false;
-		SyncCaptureSkyBox();
 
 		const std::array<Vector3, ReflectionProbeDetail::kCubeFaceCount> directions = {
 			Vector3{ 1.0f, 0.0f, 0.0f }, Vector3{ -1.0f, 0.0f, 0.0f },
@@ -364,7 +344,7 @@ namespace Ken4lowEngine
 		Object3DCommon* objectCommon = Object3DCommon::GetInstance();
 		const Object3DCommon::CullingCameraMode previousCullingMode = objectCommon->GetCullingCameraMode();
 		objectCommon->SetCullingCameraMode(Object3DCommon::CullingCameraMode::ActiveCamera);
-		isCapturing_ = true; // Capture中の反射参照はProbe自身ではなくGlobal Environmentへフォールバックさせる。
+		isCapturing_ = true; // Capture中は局所Probeの自己参照を禁止し、明示Global Environmentだけを許可する。
 
 		bool succeeded = true;
 		for (uint32_t face = 0; face < ReflectionProbeDetail::kCubeFaceCount; ++face)
@@ -386,15 +366,10 @@ namespace Ken4lowEngine
 			BeginFace(*probe.target, face);
 			SRVManager::GetInstance()->PreDraw();
 			objectCommon->BeginObject3DPass();
-			if (captureSkyBox_)
-			{
-				captureSkyBox_->Update();
-				captureSkyBox_->Draw();
-			}
 
 			try
 			{
-				drawStaticScene();
+				drawStaticScene(); // v1は実際のScene GeometryだけをCaptureし、内部専用SkyBoxを勝手に合成しない。
 			}
 			catch (...)
 			{
@@ -422,13 +397,16 @@ namespace Ken4lowEngine
 
 	inline D3D12_GPU_DESCRIPTOR_HANDLE ReflectionProbeManager::ResolveReflectionHandle(const Vector3& worldPosition) const
 	{
+		EnvironmentMapManager* environmentManager = EnvironmentMapManager::GetInstance();
 		if (isCapturing_)
 		{
-			return EnvironmentMapManager::GetInstance()->GetGlobalEnvironmentMapHandle();
+			return environmentManager->HasGlobalReflectionSource()
+				? environmentManager->GetGlobalEnvironmentMapHandle()
+				: D3D12_GPU_DESCRIPTOR_HANDLE{};
 		}
 
 		const ProbeRuntime* nearest = nullptr;
-		float nearestDistanceSquared = std::numeric_limits<float>::max();
+		float nearestDistanceSquared = (std::numeric_limits<float>::max)();
 		for (const ProbeRuntime& probe : probes_)
 		{
 			if (!probe.owner || !probe.desc.enabled || !probe.captured || !probe.target || probe.target->srvIndex == UINT32_MAX) continue;
@@ -444,7 +422,11 @@ namespace Ken4lowEngine
 		{
 			return SRVManager::GetInstance()->GetGPUDescriptorHandle(nearest->target->srvIndex);
 		}
-		return EnvironmentMapManager::GetInstance()->GetGlobalEnvironmentMapHandle(); // Probe圏外は従来のSkyBox Environmentを安全な最終Fallbackにする。
+		if (environmentManager->HasGlobalReflectionSource())
+		{
+			return environmentManager->GetGlobalEnvironmentMapHandle();
+		}
+		return {}; // Probeも実際のEnvironmentも無いSceneでは、fallback Cubemapを反射源として見せない。
 	}
 
 	inline ReflectionProbeDiagnostics ReflectionProbeManager::GetDiagnostics(const void* owner) const
