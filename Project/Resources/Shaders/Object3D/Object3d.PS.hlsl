@@ -171,15 +171,6 @@ PixelShaderOutput main(VertexShaderOutput input)
         
     float3 baseColor = gMaterial.color.rgb * textureColor.rgb * input.instanceColor.rgb;
 
-    // 環境反射
-    float3 reflectionDir = reflect(-viewDir, normal);
-    float3 environmentColor = gEnvironmentTexture.Sample(gLinearSampler, reflectionDir).rgb;
-
-    // フレネルを少しだけ足す
-    float fresnel = ComputeFresnelSchlick(saturate(dot(normal, viewDir)), 0.02f);
-    float envBlend = saturate(gMaterial.reflectionRate * 0.12f + fresnel * 0.03f);
-    float3 reflectionColor = environmentColor;
-
     // Dissolve
     float maskValue = gDissolveMaskTexture.Sample(gLinearSampler, input.texcoord).r;
     float edge = smoothstep(
@@ -241,10 +232,24 @@ PixelShaderOutput main(VertexShaderOutput input)
     }
     else
     {
-        // Legacy経路は既存Phong/Blinn系の見た目を守るため残す。
+        // Legacyは反射率0を明確なEnvironment OFFとして扱い、未設定Materialへ勝手にSkyBoxを混ぜない。
         shadedColor = lerp(baseColor, edgeColor.rgb, dissolveBlend);
         shadedColor *= lighting;
-        shadedColor = lerp(shadedColor, reflectionColor, envBlend);
+        const float reflectionRate = saturate(gMaterial.reflectionRate);
+        if (reflectionRate > 0.0f)
+        {
+            float3 reflectionDir = reflect(-viewDir, normal);
+            uint environmentWidth = 0;
+            uint environmentHeight = 0;
+            uint environmentMipLevels = 1;
+            gEnvironmentTexture.GetDimensions(0, environmentWidth, environmentHeight, environmentMipLevels);
+            float maxMipLevel = (environmentMipLevels > 0) ? float(environmentMipLevels - 1) : 0.0f;
+            float reflectionMipLevel = saturate(gMaterial.roughness) * maxMipLevel;
+            float3 environmentColor = gEnvironmentTexture.SampleLevel(gLinearSampler, reflectionDir, reflectionMipLevel).rgb;
+            float fresnel = ComputeFresnelSchlick(saturate(dot(normal, viewDir)), 0.02f);
+            float envBlend = saturate(reflectionRate * (0.12f + fresnel * 0.03f));
+            shadedColor = lerp(shadedColor, environmentColor, envBlend);
+        }
         shadedColor += gMaterial.emissiveFactor.rgb; // 既定値ゼロを維持し、明示されたBoss予兆などだけLegacy描画でも発光させる。
     }
 
