@@ -70,6 +70,20 @@ namespace Ken4lowEngine
 		uint64_t submissionOrder = 0;
 	};
 
+	inline ForwardRenderItem MakeForwardRenderItem(
+		void* payload,
+		ForwardRenderDrawCallback draw,
+		MaterialBlendMode blendMode,
+		float sortDepth)
+	{
+		ForwardRenderItem item{};
+		item.payload = payload;
+		item.draw = draw;
+		item.policy = ResolveForwardRenderPolicy(blendMode); // Renderer種類に依存せずMaterial分類から同じQueue契約を生成する。
+		item.sortDepth = sortDepth;
+		return item;
+	}
+
 	/// <summary>
 	/// 1回のScene 3D描画でForward Itemを収集し、Bucket契約に従って安定順序で実行するCPU Queueです。
 	/// </summary>
