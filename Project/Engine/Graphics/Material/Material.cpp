@@ -114,7 +114,8 @@ namespace Ken4lowEngine
 		materialData_->emissiveFactor = { 0.0f, 0.0f, 0.0f, 1.0f };
 		materialData_->textureFlags = 0;
 		materialData_->reflectionSourceAvailable = 0.0f;
-		materialData_->padding[0] = materialData_->padding[1] = 0.0f;
+		materialData_->planarReflectionEnabled = 0.0f;
+		materialData_->planarReflectionStrength = 0.0f; // Planar反射はDraw Scopeだけで有効にし、通常Materialへ状態を持ち越さない。
 		cullMode_ = MaterialCullMode::Back; // 通常Materialは表面だけを描画し、両面は明示Opt-inにする。
 		blendMode_ = MaterialBlendMode::Opaque; // 旧MaterialはForward Opaqueへ安全にフォールバックする。
 	}
@@ -139,6 +140,8 @@ namespace Ken4lowEngine
 		if (usePbr && !desc.pbr.normalTexturePath.empty()) materialData_->textureFlags |= 1u << 1;
 		if (usePbr && !desc.pbr.occlusionTexturePath.empty()) materialData_->textureFlags |= 1u << 2;
 		if (usePbr && !desc.pbr.emissiveTexturePath.empty()) materialData_->textureFlags |= 1u << 3;
+		materialData_->planarReflectionEnabled = 0.0f;
+		materialData_->planarReflectionStrength = 0.0f; // MaterialAsset適用時も前Drawの一時Planar状態を永続値へ混ぜない。
 		cullMode_ = desc.cullMode;
 		blendMode_ = desc.blendMode;
 	}
@@ -160,7 +163,7 @@ namespace Ken4lowEngine
 		const FrameUploadArena::Allocation allocation = dxCommon->GetFrameUploadArena().AllocateConstant(drawData);
 		if (!allocation.IsValid()) return;
 
-		// Probeの6面+Main Viewで同じMaterialを複数回描いても、各Drawが反射源状態を含む固有スナップショットを保持する。
+		// Probe/Planar/Main Viewで同じMaterialを複数回描いても、各Drawが反射状態を含む固有スナップショットを保持する。
 		dxCommon->GetCommandManager()->GetCommandList()->SetGraphicsRootConstantBufferView(rootParameterIndex, allocation.gpuAddress);
 	}
 
@@ -181,7 +184,7 @@ namespace Ken4lowEngine
 			ImGui::DragFloat("Roughness", &materialData_->roughness, 0.01f, 0.0f, 1.0f);
 			bool pbrEnabled = materialData_->pbrEnabled > 0.5f;
 			if (ImGui::Checkbox("Use PBR##Material", &pbrEnabled)) materialData_->pbrEnabled = pbrEnabled ? 1.0f : 0.0f;
-			ImGui::DragFloat("Metallic##Material", &materialData_->metallic, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat("Metallic##Material", &materialData_->metallic, 0.01f, 0.0f, 2.0f);
 			ImGui::DragFloat("Normal Scale##Material", &materialData_->normalScale, 0.01f, 0.0f, 2.0f);
 			ImGui::DragFloat("AO Strength##Material", &materialData_->occlusionStrength, 0.01f, 0.0f, 1.0f);
 			ImGui::ColorEdit4("Emissive##Material", &materialData_->emissiveFactor.x);
