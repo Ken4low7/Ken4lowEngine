@@ -19,6 +19,7 @@
 #include "InstancedModelComponent.h"
 #include "LightComponent.h"
 #include "ModelComponent.h"
+#include "ReflectionProbeComponent.h"
 #include "RigidbodyComponent.h"
 #include "SkeletalMeshComponent.h"
 #include "SpriteComponent.h"
@@ -110,6 +111,8 @@ namespace Ken4lowEngine
 			MakeComponentTypeInfo<BillboardComponent>("BillboardComponent", true, "ビルボードコンポーネント", "描画", "3D空間上で常にカメラ方向を向く板ポリを表示するComponentです。"),
 
 			MakeComponentTypeInfo<LightComponent>("LightComponent", true, "ライトコンポーネント", "描画", "Actorにライト情報を持たせるためのComponentです。"),
+
+			MakeComponentTypeInfo<ReflectionProbeComponent>("ReflectionProbeComponent", true, "リフレクションプローブ", "描画", "周囲の静的3DシーンをCubemapへCaptureし、近傍Materialの局所反射に使用します。"),
 
 			MakeComponentTypeInfo<CameraComponent>("CameraComponent", false, "カメラコンポーネント", "カメラ", "Actorを視点として使うためのカメラ機能を追加します。"),
 
