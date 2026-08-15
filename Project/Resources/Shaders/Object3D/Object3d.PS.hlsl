@@ -271,12 +271,13 @@ PixelShaderOutput main(VertexShaderOutput input)
         gEmissiveTexture.GetDimensions(planarWidth, planarHeight);
         float2 planarSize = max(float2((float)planarWidth, (float)planarHeight), float2(1.0f, 1.0f));
         float2 planarUv = input.position.xy / planarSize;
+        planarUv.x = 1.0f - planarUv.x; // 通常LookAtが保持する右手系のX反転を戻し、鏡面Pixelと反射Camera画像を一致させる。
         const float2 uvMin = float2(0.0f, 0.0f);
         const float2 uvMax = float2(1.0f, 1.0f);
         if (all(planarUv >= uvMin) && all(planarUv <= uvMax))
         {
             float3 planarColor = gEmissiveTexture.SampleLevel(gLinearSampler, saturate(planarUv), 0.0f).rgb;
-            shadedColor = lerp(shadedColor, planarColor, saturate(gMaterial.planarReflectionStrength)); // 鏡面Pixelは同じ画面座標の反射Camera結果を参照する。
+            shadedColor = lerp(shadedColor, planarColor, saturate(gMaterial.planarReflectionStrength));
         }
     }
 
