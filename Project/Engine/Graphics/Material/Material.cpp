@@ -2,6 +2,7 @@
 #include "DirectXCommon.h"
 #include "TextureManager.h"
 #include "Engine/Graphics/Renderer/Environment/EnvironmentMapManager.h"
+#include "Engine/Graphics/Renderer/Reflection/PlanarReflectionManager.h"
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -85,7 +86,11 @@ namespace Ken4lowEngine
 		commandList->SetGraphicsRootDescriptorTable(metallicRoughnessRootIndex, metallicRoughness_);
 		commandList->SetGraphicsRootDescriptorTable(normalRootIndex, normal_);
 		commandList->SetGraphicsRootDescriptorTable(occlusionRootIndex, occlusion_);
-		commandList->SetGraphicsRootDescriptorTable(emissiveRootIndex, emissive_);
+
+		const PlanarReflectionBinding planarBinding = PlanarReflectionManager::GetInstance()->GetCurrentDrawBinding();
+		const D3D12_GPU_DESCRIPTOR_HANDLE emissiveOrPlanar =
+			planarBinding.valid && planarBinding.texture.ptr != 0 ? planarBinding.texture : emissive_;
+		commandList->SetGraphicsRootDescriptorTable(emissiveRootIndex, emissiveOrPlanar); // 鏡面Draw中だけLegacy未使用のt9をPlanar Reflection Textureへ差し替える。
 	}
 
 	void Material::Initialize()
@@ -160,6 +165,11 @@ namespace Ken4lowEngine
 
 		MaterialCBData drawData = materialCpuData_;
 		drawData.reflectionSourceAvailable = EnvironmentMapManager::GetInstance()->IsCurrentReflectionSourceAvailable() ? 1.0f : 0.0f;
+		const PlanarReflectionBinding planarBinding = PlanarReflectionManager::GetInstance()->GetCurrentDrawBinding();
+		drawData.planarReflectionEnabled = planarBinding.valid && planarBinding.texture.ptr != 0 ? 1.0f : 0.0f;
+		drawData.planarReflectionStrength = drawData.planarReflectionEnabled > 0.5f
+			? std::clamp(planarBinding.strength, 0.0f, 1.0f)
+			: 0.0f;
 		const FrameUploadArena::Allocation allocation = dxCommon->GetFrameUploadArena().AllocateConstant(drawData);
 		if (!allocation.IsValid()) return;
 
@@ -184,7 +194,7 @@ namespace Ken4lowEngine
 			ImGui::DragFloat("Roughness", &materialData_->roughness, 0.01f, 0.0f, 1.0f);
 			bool pbrEnabled = materialData_->pbrEnabled > 0.5f;
 			if (ImGui::Checkbox("Use PBR##Material", &pbrEnabled)) materialData_->pbrEnabled = pbrEnabled ? 1.0f : 0.0f;
-			ImGui::DragFloat("Metallic##Material", &materialData_->metallic, 0.01f, 0.0f, 2.0f);
+			ImGui::DragFloat("Metallic##Material", &materialData_->metallic, 0.01f, 0.0f, 1.0f);
 			ImGui::DragFloat("Normal Scale##Material", &materialData_->normalScale, 0.01f, 0.0f, 2.0f);
 			ImGui::DragFloat("AO Strength##Material", &materialData_->occlusionStrength, 0.01f, 0.0f, 1.0f);
 			ImGui::ColorEdit4("Emissive##Material", &materialData_->emissiveFactor.x);
