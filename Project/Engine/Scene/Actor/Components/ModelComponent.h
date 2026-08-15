@@ -36,6 +36,10 @@ namespace Ken4lowEngine
 		{
 			return object3D_ && object3D_->HasWorldBoundsForCulling(); // Planar Captureの簡易Clip判定は既存Culling Boundsを再利用する。
 		}
+		bool TryGetReflectionReceiverSurfacePoint(const Vector3& worldNormal, Vector3& outPoint) const
+		{
+			return object3D_ && object3D_->TryGetSupportPointAlongWorldDirection(worldNormal, outPoint); // Planar Auto Fitへ実Model頂点の最外面を公開する。
+		}
 		bool SupportsShadowCasting() const override { return true; }
 		bool SupportsEditorObjectId() const override { return true; }
 		void DrawEditorObjectId(uint32_t objectId) override
