@@ -88,11 +88,7 @@ namespace Ken4lowEngine
 		commandList->SetGraphicsRootDescriptorTable(metallicRoughnessRootIndex, metallicRoughness_);
 		commandList->SetGraphicsRootDescriptorTable(normalRootIndex, normal_);
 		commandList->SetGraphicsRootDescriptorTable(occlusionRootIndex, occlusion_);
-
-		const PlanarReflectionBinding planarBinding = PlanarReflectionManager::GetInstance()->GetCurrentDrawBinding();
-		const D3D12_GPU_DESCRIPTOR_HANDLE emissiveOrPlanar =
-			planarBinding.valid && planarBinding.texture.ptr != 0 ? planarBinding.texture : emissive_;
-		commandList->SetGraphicsRootDescriptorTable(emissiveRootIndex, emissiveOrPlanar); // 鏡面Draw中だけLegacy未使用のt9をPlanar Reflection Textureへ差し替える。
+		commandList->SetGraphicsRootDescriptorTable(emissiveRootIndex, emissive_); // Multi Planarはt12～t17へ分離し、Emissive t9を通常用途へ戻す。
 	}
 
 	void Material::Initialize()
@@ -173,8 +169,10 @@ namespace Ken4lowEngine
 
 		MaterialCBData drawData = materialCpuData_;
 		drawData.reflectionSourceAvailable = EnvironmentMapManager::GetInstance()->IsCurrentReflectionSourceAvailable() ? 1.0f : 0.0f;
-		const PlanarReflectionBinding planarBinding = PlanarReflectionManager::GetInstance()->GetCurrentDrawBinding();
-		drawData.planarReflectionEnabled = planarBinding.valid && planarBinding.texture.ptr != 0 ? 1.0f : 0.0f;
+		PlanarReflectionManager* planarManager = PlanarReflectionManager::GetInstance();
+		const PlanarReflectionDrawSet planarDrawSet = planarManager->GetCurrentDrawSet();
+		const PlanarReflectionBinding planarBinding = planarDrawSet.count > 0 ? planarDrawSet.surfaces[0] : PlanarReflectionBinding{};
+		drawData.planarReflectionEnabled = planarDrawSet.count > 0 ? 1.0f : 0.0f;
 		drawData.planarReflectionStrength = drawData.planarReflectionEnabled > 0.5f
 			? std::clamp(planarBinding.strength, 0.0f, 1.0f)
 			: 0.0f;
@@ -204,8 +202,13 @@ namespace Ken4lowEngine
 		const FrameUploadArena::Allocation allocation = dxCommon->GetFrameUploadArena().AllocateConstant(drawData);
 		if (!allocation.IsValid()) return;
 
+		ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandManager()->GetCommandList();
 		// Probe/Planar/Main Viewで同じMaterialを複数回描いても、各Drawが反射状態を含む固有スナップショットを保持する。
-		dxCommon->GetCommandManager()->GetCommandList()->SetGraphicsRootConstantBufferView(rootParameterIndex, allocation.gpuAddress);
+		commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, allocation.gpuAddress);
+		if (!planarDrawSet.Empty())
+		{
+			planarManager->BindCurrentDrawState(commandList, 19, 20); // Object3Dのb7/t12～t17へ最大6面の鏡情報をまとめて束縛する。
+		}
 	}
 
 	ComPtr<ID3D12Resource> Material::GetMaterialResource()
