@@ -169,8 +169,19 @@ namespace Ken4lowEngine
 
 		auto bindSurfaceState = [&](MaterialCullMode cullMode)
 		{
-			if (alphaBlendEnabled_) object3DCommon->SetAlphaRenderSetting(cullMode);
-			else object3DCommon->SetRenderSetting(cullMode);
+			const MaterialBlendMode blendMode = material_.GetBlendMode();
+			if (alphaBlendEnabled_ || blendMode == MaterialBlendMode::Transparent)
+			{
+				object3DCommon->SetAlphaRenderSetting(cullMode);
+			}
+			else if (blendMode == MaterialBlendMode::Additive)
+			{
+				object3DCommon->SetAdditiveRenderSetting(cullMode); // Material分類からPSOを直接選び、Forward QueueのBlend契約と一致させる。
+			}
+			else
+			{
+				object3DCommon->SetRenderSetting(cullMode);
+			}
 			material_.SetPipeline();
 			worldTransform_.SetPipeline();
 			commandList->SetGraphicsRootConstantBufferView(3, cameraAllocation.gpuAddress);
