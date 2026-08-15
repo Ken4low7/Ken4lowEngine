@@ -6,7 +6,6 @@
 #include "Engine/Graphics/Culling/CullingDiagnostics.h"
 #include <LogString.h>
 #include <ShaderCompiler.h>
-#include <BlendStateFactory.h>
 
 namespace Ken4lowEngine
 {
@@ -43,6 +42,12 @@ namespace Ken4lowEngine
 		graphicsPipelineState->SetName(L"AnimationPipelineBuilder::graphicsPipelineState.Back");
 		graphicsPipelineStateFront_->SetName(L"AnimationPipelineBuilder::graphicsPipelineState.Front");
 		graphicsPipelineStateTwoSided_->SetName(L"AnimationPipelineBuilder::graphicsPipelineState.TwoSided");
+		alphaPipelineState_->SetName(L"AnimationPipelineBuilder::alphaPipelineState.Back");
+		alphaPipelineStateFront_->SetName(L"AnimationPipelineBuilder::alphaPipelineState.Front");
+		alphaPipelineStateTwoSided_->SetName(L"AnimationPipelineBuilder::alphaPipelineState.TwoSided");
+		additivePipelineState_->SetName(L"AnimationPipelineBuilder::additivePipelineState.Back");
+		additivePipelineStateFront_->SetName(L"AnimationPipelineBuilder::additivePipelineState.Front");
+		additivePipelineStateTwoSided_->SetName(L"AnimationPipelineBuilder::additivePipelineState.TwoSided");
 		computeRootSignature_->SetName(L"AnimationPipelineBuilder::computeRootSignature");
 		computePipelineState_->SetName(L"AnimationPipelineBuilder::computePipelineState");
 	}
@@ -52,22 +57,46 @@ namespace Ken4lowEngine
 		LightManager::GetInstance()->Finalize();
 		computePipelineState_.Reset();
 		computeRootSignature_.Reset();
+		additivePipelineStateTwoSided_.Reset();
+		additivePipelineStateFront_.Reset();
+		additivePipelineState_.Reset();
+		alphaPipelineStateTwoSided_.Reset();
+		alphaPipelineStateFront_.Reset();
+		alphaPipelineState_.Reset();
 		graphicsPipelineStateTwoSided_.Reset();
 		graphicsPipelineStateFront_.Reset();
 		graphicsPipelineState.Reset();
 		rootSignature.Reset();
 		dxCommon_ = nullptr;
-		blendMode_ = BlendMode::kBlendModeNone;
+		surfaceBlendMode_ = MaterialBlendMode::Opaque;
 	}
 
 	ID3D12PipelineState* AnimationPipelineBuilder::GetPipelineState(MaterialCullMode cullMode) const
 	{
-		switch (cullMode)
+		const auto selectCullMode = [cullMode](
+			const ComPtr<ID3D12PipelineState>& back,
+			const ComPtr<ID3D12PipelineState>& front,
+			const ComPtr<ID3D12PipelineState>& twoSided) -> ID3D12PipelineState*
 		{
-		case MaterialCullMode::Front: return graphicsPipelineStateFront_.Get();
-		case MaterialCullMode::None: return graphicsPipelineStateTwoSided_.Get();
-		case MaterialCullMode::Back:
-		default: return graphicsPipelineState.Get();
+			switch (cullMode)
+			{
+			case MaterialCullMode::Front: return front.Get();
+			case MaterialCullMode::None: return twoSided.Get();
+			case MaterialCullMode::Back:
+			default: return back.Get();
+			}
+		};
+
+		switch (surfaceBlendMode_)
+		{
+		case MaterialBlendMode::Transparent:
+			return selectCullMode(alphaPipelineState_, alphaPipelineStateFront_, alphaPipelineStateTwoSided_);
+		case MaterialBlendMode::Additive:
+			return selectCullMode(additivePipelineState_, additivePipelineStateFront_, additivePipelineStateTwoSided_);
+		case MaterialBlendMode::Masked:
+		case MaterialBlendMode::Opaque:
+		default:
+			return selectCullMode(graphicsPipelineState, graphicsPipelineStateFront_, graphicsPipelineStateTwoSided_);
 		}
 	}
 
@@ -76,7 +105,7 @@ namespace Ken4lowEngine
 		CullingDiagnostics::GetInstance()->SetActiveSurface(cullMode, CullingDiagnostics::SurfacePath::Animated); // Animation PSO bindもMain pass統計へ統合する。
 		auto commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		commandList->SetGraphicsRootSignature(rootSignature.Get());
-		commandList->SetPipelineState(GetPipelineState(cullMode)); // Skinned BatchもMaterial Cull ModeごとのPSOを共有する。
+		commandList->SetPipelineState(GetPipelineState(cullMode)); // Blend分類とCull Modeの両方からForward用Animated PSOを選ぶ。
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		LightManager::GetInstance()->BindPunctualLights(5, 6);
 		LightManager::GetInstance()->BindLightingSettings(9);
@@ -240,7 +269,6 @@ namespace Ken4lowEngine
 		inputElementDescs[4] = { "INDEX", 0, DXGI_FORMAT_R32G32B32A32_SINT, 1, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 		D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{ inputElementDescs.data(), static_cast<UINT>(inputElementDescs.size()) };
 
-		const D3D12_RENDER_TARGET_BLEND_DESC blendDesc = BlendStateFactory::GetInstance()->GetBlendDesc(blendMode_);
 		const ShaderDescriptor& vsDesc = AnimationShaderManifest::GetGraphics(AnimationGraphicsShaderId::SkinningObject3DVS);
 		const ShaderDescriptor& psDesc = AnimationShaderManifest::GetGraphics(AnimationGraphicsShaderId::SkinningObject3DPS);
 		assert(vsDesc.stage == ShaderStage::Vertex);
@@ -251,35 +279,47 @@ namespace Ken4lowEngine
 		ComPtr<IDxcBlob> pixelShaderBlob = ShaderCompiler::CompileShader(psDesc, dxCommon_->GetDXCCompilerManager());
 		assert(vertexShaderBlob != nullptr && pixelShaderBlob != nullptr);
 
-		D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
-		depthStencilDesc.DepthEnable = true;
-		depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-		depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC baseDesc{};
 		baseDesc.pRootSignature = rootSignature.Get();
 		baseDesc.InputLayout = inputLayoutDesc;
 		baseDesc.VS = { vertexShaderBlob->GetBufferPointer(), vertexShaderBlob->GetBufferSize() };
 		baseDesc.PS = { pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize() };
-		baseDesc.BlendState.RenderTarget[0] = blendDesc;
+		baseDesc.BlendState = PipelineStatePresets::MakeBlendOpaque();
 		baseDesc.NumRenderTargets = 1;
 		baseDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 		baseDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		baseDesc.SampleDesc.Count = 1;
 		baseDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-		baseDesc.DepthStencilState = depthStencilDesc;
+		baseDesc.DepthStencilState = PipelineStatePresets::MakeDepthReadWrite();
 		baseDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-		auto createPipeline = [&](MaterialCullMode cullMode, ComPtr<ID3D12PipelineState>& destination)
+		auto createPipeline = [&](MaterialCullMode cullMode, MaterialBlendMode blendMode, ComPtr<ID3D12PipelineState>& destination)
 		{
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
-			desc.RasterizerState = MakeAnimationRasterizer(cullMode); // Shaderは共有し、Rasterizer stateだけMaterial Cull Modeごとに分ける。
+			if (blendMode == MaterialBlendMode::Transparent)
+			{
+				desc.BlendState = PipelineStatePresets::MakeBlendAlpha();
+				desc.DepthStencilState = PipelineStatePresets::MakeDepthReadOnly();
+			}
+			else if (blendMode == MaterialBlendMode::Additive)
+			{
+				desc.BlendState = PipelineStatePresets::MakeBlendAdditive();
+				desc.DepthStencilState = PipelineStatePresets::MakeDepthReadOnly(); // Animated透明Surfaceも既存Depthだけを参照して後続描画を遮蔽しない。
+			}
+			desc.RasterizerState = MakeAnimationRasterizer(cullMode);
 			const HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&destination));
 			assert(SUCCEEDED(hr));
 		};
-		createPipeline(MaterialCullMode::Back, graphicsPipelineState);
-		createPipeline(MaterialCullMode::Front, graphicsPipelineStateFront_);
-		createPipeline(MaterialCullMode::None, graphicsPipelineStateTwoSided_);
+
+		createPipeline(MaterialCullMode::Back, MaterialBlendMode::Opaque, graphicsPipelineState);
+		createPipeline(MaterialCullMode::Front, MaterialBlendMode::Opaque, graphicsPipelineStateFront_);
+		createPipeline(MaterialCullMode::None, MaterialBlendMode::Opaque, graphicsPipelineStateTwoSided_);
+		createPipeline(MaterialCullMode::Back, MaterialBlendMode::Transparent, alphaPipelineState_);
+		createPipeline(MaterialCullMode::Front, MaterialBlendMode::Transparent, alphaPipelineStateFront_);
+		createPipeline(MaterialCullMode::None, MaterialBlendMode::Transparent, alphaPipelineStateTwoSided_);
+		createPipeline(MaterialCullMode::Back, MaterialBlendMode::Additive, additivePipelineState_);
+		createPipeline(MaterialCullMode::Front, MaterialBlendMode::Additive, additivePipelineStateFront_);
+		createPipeline(MaterialCullMode::None, MaterialBlendMode::Additive, additivePipelineStateTwoSided_);
 	}
 
 	void AnimationPipelineBuilder::CreateComputeRootSignature()
