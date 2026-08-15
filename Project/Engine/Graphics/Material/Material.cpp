@@ -1,6 +1,7 @@
 #include "Material.h"
 #include "DirectXCommon.h"
 #include "TextureManager.h"
+#include "Engine/Graphics/Renderer/Environment/EnvironmentMapManager.h"
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -112,7 +113,8 @@ namespace Ken4lowEngine
 		materialData_->occlusionStrength = 1.0f;
 		materialData_->emissiveFactor = { 0.0f, 0.0f, 0.0f, 1.0f };
 		materialData_->textureFlags = 0;
-		materialData_->padding[0] = materialData_->padding[1] = materialData_->padding[2] = 0.0f;
+		materialData_->reflectionSourceAvailable = 0.0f;
+		materialData_->padding[0] = materialData_->padding[1] = 0.0f;
 		cullMode_ = MaterialCullMode::Back; // 通常Materialは表面だけを描画し、両面は明示Opt-inにする。
 		blendMode_ = MaterialBlendMode::Opaque; // 旧MaterialはForward Opaqueへ安全にフォールバックする。
 	}
@@ -151,15 +153,15 @@ namespace Ken4lowEngine
 	void Material::SetPipeline(UINT rootParameterIndex) const
 	{
 		DirectXCommon* dxCommon = DirectXCommon::GetInstance();
-		auto* commandManager = dxCommon->GetCommandManager();
-		const uint32_t frameIndex = commandManager->GetCurrentFrameIndex();
-		materialBuffers_.WriteFrame(frameIndex, materialCpuData_);
+		if (!dxCommon || !dxCommon->GetCommandManager() || !dxCommon->GetCommandManager()->GetCommandList()) return;
 
-		const D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = materialBuffers_.GetGpuAddress(frameIndex);
-		if (gpuAddress != 0)
-		{
-			commandManager->GetCommandList()->SetGraphicsRootConstantBufferView(rootParameterIndex, gpuAddress);
-		}
+		MaterialCBData drawData = materialCpuData_;
+		drawData.reflectionSourceAvailable = EnvironmentMapManager::GetInstance()->IsCurrentReflectionSourceAvailable() ? 1.0f : 0.0f;
+		const FrameUploadArena::Allocation allocation = dxCommon->GetFrameUploadArena().AllocateConstant(drawData);
+		if (!allocation.IsValid()) return;
+
+		// Probeの6面+Main Viewで同じMaterialを複数回描いても、各Drawが反射源状態を含む固有スナップショットを保持する。
+		dxCommon->GetCommandManager()->GetCommandList()->SetGraphicsRootConstantBufferView(rootParameterIndex, allocation.gpuAddress);
 	}
 
 	ComPtr<ID3D12Resource> Material::GetMaterialResource()
