@@ -1,0 +1,104 @@
+{
+  "phase": "15.8",
+  "status": "closure-validation",
+  "expectedBucketExecutionOrder": [
+    "Opaque",
+    "Masked",
+    "Transparent",
+    "Additive"
+  ],
+  "legacyActorDrawPlacement": {
+    "after": "Masked",
+    "before": "Transparent"
+  },
+  "renderPaths": {
+    "StaticModel": [
+      "Opaque",
+      "Masked",
+      "Transparent",
+      "Additive"
+    ],
+    "InstancedModel": [
+      "Opaque",
+      "Masked",
+      "Transparent",
+      "Additive"
+    ],
+    "AnimatedModel": [
+      "Opaque",
+      "Masked",
+      "Transparent",
+      "Additive"
+    ],
+    "SkeletalMesh": [
+      "Opaque",
+      "Masked",
+      "Transparent",
+      "Additive"
+    ],
+    "GpuParticle": [
+      "Transparent",
+      "Additive"
+    ]
+  },
+  "transparentContract": {
+    "depthWrite": false,
+    "sort": "BackToFront",
+    "particleSortOwner": "GPU"
+  },
+  "opaqueContract": {
+    "depthWrite": true,
+    "sort": "FrontToBack"
+  },
+  "gpuParticleContract": {
+    "queueGranularity": "SystemPacket",
+    "cpuPerParticleSubmission": false,
+    "indirectDrawPreserved": true,
+    "transparentPacketMaximum": 1,
+    "additivePacketMaximum": 1
+  },
+  "manualVisualRecipe": [
+    {
+      "name": "OpaqueNear",
+      "path": "StaticModel",
+      "bucket": "Opaque",
+      "position": [0.0, 0.0, 4.0]
+    },
+    {
+      "name": "MaskedMid",
+      "path": "StaticModel",
+      "bucket": "Masked",
+      "position": [-2.0, 0.0, 7.0]
+    },
+    {
+      "name": "TransparentFar",
+      "path": "AnimatedModel",
+      "bucket": "Transparent",
+      "position": [2.0, 0.0, 10.0]
+    },
+    {
+      "name": "TransparentNearInstanced",
+      "path": "InstancedModel",
+      "bucket": "Transparent",
+      "position": [2.0, 0.0, 6.0]
+    },
+    {
+      "name": "AdditiveSkeletal",
+      "path": "SkeletalMesh",
+      "bucket": "Additive",
+      "position": [-2.0, 0.0, 8.0]
+    },
+    {
+      "name": "AlphaParticle",
+      "path": "GpuParticle",
+      "bucket": "Transparent",
+      "position": [0.0, 1.0, 9.0]
+    },
+    {
+      "name": "GlowParticle",
+      "path": "GpuParticle",
+      "bucket": "Additive",
+      "position": [0.0, 1.0, 5.0]
+    }
+  ]
+}
