@@ -159,8 +159,16 @@ bool GpuFluidGridResource::CreateTexture(
 		format,
 		1);
 
-	texture.uavIndex = UAVManager::GetInstance()->Allocate();
-	UAVManager::GetInstance()->CreateUAVForTexture2D(
+	UAVManager* uavManager = UAVManager::GetInstance();
+	texture.computeSrvIndex = uavManager->Allocate();
+	uavManager->CreateSRVForTexture2DOnThisHeap(
+		texture.computeSrvIndex,
+		texture.resource.Get(),
+		format,
+		1);
+
+	texture.uavIndex = uavManager->Allocate();
+	uavManager->CreateUAVForTexture2D(
 		texture.uavIndex,
 		texture.resource.Get(),
 		format,
@@ -192,13 +200,20 @@ void GpuFluidGridResource::ReleaseTexture(GpuFluidTexture2D& texture)
 	{
 		SRVManager::GetInstance()->Free(texture.srvIndex);
 	}
+
+	UAVManager* uavManager = UAVManager::GetInstance();
+	if (texture.computeSrvIndex != UINT32_MAX)
+	{
+		uavManager->Free(texture.computeSrvIndex);
+	}
 	if (texture.uavIndex != UINT32_MAX)
 	{
-		UAVManager::GetInstance()->Free(texture.uavIndex);
+		uavManager->Free(texture.uavIndex);
 	}
 
 	texture.resource.Reset();
 	texture.srvIndex = UINT32_MAX;
+	texture.computeSrvIndex = UINT32_MAX;
 	texture.uavIndex = UINT32_MAX;
 	texture.format = DXGI_FORMAT_UNKNOWN;
 	texture.currentState = D3D12_RESOURCE_STATE_COMMON;

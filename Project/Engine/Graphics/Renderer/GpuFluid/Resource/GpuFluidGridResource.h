@@ -14,13 +14,18 @@ struct GpuFluidTexture2D
 {
 	ComPtr<ID3D12Resource> resource;
 	uint32_t srvIndex = UINT32_MAX;
+	// Compute SRVとUAVを同じshader-visible heapに置き、1 Dispatch内で同時バインドできるようにする。
+	uint32_t computeSrvIndex = UINT32_MAX;
 	uint32_t uavIndex = UINT32_MAX;
 	DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
 	D3D12_RESOURCE_STATES currentState = D3D12_RESOURCE_STATE_COMMON;
 
 	[[nodiscard]] bool IsValid() const
 	{
-		return resource != nullptr && srvIndex != UINT32_MAX && uavIndex != UINT32_MAX;
+		return resource != nullptr &&
+			srvIndex != UINT32_MAX &&
+			computeSrvIndex != UINT32_MAX &&
+			uavIndex != UINT32_MAX;
 	}
 };
 
