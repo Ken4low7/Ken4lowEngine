@@ -1,5 +1,6 @@
 #include "Actor.h"
 #include "ActorWorld.h"
+#include "Engine/Graphics/Renderer/Forward/ForwardRenderQueue.h"
 
 #include <algorithm>
 #include <array>
@@ -123,9 +124,13 @@ namespace Ken4lowEngine
 	void Actor::Draw()
 	{
 		if (!isActive_) return;
+		ForwardRenderQueue* forwardQueue = ForwardRenderQueue::GetInstance();
 		for (ActorComponent* component : GetDrawOrderedComponents())
 		{
-			if (component && component->IsActiveInHierarchy()) component->Draw();
+			if (component && component->IsActiveInHierarchy() && !forwardQueue->OwnsPayload(component))
+			{
+				component->Draw(); // QueueがComponent payloadを所有するFrameではBucket側だけを実行して二重描画を防ぐ。
+			}
 		}
 	}
 
