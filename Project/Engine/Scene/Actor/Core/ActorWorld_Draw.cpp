@@ -76,7 +76,9 @@ namespace Ken4lowEngine
 				if (instancedModelComponent)
 				{
 					instancedModelComponent->SubmitForwardOpaque(*forwardQueue);
-					instancedModelComponent->SubmitForwardMasked(*forwardQueue); // DepthWrite系Instancingだけを先に共通Queueへ移行する。
+					instancedModelComponent->SubmitForwardMasked(*forwardQueue);
+					instancedModelComponent->SubmitForwardTransparent(*forwardQueue);
+					instancedModelComponent->SubmitForwardAdditive(*forwardQueue); // Instancingも全Material分類をStatic Modelと同じBucket契約へ揃える。
 				}
 			}
 		}
