@@ -16,6 +16,7 @@ enum class GpuFluidComputeShaderId : uint32_t
 	VorticityCurl,
 	VorticityConfinement,
 	Buoyancy,
+	EmitterInjection,
 };
 
 class GpuFluidShaderManifest
@@ -70,6 +71,12 @@ public:
 		case GpuFluidComputeShaderId::Buoyancy:
 		{
 			static const ShaderDescriptor desc{ L"GpuFluidBuoyancyCS", L"Resources/Shaders/GpuFluid/GpuFluidBuoyancy.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+			return desc;
+		}
+		case GpuFluidComputeShaderId::EmitterInjection:
+		{
+			// Source注入は局所UAV加算だけなので専用Shaderへ分離し、Advectionのping-pong契約を汚さない。
+			static const ShaderDescriptor desc{ L"GpuFluidEmitterInjectionCS", L"Resources/Shaders/GpuFluid/GpuFluidEmitterInjection.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
 			return desc;
 		}
 		default:
