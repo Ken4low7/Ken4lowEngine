@@ -227,8 +227,8 @@ PixelShaderOutput main(VertexShaderOutput input)
             float reflectionMipLevel = saturate(gMaterial.roughness) * maxMipLevel;
             float3 environmentColor = gEnvironmentTexture.SampleLevel(gSampler, reflectionDir, reflectionMipLevel).rgb;
             float fresnel = ComputeFresnelSchlick(saturate(dot(normal, viewDir)), 0.02f);
-            float envBlend = saturate(reflectionRate * (0.12f + fresnel * 0.03f));
-            shadedColor = lerp(shadedColor, environmentColor, envBlend);
+            float envBlend = saturate(reflectionRate + fresnel * reflectionRate * (1.0f - reflectionRate));
+            shadedColor = lerp(shadedColor, environmentColor, envBlend); // Static/Skinnedで同じ反射率の意味を維持する。
         }
     }
 
