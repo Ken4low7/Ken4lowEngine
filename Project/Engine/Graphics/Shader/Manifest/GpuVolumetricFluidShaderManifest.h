@@ -20,6 +20,12 @@ enum class GpuVolumetricFluidComputeShaderId : uint32_t
 	ObstacleRaster,
 };
 
+enum class GpuVolumetricFluidGraphicsShaderId : uint32_t
+{
+	RaymarchVS = 0,
+	RaymarchPS,
+};
+
 /// Phase17の3D Fluid ShaderをPhase16の2D Manifestから分離し、両Solverを独立して拡張する。
 class GpuVolumetricFluidShaderManifest
 {
@@ -66,7 +72,6 @@ public:
 		}
 		case GpuVolumetricFluidComputeShaderId::ScalarAdvection:
 		{
-			// Density/Temperatureは同じ3D Scalar Advection Shaderを共有する。
 			static const ShaderDescriptor desc{
 				L"GpuVolumetricFluidScalarAdvectionCS",
 				L"Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidScalarAdvection.CS.hlsl",
@@ -103,7 +108,6 @@ public:
 		}
 		case GpuVolumetricFluidComputeShaderId::EmitterInjection:
 		{
-			// 球状3D Source群をStructuredBufferで渡し、1回のVolume Dispatchで3 fieldへ注入する。
 			static const ShaderDescriptor desc{
 				L"GpuVolumetricFluidEmitterInjectionCS",
 				L"Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidEmitterInjection.CS.hlsl",
@@ -122,6 +126,33 @@ public:
 		}
 		default:
 			throw std::runtime_error("GpuVolumetricFluidShaderManifest::GetCompute - Unknown id");
+		}
+	}
+
+	static const ShaderDescriptor& GetGraphics(GpuVolumetricFluidGraphicsShaderId id)
+	{
+		switch (id)
+		{
+		case GpuVolumetricFluidGraphicsShaderId::RaymarchVS:
+		{
+			static const ShaderDescriptor desc{
+				L"GpuVolumetricFluidRaymarchVS",
+				L"Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidRaymarch.VS.hlsl",
+				L"main", L"vs_6_0", ShaderStage::Vertex, RootSignatureType::GpuVolumetricFluid
+			};
+			return desc;
+		}
+		case GpuVolumetricFluidGraphicsShaderId::RaymarchPS:
+		{
+			static const ShaderDescriptor desc{
+				L"GpuVolumetricFluidRaymarchPS",
+				L"Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidRaymarch.PS.hlsl",
+				L"main", L"ps_6_0", ShaderStage::Pixel, RootSignatureType::GpuVolumetricFluid
+			};
+			return desc;
+		}
+		default:
+			throw std::runtime_error("GpuVolumetricFluidShaderManifest::GetGraphics - Unknown id");
 		}
 	}
 };

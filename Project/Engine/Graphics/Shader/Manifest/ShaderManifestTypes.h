@@ -23,6 +23,7 @@ namespace Ken4lowEngine
 		ShadowMap,
 		Compute,
 		GpuFluid,
+		GpuVolumetricFluid,
 	};
 
 	struct ShaderDescriptor

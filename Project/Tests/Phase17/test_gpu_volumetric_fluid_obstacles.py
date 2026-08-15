@@ -198,7 +198,7 @@ def test_force_and_emitter_stages_consume_obstacle_mask():
     assert "gTemperatureWrite[dispatchThreadId] = 0.0f" in emitter_shader
 
 
-def test_manifest_build_and_docs_register_phase17_7_and_advance_to_raymarch():
+def test_manifest_build_and_docs_register_phase17_7():
     manifest = read("Engine/Graphics/Shader/Manifest/GpuVolumetricFluidShaderManifest.h")
     props = read("Directory.Build.props")
     docs = read("Docs/Phase17GpuVolumetricFluid.md")
@@ -216,4 +216,3 @@ def test_manifest_build_and_docs_register_phase17_7_and_advance_to_raymarch():
         assert name in props
     assert "- [x] 17.7 Volumetric Collider / Obstacle raster" in docs
     assert "## 17.7 Volumetric Collider / Obstacle raster" in docs
-    assert "## Next implementation target — 17.8" in docs
