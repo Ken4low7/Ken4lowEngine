@@ -4,6 +4,7 @@
 #include "Matrix4x4.h"
 #include "Vector3.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -14,6 +15,8 @@ namespace Ken4lowEngine
 {
 	class Actor;
 	class DirectXCommon;
+
+	inline constexpr uint32_t kMaxPlanarReflectionSurfacesPerDraw = 6u;
 
 	enum class PlanarReflectionUpdateMode : uint8_t
 	{
@@ -35,12 +38,32 @@ namespace Ken4lowEngine
 	struct PlanarReflectionBinding
 	{
 		D3D12_GPU_DESCRIPTOR_HANDLE texture{};
+		uint32_t srvIndex = UINT32_MAX;
 		Matrix4x4 reflectedViewProjection = Matrix4x4::MakeIdentity();
 		Vector3 planePosition{};
 		Vector3 planeNormal{ 0.0f, 1.0f, 0.0f };
 		float surfaceTolerance = 0.025f;
 		float strength = 0.0f;
 		bool valid = false;
+	};
+
+	struct PlanarReflectionDrawSet
+	{
+		std::array<PlanarReflectionBinding, kMaxPlanarReflectionSurfacesPerDraw> surfaces{};
+		uint32_t count = 0;
+
+		bool Add(const PlanarReflectionBinding& binding)
+		{
+			if (!binding.valid || binding.texture.ptr == 0 || binding.srvIndex == UINT32_MAX ||
+				count >= kMaxPlanarReflectionSurfacesPerDraw)
+			{
+				return false;
+			}
+			surfaces[count++] = binding;
+			return true; // 1 Drawで最大6面まで同時に鏡像を選択できるよう固定長Packetへ積む。
+		}
+
+		bool Empty() const { return count == 0; }
 	};
 
 	struct PlanarReflectionDiagnostics
@@ -63,6 +86,7 @@ namespace Ken4lowEngine
 		{
 		public:
 			ScopedDrawBinding(PlanarReflectionManager* manager, const PlanarReflectionBinding& binding);
+			ScopedDrawBinding(PlanarReflectionManager* manager, const PlanarReflectionDrawSet& drawSet);
 			~ScopedDrawBinding();
 
 			ScopedDrawBinding(const ScopedDrawBinding&) = delete;
@@ -94,6 +118,8 @@ namespace Ken4lowEngine
 
 		PlanarReflectionBinding ResolveBinding(const void* owner) const;
 		PlanarReflectionBinding GetCurrentDrawBinding() const;
+		PlanarReflectionDrawSet GetCurrentDrawSet() const;
+		bool BindCurrentDrawDescriptorTable(ID3D12GraphicsCommandList* commandList, UINT rootParameterIndex) const;
 		PlanarReflectionDiagnostics GetDiagnostics(const void* owner) const;
 		bool IsCapturing() const { return isCapturing_; }
 
@@ -139,12 +165,12 @@ namespace Ken4lowEngine
 		void BeginTarget(SurfaceTarget& target);
 		void EndTarget(SurfaceTarget& target);
 		bool CaptureSurface(SurfaceRuntime& surface, const std::function<void(const Actor*)>& drawScene);
-		void PushDrawBinding(const PlanarReflectionBinding& binding);
+		void PushDrawBinding(const PlanarReflectionDrawSet& drawSet);
 		void PopDrawBinding();
 
 		DirectXCommon* dxCommon_ = nullptr;
 		std::vector<SurfaceRuntime> surfaces_{};
-		std::vector<PlanarReflectionBinding> drawBindings_{};
+		std::vector<PlanarReflectionDrawSet> drawBindings_{};
 		std::size_t captureCursor_ = 0;
 		uint64_t captureSerial_ = 0;
 		bool isCapturing_ = false;
