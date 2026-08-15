@@ -6,6 +6,7 @@
 #include "Wireframe.h"
 
 #include <algorithm>
+#include <limits>
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -202,7 +203,7 @@ namespace Ken4lowEngine
 		{
 			if (const Actor* owner = GetOwner())
 			{
-				const std::vector<ModelComponent*> models = owner->GetComponents<ModelComponent>();
+				const std::vector<const ModelComponent*> models = owner->GetComponents<ModelComponent>();
 				float bestProjection = -std::numeric_limits<float>::max();
 				bool found = false;
 				for (const ModelComponent* model : models)
