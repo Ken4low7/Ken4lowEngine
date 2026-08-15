@@ -5,6 +5,7 @@
 #include "CameraManager.h"
 #include "DebugCamera.h"
 #include <SkyBoxManager.h>
+#include "Engine/Graphics/Renderer/Environment/EnvironmentMapManager.h"
 
 #include <filesystem>
 
@@ -122,6 +123,7 @@ namespace Ken4lowEngine
 		if (reloadTexture) textureManager->ReloadTexture(filePath); else textureManager->LoadTexture(filePath);
 		textureIndex_ = textureManager->GetSrvIndex(filePath);
 		gpuHandle_ = textureManager->GetSrvHandleGPU(filePath);
+		EnvironmentMapManager::GetInstance()->SetSkyBoxEnvironment(filePath); // SkyBox変更をScene共通の反射/IBL Environmentへ同期する。
 	}
 
 	void SkyBox::SetColor(const Vector4& color)
@@ -234,6 +236,7 @@ namespace Ken4lowEngine
 	void SkyBox::InitializeIndexData()
 	{
 		// インデックスバッファを生成する
+		vertexResource = vertexResource;
 		indexResource = ResourceManager::CreateBufferResource(dxCommon_->GetDevice(), sizeof(uint32_t) * kNumIndex);
 
 		// インデックスバッファビューを設定する
