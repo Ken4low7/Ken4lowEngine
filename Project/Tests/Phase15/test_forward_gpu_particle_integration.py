@@ -7,6 +7,7 @@ EMITTER_H = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "GpuParticle" / 
 BRIDGE_H = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "GpuParticle" / "Renderer" / "GpuParticleForwardRenderBridge.h"
 RENDERER_CPP = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "GpuParticle" / "Renderer" / "GpuParticleRenderer.cpp"
 SPRITE_PIPELINE_CPP = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "GpuParticle" / "Pipeline" / "GpuParticleSpritePipeline.cpp"
+MESH_PIPELINE_CPP = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "GpuParticle" / "Pipeline" / "GpuParticleMeshPipeline.cpp"
 ACTOR_WORLD_DRAW = PROJECT_ROOT / "Engine" / "Scene" / "Actor" / "Core" / "ActorWorld_Draw.cpp"
 GAME_APPLICATION = PROJECT_ROOT / "Engine" / "Core" / "Application" / "GameApplication.cpp"
 
@@ -18,6 +19,7 @@ class ForwardGpuParticleIntegrationTests(unittest.TestCase):
         cls.bridge_h = BRIDGE_H.read_text(encoding="utf-8")
         cls.renderer_cpp = RENDERER_CPP.read_text(encoding="utf-8")
         cls.sprite_pipeline_cpp = SPRITE_PIPELINE_CPP.read_text(encoding="utf-8")
+        cls.mesh_pipeline_cpp = MESH_PIPELINE_CPP.read_text(encoding="utf-8")
         cls.actor_world_draw = ACTOR_WORLD_DRAW.read_text(encoding="utf-8")
         cls.game_application = GAME_APPLICATION.read_text(encoding="utf-8")
 
@@ -55,9 +57,10 @@ class ForwardGpuParticleIntegrationTests(unittest.TestCase):
         self.assertIn("複数Emitterを跨ぐためCPU側に単一の正確なDepthは存在しない", self.bridge_h)
         self.assertIn("0.0f", self.bridge_h)
 
-    def test_particle_graphics_pipeline_keeps_depth_read_only(self) -> None:
-        self.assertIn("D3D12_DEPTH_WRITE_MASK_ZERO", self.sprite_pipeline_cpp)
-        self.assertIn("D3D12_COMPARISON_FUNC_LESS_EQUAL", self.sprite_pipeline_cpp)
+    def test_particle_graphics_pipelines_keep_depth_read_only(self) -> None:
+        for pipeline in (self.sprite_pipeline_cpp, self.mesh_pipeline_cpp):
+            self.assertIn("D3D12_DEPTH_WRITE_MASK_ZERO", pipeline)
+            self.assertIn("D3D12_COMPARISON_FUNC_LESS_EQUAL", pipeline)
         self.assertIn("GetGfxPSO(blendMode_)", self.renderer_cpp)
 
     def test_actor_world_collects_gpu_particle_packets_before_execution(self) -> None:
