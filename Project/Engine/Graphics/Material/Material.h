@@ -121,7 +121,8 @@ public:
 		Vector4 emissiveFactor;
 		uint32_t textureFlags;
 		float reflectionSourceAvailable;
-		float padding[2];
+		float planarReflectionEnabled;
+		float planarReflectionStrength;
 	};
 
 public:
@@ -146,11 +147,17 @@ public:
 	void SetUVTransform(const Matrix4x4& uvTransform) { materialData_->uvTransform = uvTransform; }
 	void SetUsePointSampling(bool enabled) { materialData_->usePointSampling = enabled ? 1.0f : 0.0f; }
 	void SetPbrEnabled(bool enabled) { materialData_->pbrEnabled = enabled ? 1.0f : 0.0f; }
+	bool IsPbrEnabled() const { return materialData_ && materialData_->pbrEnabled > 0.5f; }
 	void SetMetallic(float metallic) { materialData_->metallic = metallic; }
 	void SetRoughness(float roughness) { materialData_->roughness = roughness; }
 	void SetNormalScale(float normalScale) { materialData_->normalScale = normalScale; }
 	void SetOcclusionStrength(float occlusionStrength) { materialData_->occlusionStrength = occlusionStrength; }
 	void SetEmissiveFactor(const Vector4& emissiveFactor) { materialData_->emissiveFactor = emissiveFactor; } // 発光量を毎フレーム変更できるようCPU側の値へ直接反映する。
+	void SetPlanarReflectionState(bool enabled, float strength)
+	{
+		materialData_->planarReflectionEnabled = enabled ? 1.0f : 0.0f;
+		materialData_->planarReflectionStrength = strength;
+	}
 	void SetCullMode(MaterialCullMode cullMode) { cullMode_ = cullMode; }
 	MaterialCullMode GetCullMode() const { return cullMode_; }
 	void SetBlendMode(MaterialBlendMode blendMode) { blendMode_ = blendMode; }
