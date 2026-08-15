@@ -49,6 +49,17 @@ struct DissolveSetting
     float3 padding;
 };
 
+static const uint kMaxPlanarReflectionSurfaces = 6u;
+
+struct PlanarReflectionDrawData
+{
+    uint surfaceCount;
+    float3 padding;
+    float4x4 reflectedViewProjection[kMaxPlanarReflectionSurfaces];
+    float4 plane[kMaxPlanarReflectionSurfaces];
+    float4 surfaceParams[kMaxPlanarReflectionSurfaces]; // x=Tolerance, y=Strength
+};
+
 ConstantBuffer<Material> gMaterial : register(b0);
 ConstantBuffer<Camera> gCamera : register(b1);
 ConstantBuffer<LightInfo> gLightInfo : register(b2);
@@ -56,6 +67,7 @@ ConstantBuffer<DissolveSetting> gDissolveSetting : register(b3);
 ConstantBuffer<ShadowParameter> gShadowParameter : register(b4);
 ConstantBuffer<LightingSettings> gLightingSettings : register(b5);
 ConstantBuffer<ExtendedShadowParameter> gExtendedShadowParameter : register(b6);
+ConstantBuffer<PlanarReflectionDrawData> gPlanarReflection : register(b7);
 
 Texture2D<float4> gTexture : register(t0);
 TextureCube<float4> gEnvironmentTexture : register(t1);
@@ -65,9 +77,10 @@ Texture2D<float> gShadowMap : register(t4);
 Texture2D<float4> gMetallicRoughnessTexture : register(t6);
 Texture2D<float4> gNormalTexture : register(t7);
 Texture2D<float4> gOcclusionTexture : register(t8);
-Texture2D<float4> gEmissiveTexture : register(t9); // Planar鏡面Draw中だけReflection Textureとして再利用する。
+Texture2D<float4> gEmissiveTexture : register(t9);
 Texture2DArray<float> gCsmShadowMaps : register(t10);
 TextureCube<float> gPointShadowMap : register(t11);
+Texture2D<float4> gPlanarReflectionTextures[kMaxPlanarReflectionSurfaces] : register(t12);
 
 SamplerState gPointSampler : register(s0);
 SamplerComparisonState gShadowSampler : register(s1);
@@ -79,6 +92,21 @@ static const float kPlanarNormalAlignmentThreshold = 0.90f;
 float ComputeFresnelSchlick(float cosTheta, float f0)
 {
     return f0 + (1.0f - f0) * pow(1.0f - cosTheta, 5.0f);
+}
+
+float3 SamplePlanarReflectionTexture(uint surfaceIndex, float2 uv)
+{
+    // Dynamic descriptor-array indexへ依存せず、DX12の固定6面を明示分岐して各Textureを安全にSampleする。
+    switch (surfaceIndex)
+    {
+    case 0u: return gPlanarReflectionTextures[0].SampleLevel(gLinearSampler, uv, 0.0f).rgb;
+    case 1u: return gPlanarReflectionTextures[1].SampleLevel(gLinearSampler, uv, 0.0f).rgb;
+    case 2u: return gPlanarReflectionTextures[2].SampleLevel(gLinearSampler, uv, 0.0f).rgb;
+    case 3u: return gPlanarReflectionTextures[3].SampleLevel(gLinearSampler, uv, 0.0f).rgb;
+    case 4u: return gPlanarReflectionTextures[4].SampleLevel(gLinearSampler, uv, 0.0f).rgb;
+    case 5u: return gPlanarReflectionTextures[5].SampleLevel(gLinearSampler, uv, 0.0f).rgb;
+    default: return 0.0.xxx;
+    }
 }
 
 PixelShaderOutput main(VertexShaderOutput input)
@@ -218,7 +246,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         }
 
         float3 emissiveSample = 1.0.xxx;
-        if ((gMaterial.textureFlags & MATERIAL_TEXTURE_EMISSIVE) != 0 && gMaterial.planarReflectionEnabled <= 0.5f)
+        if ((gMaterial.textureFlags & MATERIAL_TEXTURE_EMISSIVE) != 0)
         {
             emissiveSample = gEmissiveTexture.Sample(gLinearSampler, transformedUV.xy).rgb;
         }
@@ -270,27 +298,56 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     if (gMaterial.planarReflectionEnabled > 0.5f)
     {
-        const float3 planarNormal = normalize(gMaterial.planarReflectionPlane.xyz);
-        const float surfaceAlignment = abs(dot(normal, planarNormal));
-        const float planeDistance = abs(dot(float4(worldPosition, 1.0f), gMaterial.planarReflectionPlane));
-        const float planeTolerance = max(gMaterial.planarReflectionSurfaceParams.x, 0.001f);
-        if (surfaceAlignment >= kPlanarNormalAlignmentThreshold && planeDistance <= planeTolerance)
+        const uint surfaceCount = min(gPlanarReflection.surfaceCount, kMaxPlanarReflectionSurfaces);
+        int selectedSurface = -1;
+        float selectedPlaneDistance = 1.0e20f;
+        float2 selectedUv = 0.0.xx;
+
+        [unroll]
+        for (uint surfaceIndex = 0u; surfaceIndex < kMaxPlanarReflectionSurfaces; ++surfaceIndex)
         {
-            float4 reflectedClip = mul(float4(worldPosition, 1.0f), gMaterial.planarReflectionViewProjection);
-            if (reflectedClip.w > 1e-5f)
+            if (surfaceIndex >= surfaceCount)
             {
-                float2 reflectedNdc = reflectedClip.xy / reflectedClip.w;
-                float2 planarUv = float2(
-                    reflectedNdc.x * 0.5f + 0.5f,
-                    -reflectedNdc.y * 0.5f + 0.5f);
-                const float2 uvMin = float2(0.0f, 0.0f);
-                const float2 uvMax = float2(1.0f, 1.0f);
-                if (all(planarUv >= uvMin) && all(planarUv <= uvMax))
-                {
-                    float3 planarColor = gEmissiveTexture.SampleLevel(gLinearSampler, planarUv, 0.0f).rgb;
-                    shadedColor = lerp(shadedColor, planarColor, saturate(gMaterial.planarReflectionStrength)); // 実際の鏡平面上にあるPixelだけ反射Cameraへ再投影する。
-                }
+                break;
             }
+
+            const float3 planarNormal = normalize(gPlanarReflection.plane[surfaceIndex].xyz);
+            const float surfaceAlignment = abs(dot(normal, planarNormal));
+            const float planeDistance = abs(dot(float4(worldPosition, 1.0f), gPlanarReflection.plane[surfaceIndex]));
+            const float planeTolerance = max(gPlanarReflection.surfaceParams[surfaceIndex].x, 0.001f);
+            if (surfaceAlignment < kPlanarNormalAlignmentThreshold ||
+                planeDistance > planeTolerance ||
+                planeDistance >= selectedPlaneDistance)
+            {
+                continue;
+            }
+
+            float4 reflectedClip = mul(float4(worldPosition, 1.0f), gPlanarReflection.reflectedViewProjection[surfaceIndex]);
+            if (reflectedClip.w <= 1e-5f)
+            {
+                continue;
+            }
+
+            float2 reflectedNdc = reflectedClip.xy / reflectedClip.w;
+            float2 planarUv = float2(
+                reflectedNdc.x * 0.5f + 0.5f,
+                -reflectedNdc.y * 0.5f + 0.5f);
+            if (!all(planarUv >= 0.0.xx) || !all(planarUv <= 1.0.xx))
+            {
+                continue;
+            }
+
+            selectedSurface = (int)surfaceIndex;
+            selectedPlaneDistance = planeDistance;
+            selectedUv = planarUv;
+        }
+
+        if (selectedSurface >= 0)
+        {
+            const uint selectedIndex = (uint)selectedSurface;
+            const float3 planarColor = SamplePlanarReflectionTexture(selectedIndex, selectedUv);
+            const float strength = saturate(gPlanarReflection.surfaceParams[selectedIndex].y);
+            shadedColor = lerp(shadedColor, planarColor, strength); // Pixelが属する面だけ、その面専用Reflection CameraのTextureを合成する。
         }
     }
 
