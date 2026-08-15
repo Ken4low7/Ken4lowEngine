@@ -146,9 +146,22 @@ namespace Ken4lowEngine
 		const PlanarReflectionBinding& binding)
 		: manager_(manager)
 	{
-		if (manager_ && binding.valid && binding.texture.ptr != 0)
+		PlanarReflectionDrawSet drawSet{};
+		if (manager_ && drawSet.Add(binding))
 		{
-			manager_->PushDrawBinding(binding);
+			manager_->PushDrawBinding(drawSet);
+			active_ = true;
+		}
+	}
+
+	inline PlanarReflectionManager::ScopedDrawBinding::ScopedDrawBinding(
+		PlanarReflectionManager* manager,
+		const PlanarReflectionDrawSet& drawSet)
+		: manager_(manager)
+	{
+		if (manager_ && !drawSet.Empty())
+		{
+			manager_->PushDrawBinding(drawSet);
 			active_ = true;
 		}
 	}
@@ -298,7 +311,7 @@ namespace Ken4lowEngine
 		if (!dxCommon_ || isCapturing_ || !drawScene) return false;
 		SurfaceRuntime* surface = FindCaptureCandidate();
 		if (!surface) return false;
-		return CaptureSurface(*surface, drawScene); // 1フレーム1面に制限し、複数鏡の追加で描画負荷が一気に跳ねないようにする。
+		return CaptureSurface(*surface, drawScene); // 1フレーム1面に制限し、6面鏡でもCapture負荷を予算化する。
 	}
 
 	inline bool PlanarReflectionManager::EnsureTarget(SurfaceRuntime& surface)
@@ -539,7 +552,8 @@ namespace Ken4lowEngine
 		const SurfaceRuntime* surface = FindSurface(owner);
 		if (!surface || !surface->owner || !surface->desc.enabled || !surface->captured || !surface->target) return binding;
 		if (surface->target->srvIndex == UINT32_MAX) return binding;
-		binding.texture = SRVManager::GetInstance()->GetGPUDescriptorHandle(surface->target->srvIndex);
+		binding.srvIndex = surface->target->srvIndex;
+		binding.texture = SRVManager::GetInstance()->GetGPUDescriptorHandle(binding.srvIndex);
 		binding.reflectedViewProjection = surface->capturedViewProjection;
 		binding.planePosition = surface->desc.position;
 		binding.planeNormal = surface->desc.normal;
@@ -551,7 +565,47 @@ namespace Ken4lowEngine
 
 	inline PlanarReflectionBinding PlanarReflectionManager::GetCurrentDrawBinding() const
 	{
-		return drawBindings_.empty() ? PlanarReflectionBinding{} : drawBindings_.back();
+		const PlanarReflectionDrawSet drawSet = GetCurrentDrawSet();
+		return drawSet.count > 0 ? drawSet.surfaces[0] : PlanarReflectionBinding{};
+	}
+
+	inline PlanarReflectionDrawSet PlanarReflectionManager::GetCurrentDrawSet() const
+	{
+		return drawBindings_.empty() ? PlanarReflectionDrawSet{} : drawBindings_.back();
+	}
+
+	inline bool PlanarReflectionManager::BindCurrentDrawDescriptorTable(
+		ID3D12GraphicsCommandList* commandList,
+		UINT rootParameterIndex) const
+	{
+		if (!commandList || !dxCommon_ || !dxCommon_->GetDevice() || drawBindings_.empty()) return false;
+		const PlanarReflectionDrawSet& drawSet = drawBindings_.back();
+		if (drawSet.Empty()) return false;
+
+		SRVManager* srvManager = SRVManager::GetInstance();
+		const SRVManager::TransientDescriptorAllocation allocation =
+			srvManager->AllocateTransient(kMaxPlanarReflectionSurfacesPerDraw);
+		if (!allocation.IsValid()) return false;
+
+		const uint32_t fallbackSrvIndex = drawSet.surfaces[0].srvIndex;
+		const uint32_t descriptorSize = srvManager->GetDescriptorSize();
+		for (uint32_t index = 0; index < kMaxPlanarReflectionSurfacesPerDraw; ++index)
+		{
+			const uint32_t sourceSrvIndex =
+				index < drawSet.count && drawSet.surfaces[index].srvIndex != UINT32_MAX
+				? drawSet.surfaces[index].srvIndex
+				: fallbackSrvIndex;
+			D3D12_CPU_DESCRIPTOR_HANDLE destination = allocation.cpuHandle;
+			destination.ptr += static_cast<SIZE_T>(descriptorSize) * index;
+			dxCommon_->GetDevice()->CopyDescriptorsSimple(
+				1,
+				destination,
+				srvManager->GetCPUDescriptorHandle(sourceSrvIndex),
+				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		}
+
+		commandList->SetGraphicsRootDescriptorTable(rootParameterIndex, allocation.gpuHandle);
+		return true; // 永続SRVをFrame Transientの連続6枠へ複製し、t12～t17を1 Tableで束縛する。
 	}
 
 	inline PlanarReflectionDiagnostics PlanarReflectionManager::GetDiagnostics(const void* owner) const
@@ -567,11 +621,11 @@ namespace Ken4lowEngine
 		return diagnostics;
 	}
 
-	inline void PlanarReflectionManager::PushDrawBinding(const PlanarReflectionBinding& binding)
+	inline void PlanarReflectionManager::PushDrawBinding(const PlanarReflectionDrawSet& drawSet)
 	{
-		if (binding.valid && binding.texture.ptr != 0)
+		if (!drawSet.Empty())
 		{
-			drawBindings_.push_back(binding);
+			drawBindings_.push_back(drawSet);
 		}
 	}
 
