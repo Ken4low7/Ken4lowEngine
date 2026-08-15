@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 
 namespace Ken4lowEngine
@@ -101,6 +102,7 @@ namespace Ken4lowEngine
 		maxInstanceCount_ = 0;
 		instanceCount_ = 0;
 		sourceInstances_.clear();
+		visibleInstanceScratch_.clear();
 		frustumCullingEnabled_ = false;
 		estimatedDrawIndexCount_ = 0;
 		drawSkippedByBudget_ = false;
@@ -111,6 +113,24 @@ namespace Ken4lowEngine
 	uint64_t InstancedObject3DRenderer::GetModelTotalIndexCount() const
 	{
 		return model_ ? model_->GetTotalIndexCount() : 0ull;
+	}
+
+	float InstancedObject3DRenderer::CalculateForwardSortDepth() const
+	{
+		if (sourceInstances_.empty()) return 0.0f;
+		const Vector3 cameraPosition = CameraManager::GetInstance()->GetActiveCameraPosition();
+		const Vector3 cameraForward = CameraManager::GetInstance()->GetActiveCameraForward();
+		const bool backToFront = material_.GetBlendMode() == MaterialBlendMode::Transparent || material_.GetBlendMode() == MaterialBlendMode::Additive;
+		float selectedDepth = backToFront ? -std::numeric_limits<float>::infinity() : std::numeric_limits<float>::infinity();
+		const Vector3 localCenter = model_ && model_->HasLocalBounds() ? model_->GetLocalBounds().center : Vector3{};
+		for (const InstanceData& instance : sourceInstances_)
+		{
+			const Vector3 center = Vector3::Transform(localCenter, instance.world);
+			const Vector3 toInstance = { center.x - cameraPosition.x, center.y - cameraPosition.y, center.z - cameraPosition.z };
+			const float depth = toInstance.x * cameraForward.x + toInstance.y * cameraForward.y + toInstance.z * cameraForward.z;
+			selectedDepth = backToFront ? std::max(selectedDepth, depth) : std::min(selectedDepth, depth);
+		}
+		return std::isfinite(selectedDepth) ? selectedDepth : 0.0f;
 	}
 
 	bool InstancedObject3DRenderer::SetInstances(const std::vector<InstanceData>& instances)
@@ -252,7 +272,12 @@ namespace Ken4lowEngine
 			return;
 		}
 
-		if (!frustumCullingEnabled_)
+		const MaterialBlendMode blendMode = material_.GetBlendMode();
+		const bool backToFront = blendMode == MaterialBlendMode::Transparent || blendMode == MaterialBlendMode::Additive;
+		visibleInstanceScratch_.clear();
+		if (backToFront) visibleInstanceScratch_.reserve(std::min(sourceInstances_.size(), maxInstanceCount_));
+
+		if (!frustumCullingEnabled_ && !backToFront)
 		{
 			const size_t count = std::min(sourceInstances_.size(), maxInstanceCount_);
 			std::copy_n(sourceInstances_.begin(), count, stream->mappedInstances);
@@ -260,15 +285,16 @@ namespace Ken4lowEngine
 			return;
 		}
 
-		Frustum frustum;
-		frustum.BuildFromViewProjection(viewProjection);
-		instanceCount_ = 0;
 		const bool hasBounds = model_ && model_->HasLocalBounds();
 		const BoundingSphere localBounds = hasBounds ? model_->GetLocalBounds() : BoundingSphere{};
-		for (const auto& instance : sourceInstances_)
+		Frustum frustum;
+		if (frustumCullingEnabled_) frustum.BuildFromViewProjection(viewProjection);
+		instanceCount_ = 0;
+
+		for (const InstanceData& instance : sourceInstances_)
 		{
 			bool visible = true;
-			if (hasBounds)
+			if (frustumCullingEnabled_ && hasBounds)
 			{
 				BoundingSphere worldBounds{};
 				worldBounds.center = Vector3::Transform(localBounds.center, instance.world);
@@ -278,8 +304,37 @@ namespace Ken4lowEngine
 				worldBounds.radius = localBounds.radius * std::max({ scaleX, scaleY, scaleZ });
 				visible = frustum.Intersects(worldBounds);
 			}
-			if (visible && instanceCount_ < maxInstanceCount_) stream->mappedInstances[instanceCount_++] = instance;
+			if (!visible) continue;
+
+			if (backToFront)
+			{
+				if (visibleInstanceScratch_.size() < maxInstanceCount_) visibleInstanceScratch_.push_back(instance);
+			}
+			else if (instanceCount_ < maxInstanceCount_)
+			{
+				stream->mappedInstances[instanceCount_++] = instance;
+			}
 		}
+
+		if (!backToFront) return;
+
+		const Vector3 cameraPosition = CameraManager::GetInstance()->GetActiveCameraPosition();
+		const Vector3 cameraForward = CameraManager::GetInstance()->GetActiveCameraForward();
+		const Vector3 localCenter = hasBounds ? localBounds.center : Vector3{};
+		std::stable_sort(visibleInstanceScratch_.begin(), visibleInstanceScratch_.end(),
+			[&](const InstanceData& lhs, const InstanceData& rhs)
+			{
+				const Vector3 lhsCenter = Vector3::Transform(localCenter, lhs.world);
+				const Vector3 rhsCenter = Vector3::Transform(localCenter, rhs.world);
+				const Vector3 lhsOffset = { lhsCenter.x - cameraPosition.x, lhsCenter.y - cameraPosition.y, lhsCenter.z - cameraPosition.z };
+				const Vector3 rhsOffset = { rhsCenter.x - cameraPosition.x, rhsCenter.y - cameraPosition.y, rhsCenter.z - cameraPosition.z };
+				const float lhsDepth = lhsOffset.x * cameraForward.x + lhsOffset.y * cameraForward.y + lhsOffset.z * cameraForward.z;
+				const float rhsDepth = rhsOffset.x * cameraForward.x + rhsOffset.y * cameraForward.y + rhsOffset.z * cameraForward.z;
+				return lhsDepth > rhsDepth; // Main Streamだけを奥から手前へ並べ、編集用sourceInstances_のID順は保持する。
+			});
+
+		instanceCount_ = std::min(visibleInstanceScratch_.size(), maxInstanceCount_);
+		std::copy_n(visibleInstanceScratch_.begin(), instanceCount_, stream->mappedInstances);
 	}
 
 	void InstancedObject3DRenderer::Draw()
@@ -328,7 +383,21 @@ namespace Ken4lowEngine
 
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		SRVManager::GetInstance()->PreDraw();
-		Object3DCommon::GetInstance()->SetInstancedRenderSetting(ResolveEffectiveCullMode());
+		const MaterialCullMode cullMode = ResolveEffectiveCullMode();
+		switch (material_.GetBlendMode())
+		{
+		case MaterialBlendMode::Transparent:
+			Object3DCommon::GetInstance()->SetInstancedAlphaRenderSetting(cullMode);
+			break;
+		case MaterialBlendMode::Additive:
+			Object3DCommon::GetInstance()->SetInstancedAdditiveRenderSetting(cullMode);
+			break;
+		case MaterialBlendMode::Masked:
+		case MaterialBlendMode::Opaque:
+		default:
+			Object3DCommon::GetInstance()->SetInstancedRenderSetting(cullMode);
+			break;
+		}
 		material_.SetPipeline(0);
 		commandList->SetGraphicsRootConstantBufferView(1, perViewAllocation.gpuAddress);
 		commandList->SetGraphicsRootConstantBufferView(3, cameraAllocation.gpuAddress);
