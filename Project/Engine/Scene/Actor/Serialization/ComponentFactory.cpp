@@ -63,7 +63,7 @@ namespace Ken4lowEngine
 				{
 					if (!owner)
 					{
-						return nullptr; // 所有Actorが無い場合はComponentを生成できない
+						return nullptr; // 所有Actorが無い場合はRootComponentを生成できない
 					}
 
 					if constexpr (std::is_base_of_v<SceneComponent, T>)
@@ -115,7 +115,7 @@ namespace Ken4lowEngine
 
 			MakeComponentTypeInfo<ReflectionProbeComponent>("ReflectionProbeComponent", true, "リフレクションプローブ", "描画", "周囲の静的3DシーンをCubemapへCaptureし、近傍Materialの局所反射に使用します。"),
 
-			MakeComponentTypeInfo<PlanarReflectionComponent>("PlanarReflectionComponent", false, "プラナーリフレクション", "描画", "同じActorのModelComponentを鏡面として、反射CameraからSceneを再描画します。"),
+			MakeComponentTypeInfo<PlanarReflectionComponent>("PlanarReflectionComponent", true, "プラナーリフレクション", "描画", "1 Componentを1枚の鏡面として、同じActorへ最大6方向のPlanar Reflectionを追加できます。"),
 
 			MakeComponentTypeInfo<CameraComponent>("CameraComponent", false, "カメラコンポーネント", "カメラ", "Actorを視点として使うためのカメラ機能を追加します。"),
 
@@ -159,7 +159,7 @@ namespace Ken4lowEngine
 
 		if (!typeInfo)
 		{
-			return nullptr; // 未登録のComponentClass名の場合は生成しない
+			return nullptr; // 未登録のComponentClass名の場合
 		}
 
 		return typeInfo->createFunc(owner);
@@ -224,6 +224,6 @@ namespace Ken4lowEngine
 			}
 		}
 
-		return nullptr; // 一致するComponent情報がない場合はnullptrを返す
+		return nullptr; // 一致するComponentClass名がない場合はnullptrを返す
 	}
 } // namespace Ken4lowEngine
