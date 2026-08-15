@@ -21,6 +21,7 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidPressureProjectionPass.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidScalarAdvectionPass.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidForcePass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidEmitterInjectionPass.cpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidEmitterTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidObstacleTypes.h" />
@@ -41,12 +42,14 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Editor\GpuFluidDiagnosticsPanel.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Shader\Manifest\GpuFluidShaderManifest.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Data\GpuVolumetricFluidTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Data\GpuVolumetricFluidEmitterTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Resource\GpuVolumetricFluidGridResource.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidResetPass.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidVelocityAdvectionPass.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidPressureProjectionPass.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidScalarAdvectionPass.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidForcePass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidEmitterInjectionPass.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Shader\Manifest\GpuVolumetricFluidShaderManifest.h" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidCommon.hlsli" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVelocityAdvection.CS.hlsl" />
@@ -70,5 +73,6 @@
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidVorticityCurl.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidVorticityConfinement.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidBuoyancy.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidEmitterInjection.CS.hlsl" />
   </ItemGroup>
 </Project>

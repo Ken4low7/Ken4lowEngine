@@ -155,4 +155,3 @@ def test_manifest_build_and_docs_register_phase17_5():
         assert name in props
     assert "- [x] 17.5 3D Density / Temperature / Vorticity / Buoyancy" in docs
     assert "## 17.5 3D Density / Temperature / Vorticity / Buoyancy" in docs
-    assert "## Next implementation target — 17.6" in docs

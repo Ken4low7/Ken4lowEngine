@@ -21,7 +21,7 @@ Phase 17 extends the Phase 16 2D Eulerian solver into a true 3D volume while kee
 - [x] 17.3 3D Velocity Advection
 - [x] 17.4 3D Divergence / Pressure / Projection
 - [x] 17.5 3D Density / Temperature / Vorticity / Buoyancy
-- [ ] 17.6 3D Emitter injection
+- [x] 17.6 3D Emitter injection
 - [ ] 17.7 Volumetric Collider / Obstacle raster
 - [ ] 17.8 Volume Raymarch Rendering
 - [ ] 17.9 Depth-aware composition / lighting
@@ -142,27 +142,87 @@ Buoyancy follows the Phase16 sign convention:
 
 `velocity.y += F_y * dt`
 
-The other velocity components remain unchanged except for closed-volume normal-boundary enforcement.
-
 ### Force pass ordering
 
 `GpuVolumetricFluidForcePass::DispatchAll` records:
 
 `Curl -> Vorticity Confinement -> Buoyancy`
 
-Curl writes the dedicated vorticity Texture3D. Confinement and Buoyancy each write the opposite velocity generation, insert a UAV barrier, transition the result back to SRV state, and swap velocity.
+Force application can introduce divergence, so the future runtime manager must execute another Pressure Projection after the force stage.
 
-Force application can introduce divergence. The future runtime manager must therefore execute another Pressure Projection after the force stage rather than hiding projection inside `GpuVolumetricFluidForcePass`.
+## 17.6 3D Emitter injection
+
+`GpuVolumetricFluidEmitterInjectionPass` adds world-space spherical sources to Velocity, Density, and Temperature in one full-volume dispatch.
+
+### Source contract
+
+`GpuVolumetricFluidEmitterSource` stores renderer-independent Scene values:
+
+- world position
+- world velocity
+- world radius
+- velocity strength
+- density rate
+- temperature rate
+- falloff exponent
+- enabled state
+
+`BuildGpuVolumetricFluidEmitterGpuData` converts the source through `GpuVolumetricFluidDomainMapping`:
+
+- `WorldToGrid` converts center XYZ into voxel coordinates.
+- Radius converts from world units into voxel units with `radius / cellSize`.
+- `WorldVelocityToFluid` projects world velocity onto the domain U/V/W axes.
+
+A spherical source completely outside any of the six volume sides is rejected before upload.
+
+### GPU source layout
+
+`GpuVolumetricFluidEmitterGpuData` is 64 bytes and mirrored by the HLSL StructuredBuffer element. It contains center XYZ, radius, fluid-space velocity XYZ, velocity strength, density/temperature rates, falloff exponent, and inverse radius.
+
+The injection shader evaluates spherical distance from each voxel center:
+
+`falloff = pow(saturate(1 - distance / radius), falloffExponent)`
+
+and applies:
+
+`velocity += sourceVelocity * velocityStrength * dt * falloff`
+
+`density += densityRate * dt * falloff`
+
+`temperature += temperatureRate * dt * falloff`
+
+### Batched upload and safety bound
+
+Active GPU source data is copied into the shared `FrameUploadArena` and bound as a root `StructuredBuffer` SRV. The pass records one `numthreads(8, 8, 4)` XYZ dispatch for all accepted sources.
+
+One dispatch accepts at most 256 sources. Disabled, invalid, completely out-of-volume, and over-limit sources contribute to `lastCulledSourceCount`. `lastInjectedSourceCount` reports how many sources were actually uploaded.
+
+The 256-source cap bounds the per-voxel source loop so accidental Editor source counts cannot grow compute cost without limit.
+
+### Three-field generation contract
+
+Velocity, Density, and Temperature each read their current ping-pong generation and write the opposite generation in the same dispatch. After dispatch, all three write resources receive UAV barriers and return to compute-readable state before any of the three ping-pong fields swap.
+
+Obstacle masking remains intentionally deferred to 17.7. This keeps source injection testable independently before solid voxels are introduced into every solver stage.
+
+### Scene Component reuse
+
+The existing `FluidEmitterComponent` now exposes both:
+
+- `BuildEmitterSource()` for Phase16 2D fluid
+- `BuildVolumetricEmitterSource()` for Phase17 3D fluid
+
+Both are built from the same serialized Scene settings. Existing Scene assets therefore do not need a separate 3D emitter component or duplicate JSON configuration.
 
 ### Current intended solver order
 
-Once 17.6/17.7 provide sources and obstacles, one fixed simulation step is intended to become:
+Once 17.7 provides obstacles, one fixed simulation step is intended to become:
 
 `Obstacle -> Emitter -> Velocity Advection -> Projection -> Scalar Advection -> Curl/Vorticity/Buoyancy -> Projection`
 
 ## Build integration
 
-`Project/Directory.Build.props` registers all Phase17 resource/pass/manifest/HLSL files only for the main `Ken4lowEngine` project.
+`Project/Directory.Build.props` registers all Phase17 resource/pass/data/manifest/HLSL files only for the main `Ken4lowEngine` project.
 
 ## Validation
 
@@ -172,28 +232,32 @@ Once 17.6/17.7 provide sources and obstacles, one fixed simulation step is inten
 - grid/domain and constant-buffer contracts
 - deterministic reset
 - 3D velocity and scalar advection
-- XYZ compute dispatch
-- six-neighbor divergence and pressure Jacobi
-- XYZ pressure projection and closed outer faces
-- vector Curl component equations
-- `grad(|omega|)` and `cross(N, omega)` confinement
+- six-neighbor divergence and pressure solve
+- vector Curl and vorticity confinement
 - Density/Temperature buoyancy feedback
-- UAV barriers before scalar/velocity ping-pong swaps
+- 64-byte CPU/HLSL emitter layout
+- World-to-Grid XYZ emitter mapping
+- out-of-volume source culling and 256-source bound
+- StructuredBuffer upload through `FrameUploadArena`
+- one XYZ dispatch updating Velocity/Density/Temperature
+- UAV barriers before all three emitter ping-pong swaps
+- shared 2D/3D `FluidEmitterComponent` Scene settings
 - shader manifest and build registration
 
 A real Windows / Visual Studio / DXC / GPU build is still required after repository integration.
 
-## Next implementation target — 17.6
+## Next implementation target — 17.7
 
-Implement **3D Emitter injection**.
+Implement **Volumetric Collider / Obstacle raster**.
 
 The next stage should add:
 
-- world-space spherical volumetric emitters
-- `GpuVolumetricFluidDomainMapping` based World-to-Grid conversion
-- velocity / density / temperature injection into Texture3D fields
-- batched StructuredBuffer source data through `FrameUploadArena`
-- one full-volume XYZ dispatch for all active emitters
-- source culling outside the 3D domain
-- deterministic velocity/density/temperature ping-pong swaps
-- a Scene Component/adapter path that can later be driven by the runtime manager
+- 3D obstacle source data for Sphere / AABB / OBB colliders
+- conservative CPU domain culling before upload
+- one `R8_UINT` Texture3D obstacle-mask raster dispatch
+- solid-voxel behavior in velocity/scalar advection
+- obstacle-aware divergence and six-neighbor pressure solve
+- zero normal velocity against internal solid faces
+- source injection suppression inside solid voxels
+- Curl / Vorticity / Buoyancy obstacle handling
+- a Collider adapter that reuses the existing Physics `ColliderComponent`

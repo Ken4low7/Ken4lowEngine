@@ -16,6 +16,7 @@ enum class GpuVolumetricFluidComputeShaderId : uint32_t
 	VorticityCurl,
 	VorticityConfinement,
 	Buoyancy,
+	EmitterInjection,
 };
 
 /// Phase17の3D Fluid ShaderをPhase16の2D Manifestから分離し、両Solverを独立して拡張する。
@@ -95,6 +96,16 @@ public:
 			static const ShaderDescriptor desc{
 				L"GpuVolumetricFluidBuoyancyCS",
 				L"Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidBuoyancy.CS.hlsl",
+				L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute
+			};
+			return desc;
+		}
+		case GpuVolumetricFluidComputeShaderId::EmitterInjection:
+		{
+			// 球状3D Source群をStructuredBufferで渡し、1回のVolume Dispatchで3 fieldへ注入する。
+			static const ShaderDescriptor desc{
+				L"GpuVolumetricFluidEmitterInjectionCS",
+				L"Resources/Shaders/GpuFluid/Volumetric/GpuVolumetricFluidEmitterInjection.CS.hlsl",
 				L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute
 			};
 			return desc;

@@ -11,6 +11,7 @@ namespace Ken4lowEngine
 {
 
 struct GpuFluidEmitterSource;
+struct GpuVolumetricFluidEmitterSource;
 
 /// -------------------------------------------------------------
 /// ActorからGPU FluidへVelocity/Density/Temperature Sourceを供給するComponent。
@@ -30,6 +31,7 @@ public:
 
 	/// Renderer側へScene依存を漏らさず、現在のWorld位置とSource設定だけを値として渡す。
 	[[nodiscard]] GpuFluidEmitterSource BuildEmitterSource() const;
+	[[nodiscard]] GpuVolumetricFluidEmitterSource BuildVolumetricEmitterSource() const;
 
 	[[nodiscard]] bool IsEmissionEnabled() const { return emissionEnabled_; }
 	void SetEmissionEnabled(bool enabled) { emissionEnabled_ = enabled; }

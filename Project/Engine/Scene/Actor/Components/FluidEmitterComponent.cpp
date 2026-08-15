@@ -1,6 +1,7 @@
 #include "FluidEmitterComponent.h"
 
 #include "../../../Graphics/Renderer/GpuFluid/Data/GpuFluidEmitterTypes.h"
+#include "../../../Graphics/Renderer/GpuFluid/Volumetric/Data/GpuVolumetricFluidEmitterTypes.h"
 #include "../Core/Actor.h"
 #include "../Serialization/ComponentFactory.h"
 
@@ -46,7 +47,7 @@ void FluidEmitterComponent::DrawImGui()
 
 #ifdef USE_IMGUI
 	ImGui::SeparatorText("GPU Fluid Emitter");
-	ImGui::TextDisabled("Injects velocity, density, and temperature into the active 2D fluid domain.");
+	ImGui::TextDisabled("Injects velocity, density, and temperature into 2D or 3D fluid domains.");
 	ComponentPropertyUtility::DrawImGui(CreateProperties());
 #endif // USE_IMGUI
 }
@@ -68,6 +69,21 @@ void FluidEmitterComponent::FromJson(const nlohmann::json& inJson)
 GpuFluidEmitterSource FluidEmitterComponent::BuildEmitterSource() const
 {
 	GpuFluidEmitterSource source{};
+	source.worldPosition = GetWorldPosition();
+	source.worldVelocity = sourceVelocity_;
+	source.radius = radius_;
+	source.velocityStrength = velocityStrength_;
+	source.densityRate = densityRate_;
+	source.temperatureRate = temperatureRate_;
+	source.falloffExponent = falloffExponent_;
+	source.enabled = emissionEnabled_ && IsActiveInHierarchy();
+	return source;
+}
+
+GpuVolumetricFluidEmitterSource FluidEmitterComponent::BuildVolumetricEmitterSource() const
+{
+	// 2D/3DでScene設定を二重管理せず、同じWorld-space Source値を各Solver契約へ変換する。
+	GpuVolumetricFluidEmitterSource source{};
 	source.worldPosition = GetWorldPosition();
 	source.worldVelocity = sourceVelocity_;
 	source.radius = radius_;
