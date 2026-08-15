@@ -14,8 +14,6 @@
 #include <Camera.h>
 #include <Matrix4x4.h>
 
-#include <algorithm>
-#include <cmath>
 #include <exception>
 
 #ifdef USE_IMGUI
@@ -37,53 +35,6 @@ namespace Ken4lowEngine
 				bounds.center.z - cameraPosition.z,
 			};
 			return toObject.x * cameraForward.x + toObject.y * cameraForward.y + toObject.z * cameraForward.z;
-		}
-
-		Vector3 ReflectVector(const Vector3& value, const Vector3& normal)
-		{
-			return value - normal * (2.0f * Vector3::Dot(value, normal));
-		}
-
-		Vector3 ReflectPoint(const Vector3& point, const Vector3& planePoint, const Vector3& planeNormal)
-		{
-			const float signedDistance = Vector3::Dot(point - planePoint, planeNormal);
-			return point - planeNormal * (2.0f * signedDistance);
-		}
-
-		Matrix4x4 BuildPlanarReflectionViewProjection(const PlanarReflectionComponent& planar)
-		{
-			CameraManager* cameraManager = CameraManager::GetInstance();
-			const Vector3 planeNormal = Vector3::NormalizeSafe(planar.GetPlaneNormal(), { 0.0f, 1.0f, 0.0f });
-			const Vector3 cameraPosition = cameraManager->GetActiveCameraPosition();
-			const Vector3 cameraForward = Vector3::NormalizeSafe(
-				cameraManager->GetActiveCameraForward(),
-				{ 0.0f, 0.0f, 1.0f });
-
-			Vector3 referenceUp{ 0.0f, 1.0f, 0.0f };
-			if (std::fabs(Vector3::Dot(referenceUp, cameraForward)) > 0.98f)
-			{
-				referenceUp = { 0.0f, 0.0f, 1.0f };
-			}
-			const Vector3 cameraRight = Vector3::NormalizeSafe(
-				Vector3::Cross(referenceUp, cameraForward),
-				{ 1.0f, 0.0f, 0.0f });
-			const Vector3 cameraUp = Vector3::NormalizeSafe(
-				Vector3::Cross(cameraForward, cameraRight),
-				{ 0.0f, 1.0f, 0.0f });
-
-			const Vector3 reflectedPosition = ReflectPoint(cameraPosition, planar.GetWorldPosition(), planeNormal);
-			const Vector3 reflectedForward = Vector3::NormalizeSafe(
-				ReflectVector(cameraForward, planeNormal),
-				{ 0.0f, 0.0f, 1.0f });
-			const Vector3 reflectedUp = Vector3::NormalizeSafe(
-				ReflectVector(cameraUp, planeNormal),
-				{ 0.0f, 1.0f, 0.0f });
-
-			const Matrix4x4 reflectedView = Matrix4x4::LookAt(
-				reflectedPosition,
-				reflectedPosition + reflectedForward,
-				reflectedUp);
-			return Matrix4x4::Multiply(reflectedView, cameraManager->GetActiveProjectionMatrix());
 		}
 	}
 
@@ -408,12 +359,7 @@ namespace Ken4lowEngine
 			if (PlanarReflectionComponent* planar = owner->GetComponent<PlanarReflectionComponent>();
 				planar && planar->IsActiveInHierarchy() && planar->IsEnabled())
 			{
-				planarBinding = planarManager->ResolveBinding(planar);
-				if (planarBinding.valid)
-				{
-					planarBinding.planeNormal = planar->GetPlaneNormal();
-					planarBinding.reflectedViewProjection = BuildPlanarReflectionViewProjection(*planar); // 鏡面PixelをWorld位置から反射Cameraへ再投影して正しい鏡像UVを作る。
-				}
+				planarBinding = planarManager->ResolveBinding(planar); // Capture時に保存したProjection/Planeをそのまま使い、Main描画で再計算しない。
 			}
 		}
 		PlanarReflectionManager::ScopedDrawBinding planarScope(planarManager, planarBinding); // 同じActorの鏡面だけReflection TextureをDraw区間へ限定して公開する。
