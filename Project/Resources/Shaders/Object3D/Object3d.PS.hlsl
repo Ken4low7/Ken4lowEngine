@@ -21,7 +21,8 @@ struct Material
     float occlusionStrength;
     float4 emissiveFactor;
     uint textureFlags;
-    float3 padding;
+    float reflectionSourceAvailable;
+    float2 padding;
 };
 
 struct Camera
@@ -227,16 +228,20 @@ PixelShaderOutput main(VertexShaderOutput input)
         surface.viewDir = viewDir;
 
         float3 directPbr = DirectLightingPBR(gPunctualLights, gLightInfo.gLightCount, worldPosition, surface, gShadowParameter, gShadowMap, gExtendedShadowParameter, gCsmShadowMaps, gPointShadowMap, gShadowSampler);
-        float3 ibl = EvaluatePbrIBLFallback(surface, gEnvironmentTexture, gLinearSampler, gLightingSettings);
+        float3 ibl = 0.0.xxx;
+        if (gMaterial.reflectionSourceAvailable > 0.5f)
+        {
+            ibl = EvaluatePbrIBLFallback(surface, gEnvironmentTexture, gLinearSampler, gLightingSettings);
+        }
         shadedColor = directPbr + ibl + surface.emissive;
     }
     else
     {
-        // Legacyは反射率0を明確なEnvironment OFFとして扱い、未設定Materialへ勝手にSkyBoxを混ぜない。
+        // Legacyは反射率0または反射源なしを明確なEnvironment OFFとして扱う。
         shadedColor = lerp(baseColor, edgeColor.rgb, dissolveBlend);
         shadedColor *= lighting;
         const float reflectionRate = saturate(gMaterial.reflectionRate);
-        if (reflectionRate > 0.0f)
+        if (reflectionRate > 0.0f && gMaterial.reflectionSourceAvailable > 0.5f)
         {
             float3 reflectionDir = reflect(-viewDir, normal);
             uint environmentWidth = 0;
