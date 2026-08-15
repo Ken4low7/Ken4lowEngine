@@ -68,16 +68,15 @@ namespace Ken4lowEngine
 	void WorldTransform::SetPipeline(UINT rootParameterIndex)
 	{
 		DirectXCommon* dxCommon = DirectXCommon::GetInstance();
-		auto* commandManager = dxCommon->GetCommandManager();
-		const uint32_t frameIndex = commandManager->GetCurrentFrameIndex();
-		transformationBuffers_.WriteFrame(frameIndex, transformationData_);
+		if (!dxCommon) return;
 
-		auto commandList = commandManager->GetCommandList();
-		const D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = transformationBuffers_.GetGpuAddress(frameIndex);
-		if (gpuAddress != 0)
-		{
-			commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, gpuAddress);
-		}
+		// Reflection Probeの6面+Main Viewのように同一Objectを1Frameで複数回描いても、各Drawが固有WVPを保持する。
+		const FrameUploadArena::Allocation allocation = dxCommon->GetFrameUploadArena().AllocateConstant(transformationData_);
+		if (!allocation.IsValid()) return;
+
+		auto* commandManager = dxCommon->GetCommandManager();
+		if (!commandManager || !commandManager->GetCommandList()) return;
+		commandManager->GetCommandList()->SetGraphicsRootConstantBufferView(rootParameterIndex, allocation.gpuAddress);
 	}
 
 } // namespace Ken4lowEngine
