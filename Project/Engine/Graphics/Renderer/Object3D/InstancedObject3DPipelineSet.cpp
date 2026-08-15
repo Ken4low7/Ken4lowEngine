@@ -34,6 +34,8 @@ namespace Ken4lowEngine
 			kExtendedShadowCBV,
 			kCsmShadowMapSRV,
 			kPointShadowMapSRV,
+			kPlanarReflectionCBV,
+			kPlanarReflectionTexturesSRV,
 			kCount
 		};
 
@@ -47,18 +49,22 @@ namespace Ken4lowEngine
 		}
 
 		D3D12_ROOT_SIGNATURE_DESC MakeRootSignatureDesc(
-			std::array<D3D12_DESCRIPTOR_RANGE, 12>& ranges,
+			std::array<D3D12_DESCRIPTOR_RANGE, 13>& ranges,
 			std::array<D3D12_ROOT_PARAMETER, kCount>& parameters,
 			std::array<D3D12_STATIC_SAMPLER_DESC, 3>& samplers)
 		{
-			const UINT registers[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
-			for (size_t i = 0; i < ranges.size(); ++i)
+			constexpr std::array<UINT, 12> registers = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
+			for (size_t i = 0; i < registers.size(); ++i)
 			{
 				ranges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 				ranges[i].NumDescriptors = 1;
 				ranges[i].BaseShaderRegister = registers[i];
 				ranges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
+			ranges[12].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+			ranges[12].NumDescriptors = 6;
+			ranges[12].BaseShaderRegister = 12;
+			ranges[12].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND; // Object3D共通PSのMulti Planar t12～t17をInstancingでも同じ契約で公開する。
 
 			auto setCBV = [&](UINT index, UINT shaderRegister, D3D12_SHADER_VISIBILITY visibility)
 			{
@@ -94,6 +100,8 @@ namespace Ken4lowEngine
 			setCBV(kExtendedShadowCBV, 6, D3D12_SHADER_VISIBILITY_PIXEL);
 			setTable(kCsmShadowMapSRV, 10, D3D12_SHADER_VISIBILITY_PIXEL);
 			setTable(kPointShadowMapSRV, 11, D3D12_SHADER_VISIBILITY_PIXEL);
+			setCBV(kPlanarReflectionCBV, 7, D3D12_SHADER_VISIBILITY_PIXEL);
+			setTable(kPlanarReflectionTexturesSRV, 12, D3D12_SHADER_VISIBILITY_PIXEL);
 
 			samplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
 			samplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -202,7 +210,7 @@ namespace Ken4lowEngine
 
 		auto createSurfacePipeline = [&](MaterialCullMode cullMode, MaterialBlendMode blendMode, const wchar_t* debugName, PipelineBundle& destination)
 		{
-			std::array<D3D12_DESCRIPTOR_RANGE, 12> ranges{};
+			std::array<D3D12_DESCRIPTOR_RANGE, 13> ranges{};
 			std::array<D3D12_ROOT_PARAMETER, kCount> parameters{};
 			std::array<D3D12_STATIC_SAMPLER_DESC, 3> samplers{};
 			D3D12_ROOT_SIGNATURE_DESC rootDesc = MakeRootSignatureDesc(ranges, parameters, samplers);
