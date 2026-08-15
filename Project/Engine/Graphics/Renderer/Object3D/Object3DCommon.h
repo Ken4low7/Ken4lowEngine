@@ -37,6 +37,7 @@ namespace Ken4lowEngine
 
 		void SetRenderSetting(MaterialCullMode cullMode = MaterialCullMode::Back);
 		void SetAlphaRenderSetting(MaterialCullMode cullMode = MaterialCullMode::Back);
+		void SetAdditiveRenderSetting(MaterialCullMode cullMode = MaterialCullMode::Back);
 		void SetInstancedRenderSetting(MaterialCullMode cullMode = MaterialCullMode::Back);
 		void SetShadowMapRenderSetting(MaterialCullMode cullMode = MaterialCullMode::Back);
 		void SetInstancedShadowMapRenderSetting(MaterialCullMode cullMode = MaterialCullMode::Back);
