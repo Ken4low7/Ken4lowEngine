@@ -1,124 +1,220 @@
 # Phase 15 — Rendering Completion
 
-## Goal
+## Status
 
-Phase 15 finishes the rendering paths that are still partly legacy or foundation-only before full game production begins.
+**Phase 15 status: Complete after 15.8 validation/diagnostics closure.**
 
-The target is a renderer with explicit visibility rules, a completed Forward path, a completed Deferred path, and RenderGraph-owned frame resources where practical.
+Phase 15 completes the production-ready Forward rendering baseline used by the current game engine. It does not require a Deferred renderer, HZB occlusion, or full RenderGraph ownership before game production can begin. Those are future renderer upgrades and are intentionally moved out of Phase 15.
+
+The completed baseline is:
+
+- explicit surface culling and winding rules
+- Material-driven `Opaque / Masked / Transparent / Additive` classification
+- one shared Forward queue contract across static, instanced, animated, and skeletal rendering
+- GPU Particle integration without converting GPU-driven particles into CPU draw items
+- stable transparent ordering contracts
+- diagnostics that preserve the previous frame after `EndFrame()`
+- automated Phase 15 regression coverage
 
 ## 15.1 — Rasterizer / Surface Visibility
 
-### Implemented baseline
+### Completed
 
 - Static `Object3D` opaque and alpha rendering use back-face culling by default.
-- Static `Object3D` routes imported per-SubMesh cull metadata into actual Main, Shadow, and Editor Object-ID draws by grouping visible meshes into Back/Front/None surface groups.
-- Static `Object3D` uses imported SubMesh cull metadata until an Object-level Material cull mode is explicitly selected; `ResetMaterialBinding()` returns to imported metadata.
-- Instanced `Object3D` rendering uses back-face culling by default.
-- Skinned / animated rendering owns Back/Front/None PSO variants and batches visible surfaces by effective `MaterialCullMode`, so a batch uses at most three PSO groups even when one model contains mixed surface modes.
-- Animation LOD flattening preserves each imported SubMesh cull mode on `SubMeshRange`; a combined skinned VB/IB can therefore draw body surfaces with Back and hair/cloth cards with None without splitting the skinning output buffer.
-- Animated non-CS rendering uses the same imported SubMesh material cull metadata as the skinned path.
-- Animated MaterialDesc overrides imported SubMesh cull metadata explicitly; `ResetMaterialBinding()` returns to imported values.
-- Animated shadows group skinned and non-CS SubMeshes by the same effective surface cull mode as the main pass, including mirrored / negative-scale transforms.
-- Rasterizer presets explicitly define `FrontCounterClockwise = FALSE`, so Ken4lowEngine treats clockwise triangles as front faces consistently.
+- Static rendering routes imported per-SubMesh cull metadata into Main, Shadow, and Editor Object-ID draws.
 - `MaterialCullMode` exposes `Back / Front / None` and defaults to `Back`.
-- Static opaque/alpha and Instanced Object3D create dedicated PSO variants for all three Material cull modes.
-- Material ImGui exposes `Back`, `Front`, and `None (Two Sided)` without putting rasterizer state into the Material constant buffer.
-- Material JSON persists `cullMode` as `back / front / none`; old or unknown input falls back to `back`.
-- Static mirrored/negative-scale transforms flip `Back <-> Front` from the world-matrix handedness determinant.
-- Instanced draws use the same handedness rule; if normal and mirrored instances are mixed in one draw, the renderer conservatively falls back to `None` so geometry never disappears because one PSO cannot represent two winding signs at once.
-- Directional/Spot/CSM depth shadows and Point-light linear-depth shadows select the same Material cull mode as their main Object3D path.
-- Editor Object-ID picking provides Back/Front/None PSOs and follows the visible-surface cull mode, including mirrored static objects and instanced fallback behavior.
-- Assimp import reads `AI_MATKEY_TWOSIDED` (including glTF `doubleSided` when exposed by Assimp) and stores it as `MaterialCullMode::None` on the imported SubMesh.
-- `Model` retains imported SubMesh cull modes alongside texture/sampling metadata so later render-queue work can group meshes without re-reading source assets.
-- `Culling Statistics` combines the existing Frustum counts with Main-pass Back/Front/Two-Sided draw/triangle workload, PSO bind counts, and a clearly labeled estimated rasterizer back-face workload.
-- Main-pass culling diagnostics are explicitly scoped around Scene 3D rendering so Shadow, Picking, Debug Wireframe, Particles, and Editor overlays do not contaminate the counters.
-- Each static/instanced `Mesh` builds CPU `NormalCone` metadata and bounded Visibility Meshlets while preserving the existing full VB/IB draw path.
-- Visibility Meshlets currently use a reference budget of 64 unique vertices / 126 triangles and retain a local Bounding Sphere + Normal Cone for later conservative visibility evaluation.
-- Skinned LOD `SubMeshRange` data retains bind-pose Visibility Meshlets plus Normal Cone candidate meshlet/triangle counts. These are reference/workload metadata only; skinning can deform the bounds and cones, so they are not used to reject animated draw work.
-- Animated/skinned draw calls now publish bind-pose Meshlet counts and Normal Cone candidate workload into `CullingDiagnostics`, including per-render-path counters. Non-CS animated draws also publish their actual indexed draw/triangle workload even though they do not yet own Meshlet metadata.
-- The Culling Statistics ImGui panel separates Static/Alpha/Instanced/Animated Meshlet workload and labels Animated candidate counts as bind-pose reference data.
-- A CPU/reference Meshlet evaluator resolves Back/Front/Two-Sided and mirrored winding without changing the actual draw range. It expands the Normal Cone half-angle by the Bounding Sphere angular radius so near-camera or spatially wide Meshlets are not over-culled by a center-only test.
-- Deterministic reference cases cover front-facing, back-facing, Front-cull, mirrored, wide-cone, Two-Sided, and bounding-sphere safety behavior.
-- Runtime Normal Cone rejection remains disabled; the current diagnostics report candidate Meshlet workload without removing rendered geometry.
+- Material JSON persists `cullMode` as `back / front / none`.
+- Mirrored / negative-scale transforms resolve winding consistently.
+- Instanced rendering falls back to Two-Sided when normal and mirrored instances share one draw and one PSO cannot represent both winding signs.
+- Animated/skinned rendering owns Back/Front/None PSO variants and preserves imported SubMesh cull modes through animation LOD data.
+- Shadow and Editor Picking paths follow the same effective surface cull contract.
+- Assimp import preserves two-sided metadata when available.
+- `CullingDiagnostics` tracks Main-pass surface workload without mixing Shadow, Picking, Debug Wireframe, Particle, or Editor overlays.
+- Visibility Meshlet and Normal Cone metadata are available as a diagnostic/reference foundation while runtime rejection remains conservative.
 
-Back-face culling is intentionally based on triangle winding in the D3D12 rasterizer. Vertex normals remain a lighting input; they are not used to decide whether an individual triangle is front-facing.
+### Validation note
 
-The CPU reference currently defines a positive dot between the geometric Cross normal and the Meshlet-center-to-camera direction as the front-facing side. This sign contract must still be compared against real D3D12 output before it is allowed to remove draw work.
+Runtime Normal Cone rejection remains intentionally disabled until representative Windows/DX12 visual comparison proves the reference sign/winding contract. This is not a blocker for the Forward renderer used by game production.
 
-### Remaining 15.1 work
+## 15.2 — Transparent Forward Migration
 
-- Compare the CPU reference result against representative Windows/DX12 scenes, including mirrored and Two-Sided assets.
-- Keep actual runtime rejection disabled until Windows/DX12 visual comparison confirms the reference evaluator.
+### Completed
 
-## 15.2 — Forward Renderer Completion
+- `MaterialBlendMode` defines `Opaque / Masked / Transparent / Additive` independently from low-level D3D12 blend presets.
+- `ForwardRenderPolicy` maps Material classification to:
+  - Forward bucket
+  - low-level blend state
+  - sort direction
+  - depth-write contract
+  - alpha-test contract
+- `ForwardRenderQueue` owns stable item collection, sorting, callback execution, and frame serials.
+- Transparent static models use normal alpha blending, depth-read/no-depth-write, and BackToFront queue ordering.
+- Queue ownership prevents queued components from being redrawn by the legacy `Actor::Draw()` compatibility path.
 
-Planned rendering order:
+## 15.3 — Additive Forward Migration
 
-1. Shadow pass
-2. Optional depth pre-pass
-3. Forward opaque
-4. Forward masked
-5. Transparent
-6. GPU particles
-7. Post effects
-8. UI
+### Completed
 
-### Implemented foundation
+- Additive Forward PSOs use `SrcAlpha + DestOne` and depth-read/no-depth-write.
+- Static `Object3D` selects Opaque/Masked/Transparent/Additive render state from Material classification.
+- `ModelComponent` submits all four Forward bucket classes.
+- `ActorWorld` executes Additive after Transparent.
 
-- `MaterialBlendMode` defines the high-level material classes `Opaque / Masked / Transparent / Additive` independently from the low-level D3D12 `BlendMode` presets.
-- Existing and unknown Material data defaults to `Opaque`, so introducing Forward queues does not silently move old content into a transparent pass.
-- Material JSON persists `blendMode` as `opaque / masked / transparent / additive`, and the Material ImGui inspector exposes the same four modes.
-- `ForwardRenderPolicy` maps each Material class to one stable Forward bucket, low-level blend state, depth-write contract, alpha-test requirement, and sort direction.
-- Opaque and Masked are depth-writing and front-to-back; Transparent uses normal alpha blend with depth writes disabled and back-to-front sorting; Additive uses additive blend with depth writes disabled and back-to-front sorting.
-- `ForwardRenderQueue` now owns executable `ForwardRenderItem` buckets, stable sorting, callback execution, submission-order tie breaking, and a frame-local Begin/Execute/End lifecycle.
-- `ModelComponent` submits non-legacy-alpha `Opaque` objects using camera-forward depth from the world bounding-sphere center; equal-depth items preserve submission order.
-- `ActorWorld::Draw()` now collects all eligible static `ModelComponent` opaque items first, executes the Opaque bucket front-to-back, then calls the existing virtual `Actor::Draw()` path for unqueued/legacy components.
-- A queue serial prevents the queued `ModelComponent` from being drawn twice while keeping derived Actor draw overrides and direct Object3D callers compatible.
-- Masked, Transparent, Additive, legacy alpha Object3D, animated/skinned, instanced, billboard, particle, Shadow, and Editor Picking paths are intentionally not migrated by this first queue step.
+The canonical Forward execution order is:
 
-### Remaining 15.2 work
+1. Opaque
+2. Masked
+3. legacy / unmigrated Actor 3D compatibility draw
+4. Transparent
+5. Additive
 
-- migrate Masked objects into their explicit Forward bucket and add alpha-cutoff shader/PSO support
-- route Transparent/Additive through depth-read/no-depth-write PSOs and back-to-front queue execution
-- migrate animated/skinned and instanced opaque geometry to the same queue contract where appropriate
-- share lighting/shadow binding contracts across all Forward buckets
-- add Forward queue diagnostics and GPU timings
+## 15.4 — Shared Forward Contract + Instanced Opaque/Masked
 
-## 15.3 — Deferred Renderer
+### Completed
 
-Planned GBuffer baseline:
+- `MakeForwardRenderItem()` is the renderer-independent item builder.
+- Legacy Object3D alpha enablement bridges into `MaterialBlendMode::Transparent`.
+- Instanced renderers expose Material classification to components.
+- Instanced Opaque/Masked rendering enters the same Forward queue contract as static models.
+- Queue frame serials suppress direct-draw duplication.
 
-- GBuffer0: base color + AO
-- GBuffer1: world/view normal + roughness
-- GBuffer2: metallic + emissive/material data
-- Depth
+## 15.5 — Instanced Transparent/Additive
 
-Planned flow:
+### Completed
 
-1. Geometry pass writes GBuffer + depth
-2. Deferred lighting resolves to HDR scene color
-3. Transparent objects remain on the Forward path
-4. Particles render after opaque lighting
+- Instanced Alpha/Additive PSOs use depth-read/no-depth-write.
+- Instanced Transparent/Additive batches participate in the same Forward buckets as static models.
+- Transparent/Additive instance streams are sorted BackToFront without reordering the persistent editor/source instance list.
+- Opaque/Masked retain their faster non-transparent path.
+- One CPU Forward item represents one instanced renderer batch; the engine intentionally does not flatten every instance into a CPU draw item.
+
+This preserves `DrawInstanced` batching while still providing correct intra-batch transparent ordering.
+
+## 15.6 — Animated / Skeletal Forward Integration
+
+### Completed
+
+- Animated and skeletal renderers participate in all four Material Forward classifications.
+- Transparent/Additive animation PSOs use depth-read/no-depth-write.
+- Static, non-CS animated, and skinned draw paths keep their existing skinning/root binding contracts.
+- Animated and skeletal components submit one Forward item per component/renderer rather than per bone or per meshlet.
+- Queue ownership prevents the normal Actor draw path from executing the same component again.
+- Shadow and Editor paths remain separate from the Main Forward queue.
+
+## 15.7 — GPU Particle Forward Integration
+
+### Completed
+
+- GPU Particle rendering is no longer issued as a separate `GameApplication` draw after the scene Forward pass.
+- `GpuParticleForwardRenderBridge` submits GPU Particle work as system-level packets.
+- Transparent particles enter the Transparent bucket.
+- Additive particles enter the Additive bucket.
+- The CPU Forward queue never submits one item per particle.
+- Existing GPU visible-particle compaction, Alpha depth sorting, and `ExecuteIndirect` rendering remain GPU-driven.
+- Sprite and Mesh particle pipelines remain depth-read/no-depth-write.
+- GPU Particle packet diagnostics expose Transparent/Additive packet counts per submitted queue frame.
+
+### Compatibility contract
+
+The authored Effect Runtime stores BlendMode in the packed GPU particle `drawType`, so new effect assets preserve their explicit Alpha/Additive/Multiply selection through rendering.
+
+Legacy untagged GPU particle `drawType` values retain the existing Additive fallback for compatibility. New production game effects should use the Effect Runtime authoring path when explicit BlendMode control is required.
+
+## 15.8 — Validation / Diagnostics / Closure
+
+### Completed
+
+- `ForwardRenderQueue` preserves a `ForwardRenderFrameStats` snapshot after `EndFrame()`.
+- The snapshot records:
+  - frame serial
+  - submitted item count per bucket
+  - total submitted items
+  - executed buckets
+  - bucket execution sequence
+  - rejected submissions
+  - duplicate bucket execution requests
+- The queue validates the canonical Opaque -> Masked -> Transparent -> Additive bucket sequence.
+- Repeated execution of the same bucket in one frame is rejected before callbacks are invoked again, preventing accidental double alpha/additive composition.
+- GPU Particle diagnostics separately report Transparent and Additive system packet counts.
+- `forward_render_validation_matrix.json` defines the expected render-path/bucket matrix and a repeatable manual mixed-scene recipe.
+- Phase 15 closure tests verify that static, instanced, animated, skeletal, and GPU Particle paths remain connected to the expected Forward contracts.
+
+## Forward Production Contract
+
+| Render path | Opaque | Masked | Transparent | Additive |
+| --- | --- | --- | --- | --- |
+| Static Model | Yes | Yes | Yes | Yes |
+| Instanced Model | Yes | Yes | Yes | Yes |
+| Animated Model | Yes | Yes | Yes | Yes |
+| Skeletal Mesh | Yes | Yes | Yes | Yes |
+| GPU Particle | N/A | N/A | Yes | Yes |
+
+Opaque/Masked write depth and sort FrontToBack. Transparent/Additive do not write depth and sort BackToFront at the CPU object/batch level. GPU Particle Alpha sorting remains GPU-owned inside its system packet.
+
+## Manual Visual Validation Recipe
+
+Use `Project/Tests/Phase15/forward_render_validation_matrix.json` as the reference layout. A representative scene should contain:
+
+- one near Opaque static object
+- one Masked static object
+- a far and near Transparent pair from different render paths
+- one Additive animated/skeletal surface
+- one Alpha GPU Particle effect
+- one Additive GPU Particle effect
+
+Verify that:
+
+1. Opaque and Masked establish depth before transparent work.
+2. Transparent objects do not overwrite depth.
+3. Far transparent surfaces composite before near transparent surfaces where they are separate CPU Forward items.
+4. Instanced Transparent particles/instances keep internal BackToFront ordering.
+5. Alpha GPU Particle ordering remains stable under camera movement.
+6. Additive surfaces and particles execute after normal alpha composition.
+7. Editor Picking, Shadow rendering, and Selection Outline remain unchanged.
+
+## Validation Gate
+
+Phase 15 code changes should keep:
+
+- automated project validation green
+- Debug C++ compilation green
+- Release C++ compilation green
+- GPU Particle HLSL validation green
+- no new broken asset references
+- no duplicate Forward bucket execution
+- canonical Forward bucket execution order
+
+Windows/DX12 visual testing remains a release/QA validation step for asset-specific winding and blend appearance; it is no longer an architectural blocker for closing Phase 15.
+
+## Future Rendering Work — Not Phase 15 Blockers
+
+The following remain valuable engine upgrades, but they are deliberately outside Phase 15 and can be developed after game production has started:
+
+### Deferred / Hybrid Renderer
+
+Potential target:
+
+1. GBuffer geometry pass for opaque surfaces
+2. Deferred lighting into HDR scene color
+3. Forward Transparent/Additive reuse the completed Phase 15 queue
+4. GPU Particle remains after opaque lighting
 5. Post effects consume HDR scene color
-6. UI renders last
 
-The final architecture is therefore a hybrid Deferred Opaque + Forward Transparent renderer.
+The likely long-term architecture is **Deferred Opaque + Forward Transparent**.
 
-## 15.4 — GPU Visibility / HZB
+### GPU Visibility / HZB
 
-After Forward and Deferred produce stable depth contracts:
+Potential target:
 
-1. build depth pyramid / HZB
-2. test object or mesh bounds in compute
+1. build a depth pyramid
+2. test object/mesh bounds in compute
 3. compact visible draw work
-4. issue GPU-driven draws with `ExecuteIndirect`
-5. reuse the validated Meshlet Normal Cone reference contract on GPU
+4. issue GPU-driven draws
+5. migrate validated Meshlet/Normal Cone rules to GPU visibility where safe
 
-Existing Frustum Culling and CPU Occlusion Culling remain the correctness baseline during migration.
+### RenderGraph Resource Ownership
 
-## 15.5 — RenderGraph Ownership
-
-Incrementally migrate owner-managed frame resources into graph-owned resources:
+Potential future migrations include:
 
 - ShadowMap
 - Depth
@@ -127,16 +223,4 @@ Incrementally migrate owner-managed frame resources into graph-owned resources:
 - Post-effect intermediates
 - BackBuffer contracts
 
-The existing Phase 9 barrier, transient-resource, descriptor, and visualizer foundations should be reused rather than reimplemented.
-
-## Validation
-
-Every rendering step must keep:
-
-- Debug and Release C++ compilation green
-- D3D12 Debug Layer free of new errors/warnings
-- existing Forward output as a regression reference until Deferred reaches parity
-- editor picking and selection outline consistent with visible geometry
-- explicit tests for pipeline state contracts
-
-Real Windows/DX12 visual validation is still required for winding/culling changes because asset winding errors cannot be proven by compile-only CI.
+These improvements should reuse the existing RenderGraph foundation rather than replace the now-stable Forward renderer.
