@@ -11,6 +11,8 @@
 
 namespace Ken4lowEngine
 {
+	static_assert(sizeof(PlanarReflectionDrawCBData) == 592, "PlanarReflectionDrawCBData must match the HLSL b7 layout.");
+
 	namespace PlanarReflectionDetail
 	{
 		struct HomogeneousVector
@@ -572,6 +574,41 @@ namespace Ken4lowEngine
 	inline PlanarReflectionDrawSet PlanarReflectionManager::GetCurrentDrawSet() const
 	{
 		return drawBindings_.empty() ? PlanarReflectionDrawSet{} : drawBindings_.back();
+	}
+
+	inline bool PlanarReflectionManager::BindCurrentDrawState(
+		ID3D12GraphicsCommandList* commandList,
+		UINT constantBufferRootParameterIndex,
+		UINT textureTableRootParameterIndex) const
+	{
+		if (!commandList || !dxCommon_) return false;
+		const PlanarReflectionDrawSet drawSet = GetCurrentDrawSet();
+		PlanarReflectionDrawCBData drawData{};
+		drawData.surfaceCount = (std::min)(drawSet.count, kMaxPlanarReflectionSurfacesPerDraw);
+		for (uint32_t index = 0; index < drawData.surfaceCount; ++index)
+		{
+			const PlanarReflectionBinding& binding = drawSet.surfaces[index];
+			const Vector3 normal = Vector3::NormalizeSafe(binding.planeNormal, { 0.0f, 1.0f, 0.0f });
+			drawData.reflectedViewProjection[index] = binding.reflectedViewProjection;
+			drawData.plane[index] = {
+				normal.x,
+				normal.y,
+				normal.z,
+				-Vector3::Dot(normal, binding.planePosition),
+			};
+			drawData.surfaceParams[index] = {
+				std::clamp(binding.surfaceTolerance, 0.001f, 1.0f),
+				std::clamp(binding.strength, 0.0f, 1.0f),
+				0.0f,
+				0.0f,
+			};
+		}
+
+		const FrameUploadArena::Allocation allocation = dxCommon_->GetFrameUploadArena().AllocateConstant(drawData);
+		if (!allocation.IsValid()) return false;
+		commandList->SetGraphicsRootConstantBufferView(constantBufferRootParameterIndex, allocation.gpuAddress);
+		if (drawData.surfaceCount == 0) return true;
+		return BindCurrentDrawDescriptorTable(commandList, textureTableRootParameterIndex);
 	}
 
 	inline bool PlanarReflectionManager::BindCurrentDrawDescriptorTable(
