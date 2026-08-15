@@ -118,4 +118,26 @@ namespace Ken4lowEngine
 	};
 } // namespace Ken4lowEngine
 
-#include "ReflectionProbeManager.inl"
+#ifdef max
+#pragma push_macro("max")
+#undef max
+#define KEN4LOW_REFLECTION_PROBE_RESTORE_MAX
+#endif
+
+#ifdef min
+#pragma push_macro("min")
+#undef min
+#define KEN4LOW_REFLECTION_PROBE_RESTORE_MIN
+#endif
+
+#include "ReflectionProbeManager.inl" // Windowsのmin/maxマクロを隔離して標準ライブラリ呼び出しを壊さない。
+
+#ifdef KEN4LOW_REFLECTION_PROBE_RESTORE_MIN
+#pragma pop_macro("min")
+#undef KEN4LOW_REFLECTION_PROBE_RESTORE_MIN
+#endif
+
+#ifdef KEN4LOW_REFLECTION_PROBE_RESTORE_MAX
+#pragma pop_macro("max")
+#undef KEN4LOW_REFLECTION_PROBE_RESTORE_MAX
+#endif
