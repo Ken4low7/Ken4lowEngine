@@ -13,6 +13,9 @@ enum class GpuFluidComputeShaderId : uint32_t
 	PressureJacobi,
 	Projection,
 	ScalarAdvection,
+	VorticityCurl,
+	VorticityConfinement,
+	Buoyancy,
 };
 
 class GpuFluidShaderManifest
@@ -28,60 +31,45 @@ public:
 			static const ShaderDescriptor desc{
 				L"GpuFluidVelocityAdvectionCS",
 				L"Resources/Shaders/GpuFluid/GpuFluidVelocityAdvection.CS.hlsl",
-				L"main",
-				L"cs_6_0",
-				ShaderStage::Compute,
-				RootSignatureType::Compute
+				L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute
 			};
 			return desc;
 		}
 		case GpuFluidComputeShaderId::Divergence:
 		{
-			static const ShaderDescriptor desc{
-				L"GpuFluidDivergenceCS",
-				L"Resources/Shaders/GpuFluid/GpuFluidDivergence.CS.hlsl",
-				L"main",
-				L"cs_6_0",
-				ShaderStage::Compute,
-				RootSignatureType::Compute
-			};
+			static const ShaderDescriptor desc{ L"GpuFluidDivergenceCS", L"Resources/Shaders/GpuFluid/GpuFluidDivergence.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
 			return desc;
 		}
 		case GpuFluidComputeShaderId::PressureJacobi:
 		{
-			static const ShaderDescriptor desc{
-				L"GpuFluidPressureJacobiCS",
-				L"Resources/Shaders/GpuFluid/GpuFluidPressureJacobi.CS.hlsl",
-				L"main",
-				L"cs_6_0",
-				ShaderStage::Compute,
-				RootSignatureType::Compute
-			};
+			static const ShaderDescriptor desc{ L"GpuFluidPressureJacobiCS", L"Resources/Shaders/GpuFluid/GpuFluidPressureJacobi.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
 			return desc;
 		}
 		case GpuFluidComputeShaderId::Projection:
 		{
-			static const ShaderDescriptor desc{
-				L"GpuFluidProjectionCS",
-				L"Resources/Shaders/GpuFluid/GpuFluidProjection.CS.hlsl",
-				L"main",
-				L"cs_6_0",
-				ShaderStage::Compute,
-				RootSignatureType::Compute
-			};
+			static const ShaderDescriptor desc{ L"GpuFluidProjectionCS", L"Resources/Shaders/GpuFluid/GpuFluidProjection.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
 			return desc;
 		}
 		case GpuFluidComputeShaderId::ScalarAdvection:
 		{
 			// DensityとTemperatureは同じScalar Advection Shaderを共有し、PSOの重複を避ける。
-			static const ShaderDescriptor desc{
-				L"GpuFluidScalarAdvectionCS",
-				L"Resources/Shaders/GpuFluid/GpuFluidScalarAdvection.CS.hlsl",
-				L"main",
-				L"cs_6_0",
-				ShaderStage::Compute,
-				RootSignatureType::Compute
-			};
+			static const ShaderDescriptor desc{ L"GpuFluidScalarAdvectionCS", L"Resources/Shaders/GpuFluid/GpuFluidScalarAdvection.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+			return desc;
+		}
+		case GpuFluidComputeShaderId::VorticityCurl:
+		{
+			static const ShaderDescriptor desc{ L"GpuFluidVorticityCurlCS", L"Resources/Shaders/GpuFluid/GpuFluidVorticityCurl.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+			return desc;
+		}
+		case GpuFluidComputeShaderId::VorticityConfinement:
+		{
+			// Curl中間場を読み、Velocity ping-pongへ渦補強力を書き戻す。
+			static const ShaderDescriptor desc{ L"GpuFluidVorticityConfinementCS", L"Resources/Shaders/GpuFluid/GpuFluidVorticityConfinement.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+			return desc;
+		}
+		case GpuFluidComputeShaderId::Buoyancy:
+		{
+			static const ShaderDescriptor desc{ L"GpuFluidBuoyancyCS", L"Resources/Shaders/GpuFluid/GpuFluidBuoyancy.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
 			return desc;
 		}
 		default:

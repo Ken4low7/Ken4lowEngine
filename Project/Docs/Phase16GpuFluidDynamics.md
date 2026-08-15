@@ -15,52 +15,31 @@ Phase 16 introduces a 2D Eulerian GPU fluid solver as the base for Phase 17 volu
 
 | Field | Format | Resources | Purpose |
 |---|---|---:|---|
-| Velocity | `R16G16_FLOAT` | 2 | Advection / projection velocity |
+| Velocity | `R16G16_FLOAT` | 2 | Advection / projection / force velocity |
 | Pressure | `R16_FLOAT` | 2 | Jacobi pressure solve |
 | Divergence | `R16_FLOAT` | 1 | Velocity divergence |
 | Density | `R16_FLOAT` | 2 | Smoke / visual density |
 | Temperature | `R16_FLOAT` | 2 | Buoyancy source |
+| Vorticity | `R16_FLOAT` | 1 | 2D curl intermediate for confinement |
 | Obstacle | `R8_UINT` | 1 | Solid-cell mask |
 
-At 256x256 the logical field storage is about 1.44 MiB before allocation/alignment overhead.
+At 256x256 the logical field storage is about 1.56 MiB before allocation/alignment overhead.
 
 ## Progress
 
 - [x] 16.1 Fluid base data/API
-  - `GpuFluidGridDesc`
-  - `GpuFluidSimulationDesc`
-  - 64-byte CPU/HLSL `GpuFluidSimulationConstants` contract
-  - shared field classification
 - [x] 16.2 GPU Grid / Resource foundation
-  - Texture2D resource wrapper
-  - graphics SRV + compute SRV + UAV allocation
-  - velocity / pressure / density / temperature ping-pong fields
-  - divergence / obstacle single fields
-  - resource-state transition helper
-  - UAV barrier helper
-  - approximate field-memory diagnostics
 - [x] 16.3 Velocity Advection
-  - semi-Lagrangian backtrace
-  - bilinear linear-clamp sampling
-  - velocity dissipation
-  - 8x8 compute dispatch
-  - UAV barrier + velocity ping-pong swap
-  - dedicated compute pass and shader manifest entry
 - [x] 16.4 Divergence / Pressure / Projection
-  - centered-difference velocity divergence
-  - pressure ping-pong zero clear per projection step
-  - configurable Jacobi iteration count (`pressureIterations`)
-  - pressure-gradient subtraction from velocity
-  - closed-domain normal velocity boundary
-  - shared root signature across divergence / Jacobi / projection
 - [x] 16.5 Density / Temperature
-  - reusable `GpuFluidScalarAdvectionPass`
-  - one shared scalar-advection shader/PSO for density and temperature
-  - projected velocity sampled from `t0`
-  - scalar read/write ping-pong through `t1` / `u0`
-  - per-field dissipation supplied with root constants at `b1`
-  - individual dispatch and combined `DispatchAll()` path
-- [ ] 16.6 Vorticity / Buoyancy
+- [x] 16.6 Vorticity / Buoyancy
+  - dedicated `R16_FLOAT` vorticity field
+  - centered-difference 2D curl
+  - vorticity confinement from `grad(abs(curl))`
+  - buoyancy from temperature minus density weight
+  - one shared force root signature
+  - velocity ping-pong after each force
+  - combined `DispatchAll()` path with one simulation CB
 - [ ] 16.7 FluidEmitterComponent
 - [ ] 16.8 Collider / Obstacle
 - [ ] 16.9 Forward Rendering
@@ -80,30 +59,26 @@ At 256x256 the logical field storage is about 1.44 MiB before allocation/alignme
 
 ## 16.4 Pressure projection flow
 
-`GpuFluidPressureProjectionPass` makes the advected velocity approximately divergence-free before later force/scalar stages use it.
+`GpuFluidPressureProjectionPass` makes velocity approximately divergence-free.
 
-1. Clear both pressure ping-pong textures to zero using `ClearUnorderedAccessViewFloat`.
-2. Compute `div(u)` into the divergence texture using centered differences.
-3. Solve the projection scalar with Jacobi iterations:
+1. Clear both pressure ping-pong textures to zero.
+2. Compute `div(u)` using centered differences.
+3. Solve with Jacobi iterations:
 
    `p = (pL + pR + pB + pT - div * h^2) / 4`
 
-4. Subtract the centered pressure gradient:
+4. Subtract the pressure gradient:
 
    `u' = u - grad(p)`
 
 5. Force the normal velocity component to zero on the outer simulation boundary.
-6. Insert UAV barriers and swap the velocity ping-pong output.
+6. Insert UAV barriers and swap velocity.
 
-The pressure field here is a projection scalar rather than a physical pressure quantity. The formulation intentionally absorbs the time-step scaling into the solved correction field so projection remains `u' = u - grad(p)`.
-
-With the default `pressureIterations = 40`, one pressure-projection call records 42 compute dispatches: one divergence pass, forty Jacobi passes, and one projection pass. Pressure clears are GPU clear commands and are not counted as compute dispatches.
-
-Obstacle-aware neighbor sampling is intentionally deferred to 16.8. The current outer-domain pressure sampling clamps to edge cells, which acts as a simple Neumann pressure boundary, while projection explicitly removes outward normal velocity at the simulation border.
+With the default `pressureIterations = 40`, one pressure-projection call records 42 compute dispatches.
 
 ## 16.5 Scalar advection flow
 
-`GpuFluidScalarAdvectionPass` transports density and temperature with the projected velocity field without duplicating the velocity-advection implementation into two scalar-specific passes.
+`GpuFluidScalarAdvectionPass` transports density and temperature with the projected velocity field.
 
 Binding contract:
 
@@ -113,25 +88,57 @@ Binding contract:
 | 1 | `t0` | projected velocity read texture |
 | 2 | `t1` | density or temperature read texture |
 | 3 | `u0` | density or temperature write texture |
-| 4 | `b1` | four DWORD root constants; first float is scalar dissipation |
+| 4 | `b1` | scalar dissipation root constants |
 | static sampler | `s0` | linear clamp |
 
-For each scalar field:
+`DispatchAll()` shares one simulation constant-buffer allocation between density and temperature and records two compute dispatches. Temperature remains signed so later buoyancy can distinguish hot and cold deviations.
 
-1. Read the projected velocity at the current cell.
-2. Backtrace in world-units/sec using the same semi-Lagrangian convention as velocity advection.
-3. Bilinearly sample the previous scalar field.
-4. Apply `densityDissipation` or `temperatureDissipation` selected on the CPU.
-5. Insert a UAV barrier, transition the output to SRV state, and swap that scalar ping-pong field.
+## 16.6 Force flow
 
-`DispatchAll()` shares one simulation constant-buffer allocation between density and temperature and records two compute dispatches. The scalar shader does not clamp values to zero so temperature can later represent signed hot/cold deviations for buoyancy; source injection policy remains the responsibility of the emitter stage.
+`GpuFluidForcePass` applies vorticity confinement and buoyancy through the existing velocity ping-pong field.
 
-The scalar fields must contain defined initial/source data before advection. A full simulation reset/source-injection path is intentionally owned by the later runtime/emitter integration rather than hidden inside advection, because clearing every scalar dispatch would destroy newly injected density and heat.
+Binding contract shared by all force shaders:
+
+| Root parameter | Shader register | Resource |
+|---:|---|---|
+| 0 | `b0` | `GpuFluidSimulationConstants` |
+| 1 | `t0` | velocity read texture |
+| 2 | `t1` | vorticity or density |
+| 3 | `t2` | temperature when required |
+| 4 | `u0` | vorticity or velocity write texture |
+
+Vorticity is computed as the 2D curl z component:
+
+`omega = d(vy)/dx - d(vx)/dy`
+
+The confinement direction comes from the normalized gradient of curl magnitude:
+
+`N = normalize(grad(abs(omega)))`
+
+and the velocity correction is:
+
+`u' = u + dt * vorticityStrength * (N_y, -N_x) * omega`
+
+Buoyancy applies a vertical acceleration:
+
+`F_b = buoyancy * (temperature - ambientTemperature) - smokeWeight * density`
+
+`DispatchAll()` records three compute dispatches:
+
+1. velocity -> vorticity curl texture
+2. velocity + vorticity -> confined velocity, then velocity swap
+3. velocity + density + temperature -> buoyancy velocity, then velocity swap
+
+The force stage intentionally does not perform pressure projection internally. The runtime simulation order should project again after external forces so the final velocity remains approximately divergence-free:
+
+`Velocity Advection -> Projection -> Scalar Advection -> Vorticity/Buoyancy -> Projection`
+
+This separation keeps force generation independent from the pressure solver and makes future emitter, obstacle, and rigidbody forces easier to insert.
 
 ## Build integration
 
-`Project/Directory.Build.props` registers the Phase 16 C++ files and shader source files only for the `Ken4lowEngine` project. This keeps the existing large `.vcxproj` untouched while still making new Phase 16 sources part of the normal C++ build graph.
+`Project/Directory.Build.props` registers the Phase 16 C++ files and shader source files only for the `Ken4lowEngine` project.
 
-## Next implementation target — 16.6
+## Next implementation target — 16.7
 
-Add force passes for vorticity confinement and buoyancy. Temperature and density from 16.5 will drive buoyancy, while velocity curl will drive vorticity confinement. Both forces should write through velocity ping-pong so the corrected velocity can be projected again before rendering or the next simulation step.
+Add `FluidEmitterComponent` and source-injection passes. Emitters should inject velocity, density, and temperature without clearing the simulation fields, support world-to-grid conversion, expose radius/strength/falloff parameters, and be serializable/editable through the existing Actor/Component workflow.

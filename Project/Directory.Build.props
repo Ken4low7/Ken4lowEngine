@@ -6,11 +6,13 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidVelocityAdvectionPass.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidPressureProjectionPass.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidScalarAdvectionPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidForcePass.cpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Resource\GpuFluidGridResource.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidVelocityAdvectionPass.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidPressureProjectionPass.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidScalarAdvectionPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidForcePass.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Shader\Manifest\GpuFluidShaderManifest.h" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidCommon.hlsli" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVelocityAdvection.CS.hlsl" />
@@ -18,5 +20,8 @@
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidPressureJacobi.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidProjection.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidScalarAdvection.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVorticityCurl.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVorticityConfinement.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidBuoyancy.CS.hlsl" />
   </ItemGroup>
 </Project>

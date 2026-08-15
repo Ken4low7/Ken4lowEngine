@@ -13,6 +13,8 @@ enum class GpuFluidField : uint32_t
 	Divergence,
 	Density,
 	Temperature,
+	// Vorticityを独立Fieldとして持ち、圧力用DivergenceとCurl中間値の用途を混在させない。
+	Vorticity,
 	Obstacle,
 	Count
 };

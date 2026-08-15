@@ -29,6 +29,8 @@ bool GpuFluidGridResource::Initialize(const GpuFluidGridDesc& gridDesc)
 		CreateTexture(divergence_, DXGI_FORMAT_R16_FLOAT, L"GpuFluid.Divergence") &&
 		CreatePingPongField(density_, DXGI_FORMAT_R16_FLOAT, L"GpuFluid.Density") &&
 		CreatePingPongField(temperature_, DXGI_FORMAT_R16_FLOAT, L"GpuFluid.Temperature") &&
+		// Curlを圧力Divergenceから分離し、Diagnosticsや3D拡張でも意味を保てる専用場として確保する。
+		CreateTexture(vorticity_, DXGI_FORMAT_R16_FLOAT, L"GpuFluid.Vorticity") &&
 		CreateTexture(obstacle_, DXGI_FORMAT_R8_UINT, L"GpuFluid.Obstacle");
 
 	if (!created)
@@ -48,6 +50,7 @@ void GpuFluidGridResource::Finalize()
 	ReleaseTexture(divergence_);
 	ReleasePingPongField(density_);
 	ReleasePingPongField(temperature_);
+	ReleaseTexture(vorticity_);
 	ReleaseTexture(obstacle_);
 	gridDesc_ = {};
 	initialized_ = false;
@@ -68,6 +71,7 @@ uint64_t GpuFluidGridResource::GetApproximateGpuMemoryBytes() const
 		2ull +          // Divergence R16F
 		(2ull * 2ull) + // Density R16F x2
 		(2ull * 2ull) + // Temperature R16F x2
+		2ull +          // Vorticity R16F
 		1ull;           // Obstacle R8_UINT
 	return pixelCount * kBytesPerPixel;
 }
@@ -153,26 +157,14 @@ bool GpuFluidGridResource::CreateTexture(
 	texture.currentState = D3D12_RESOURCE_STATE_COMMON;
 
 	texture.srvIndex = SRVManager::GetInstance()->Allocate();
-	SRVManager::GetInstance()->CreateSRVForTexture2D(
-		texture.srvIndex,
-		texture.resource.Get(),
-		format,
-		1);
+	SRVManager::GetInstance()->CreateSRVForTexture2D(texture.srvIndex, texture.resource.Get(), format, 1);
 
 	UAVManager* uavManager = UAVManager::GetInstance();
 	texture.computeSrvIndex = uavManager->Allocate();
-	uavManager->CreateSRVForTexture2DOnThisHeap(
-		texture.computeSrvIndex,
-		texture.resource.Get(),
-		format,
-		1);
+	uavManager->CreateSRVForTexture2DOnThisHeap(texture.computeSrvIndex, texture.resource.Get(), format, 1);
 
 	texture.uavIndex = uavManager->Allocate();
-	uavManager->CreateUAVForTexture2D(
-		texture.uavIndex,
-		texture.resource.Get(),
-		format,
-		0);
+	uavManager->CreateUAVForTexture2D(texture.uavIndex, texture.resource.Get(), format, 0);
 	return true;
 }
 

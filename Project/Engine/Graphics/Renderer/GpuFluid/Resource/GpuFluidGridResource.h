@@ -63,6 +63,8 @@ public:
 	GpuFluidPingPongField& GetDensity() { return density_; }
 	GpuFluidPingPongField& GetTemperature() { return temperature_; }
 	GpuFluidTexture2D& GetDivergence() { return divergence_; }
+	// Curl計算結果を後段のConfinement Passから読むため専用Textureを公開する。
+	GpuFluidTexture2D& GetVorticity() { return vorticity_; }
 	GpuFluidTexture2D& GetObstacle() { return obstacle_; }
 
 	const GpuFluidPingPongField& GetVelocity() const { return velocity_; }
@@ -70,6 +72,7 @@ public:
 	const GpuFluidPingPongField& GetDensity() const { return density_; }
 	const GpuFluidPingPongField& GetTemperature() const { return temperature_; }
 	const GpuFluidTexture2D& GetDivergence() const { return divergence_; }
+	const GpuFluidTexture2D& GetVorticity() const { return vorticity_; }
 	const GpuFluidTexture2D& GetObstacle() const { return obstacle_; }
 
 	static void Transition(
@@ -97,6 +100,7 @@ private:
 	GpuFluidPingPongField density_{};
 	GpuFluidPingPongField temperature_{};
 	GpuFluidTexture2D divergence_{};
+	GpuFluidTexture2D vorticity_{};
 	GpuFluidTexture2D obstacle_{};
 	bool initialized_ = false;
 };
