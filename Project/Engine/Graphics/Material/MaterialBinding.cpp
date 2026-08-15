@@ -1,6 +1,7 @@
 #include "MaterialBinding.h"
 
 #include "JsonReadUtil.h"
+#include "MaterialDescJsonConverter.h"
 #include "MaterialDescLoader.h"
 #include "MaterialRepository.h"
 
@@ -20,6 +21,8 @@ namespace Ken4lowEngine
 		constexpr const char* kUseOverrideKey = "UseOverride";
 		constexpr const char* kOverrideKey = "Override";
 		constexpr const char* kPreferPbrWorkflowKey = "preferPbrWorkflow";
+		constexpr const char* kCullModeKey = "cullMode";
+		constexpr const char* kBlendModeKey = "blendMode";
 		constexpr const char* kLegacyKey = "legacy";
 		constexpr const char* kPbrKey = "pbr";
 		constexpr const char* kUvTransformKey = "uvTransform";
@@ -67,6 +70,8 @@ namespace Ken4lowEngine
 			const MaterialDesc desc = MaterialDescLoader::NormalizeDesc(source);
 			nlohmann::json json = nlohmann::json::object();
 			json[kPreferPbrWorkflowKey] = desc.preferPbrWorkflow;
+			json[kCullModeKey] = MaterialDescJsonConverter::ToString(desc.cullMode);
+			json[kBlendModeKey] = MaterialDescJsonConverter::ToString(desc.blendMode); // Component OverrideでもForward分類をActor JSONへ保持する。
 			json[kLegacyKey] = {
 				{ "color", Vector4ToJson(desc.legacy.color) },
 				{ "shininess", desc.legacy.shininess },
@@ -101,6 +106,10 @@ namespace Ken4lowEngine
 			}
 
 			desc.preferPbrWorkflow = JsonReadUtil::ReadBoolOr(json, kPreferPbrWorkflowKey, desc.preferPbrWorkflow);
+			desc.cullMode = MaterialDescJsonConverter::CullModeFromString(
+				JsonReadUtil::ReadStringOr(json, kCullModeKey, "back"));
+			desc.blendMode = MaterialDescJsonConverter::BlendModeFromString(
+				JsonReadUtil::ReadStringOr(json, kBlendModeKey, "opaque")); // 旧Actor JSONは安全なOpaque/Backへフォールバックする。
 			const nlohmann::json legacy = JsonReadUtil::ReadObjectOr(json, kLegacyKey, nlohmann::json::object());
 			const nlohmann::json pbr = JsonReadUtil::ReadObjectOr(json, kPbrKey, nlohmann::json::object());
 
@@ -245,6 +254,23 @@ namespace Ken4lowEngine
 		if (binding.IsUsingOverride())
 		{
 			MaterialDesc& desc = binding.GetMutableOverrideDesc();
+
+			const char* blendModeNames[] = { "Opaque", "Masked", "Transparent", "Additive" };
+			int blendModeIndex = std::clamp(static_cast<int>(desc.blendMode), 0, 3);
+			if (ImGui::Combo("Blend Mode", &blendModeIndex, blendModeNames, IM_ARRAYSIZE(blendModeNames)))
+			{
+				desc.blendMode = static_cast<MaterialBlendMode>(blendModeIndex); // ComponentからForward Queue分類を直接選択できるようにする。
+				changed = true;
+			}
+
+			const char* cullModeNames[] = { "Back", "Front", "None (Two Sided)" };
+			int cullModeIndex = std::clamp(static_cast<int>(desc.cullMode), 0, 2);
+			if (ImGui::Combo("Cull Mode", &cullModeIndex, cullModeNames, IM_ARRAYSIZE(cullModeNames)))
+			{
+				desc.cullMode = static_cast<MaterialCullMode>(cullModeIndex);
+				changed = true;
+			}
+
 			changed |= ImGui::Checkbox("PBRを使用", &desc.preferPbrWorkflow);
 			if (desc.preferPbrWorkflow)
 			{
