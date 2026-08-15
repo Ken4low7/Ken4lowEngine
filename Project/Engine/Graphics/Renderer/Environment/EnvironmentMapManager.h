@@ -25,6 +25,10 @@ namespace Ken4lowEngine
 
 		bool SetSkyBoxEnvironment(const std::string& texturePath)
 		{
+			if (!IsLoadedCubeMap(texturePath))
+			{
+				return false;
+			}
 			skyBoxTexturePath_ = texturePath;
 			if (explicitOverrideEnabled_)
 			{
@@ -49,9 +53,13 @@ namespace Ken4lowEngine
 
 		bool UseSkyBoxEnvironment()
 		{
-			explicitOverrideEnabled_ = false;
 			const std::string& path = skyBoxTexturePath_.empty() ? GetFallbackEnvironmentMapPath() : skyBoxTexturePath_;
-			return LoadAndAdoptCubeMap(path, false);
+			if (!LoadAndAdoptCubeMap(path, false))
+			{
+				return false;
+			}
+			explicitOverrideEnabled_ = false; // 復帰成功後だけOverride状態を落とし、失敗時は現在のEnvironmentを維持する。
+			return true;
 		}
 
 		D3D12_GPU_DESCRIPTOR_HANDLE GetEnvironmentMapHandle()
@@ -85,6 +93,22 @@ namespace Ken4lowEngine
 			}
 			const std::string& path = skyBoxTexturePath_.empty() ? GetFallbackEnvironmentMapPath() : skyBoxTexturePath_;
 			return LoadAndAdoptCubeMap(path, false);
+		}
+
+		bool IsLoadedCubeMap(const std::string& texturePath)
+		{
+			if (texturePath.empty())
+			{
+				return false;
+			}
+			try
+			{
+				return TextureManager::GetInstance()->GetMetaData(texturePath).IsCubemap();
+			}
+			catch (...)
+			{
+				return false;
+			}
 		}
 
 		bool LoadAndAdoptCubeMap(const std::string& texturePath, bool reloadTexture)
