@@ -12,6 +12,7 @@
 #include <GameTimer.h>
 #include <LightManager.h>
 #include "Engine/Graphics/Culling/CullingDiagnostics.h"
+#include "Engine/Graphics/Renderer/Environment/EnvironmentMapManager.h"
 #include <chrono>
 #include <cmath>
 
@@ -159,8 +160,7 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	void AnimationModel::InitializeEnvironmentMap()
 	{
-		TextureManager::GetInstance()->LoadTexture("SkyBox/skybox.dds");
-		environmentMapHandle_ = TextureManager::GetInstance()->GetSrvHandleGPU("SkyBox/skybox.dds");
+		EnvironmentMapManager::GetInstance()->GetEnvironmentMapHandle(); // AnimationもScene共通Environmentを使い、固定Cubemapを保持しない。
 	}
 
 	/// -------------------------------------------------------------
@@ -1198,7 +1198,9 @@ namespace Ken4lowEngine
 		auto& L = lods_[lodIndex];
 		const Matrix4x4 cullWorld = GetCullWorldMatrix();
 
-		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(commandList, 4, environmentMapHandle_); // t1: 環境マップ
+		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(
+			commandList, 4,
+			EnvironmentMapManager::GetInstance()->GetEnvironmentMapHandle()); // t1: Scene共通Environmentを描画時に解決する。
 		commandList->SetGraphicsRootConstantBufferView(7, shadowParameterResource_->GetGPUVirtualAddress());
 		commandList->SetGraphicsRootDescriptorTable(8, shadowMapHandle_);
 		materialTextureSlots_.BindAdditionalSlots(commandList, 10, 11, 12, 13); // t6:MR t7:Normal t8:AO t9:Emissive
