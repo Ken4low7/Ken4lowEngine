@@ -22,7 +22,8 @@ struct Material
     float4 emissiveFactor;
     uint textureFlags;
     float reflectionSourceAvailable;
-    float2 padding;
+    float planarReflectionEnabled;
+    float planarReflectionStrength;
 };
 
 struct Camera
@@ -61,7 +62,7 @@ Texture2D<float> gShadowMap : register(t4);
 Texture2D<float4> gMetallicRoughnessTexture : register(t6);
 Texture2D<float4> gNormalTexture : register(t7);
 Texture2D<float4> gOcclusionTexture : register(t8);
-Texture2D<float4> gEmissiveTexture : register(t9);
+Texture2D<float4> gEmissiveTexture : register(t9); // Planar鏡面Draw中だけReflection Textureとして再利用する。
 Texture2DArray<float> gCsmShadowMaps : register(t10);
 TextureCube<float> gPointShadowMap : register(t11);
 
@@ -107,46 +108,46 @@ PixelShaderOutput main(VertexShaderOutput input)
         }
         spotShadowFactor = CalculateShadow(worldPosition, normal, dominantSpotDir, gShadowParameter, gShadowMap, gShadowSampler);
     }
- 	else if (gShadowParameter.shadowMode == 4)
- 	{
- 		float3 directionalLightDir = float3(0.0f, 1.0f, 0.0f);
- 		[loop]
- 		for (uint directionalIndex = 0; directionalIndex < gLightInfo.gLightCount; ++directionalIndex)
- 		{
- 			if (gPunctualLights[directionalIndex].lightType == 1)
- 			{
- 				directionalLightDir = normalize(-gPunctualLights[directionalIndex].direction);
- 				break;
- 			}
- 		}
- 		spotShadowFactor = CalculateCsmShadow(worldPosition, normal, directionalLightDir, gExtendedShadowParameter, gCsmShadowMaps, gShadowSampler);
- 	}
- 	else if (gShadowParameter.shadowMode == 3 && gExtendedShadowParameter.shadowCasterLightIndex < gLightInfo.gLightCount)
- 	{
- 		PunctualLight pointCaster = gPunctualLights[gExtendedShadowParameter.shadowCasterLightIndex];
- 		float3 pointLightDir = normalize(pointCaster.position - worldPosition);
- 		spotShadowFactor = CalculatePointCubeShadow(worldPosition, normal, pointLightDir, gExtendedShadowParameter, gPointShadowMap, gShadowSampler);
- 	}
+    else if (gShadowParameter.shadowMode == 4)
+    {
+        float3 directionalLightDir = float3(0.0f, 1.0f, 0.0f);
+        [loop]
+        for (uint directionalIndex = 0; directionalIndex < gLightInfo.gLightCount; ++directionalIndex)
+        {
+            if (gPunctualLights[directionalIndex].lightType == 1)
+            {
+                directionalLightDir = normalize(-gPunctualLights[directionalIndex].direction);
+                break;
+            }
+        }
+        spotShadowFactor = CalculateCsmShadow(worldPosition, normal, directionalLightDir, gExtendedShadowParameter, gCsmShadowMaps, gShadowSampler);
+    }
+    else if (gShadowParameter.shadowMode == 3 && gExtendedShadowParameter.shadowCasterLightIndex < gLightInfo.gLightCount)
+    {
+        PunctualLight pointCaster = gPunctualLights[gExtendedShadowParameter.shadowCasterLightIndex];
+        float3 pointLightDir = normalize(pointCaster.position - worldPosition);
+        spotShadowFactor = CalculatePointCubeShadow(worldPosition, normal, pointLightDir, gExtendedShadowParameter, gPointShadowMap, gShadowSampler);
+    }
 
     if (gShadowParameter.shadowDebugMode == 1)
     {
- 		if (gShadowParameter.shadowMode == 3)
- 		{
- 			float3 cubeDirection = normalize(worldPosition - gExtendedShadowParameter.pointLightPositionAndFar.xyz);
- 			float cubeDepth = gPointShadowMap.SampleLevel(gLinearSampler, cubeDirection, 0.0f);
- 			output.color = float4(cubeDepth.xxx, 1.0f);
- 			return output;
- 		}
- 		float4x4 debugLightViewProjection = (gShadowParameter.shadowMode == 4)
- 			? gExtendedShadowParameter.cascadeLightViewProjection[SelectShadowCascade(length(worldPosition - gExtendedShadowParameter.cameraPositionAndPointNear.xyz), gExtendedShadowParameter)]
- 			: gShadowParameter.lightViewProjection;
+        if (gShadowParameter.shadowMode == 3)
+        {
+            float3 cubeDirection = normalize(worldPosition - gExtendedShadowParameter.pointLightPositionAndFar.xyz);
+            float cubeDepth = gPointShadowMap.SampleLevel(gLinearSampler, cubeDirection, 0.0f);
+            output.color = float4(cubeDepth.xxx, 1.0f);
+            return output;
+        }
+        float4x4 debugLightViewProjection = (gShadowParameter.shadowMode == 4)
+            ? gExtendedShadowParameter.cascadeLightViewProjection[SelectShadowCascade(length(worldPosition - gExtendedShadowParameter.cameraPositionAndPointNear.xyz), gExtendedShadowParameter)]
+            : gShadowParameter.lightViewProjection;
         float4 shadowPosition = mul(float4(worldPosition, 1.0f), debugLightViewProjection);
         float3 proj = shadowPosition.xyz / max(shadowPosition.w, 1e-5f);
         float2 uv = float2(proj.x * 0.5f + 0.5f, -proj.y * 0.5f + 0.5f);
- 		uint debugCascade = SelectShadowCascade(length(worldPosition - gExtendedShadowParameter.cameraPositionAndPointNear.xyz), gExtendedShadowParameter);
+        uint debugCascade = SelectShadowCascade(length(worldPosition - gExtendedShadowParameter.cameraPositionAndPointNear.xyz), gExtendedShadowParameter);
         float depth = (gShadowParameter.shadowMode == 4)
- 			? gCsmShadowMaps.SampleLevel(gLinearSampler, float3(saturate(uv), (float)debugCascade), 0.0f)
- 			: gShadowMap.SampleLevel(gLinearSampler, saturate(uv), 0.0f);
+            ? gCsmShadowMaps.SampleLevel(gLinearSampler, float3(saturate(uv), (float)debugCascade), 0.0f)
+            : gShadowMap.SampleLevel(gLinearSampler, saturate(uv), 0.0f);
         output.color = float4(depth.xxx, 1.0f);
         return output;
     }
@@ -169,7 +170,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         gPointShadowMap,
         gShadowSampler,
         gLightingSettings);
-        
+
     float3 baseColor = gMaterial.color.rgb * textureColor.rgb * input.instanceColor.rgb;
 
     // Dissolve
@@ -213,7 +214,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         }
 
         float3 emissiveSample = 1.0.xxx;
-        if ((gMaterial.textureFlags & MATERIAL_TEXTURE_EMISSIVE) != 0)
+        if ((gMaterial.textureFlags & MATERIAL_TEXTURE_EMISSIVE) != 0 && gMaterial.planarReflectionEnabled <= 0.5f)
         {
             emissiveSample = gEmissiveTexture.Sample(gLinearSampler, transformedUV.xy).rgb;
         }
@@ -253,15 +254,29 @@ PixelShaderOutput main(VertexShaderOutput input)
             float3 environmentColor = gEnvironmentTexture.SampleLevel(gLinearSampler, reflectionDir, reflectionMipLevel).rgb;
             float fresnel = ComputeFresnelSchlick(saturate(dot(normal, viewDir)), 0.02f);
             float envBlend = saturate(reflectionRate + fresnel * reflectionRate * (1.0f - reflectionRate));
-            shadedColor = lerp(shadedColor, environmentColor, envBlend); // 反射率1.0は鏡面確認に使える強さまで反映する。
+            shadedColor = lerp(shadedColor, environmentColor, envBlend); // 反射率1.0は環境反射確認に使える強さまで反映する。
         }
-        shadedColor += gMaterial.emissiveFactor.rgb; // 既定値ゼロを維持し、明示されたBoss予兆などだけLegacy描画でも発光させる。
+        shadedColor += gMaterial.emissiveFactor.rgb;
     }
 
-    // Fog/ToneMap/Contrastを最後に適用して白飛びを抑える。
+    // Fog/ToneMap/Contrastを通常Scene色へ先に適用し、反射RTを二重ToneMapしない。
     shadedColor = ApplyFog(shadedColor, worldPosition, gCamera.worldPosition, gLightingSettings);
     shadedColor = ApplySimpleToneMapping(shadedColor, gLightingSettings);
     shadedColor = ApplyContrast(shadedColor, gLightingSettings);
+
+    if (gMaterial.planarReflectionEnabled > 0.5f)
+    {
+        uint planarWidth = 1;
+        uint planarHeight = 1;
+        gEmissiveTexture.GetDimensions(planarWidth, planarHeight);
+        float2 planarSize = max(float2((float)planarWidth, (float)planarHeight), float2(1.0f, 1.0f));
+        float2 planarUv = input.position.xy / planarSize;
+        if (all(planarUv >= 0.0.xx) && all(planarUv <= 1.0.xx))
+        {
+            float3 planarColor = gEmissiveTexture.SampleLevel(gLinearSampler, saturate(planarUv), 0.0f).rgb;
+            shadedColor = lerp(shadedColor, planarColor, saturate(gMaterial.planarReflectionStrength)); // 鏡面Pixelは同じ画面座標の反射Camera結果を参照する。
+        }
+    }
 
     output.color.rgb = shadedColor;
     output.color.a = gMaterial.color.a * textureColor.a * input.instanceColor.a;
