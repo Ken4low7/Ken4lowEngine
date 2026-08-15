@@ -13,6 +13,14 @@ namespace Ken4lowEngine
 {
 	namespace PlanarReflectionDetail
 	{
+		struct HomogeneousVector
+		{
+			float x = 0.0f;
+			float y = 0.0f;
+			float z = 0.0f;
+			float w = 0.0f;
+		};
+
 		inline bool NearlyEqual(float lhs, float rhs)
 		{
 			return std::fabs(lhs - rhs) <= 0.0001f;
@@ -34,6 +42,102 @@ namespace Ken4lowEngine
 		{
 			const float signedDistance = Vector3::Dot(point - planePoint, planeNormal);
 			return point - planeNormal * (2.0f * signedDistance);
+		}
+
+		inline Vector3 TransformDirection(const Vector3& direction, const Matrix4x4& matrix)
+		{
+			return {
+				direction.x * matrix.m[0][0] + direction.y * matrix.m[1][0] + direction.z * matrix.m[2][0],
+				direction.x * matrix.m[0][1] + direction.y * matrix.m[1][1] + direction.z * matrix.m[2][1],
+				direction.x * matrix.m[0][2] + direction.y * matrix.m[1][2] + direction.z * matrix.m[2][2],
+			};
+		}
+
+		inline HomogeneousVector TransformHomogeneousRow(const HomogeneousVector& value, const Matrix4x4& matrix)
+		{
+			return {
+				value.x * matrix.m[0][0] + value.y * matrix.m[1][0] + value.z * matrix.m[2][0] + value.w * matrix.m[3][0],
+				value.x * matrix.m[0][1] + value.y * matrix.m[1][1] + value.z * matrix.m[2][1] + value.w * matrix.m[3][1],
+				value.x * matrix.m[0][2] + value.y * matrix.m[1][2] + value.z * matrix.m[2][2] + value.w * matrix.m[3][2],
+				value.x * matrix.m[0][3] + value.y * matrix.m[1][3] + value.z * matrix.m[2][3] + value.w * matrix.m[3][3],
+			};
+		}
+
+		inline float Dot(const HomogeneousVector& lhs, const HomogeneousVector& rhs)
+		{
+			return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z + lhs.w * rhs.w;
+		}
+
+		inline float SignNotZero(float value)
+		{
+			return value >= 0.0f ? 1.0f : -1.0f;
+		}
+
+		inline Matrix4x4 BuildObliqueProjection(
+			const Matrix4x4& projection,
+			const Matrix4x4& view,
+			const Vector3& planePosition,
+			const Vector3& keepSideNormal,
+			float clipPlaneBias,
+			bool& outApplied)
+		{
+			outApplied = false;
+			const Vector3 worldNormal = Vector3::NormalizeSafe(keepSideNormal, { 0.0f, 1.0f, 0.0f });
+			const Vector3 biasedPlanePosition = planePosition + worldNormal * (std::max)(clipPlaneBias, 0.0f);
+			const Vector3 planePointView = Vector3::Transform(biasedPlanePosition, view);
+			const Vector3 planeNormalView = Vector3::NormalizeSafe(
+				TransformDirection(worldNormal, view),
+				{ 0.0f, 0.0f, 1.0f });
+
+			HomogeneousVector planeView{
+				planeNormalView.x,
+				planeNormalView.y,
+				planeNormalView.z,
+				-Vector3::Dot(planeNormalView, planePointView),
+			};
+
+			// keepSideNormal側がDirectXのnear条件 clip.z >= 0 になる向きへ揃える。
+			const Vector3 keepPointView = Vector3::Transform(biasedPlanePosition + worldNormal, view);
+			const float keepSideValue =
+				planeView.x * keepPointView.x +
+				planeView.y * keepPointView.y +
+				planeView.z * keepPointView.z +
+				planeView.w;
+			if (keepSideValue < 0.0f)
+			{
+				planeView.x = -planeView.x;
+				planeView.y = -planeView.y;
+				planeView.z = -planeView.z;
+				planeView.w = -planeView.w;
+			}
+
+			Matrix4x4 inverseProjection{};
+			if (!Matrix4x4::TryInverse(projection, inverseProjection))
+			{
+				return projection;
+			}
+
+			const HomogeneousVector farClipCorner{
+				SignNotZero(planeView.x),
+				SignNotZero(planeView.y),
+				1.0f,
+				1.0f,
+			};
+			const HomogeneousVector farViewCorner = TransformHomogeneousRow(farClipCorner, inverseProjection);
+			const float denominator = Dot(planeView, farViewCorner);
+			if (std::fabs(denominator) <= 1.0e-6f)
+			{
+				return projection;
+			}
+
+			const float scale = farClipCorner.w / denominator;
+			Matrix4x4 oblique = projection;
+			oblique.m[0][2] = planeView.x * scale;
+			oblique.m[1][2] = planeView.y * scale;
+			oblique.m[2][2] = planeView.z * scale;
+			oblique.m[3][2] = planeView.w * scale;
+			outApplied = true; // DirectX row-vector規約ではZ列を任意near planeへ置換して鏡裏側をGPU Clipする。
+			return oblique;
 		}
 	}
 
@@ -99,6 +203,7 @@ namespace Ken4lowEngine
 		sanitized.normal = Vector3::NormalizeSafe(desc.normal, { 0.0f, 1.0f, 0.0f });
 		sanitized.strength = std::clamp(desc.strength, 0.0f, 1.0f);
 		sanitized.surfaceTolerance = std::clamp(desc.surfaceTolerance, 0.001f, 1.0f);
+		sanitized.clipPlaneBias = std::clamp(desc.clipPlaneBias, 0.0f, 1.0f);
 		return sanitized;
 	}
 
@@ -126,6 +231,7 @@ namespace Ken4lowEngine
 			!PlanarReflectionDetail::SameVector(surface->desc.position, sanitized.position) ||
 			!PlanarReflectionDetail::SameVector(surface->desc.normal, sanitized.normal) ||
 			!PlanarReflectionDetail::NearlyEqual(surface->desc.surfaceTolerance, sanitized.surfaceTolerance) ||
+			!PlanarReflectionDetail::NearlyEqual(surface->desc.clipPlaneBias, sanitized.clipPlaneBias) ||
 			surface->desc.enabled != sanitized.enabled ||
 			surface->receiverActor != receiverActor;
 		surface->receiverActor = receiverActor;
@@ -371,7 +477,20 @@ namespace Ken4lowEngine
 			reflectedPosition,
 			reflectedPosition + reflectedForward,
 			reflectedUp);
-		reflectedView.projection = cameraManager->GetActiveProjectionMatrix();
+
+		Vector3 keepSideNormal = planeNormal;
+		if (Vector3::Dot(cameraPosition - surface.desc.position, keepSideNormal) < 0.0f)
+		{
+			keepSideNormal = -keepSideNormal; // 鏡面法線の設定向きに依存せず、Main Cameraと同じ側だけをReflectionへ残す。
+		}
+		bool obliqueClipApplied = false;
+		reflectedView.projection = PlanarReflectionDetail::BuildObliqueProjection(
+			cameraManager->GetActiveProjectionMatrix(),
+			reflectedView.view,
+			surface.desc.position,
+			keepSideNormal,
+			surface.desc.clipPlaneBias,
+			obliqueClipApplied);
 		reflectedView.viewProjection = Matrix4x4::Multiply(reflectedView.view, reflectedView.projection);
 		reflectedView.position = reflectedPosition;
 		reflectedView.forward = reflectedForward;
@@ -391,7 +510,7 @@ namespace Ken4lowEngine
 		bool succeeded = true;
 		try
 		{
-			drawScene(surface.receiverActor); // 鏡自身を除外して鏡の中へ鏡が再帰的に描かれるのを防ぐ。
+			drawScene(surface.receiverActor); // 鏡自身を除外し、鏡裏側はOblique Near Planeで三角形単位にClipする。
 		}
 		catch (...)
 		{
@@ -405,7 +524,8 @@ namespace Ken4lowEngine
 		isCapturing_ = false;
 
 		if (!succeeded) return false;
-		surface.capturedViewProjection = reflectedView.viewProjection; // Captureに実際に使った行列を保存し、Main描画側で再計算しない。
+		surface.capturedViewProjection = reflectedView.viewProjection; // Captureに実際に使ったOblique Projection込み行列をMain描画でも再利用する。
+		surface.obliqueClipApplied = obliqueClipApplied;
 		surface.captured = true;
 		surface.dirty = false;
 		surface.captureRevision = ++captureSerial_;
@@ -442,6 +562,7 @@ namespace Ken4lowEngine
 		diagnostics.registered = true;
 		diagnostics.captured = surface->captured;
 		diagnostics.dirty = surface->dirty;
+		diagnostics.obliqueClipApplied = surface->obliqueClipApplied;
 		diagnostics.captureRevision = surface->captureRevision;
 		return diagnostics;
 	}
