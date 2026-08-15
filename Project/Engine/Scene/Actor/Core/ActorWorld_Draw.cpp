@@ -1,10 +1,12 @@
 #include "ActorWorld.h"
 
+#include "AnimatedModelComponent.h"
 #include "ColliderComponent.h"
 #include "GaugeComponent.h"
 #include "InstancedModelComponent.h"
 #include "LightComponent.h"
 #include "ModelComponent.h"
+#include "SkeletalMeshComponent.h"
 #include "SpriteComponent.h"
 #include "TextComponent.h"
 #include "WorldGaugeComponent.h"
@@ -81,6 +83,30 @@ namespace Ken4lowEngine
 					instancedModelComponent->SubmitForwardAdditive(*forwardQueue); // Instancingも全Material分類をStatic Modelと同じBucket契約へ揃える。
 				}
 			}
+
+			const auto animatedModelComponents = actor->GetComponents<AnimatedModelComponent>();
+			for (AnimatedModelComponent* animatedModelComponent : animatedModelComponents)
+			{
+				if (animatedModelComponent)
+				{
+					animatedModelComponent->SubmitForwardOpaque(*forwardQueue);
+					animatedModelComponent->SubmitForwardMasked(*forwardQueue);
+					animatedModelComponent->SubmitForwardTransparent(*forwardQueue);
+					animatedModelComponent->SubmitForwardAdditive(*forwardQueue);
+				}
+			}
+
+			const auto skeletalMeshComponents = actor->GetComponents<SkeletalMeshComponent>();
+			for (SkeletalMeshComponent* skeletalMeshComponent : skeletalMeshComponents)
+			{
+				if (skeletalMeshComponent)
+				{
+					skeletalMeshComponent->SubmitForwardOpaque(*forwardQueue);
+					skeletalMeshComponent->SubmitForwardMasked(*forwardQueue);
+					skeletalMeshComponent->SubmitForwardTransparent(*forwardQueue);
+					skeletalMeshComponent->SubmitForwardAdditive(*forwardQueue); // Node/Skeletal双方を同じ4Bucket契約へ収集する。
+				}
+			}
 		}
 
 		forwardQueue->ExecuteBucket(ForwardRenderBucket::Opaque);
@@ -93,7 +119,7 @@ namespace Ken4lowEngine
 				continue; // 無効またはEditorで非表示のActorは通常描画対象から外す
 			}
 
-			// Queue未移行Componentと派生Actor独自描画は従来経路を維持する。Queue済みComponentは内部で二重描画を抑止する。
+			// Queue未移行Componentと派生Actor独自描画は従来経路を維持する。Queue所有ComponentはActor::Draw側で二重描画を抑止する。
 			actor->Draw();
 		}
 
