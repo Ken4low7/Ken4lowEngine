@@ -12,7 +12,6 @@
 namespace Ken4lowEngine
 {
 	class DirectXCommon;
-	class SkyBox;
 
 	enum class ReflectionProbeUpdateMode : uint8_t
 	{
@@ -42,7 +41,7 @@ namespace Ken4lowEngine
 	};
 
 	/// <summary>
-	/// Scene内の局所Reflection Probeを管理し、近傍Probeが無い場合だけEnvironment Mapへフォールバックします。
+	/// Scene内の局所Reflection Probeを管理し、Capture済みProbeまたは明示Environmentだけを反射源として公開します。
 	/// </summary>
 	class ReflectionProbeManager
 	{
@@ -59,6 +58,7 @@ namespace Ken4lowEngine
 		/// 1フレーム最大1Probeだけ更新し、各Probeは6面を連続Captureします。
 		bool CapturePending(const std::function<void()>& drawStaticScene);
 
+		/// Probe圏内ならProbe SRV、圏外は明示Environment、どちらも無ければnull handleを返します。
 		D3D12_GPU_DESCRIPTOR_HANDLE ResolveReflectionHandle(const Vector3& worldPosition) const;
 		ReflectionProbeDiagnostics GetDiagnostics(const void* owner) const;
 		uint32_t GetCapturedProbeCount() const;
@@ -107,12 +107,10 @@ namespace Ken4lowEngine
 		void ReleaseTarget(ProbeTarget& target);
 		void TransitionTarget(ProbeTarget& target, D3D12_RESOURCE_STATES nextState);
 		bool CaptureProbe(ProbeRuntime& probe, const std::function<void()>& drawStaticScene);
-		void SyncCaptureSkyBox();
 
 		DirectXCommon* dxCommon_ = nullptr;
 		std::vector<ProbeRuntime> probes_{};
 		std::vector<std::unique_ptr<ProbeTarget>> retiredTargets_{}; // GPU参照中Descriptorを同Frameで再利用しないためResize旧Targetを保持する。
-		std::unique_ptr<SkyBox> captureSkyBox_{};
 		bool isCapturing_ = false;
 		uint64_t captureSerial_ = 0;
 	};
