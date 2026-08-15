@@ -27,6 +27,7 @@ namespace Ken4lowEngine
 		Vector3 normal{ 0.0f, 1.0f, 0.0f };
 		float strength = 1.0f;
 		float surfaceTolerance = 0.025f;
+		float clipPlaneBias = 0.01f;
 		PlanarReflectionUpdateMode updateMode = PlanarReflectionUpdateMode::EveryFrame;
 		bool enabled = true;
 	};
@@ -47,12 +48,13 @@ namespace Ken4lowEngine
 		bool registered = false;
 		bool captured = false;
 		bool dirty = false;
+		bool obliqueClipApplied = false;
 		uint64_t captureRevision = 0;
 	};
 
 	/// <summary>
 	/// 鏡面ごとの反射RenderTargetと反射Camera Captureを管理します。
-	/// v1はMain Viewportと同じ解像度で1フレーム最大1面だけ更新します。
+	/// Main Viewportと同じ解像度で1フレーム最大1面だけ更新します。
 	/// </summary>
 	class PlanarReflectionManager
 	{
@@ -117,6 +119,7 @@ namespace Ken4lowEngine
 			Matrix4x4 capturedViewProjection = Matrix4x4::MakeIdentity();
 			bool captured = false;
 			bool dirty = true;
+			bool obliqueClipApplied = false;
 			uint64_t captureRevision = 0;
 		};
 
