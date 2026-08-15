@@ -15,6 +15,7 @@
 
 #include "Engine/Graphics/Renderer/Forward/ForwardRenderQueue.h"
 #include "Engine/Graphics/Renderer/GpuFluid/Manager/GpuFluidManager.h"
+#include "Engine/Graphics/Renderer/GpuFluid/Volumetric/Manager/GpuVolumetricFluidManager.h"
 #include "Engine/Graphics/Renderer/GpuParticle/Renderer/GpuParticleForwardRenderBridge.h"
 #include "LightManager.h"
 #include "SceneComponent.h"
@@ -118,6 +119,11 @@ namespace Ken4lowEngine
 		// Actor更新・Physics補正後の最新Emitter/ColliderでComputeを記録し、同じFrameのTransparent描画へ渡す。
 		gpuFluidManager->UpdateFromWorld(*this, GameTimer::GetInstance()->GetDeltaTime());
 		gpuFluidManager->SubmitForward(*forwardQueue);
+
+		GpuVolumetricFluidManager* volumetricFluidManager = GpuVolumetricFluidManager::GetInstance();
+		// 3D Solverも同じWorld snapshotを使うが、Runtime既定OFFなのでPhase16 Sceneの描画と負荷は明示Enableまで変えない。
+		volumetricFluidManager->UpdateFromWorld(*this, GameTimer::GetInstance()->GetDeltaTime());
+		volumetricFluidManager->SubmitForward(*forwardQueue);
 
 		forwardQueue->ExecuteBucket(ForwardRenderBucket::Opaque);
 		forwardQueue->ExecuteBucket(ForwardRenderBucket::Masked);

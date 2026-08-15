@@ -114,7 +114,7 @@ def test_pixel_shader_uses_directional_phase_scattering_and_one_tap_self_shadow(
     assert "gRender.ambientSelfShadow.rgb + directScattering" in shader
 
 
-def test_build_and_docs_register_phase17_9_and_advance_to_diagnostics():
+def test_build_and_docs_keep_phase17_9_registered_after_phase17_completion():
     props = read("Directory.Build.props")
     docs = read("Docs/Phase17GpuVolumetricFluid.md")
 
@@ -122,4 +122,5 @@ def test_build_and_docs_register_phase17_9_and_advance_to_diagnostics():
     assert "RenderDepthContext.h" in props
     assert "- [x] 17.9 Depth-aware composition / lighting" in docs
     assert "## 17.9 Depth-aware composition / lighting" in docs
-    assert "## Next implementation target — 17.10" in docs
+    assert "- [x] 17.10 Editor / Diagnostics / Stress Test" in docs
+    assert "## Phase 17 completion" in docs

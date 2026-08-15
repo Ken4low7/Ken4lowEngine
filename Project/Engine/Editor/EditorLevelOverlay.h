@@ -10,6 +10,7 @@
 #include "EditorSceneDeferredController.h"
 #include "EditorWindowManager.h"
 #include "GpuFluidDiagnosticsPanel.h"
+#include "GpuVolumetricFluidDiagnosticsPanel.h"
 
 #include <string>
 
@@ -27,6 +28,7 @@ namespace Ken4lowEngine
 		EditorDiagnosticsPanel::GetInstance()->Draw();
 		EditorProfilerPanel::GetInstance()->Draw(windowManager->GetSceneManager(), &windowManager->GetPerformanceMonitor());
 		GpuFluidDiagnosticsPanel::GetInstance()->Draw(); // Phase16診断はF12の独立Panelとして既存Editor Overlayの1回/Frame入口へ接続する。
+		GpuVolumetricFluidDiagnosticsPanel::GetInstance()->Draw(); // Phase17のTexture3D Solver診断はF8で独立表示する。
 
 		EditorLevelService* levelService = EditorLevelService::GetInstance();
 		EditorLevelDeferredController* deferredController = EditorLevelDeferredController::GetInstance();

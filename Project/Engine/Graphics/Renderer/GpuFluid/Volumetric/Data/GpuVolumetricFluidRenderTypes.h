@@ -16,6 +16,8 @@ namespace Ken4lowEngine
 enum class GpuVolumetricFluidRenderMode : uint32_t
 {
 	Smoke = 0,
+	DensityDebug,
+	TemperatureDebug,
 	ObstacleDebug,
 };
 

@@ -15,6 +15,7 @@ Phase 17 extends the Phase 16 2D Eulerian solver into a true 3D volume while kee
 - Treat the `R8_UINT` obstacle Texture3D as a solver boundary contract, not only a visualization field.
 - Render the volume through the existing Transparent Forward Queue so sorting and active render-view camera state stay consistent with the rest of the engine.
 - Make Scene Depth sampling a Forward-stage contract instead of letting one volume renderer transition a shared depth target independently.
+- Keep the 3D runtime disabled by default so existing Phase16 scenes do not suddenly run two fluid solvers from the same shared emitter components.
 
 ## Roadmap
 
@@ -27,7 +28,7 @@ Phase 17 extends the Phase 16 2D Eulerian solver into a true 3D volume while kee
 - [x] 17.7 Volumetric Collider / Obstacle raster
 - [x] 17.8 Volume Raymarch Rendering
 - [x] 17.9 Depth-aware composition / lighting
-- [ ] 17.10 Editor / Diagnostics / Stress Test
+- [x] 17.10 Editor / Diagnostics / Stress Test
 
 ## 17.1 3D base data / domain API
 
@@ -97,7 +98,7 @@ Vorticity confinement computes `N = normalize(grad(|omega|))` and feeds `vortici
 
 `Curl -> Vorticity Confinement -> Buoyancy`
 
-Force application can introduce divergence, so the eventual runtime manager must execute another Pressure Projection after the force stage.
+Force application can introduce divergence, so the runtime executes another Pressure Projection after the force stage.
 
 ## 17.6 3D Emitter injection
 
@@ -121,7 +122,7 @@ The existing `FluidEmitterComponent` remains shared by 2D and 3D fluid through `
 
 17.7 connects that mask to Velocity/Scalar Advection, Divergence, Pressure Jacobi, Projection, Curl, Vorticity Confinement, Buoyancy, and Emitter Injection.
 
-The intended fixed-step sequence remains:
+The fixed-step sequence is:
 
 `Obstacle -> Emitter -> Velocity Advection -> Projection -> Scalar Advection -> Curl/Vorticity/Buoyancy -> Projection`
 
@@ -155,7 +156,7 @@ The loop exits early when `T <= earlyExitTransmittance`. The proxy uses `CullMod
 
 `RenderDepthContext` owns the shared Depth-read transition boundary used by transparent rendering.
 
-For the main `D24_UNORM_S8_UINT` depth target, the resource itself is created as `R24G8_TYPELESS`. Two views are then created over the same resource:
+For the main `D24_UNORM_S8_UINT` depth target, the resource itself is created as `R24G8_TYPELESS`. Two DSV/SRV interpretations are then used over the same resource:
 
 - writable `D24_UNORM_S8_UINT` DSV for opaque/masked/legacy 3D drawing
 - read-only `D24_UNORM_S8_UINT` DSV for transparent drawing
@@ -169,11 +170,11 @@ and the same color target is rebound with the read-only DSV. After Additive rend
 
 This transition belongs to the Forward Queue instead of `GpuVolumetricFluidRaymarchRenderer`, so all transparent items see one consistent Depth state and one renderer cannot independently invalidate a shared attachment.
 
-`RenderDepthContextStats` records prepare/restore/failure/attachment counts so Phase17.10 can expose the state directly.
+`RenderDepthContextStats` records prepare/restore/failure/attachment counts and Phase17.10 exposes those values in the Editor.
 
 ### Scene Depth ray termination
 
-The volume renderer binds Scene Depth at `t3`. The 384-byte `GpuVolumetricFluidRenderConstants` now contains:
+The volume renderer binds Scene Depth at `t3`. The 384-byte `GpuVolumetricFluidRenderConstants` contains:
 
 - ViewProjection and inverse ViewProjection
 - active camera position
@@ -201,12 +202,7 @@ Because Scene Depth is now the ray-stop authority, the volume proxy PSO disables
 
 ### Directional scattering
 
-At draw execution the renderer reads `LightManager` and selects the strongest enabled Directional Light. The CPU passes:
-
-- direction from the sample toward the light
-- light color
-- intensity
-- global ambient color
+At draw execution the renderer reads `LightManager` and selects the strongest enabled Directional Light. The CPU passes direction, light color, intensity, and global ambient color.
 
 The pixel shader evaluates a Henyey-Greenstein phase approximation using configurable anisotropy:
 
@@ -232,9 +228,87 @@ Reflection/other `CameraManager::RenderViewOverride` paths currently have their 
 
 This is a deliberate safe fallback. Registering Reflection Probe / Planar Reflection depth attachments can later use the existing `PushOverride` / `PopOverride` API without changing the raymarch renderer or shader contract.
 
+## 17.10 Editor / Diagnostics / Stress Test
+
+### Runtime owner
+
+`GpuVolumetricFluidManager` owns the Texture3D grid, every Phase17 compute pass, the raymarch renderer, source lists, fixed-step accumulator, reset/reconfigure state, and runtime statistics.
+
+The manager records the complete simulation order in one place:
+
+`Obstacle -> Emitter -> Velocity -> Projection -> Scalar -> Vorticity/Buoyancy -> Projection`
+
+`ActorWorld::Draw()` updates the manager after actor/physics state is current and submits the volume to the existing Forward Queue before Transparent execution.
+
+The manager checks the current frame-resource index and fence value. If Reflection Probe or another capture redraws the same `ActorWorld` inside the same engine frame, the solver update is skipped and only the already-produced Texture3D state is reused.
+
+The 3D runtime defaults to disabled. This keeps existing Phase16 scenes unchanged even though `FluidEmitterComponent` is intentionally shared by the 2D and 3D systems. Enabling the 3D runtime performs a deterministic reset before simulation resumes.
+
+### Scene collection
+
+`FluidEmitterComponent::BuildVolumetricEmitterSource()` feeds the 3D source list and `GpuVolumetricFluidColliderObstacleAdapter` gathers supported physics colliders.
+
+Runtime statistics expose both Scene and synthetic source counts plus the pass-level accepted/culled counts, making completely out-of-domain emitters and obstacles visible from the Editor instead of silently disappearing.
+
+### Safe grid reconfigure
+
+Grid Width, Height, Depth, cell size, and pressure iterations are editable from the diagnostics panel.
+
+When the grid has already been allocated, reconfiguration is deferred until `UpdateFromWorld()`. The manager waits only at this rare resource-recreation boundary, destroys and recreates the Texture3D fields, resets every field, and preserves the world-space center of the oriented U/V/W domain across XYZ resolution changes.
+
+When the runtime has not been initialized yet, the requested configuration is stored directly and used for the first allocation so an unnecessary create/destroy cycle is avoided.
+
+### Debug visualization
+
+The render mode now supports:
+
+- `Smoke`
+- `DensityDebug`
+- `TemperatureDebug`
+- `ObstacleDebug`
+
+Density Debug shows the Density scalar without lighting. Temperature Debug maps signed temperature through the cold/hot colors. Obstacle Debug directly loads the `R8_UINT` solid mask. Smoke mode keeps the Phase17.9 Scene Depth, directional scattering, thermal emission, and one-tap self-shadow path.
+
+### Editor controls and diagnostics
+
+`GpuVolumetricFluidDiagnosticsPanel` is opened with **F8**. The Phase16 2D panel remains on **F12**.
+
+The 3D panel exposes:
+
+- runtime enable / pause / step / reset
+- Forward Raymarch enable
+- Smoke / Density / Temperature / Obstacle visualization
+- opacity, scalar scales, absorption, emission, ray step, max steps, early-exit threshold
+- directional scattering, ambient scattering, anisotropy, self-shadow strength/distance
+- U/V/W domain origin and axes
+- fixed timestep, max substeps, dissipation, vorticity, buoyancy, smoke weight
+- grid Width / Height / Depth / cell size / pressure iterations
+- logical Texture3D memory
+- Scene and synthetic source counts
+- emitter/obstacle accepted and culled counts
+- pressure iteration count
+- reset / reconfigure / failed reconfigure counts
+- duplicate same-frame simulation skip count
+- lifetime pass dispatch counts
+- raymarch draw and Forward packet counts
+- `RenderDepthContext` prepare/restore/failure/attachment counters
+- shared SRV descriptor heap usage/high-water/exhaustion counters
+- shared `FrameUploadArena` usage/high-water/overflow counters
+
+### Stress presets
+
+Two 3D presets are provided:
+
+| Preset | Grid | Cell | Pressure | Synthetic Emitters | Synthetic Obstacles | Logical field memory |
+|---|---:|---:|---:|---:|---:|---:|
+| Baseline 64^3 | 64x64x64 | 0.25 | 32 | 8 | 8 | about 9.75 MiB |
+| Heavy 128^3 | 128x128x128 | 0.125 | 48 | 24 | 24 | about 78 MiB |
+
+Both preserve the same approximate 16x16x16 world-space domain size. Synthetic sources are distributed through a 3D lattice instead of a 2D row so the Z dimension is exercised as part of the stress load.
+
 ## Build integration
 
-`Project/Directory.Build.props` registers the current Phase17 data/pass/adapter/renderer/depth-context/manifest/HLSL files only for the main `Ken4lowEngine` project.
+`Project/Directory.Build.props` registers all current Phase17 data/pass/adapter/renderer/manager/depth-context/editor/manifest/HLSL files only for the main `Ken4lowEngine` project.
 
 ## Validation
 
@@ -242,7 +316,12 @@ This is a deliberate safe fallback. Registering Reflection Probe / Planar Reflec
 
 - Texture3D descriptor and grid contracts
 - deterministic reset and compute solver stages
-- 3D emitter and obstacle integration
+- complete manager-owned fixed-step order
+- same-engine-frame duplicate update suppression
+- shared 2D/3D emitter and 3D collider collection
+- XYZ center-preserving grid reconfigure
+- 64^3 / 128^3 stress presets
+- pass dispatch, pressure, source-culling, memory, Forward and Depth-context diagnostics
 - 384-byte CPU/HLSL raymarch render contract
 - vertexless 36-vertex oriented cube proxy
 - active render-view camera resolution at draw execution
@@ -250,29 +329,29 @@ This is a deliberate safe fallback. Registering Reflection Probe / Planar Reflec
 - Scene Depth `t3` binding and inverse-ViewProjection world reconstruction
 - ray termination at the nearest opaque surface
 - typeless D24/R24 Depth attachment and read-only DSV state
-- Transparent/ Additive Forward Depth transition ordering
+- Transparent/Additive Forward Depth transition ordering
 - Directional-Light phase scattering and one-tap Density self-shadow approximation
+- Density / Temperature / Obstacle debug rendering
 - Reflection override safe-failure guard when no matching Depth override is registered
-- Beer-Lambert extinction, front-to-back transmittance, max-step bound, and early exit
-- existing obstacle-mask debug rendering
 - shader manifest and build registration
+- Editor F8 integration
 
 A real Windows / Visual Studio / DXC / GPU build is still required after repository integration.
 
-## Next implementation target — 17.10
+## Phase 17 completion
 
-Implement **Editor / Diagnostics / Stress Test**.
+Phase17 is complete at the repository-integration level.
 
-The next stage should add:
+The engine now has a full 3D Eulerian fluid path from Texture3D allocation and deterministic reset through advection, pressure projection, scalar transport, forces, emitter injection, collider obstacles, depth-aware lit raymarch rendering, runtime ownership, Editor controls, diagnostics, and stress presets.
 
-- a `GpuVolumetricFluidManager` or equivalent runtime owner that executes the complete fixed-step solver order
-- deterministic reset before the first compute read
-- Scene collection for shared 2D/3D `FluidEmitterComponent` and 3D collider obstacles
-- Forward submission of the active 3D volume
-- Editor controls for grid/domain/simulation/render settings
-- Density / Temperature / Obstacle debug visualization selection
-- dispatch, pressure-iteration, emitter/collider culling, descriptor, Depth-context, and draw counters
-- 64^3 / 128^3 stress presets and approximate logical GPU-memory display
-- safe reset/reinitialize when grid resolution or domain settings change
-- runtime validation of Depth clipping, camera-inside raymarching, and high-opacity early exit
-- final Phase17 completion checklist and known-limitations section
+Known limitations intentionally left for later work:
+
+- one global 3D volumetric domain/runtime; multiple independent volumes are not yet managed as separate instances
+- Reflection Probe / Planar Reflection depth attachments are not yet registered with `RenderDepthContext`, so volumetric drawing safely skips those override captures instead of using the wrong Main Depth
+- lighting uses the strongest enabled Directional Light rather than the complete scene-light list
+- volumetric self-shadow is a one-tap approximation, not a full light-space transmittance volume or secondary ray march
+- diagnostics are CPU/pass/context counters; there is no per-pixel GPU readback for exact ray steps, depth-clipped samples, or early-exit counts
+- 128^3 already represents roughly 78 MiB of logical field storage, so higher resolutions should be treated as explicit high-cost experiments rather than normal defaults
+- the 3D runtime is intentionally default-OFF to preserve existing Phase16 content until a project explicitly opts into volumetric simulation
+
+The next useful architectural step is no longer another mandatory Phase17 solver stage. Future work can choose between multi-volume runtime ownership, Reflection-depth registration, GPU timing/readback diagnostics, or using the completed particle/fluid foundation in a full game scene.

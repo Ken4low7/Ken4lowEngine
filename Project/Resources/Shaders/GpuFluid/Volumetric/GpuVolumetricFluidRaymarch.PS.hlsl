@@ -37,6 +37,11 @@ struct PSInput
     float3 worldPosition : TEXCOORD0;
 };
 
+static const uint kRenderModeSmoke = 0u;
+static const uint kRenderModeDensityDebug = 1u;
+static const uint kRenderModeTemperatureDebug = 2u;
+static const uint kRenderModeObstacleDebug = 3u;
+
 float3 GetVolumeExtent()
 {
     return float3(
@@ -246,7 +251,7 @@ float4 main(PSInput input) : SV_TARGET
     const uint desiredStepCount = max(1u, (uint)ceil(rayLength / desiredStep));
     const uint stepCount = min(maxSteps, desiredStepCount);
     const float stepLength = rayLength / float(stepCount);
-    const bool obstacleDebug = gRender.emissionEarlyExitStepsMode.w >= 0.5f;
+    const uint renderMode = (uint)round(gRender.emissionEarlyExitStepsMode.w);
 
     const float3 lightDirectionToLight = normalize(gRender.lightDirectionIntensity.xyz);
     const float3 viewDirectionToCamera = -rayDirection;
@@ -267,13 +272,27 @@ float4 main(PSInput input) : SV_TARGET
         float sampleAlpha = 0.0f;
         float3 sampleColor = 0.0f;
 
-        if (obstacleDebug)
+        if (renderMode == kRenderModeObstacleDebug)
         {
             if (LoadObstacle(uvw) != 0u)
             {
                 const float obstacleExtinction = max(gRender.obstacleColor.a, 0.01f) * 8.0f / cellSize;
                 sampleAlpha = 1.0f - exp(-obstacleExtinction * stepLength);
                 sampleColor = gRender.obstacleColor.rgb;
+            }
+        }
+        else if (renderMode == kRenderModeTemperatureDebug)
+        {
+            const float temperature = gTemperature.SampleLevel(gLinearClampSampler, uvw, 0.0f);
+            const float temperatureScale = max(gRender.simulationScales.w, 1.0e-4f);
+            const float signedTemperature = temperature / temperatureScale;
+            const float temperatureAmount = saturate(abs(signedTemperature));
+            if (temperatureAmount > 1.0e-6f)
+            {
+                const float temperature01 = saturate(0.5f + 0.5f * signedTemperature);
+                sampleAlpha = 1.0f - exp(
+                    -temperatureAmount * max(gRender.domainOriginAbsorption.w, 1.0f) * stepLength);
+                sampleColor = lerp(gRender.coldColor.rgb, gRender.hotColor.rgb, temperature01);
             }
         }
         else
@@ -283,36 +302,44 @@ float4 main(PSInput input) : SV_TARGET
                 gDensity.SampleLevel(gLinearClampSampler, uvw, 0.0f) * gRender.simulationScales.z);
             if (density > 1.0e-6f)
             {
-                const float temperature =
-                    gTemperature.SampleLevel(gLinearClampSampler, uvw, 0.0f);
-                const float temperatureScale = max(gRender.simulationScales.w, 1.0e-4f);
-                const float signedTemperature = temperature / temperatureScale;
-                const float temperature01 = saturate(0.5f + 0.5f * signedTemperature);
-                const float temperatureAmount = saturate(abs(signedTemperature));
-                const float3 thermalColor = lerp(
-                    gRender.coldColor.rgb,
-                    gRender.hotColor.rgb,
-                    temperature01);
-
                 sampleAlpha = 1.0f - exp(
                     -density * max(gRender.domainOriginAbsorption.w, 0.0f) * stepLength);
 
-                const float lightTransmittance = EvaluateLightTransmittance(
-                    sampleWorld,
-                    lightDirectionToLight,
-                    density,
-                    cellSize);
-                const float3 directScattering =
-                    gRender.lightColorScattering.rgb *
-                    gRender.lightDirectionIntensity.w *
-                    gRender.lightColorScattering.w *
-                    phase *
-                    lightTransmittance;
-                const float3 scatteringLighting = gRender.ambientSelfShadow.rgb + directScattering;
-                const float3 thermalEmission =
-                    thermalColor * (gRender.emissionEarlyExitStepsMode.x * temperatureAmount);
+                if (renderMode == kRenderModeDensityDebug)
+                {
+                    const float density01 = saturate(density);
+                    sampleColor = float3(density01, density01, density01); // SolverのDensity量をLightingなしのgrayscaleで直接確認する。
+                }
+                else
+                {
+                    const float temperature =
+                        gTemperature.SampleLevel(gLinearClampSampler, uvw, 0.0f);
+                    const float temperatureScale = max(gRender.simulationScales.w, 1.0e-4f);
+                    const float signedTemperature = temperature / temperatureScale;
+                    const float temperature01 = saturate(0.5f + 0.5f * signedTemperature);
+                    const float temperatureAmount = saturate(abs(signedTemperature));
+                    const float3 thermalColor = lerp(
+                        gRender.coldColor.rgb,
+                        gRender.hotColor.rgb,
+                        temperature01);
 
-                sampleColor = gRender.smokeColor.rgb * scatteringLighting + thermalEmission;
+                    const float lightTransmittance = EvaluateLightTransmittance(
+                        sampleWorld,
+                        lightDirectionToLight,
+                        density,
+                        cellSize);
+                    const float3 directScattering =
+                        gRender.lightColorScattering.rgb *
+                        gRender.lightDirectionIntensity.w *
+                        gRender.lightColorScattering.w *
+                        phase *
+                        lightTransmittance;
+                    const float3 scatteringLighting = gRender.ambientSelfShadow.rgb + directScattering;
+                    const float3 thermalEmission =
+                        thermalColor * (gRender.emissionEarlyExitStepsMode.x * temperatureAmount);
+
+                    sampleColor = gRender.smokeColor.rgb * scatteringLighting + thermalEmission;
+                }
             }
         }
 
