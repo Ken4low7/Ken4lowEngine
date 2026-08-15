@@ -20,6 +20,30 @@ enum class VfxCueTrackType : uint8_t
 	CameraShake,
 };
 
+enum class VfxCueBindingTarget : uint8_t
+{
+	IntensityScale = 0,
+	RadiusScale,
+	ParticleFloat,
+};
+
+struct VfxCueUserParameterDesc
+{
+	std::string name;
+	float defaultValue = 1.0f;
+	float minValue = 0.0f;
+	float maxValue = 1.0f;
+};
+
+struct VfxCueTrackBindingDesc
+{
+	std::string parameterName;
+	VfxCueBindingTarget target = VfxCueBindingTarget::IntensityScale;
+	std::string targetName; // ParticleFloat時だけPhase13 Effect側のUser Parameter名を保持する。
+	float scale = 1.0f;
+	float bias = 0.0f;
+};
+
 struct VfxParticleTrackPayload
 {
 	std::string effectAssetPath;
@@ -74,17 +98,20 @@ struct VfxCueTrackDesc
 	float duration = 0.0f;
 	Vector3 localOffset{};
 	VfxCueTrackPayload payload = VfxParticleTrackPayload{};
+	std::vector<VfxCueTrackBindingDesc> bindings;
 };
 
 struct VfxCueDesc
 {
 	static constexpr uint32_t kCurrentSchemaVersion = 1;
 	static constexpr uint32_t kMaxTracks = 256;
+	static constexpr uint32_t kMaxUserParameters = 64;
 
 	uint32_t schemaVersion = kCurrentSchemaVersion;
 	std::string cueName;
 	bool loop = false;
 	float duration = 0.0f;
+	std::vector<VfxCueUserParameterDesc> userParameters;
 	std::vector<VfxCueTrackDesc> tracks;
 };
 

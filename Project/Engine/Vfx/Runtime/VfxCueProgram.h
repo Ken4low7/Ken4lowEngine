@@ -20,17 +20,19 @@ struct VfxCueInstruction
 	float endTime = 0.0f;
 	Vector3 localOffset{};
 	VfxCueTrackPayload payload = VfxParticleTrackPayload{};
+	std::vector<VfxCueTrackBindingDesc> bindings;
 };
 
 /// <summary>
 /// .vfx.jsonをGameplay実行向けへ正規化したCompiled Cueです。
-/// 18.1では実行せず、18.2 SchedulerがこのProgramだけを見る契約を固定します。
+/// SchedulerはこのProgramだけを読み、JSONやEditorデータへ依存しません。
 /// </summary>
 struct VfxCueProgram
 {
 	std::string cueName;
 	bool loop = false;
 	float duration = 0.0f;
+	std::vector<VfxCueUserParameterDesc> userParameters;
 	std::vector<VfxCueInstruction> instructions;
 };
 

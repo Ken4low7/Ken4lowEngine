@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_set>
 #include <utility>
 
 namespace Ken4lowEngine
@@ -46,6 +47,34 @@ bool VfxCueCompiler::Compile(
 	{
 		error = "VFX track count exceeds kMaxTracks.";
 	}
+	else if (desc.userParameters.size() > VfxCueDesc::kMaxUserParameters)
+	{
+		error = "VFX user parameter count exceeds kMaxUserParameters.";
+	}
+
+	std::unordered_set<std::string> parameterNames;
+	if (error.empty())
+	{
+		for (const VfxCueUserParameterDesc& parameter : desc.userParameters)
+		{
+			if (parameter.name.empty() ||
+				!IsFinite(parameter.defaultValue) ||
+				!IsFinite(parameter.minValue) ||
+				!IsFinite(parameter.maxValue) ||
+				parameter.minValue > parameter.maxValue ||
+				parameter.defaultValue < parameter.minValue ||
+				parameter.defaultValue > parameter.maxValue)
+			{
+				error = "VFX user parameter is invalid: " + parameter.name;
+				break;
+			}
+			if (!parameterNames.insert(parameter.name).second)
+			{
+				error = "Duplicate VFX user parameter: " + parameter.name;
+				break;
+			}
+		}
+	}
 
 	VfxCueProgram compiled{};
 	if (error.empty())
@@ -53,6 +82,7 @@ bool VfxCueCompiler::Compile(
 		compiled.cueName = desc.cueName;
 		compiled.loop = desc.loop;
 		compiled.duration = desc.duration;
+		compiled.userParameters = desc.userParameters;
 		compiled.instructions.reserve(desc.tracks.size());
 
 		for (uint32_t index = 0; index < static_cast<uint32_t>(desc.tracks.size()); ++index)
@@ -67,6 +97,27 @@ bool VfxCueCompiler::Compile(
 				break;
 			}
 
+			for (const VfxCueTrackBindingDesc& binding : track.bindings)
+			{
+				if (!parameterNames.contains(binding.parameterName) ||
+					!IsFinite(binding.scale) || !IsFinite(binding.bias))
+				{
+					error = TrackPrefix(index) + "binding references an unknown parameter or non-finite scale/bias.";
+					break;
+				}
+				if (binding.target == VfxCueBindingTarget::ParticleFloat)
+				{
+					const auto* particle = std::get_if<VfxParticleTrackPayload>(&track.payload);
+					if (track.type != VfxCueTrackType::Particle ||
+						particle == nullptr || !particle->loop || binding.targetName.empty())
+					{
+						error = TrackPrefix(index) + "ParticleFloat binding requires a looping Particle track and targetName.";
+						break;
+					}
+				}
+			}
+			if (!error.empty()) break;
+
 			VfxCueInstruction instruction{};
 			instruction.sourceTrackIndex = index;
 			instruction.type = track.type;
@@ -74,6 +125,7 @@ bool VfxCueCompiler::Compile(
 			instruction.endTime = track.startTime + track.duration;
 			instruction.localOffset = track.localOffset;
 			instruction.payload = track.payload;
+			instruction.bindings = track.bindings;
 			compiled.duration = (std::max)(compiled.duration, instruction.endTime);
 			compiled.instructions.push_back(std::move(instruction));
 		}
@@ -143,13 +195,18 @@ bool VfxCueCompiler::ValidateTrack(
 			outError = prefix + "Particle track requires VfxParticleTrackPayload and effectName.";
 			return false;
 		}
+		if (payload->loop && track.duration <= 0.0f)
+		{
+			outError = prefix + "looping Particle track requires positive duration.";
+			return false;
+		}
 		break;
 	}
 	case VfxCueTrackType::Fluid2D:
 	case VfxCueTrackType::VolumetricFluid:
 	{
 		const auto* payload = std::get_if<VfxFluidTrackPayload>(&track.payload);
-		if (payload == nullptr ||
+		if (track.duration <= 0.0f || payload == nullptr ||
 			!IsFinite(payload->localVelocity) ||
 			!IsFinite(payload->radius) || payload->radius <= 0.0f ||
 			!IsFinite(payload->velocityStrength) || payload->velocityStrength < 0.0f ||
@@ -157,7 +214,7 @@ bool VfxCueCompiler::ValidateTrack(
 			!IsFinite(payload->temperatureRate) ||
 			!IsFinite(payload->falloffExponent) || payload->falloffExponent <= 0.0f)
 		{
-			outError = prefix + "Fluid payload is invalid.";
+			outError = prefix + "Fluid payload/duration is invalid.";
 			return false;
 		}
 		break;
@@ -165,11 +222,11 @@ bool VfxCueCompiler::ValidateTrack(
 	case VfxCueTrackType::Light:
 	{
 		const auto* payload = std::get_if<VfxLightTrackPayload>(&track.payload);
-		if (payload == nullptr || !IsFinite(payload->color) ||
+		if (track.duration <= 0.0f || payload == nullptr || !IsFinite(payload->color) ||
 			!IsFinite(payload->intensity) || payload->intensity < 0.0f ||
 			!IsFinite(payload->range) || payload->range <= 0.0f)
 		{
-			outError = prefix + "Light payload is invalid.";
+			outError = prefix + "Light payload/duration is invalid.";
 			return false;
 		}
 		break;
@@ -177,10 +234,10 @@ bool VfxCueCompiler::ValidateTrack(
 	case VfxCueTrackType::PostEffect:
 	{
 		const auto* payload = std::get_if<VfxPostEffectTrackPayload>(&track.payload);
-		if (payload == nullptr || payload->effectName.empty() ||
+		if (track.duration <= 0.0f || payload == nullptr || payload->effectName.empty() ||
 			!IsFinite(payload->weight) || payload->weight < 0.0f || payload->weight > 1.0f)
 		{
-			outError = prefix + "PostEffect payload is invalid.";
+			outError = prefix + "PostEffect payload/duration is invalid.";
 			return false;
 		}
 		break;
@@ -188,13 +245,13 @@ bool VfxCueCompiler::ValidateTrack(
 	case VfxCueTrackType::CameraShake:
 	{
 		const auto* payload = std::get_if<VfxCameraShakeTrackPayload>(&track.payload);
-		if (payload == nullptr ||
+		if (track.duration <= 0.0f || payload == nullptr ||
 			!IsFinite(payload->translationAmplitude) ||
 			!IsFinite(payload->rotationAmplitudeDegrees) ||
 			!IsFinite(payload->frequency) || payload->frequency < 0.0f ||
 			!IsFinite(payload->fovAmplitudeDegrees))
 		{
-			outError = prefix + "CameraShake payload is invalid.";
+			outError = prefix + "CameraShake payload/duration is invalid.";
 			return false;
 		}
 		break;

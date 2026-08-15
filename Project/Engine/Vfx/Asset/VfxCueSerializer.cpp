@@ -3,6 +3,9 @@
 #include "JsonFileIO.h"
 #include "JsonReadUtil.h"
 
+#include <exception>
+#include <utility>
+
 #include <json.hpp>
 
 namespace Ken4lowEngine
@@ -25,6 +28,26 @@ namespace
 	void ReadVector3(const json& source, const char* key, Vector3& value)
 	{
 		value = JsonReadUtil::ReadVector3Or(source, key, value);
+	}
+
+	const char* BindingTargetToString(VfxCueBindingTarget target)
+	{
+		switch (target)
+		{
+		case VfxCueBindingTarget::IntensityScale: return "IntensityScale";
+		case VfxCueBindingTarget::RadiusScale: return "RadiusScale";
+		case VfxCueBindingTarget::ParticleFloat: return "ParticleFloat";
+		default: return "IntensityScale";
+		}
+	}
+
+	bool TryParseBindingTarget(const std::string& text, VfxCueBindingTarget& outTarget)
+	{
+		if (text == "IntensityScale") outTarget = VfxCueBindingTarget::IntensityScale;
+		else if (text == "RadiusScale") outTarget = VfxCueBindingTarget::RadiusScale;
+		else if (text == "ParticleFloat") outTarget = VfxCueBindingTarget::ParticleFloat;
+		else return false;
+		return true;
 	}
 
 	bool ReadParticlePayload(const json& source, VfxCueTrackDesc& track)
@@ -94,20 +117,35 @@ namespace
 	{
 		switch (track.type)
 		{
-		case VfxCueTrackType::Particle:
-			return ReadParticlePayload(source, track);
+		case VfxCueTrackType::Particle: return ReadParticlePayload(source, track);
 		case VfxCueTrackType::Fluid2D:
-		case VfxCueTrackType::VolumetricFluid:
-			return ReadFluidPayload(source, track);
-		case VfxCueTrackType::Light:
-			return ReadLightPayload(source, track);
-		case VfxCueTrackType::PostEffect:
-			return ReadPostEffectPayload(source, track);
-		case VfxCueTrackType::CameraShake:
-			return ReadCameraShakePayload(source, track);
-		default:
-			return false;
+		case VfxCueTrackType::VolumetricFluid: return ReadFluidPayload(source, track);
+		case VfxCueTrackType::Light: return ReadLightPayload(source, track);
+		case VfxCueTrackType::PostEffect: return ReadPostEffectPayload(source, track);
+		case VfxCueTrackType::CameraShake: return ReadCameraShakePayload(source, track);
+		default: return false;
 		}
+	}
+
+	bool ReadBindings(const json& source, VfxCueTrackDesc& track)
+	{
+		track.bindings.clear();
+		if (!source.contains("bindings")) return true;
+		if (!source.at("bindings").is_array()) return false;
+		for (const json& bindingJson : source.at("bindings"))
+		{
+			if (!bindingJson.is_object()) return false;
+			VfxCueTrackBindingDesc binding{};
+			ReadOptional(bindingJson, "parameterName", binding.parameterName);
+			std::string targetText = "IntensityScale";
+			ReadOptional(bindingJson, "target", targetText);
+			if (!TryParseBindingTarget(targetText, binding.target)) return false;
+			ReadOptional(bindingJson, "targetName", binding.targetName);
+			ReadOptional(bindingJson, "scale", binding.scale);
+			ReadOptional(bindingJson, "bias", binding.bias);
+			track.bindings.push_back(std::move(binding));
+		}
+		return true;
 	}
 
 	void WritePayload(json& target, const VfxCueTrackDesc& track)
@@ -178,8 +216,22 @@ namespace
 			}
 			break;
 		}
-		default:
-			break;
+		default: break;
+		}
+	}
+
+	void WriteBindings(json& target, const VfxCueTrackDesc& track)
+	{
+		target["bindings"] = json::array();
+		for (const VfxCueTrackBindingDesc& binding : track.bindings)
+		{
+			target["bindings"].push_back({
+				{ "parameterName", binding.parameterName },
+				{ "target", BindingTargetToString(binding.target) },
+				{ "targetName", binding.targetName },
+				{ "scale", binding.scale },
+				{ "bias", binding.bias }
+			});
 		}
 	}
 }
@@ -222,12 +274,25 @@ bool VfxCueSerializer::Load(VfxCueDesc& desc, const std::string& filePath)
 		ReadOptional(root, "cueName", loaded.cueName);
 		ReadOptional(root, "loop", loaded.loop);
 		ReadOptional(root, "duration", loaded.duration);
-
 		if (loaded.schemaVersion != VfxCueDesc::kCurrentSchemaVersion) return false;
+
+		if (root.contains("userParameters"))
+		{
+			if (!root.at("userParameters").is_array()) return false;
+			for (const json& parameterJson : root.at("userParameters"))
+			{
+				if (!parameterJson.is_object()) return false;
+				VfxCueUserParameterDesc parameter{};
+				ReadOptional(parameterJson, "name", parameter.name);
+				ReadOptional(parameterJson, "defaultValue", parameter.defaultValue);
+				ReadOptional(parameterJson, "minValue", parameter.minValue);
+				ReadOptional(parameterJson, "maxValue", parameter.maxValue);
+				loaded.userParameters.push_back(std::move(parameter));
+			}
+		}
+
 		if (!root.contains("tracks") || !root.at("tracks").is_array()) return false;
 		if (root.at("tracks").size() > VfxCueDesc::kMaxTracks) return false;
-
-		loaded.tracks.clear();
 		loaded.tracks.reserve(root.at("tracks").size());
 		for (const json& source : root.at("tracks"))
 		{
@@ -243,7 +308,7 @@ bool VfxCueSerializer::Load(VfxCueDesc& desc, const std::string& filePath)
 			ReadOptional(source, "startTime", track.startTime);
 			ReadOptional(source, "duration", track.duration);
 			ReadVector3(source, "localOffset", track.localOffset);
-			if (!ReadPayload(source, track)) return false;
+			if (!ReadPayload(source, track) || !ReadBindings(source, track)) return false;
 			loaded.tracks.push_back(std::move(track));
 		}
 
@@ -266,8 +331,18 @@ bool VfxCueSerializer::Save(const VfxCueDesc& desc, const std::string& filePath)
 			{ "cueName", desc.cueName },
 			{ "loop", desc.loop },
 			{ "duration", desc.duration },
+			{ "userParameters", json::array() },
 			{ "tracks", json::array() }
 		};
+		for (const VfxCueUserParameterDesc& parameter : desc.userParameters)
+		{
+			root["userParameters"].push_back({
+				{ "name", parameter.name },
+				{ "defaultValue", parameter.defaultValue },
+				{ "minValue", parameter.minValue },
+				{ "maxValue", parameter.maxValue }
+			});
+		}
 
 		for (const VfxCueTrackDesc& track : desc.tracks)
 		{
@@ -280,6 +355,7 @@ bool VfxCueSerializer::Save(const VfxCueDesc& desc, const std::string& filePath)
 				{ "localOffset", ToJson(track.localOffset) }
 			};
 			WritePayload(target, track);
+			WriteBindings(target, track);
 			root["tracks"].push_back(std::move(target));
 		}
 

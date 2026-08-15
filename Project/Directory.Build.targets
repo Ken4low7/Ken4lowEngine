@@ -9,10 +9,19 @@
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Ken4lowEngine'">
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Asset\VfxCueSerializer.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueCompiler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueRuntime.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\Adapters\VfxTrackAdapters.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Editor\VfxTimelineEditor.cpp" />
+
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Asset\VfxCueSerializer.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Data\VfxCueTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueCompiler.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueProgram.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxRuntimeTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\Adapters\VfxTrackAdapters.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueRuntime.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Editor\VfxTimelineEditor.h" />
+
     <None Include="$(MSBuildThisFileDirectory)Resources\Vfx\Phase18\Explosion.vfx.json" />
   </ItemGroup>
 </Project>

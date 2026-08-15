@@ -49,6 +49,7 @@ jobs:
           python -m unittest discover -s Tests/Phase12 -p "test_*.py" -v # Crash/Replay/Migration/Stress/Shipping契約をCIで検証する。
           python -m unittest discover -s Tests/Phase13 -p "test_*.py" -v # GPU Particle Effect AuthoringのModule/Runtime/Asset契約をCIで検証する。
           python -m unittest discover -s Tests/Phase14 -p "test_*.py" -v # GPU Driven Compaction/Indirect Draw/Alpha Sort/Profiler契約をCIで固定する。
+          python Tests/Phase18/run_phase18_static_tests.py # Unified VFXのSchema/Runtime/Adapter/Editor/Budget契約を外部test frameworkなしで実行する。
 
   compile:
     name: Compile ${{ matrix.configuration }}
@@ -159,5 +160,5 @@ jobs:
       - name: Explain compile-only validation
         shell: pwsh
         run: |
-          Write-Host "Phase 5/7/8/9/10/11/12/13/14 CI validates project tests, GPU particle HLSL, and every configured C++ translation unit in ${{ matrix.configuration }}."
+          Write-Host "Phase 5/7/8/9/10/11/12/13/14/18 CI validates project contracts, GPU particle HLSL, and every configured C++ translation unit in ${{ matrix.configuration }}."
           Write-Host "The full Debug link is intentionally separate because the hosted runner does not provide the repository's assimp-vc143-mtd.lib binary."

@@ -3,6 +3,14 @@
     "cueName": "Phase18Explosion",
     "loop": false,
     "duration": 1.2,
+    "userParameters": [
+        {
+            "name": "Intensity",
+            "defaultValue": 1.0,
+            "minValue": 0.25,
+            "maxValue": 3.0
+        }
+    ],
     "tracks": [
         {
             "name": "ParticleCore",
@@ -15,7 +23,8 @@
                 "effectAssetPath": "Resources/Effects/Phase13/Explosion.effect.json",
                 "effectName": "Phase13Explosion",
                 "loop": false
-            }
+            },
+            "bindings": []
         },
         {
             "name": "SmokeVolume",
@@ -31,7 +40,23 @@
                 "densityRate": 5.0,
                 "temperatureRate": 3.5,
                 "falloffExponent": 2.0
-            }
+            },
+            "bindings": [
+                {
+                    "parameterName": "Intensity",
+                    "target": "IntensityScale",
+                    "targetName": "",
+                    "scale": 1.0,
+                    "bias": 0.0
+                },
+                {
+                    "parameterName": "Intensity",
+                    "target": "RadiusScale",
+                    "targetName": "",
+                    "scale": 0.35,
+                    "bias": 0.65
+                }
+            ]
         },
         {
             "name": "FlashLight",
@@ -44,7 +69,16 @@
                 "color": [1.0, 0.55, 0.18],
                 "intensity": 8.0,
                 "range": 7.0
-            }
+            },
+            "bindings": [
+                {
+                    "parameterName": "Intensity",
+                    "target": "IntensityScale",
+                    "targetName": "",
+                    "scale": 1.0,
+                    "bias": 0.0
+                }
+            ]
         },
         {
             "name": "ImpactPost",
@@ -54,9 +88,18 @@
             "duration": 0.12,
             "localOffset": [0.0, 0.0, 0.0],
             "postEffect": {
-                "effectName": "Bloom",
+                "effectName": "BloomEffect",
                 "weight": 0.8
-            }
+            },
+            "bindings": [
+                {
+                    "parameterName": "Intensity",
+                    "target": "IntensityScale",
+                    "targetName": "",
+                    "scale": 1.0,
+                    "bias": 0.0
+                }
+            ]
         },
         {
             "name": "ImpactShake",
@@ -70,7 +113,16 @@
                 "rotationAmplitudeDegrees": [0.8, 0.6, 0.35],
                 "frequency": 22.0,
                 "fovAmplitudeDegrees": 0.6
-            }
+            },
+            "bindings": [
+                {
+                    "parameterName": "Intensity",
+                    "target": "IntensityScale",
+                    "targetName": "",
+                    "scale": 1.0,
+                    "bias": 0.0
+                }
+            ]
         }
     ]
 }

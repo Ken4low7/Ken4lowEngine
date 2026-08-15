@@ -102,16 +102,19 @@ def test_phase18_explosion_sample_composes_multiple_subsystems():
     assert particle["particle"]["effectName"] == "Phase13Explosion"
 
 
-def test_build_and_docs_register_phase18_foundation():
+def test_build_and_docs_register_completed_phase18():
     build = read("Directory.Build.targets")
     docs = read("Docs/Phase18UnifiedVfxOrchestration.md")
 
     assert "Engine\\Vfx\\Asset\\VfxCueSerializer.cpp" in build
     assert "Engine\\Vfx\\Runtime\\VfxCueCompiler.cpp" in build
-    assert "Engine\\Vfx\\Data\\VfxCueTypes.h" in build
-    assert "Engine\\Vfx\\Runtime\\VfxCueProgram.h" in build
+    assert "Engine\\Vfx\\Runtime\\VfxCueRuntime.cpp" in build
+    assert "Engine\\Vfx\\Runtime\\Adapters\\VfxTrackAdapters.cpp" in build
+    assert "Engine\\Vfx\\Editor\\VfxTimelineEditor.cpp" in build
     assert "Resources\\Vfx\\Phase18\\Explosion.vfx.json" in build
 
-    assert "[x] 18.1 VFX Cue Data Model / Schema / Compiler Foundation" in docs
-    assert "[ ] 18.2 Cue Scheduler / Instance Handle / Play-Stop API" in docs
-    assert "18.2 — Cue Scheduler / Instance Handle / Play-Stop API" in docs
+    for phase in range(1, 11):
+        assert f"[x] 18.{phase}" in docs
+    assert "Phase 18 status: repository integration complete through 18.10" in docs
+    assert "Known Boundaries" in docs
+    assert "Completion Boundary" in docs
