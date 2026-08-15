@@ -14,6 +14,13 @@
 namespace Ken4lowEngine
 {
 
+enum class GpuParticleForwardDrawPass : uint8_t
+{
+	All = 0,
+	Transparent,
+	Additive,
+};
+
 class GpuParticleEmitter
 {
 public:
@@ -104,6 +111,9 @@ public:
 		emissionElapsed_ = 0.0f;
 	}
 
+	static void SetForwardDrawPass(GpuParticleForwardDrawPass pass) { forwardDrawPass_ = pass; }
+	static GpuParticleForwardDrawPass GetForwardDrawPass() { return forwardDrawPass_; }
+
 public:
 	void SetPosition(const Vector3& position) { position_ = position; }
 
@@ -127,8 +137,24 @@ public:
 		return info_.loopForever || emissionElapsed_ < info_.emissionDuration;
 	}
 
+	bool MatchesForwardDrawPass() const
+	{
+		const BlendMode blendMode = UnpackGpuParticleBlendMode(GetDrawType());
+		switch (forwardDrawPass_)
+		{
+		case GpuParticleForwardDrawPass::Transparent:
+			return blendMode != BlendMode::kBlendModeAdd;
+		case GpuParticleForwardDrawPass::Additive:
+			return blendMode == BlendMode::kBlendModeAdd;
+		case GpuParticleForwardDrawPass::All:
+		default:
+			return true;
+		}
+	}
+
 	bool HasActiveParticles() const
 	{
+		if (!MatchesForwardDrawPass()) return false; // Forward Queue実行中だけBlend分類でEmitterを絞り、共有GPU BufferのBatch構造は維持する。
 		return estimatedActiveParticleCount_ > 0 || pendingBurstCount_ > 0 || HasEmissionSchedule();
 	}
 
@@ -173,6 +199,7 @@ private:
 
 	std::deque<ActiveBatch> activeBatches_;
 	uint32_t estimatedActiveParticleCount_ = 0;
+	inline static thread_local GpuParticleForwardDrawPass forwardDrawPass_ = GpuParticleForwardDrawPass::All;
 };
 
 
