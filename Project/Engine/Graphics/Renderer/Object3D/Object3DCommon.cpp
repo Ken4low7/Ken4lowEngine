@@ -207,6 +207,36 @@ namespace Ken4lowEngine
 		LightManager::GetInstance()->BindExtendedShadowResources(17, 18, 19);
 	}
 
+	void Object3DCommon::SetInstancedAlphaRenderSetting(MaterialCullMode cullMode)
+	{
+		CullingDiagnostics::GetInstance()->SetActiveSurface(cullMode, CullingDiagnostics::SurfacePath::Instanced);
+		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
+		const PipelineBundle& pipeline = instancedPipelineSet_.GetAlpha(cullMode);
+
+		commandList->SetGraphicsRootSignature(pipeline.rootSignature.Get());
+		commandList->SetPipelineState(pipeline.pipelineState.Get());
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		LightManager::GetInstance()->BindPunctualLights(5, 6);
+		LightManager::GetInstance()->BindLightingSettings(11);
+		LightManager::GetInstance()->BindExtendedShadowResources(17, 18, 19);
+	}
+
+	void Object3DCommon::SetInstancedAdditiveRenderSetting(MaterialCullMode cullMode)
+	{
+		CullingDiagnostics::GetInstance()->SetActiveSurface(cullMode, CullingDiagnostics::SurfacePath::Instanced);
+		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
+		const PipelineBundle& pipeline = instancedPipelineSet_.GetAdditive(cullMode);
+
+		commandList->SetGraphicsRootSignature(pipeline.rootSignature.Get());
+		commandList->SetPipelineState(pipeline.pipelineState.Get());
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		LightManager::GetInstance()->BindPunctualLights(5, 6);
+		LightManager::GetInstance()->BindLightingSettings(11);
+		LightManager::GetInstance()->BindExtendedShadowResources(17, 18, 19); // Instanced Additiveも通常Instancingと同じRoot契約を共有する。
+	}
+
 	bool Object3DCommon::ShouldDrawObject(const BoundingSphere& worldBounds, bool objectCullingEnabled, bool hasBounds, bool isStageObject)
 	{
 		const auto unit = isStageObject ? FrustumCullingSystem::CullingUnit::StageObject : FrustumCullingSystem::CullingUnit::Object;
