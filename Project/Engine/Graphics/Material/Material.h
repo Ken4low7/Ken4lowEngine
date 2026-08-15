@@ -124,7 +124,8 @@ public:
 		float planarReflectionEnabled;
 		float planarReflectionStrength;
 		Matrix4x4 planarReflectionViewProjection;
-		Vector4 planarReflectionPlaneNormal;
+		Vector4 planarReflectionPlane;
+		Vector4 planarReflectionSurfaceParams;
 	};
 
 public:
