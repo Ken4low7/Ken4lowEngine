@@ -341,7 +341,7 @@ namespace Ken4lowEngine
 		ComPtr<IDxcBlob> objectPsBlob = ShaderCompiler::CompileShader(objectPs, dxcManager);
 		ComPtr<IDxcBlob> shadowVsBlob = ShaderCompiler::CompileShader(shadowVs, dxcManager);
 
-		auto createSurfacePipeline = [&](MaterialCullMode cullMode, bool alpha, const wchar_t* debugName, PipelineBundle& destination)
+		auto createSurfacePipeline = [&](MaterialCullMode cullMode, bool alpha, bool additive, const wchar_t* debugName, PipelineBundle& destination)
 		{
 			std::array<D3D12_DESCRIPTOR_RANGE, 11> ranges{};
 			std::array<D3D12_ROOT_PARAMETER, Object3DRootParameterIndex::kCount> rootParameters{};
@@ -349,7 +349,12 @@ namespace Ken4lowEngine
 			D3D12_ROOT_SIGNATURE_DESC rootSigDesc = MakeObject3DRootSignatureDesc(ranges, rootParameters, staticSamplers);
 
 			GraphicsPipelineDesc desc = MakeBaseObject3DDesc(rtvFormat, dsvFormat, inputLayout, cullMode);
-			if (alpha)
+			if (additive)
+			{
+				desc.blendState = PipelineStatePresets::MakeBlendAdditive();
+				desc.depthStencilState = PipelineStatePresets::MakeDepthReadOnly(); // Additiveも透明Surfaceとして深度は参照だけ行う。
+			}
+			else if (alpha)
 			{
 				desc.blendState = PipelineStatePresets::MakeBlendAlpha();
 				desc.depthStencilState = PipelineStatePresets::MakeDepthReadOnly();
@@ -361,12 +366,15 @@ namespace Ken4lowEngine
 			if (destination.pipelineState) destination.pipelineState->SetName(debugName);
 		};
 
-		createSurfacePipeline(MaterialCullMode::Back, false, L"Object3D.Default.Back", defaultPipeline_);
-		createSurfacePipeline(MaterialCullMode::Front, false, L"Object3D.Default.Front", defaultFrontPipeline_);
-		createSurfacePipeline(MaterialCullMode::None, false, L"Object3D.Default.TwoSided", defaultTwoSidedPipeline_);
-		createSurfacePipeline(MaterialCullMode::Back, true, L"Object3D.Alpha.Back", alphaPipeline_);
-		createSurfacePipeline(MaterialCullMode::Front, true, L"Object3D.Alpha.Front", alphaFrontPipeline_);
-		createSurfacePipeline(MaterialCullMode::None, true, L"Object3D.Alpha.TwoSided", alphaTwoSidedPipeline_);
+		createSurfacePipeline(MaterialCullMode::Back, false, false, L"Object3D.Default.Back", defaultPipeline_);
+		createSurfacePipeline(MaterialCullMode::Front, false, false, L"Object3D.Default.Front", defaultFrontPipeline_);
+		createSurfacePipeline(MaterialCullMode::None, false, false, L"Object3D.Default.TwoSided", defaultTwoSidedPipeline_);
+		createSurfacePipeline(MaterialCullMode::Back, true, false, L"Object3D.Alpha.Back", alphaPipeline_);
+		createSurfacePipeline(MaterialCullMode::Front, true, false, L"Object3D.Alpha.Front", alphaFrontPipeline_);
+		createSurfacePipeline(MaterialCullMode::None, true, false, L"Object3D.Alpha.TwoSided", alphaTwoSidedPipeline_);
+		createSurfacePipeline(MaterialCullMode::Back, false, true, L"Object3D.Additive.Back", additivePipeline_);
+		createSurfacePipeline(MaterialCullMode::Front, false, true, L"Object3D.Additive.Front", additiveFrontPipeline_);
+		createSurfacePipeline(MaterialCullMode::None, false, true, L"Object3D.Additive.TwoSided", additiveTwoSidedPipeline_);
 
 		{
 			std::array<D3D12_ROOT_PARAMETER, 1> rootParameters{};
@@ -408,6 +416,20 @@ namespace Ken4lowEngine
 		}
 	}
 
+	const PipelineBundle& Object3DPipelineSet::GetAdditive(MaterialCullMode cullMode) const
+	{
+		switch (cullMode)
+		{
+		case MaterialCullMode::Front:
+			return additiveFrontPipeline_;
+		case MaterialCullMode::None:
+			return additiveTwoSidedPipeline_;
+		case MaterialCullMode::Back:
+		default:
+			return additivePipeline_;
+		}
+	}
+
 	void Object3DPipelineSet::Finalize()
 	{
 		defaultPipeline_.Reset();
@@ -416,6 +438,9 @@ namespace Ken4lowEngine
 		alphaPipeline_.Reset();
 		alphaFrontPipeline_.Reset();
 		alphaTwoSidedPipeline_.Reset();
+		additivePipeline_.Reset();
+		additiveFrontPipeline_.Reset();
+		additiveTwoSidedPipeline_.Reset();
 		shadowPipeline_.Reset();
 	}
 } // namespace Ken4lowEngine
