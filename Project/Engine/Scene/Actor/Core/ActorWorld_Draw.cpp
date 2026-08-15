@@ -2,6 +2,7 @@
 
 #include "ColliderComponent.h"
 #include "GaugeComponent.h"
+#include "InstancedModelComponent.h"
 #include "LightComponent.h"
 #include "ModelComponent.h"
 #include "SpriteComponent.h"
@@ -68,6 +69,16 @@ namespace Ken4lowEngine
 					modelComponent->SubmitForwardAdditive(*forwardQueue);
 				}
 			}
+
+			const auto instancedModelComponents = actor->GetComponents<InstancedModelComponent>();
+			for (InstancedModelComponent* instancedModelComponent : instancedModelComponents)
+			{
+				if (instancedModelComponent)
+				{
+					instancedModelComponent->SubmitForwardOpaque(*forwardQueue);
+					instancedModelComponent->SubmitForwardMasked(*forwardQueue); // DepthWrite系Instancingだけを先に共通Queueへ移行する。
+				}
+			}
 		}
 
 		forwardQueue->ExecuteBucket(ForwardRenderBucket::Opaque);
@@ -80,7 +91,7 @@ namespace Ken4lowEngine
 				continue; // 無効またはEditorで非表示のActorは通常描画対象から外す
 			}
 
-			// Queue未移行Componentと派生Actor独自描画は従来経路を維持する。Queue済みModelComponentは内部で二重描画を抑止する。
+			// Queue未移行Componentと派生Actor独自描画は従来経路を維持する。Queue済みComponentは内部で二重描画を抑止する。
 			actor->Draw();
 		}
 
