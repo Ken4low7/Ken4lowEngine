@@ -156,10 +156,18 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertIn("struct PlanarReflectionDrawCBData", self.manager_h)
         self.assertIn("std::array<Matrix4x4, kMaxPlanarReflectionSurfacesPerDraw>", self.manager_h)
         self.assertIn("AllocateTransient(kMaxPlanarReflectionSurfacesPerDraw)", self.manager)
-        self.assertIn("CopyDescriptorsSimple", self.manager)
+        self.assertIn("CreateShaderResourceView", self.manager)
         self.assertIn("BindCurrentDrawState", self.manager)
         self.assertIn("SetGraphicsRootConstantBufferView(constantBufferRootParameterIndex", self.manager)
         self.assertIn("SetGraphicsRootDescriptorTable(rootParameterIndex, allocation.gpuHandle)", self.manager)
+
+    def test_transient_planar_table_never_reads_shader_visible_descriptor_heap(self) -> None:
+        self.assertIn("ID3D12Resource* resource = nullptr", self.manager_h)
+        self.assertIn("binding.resource = surface->target->color.Get()", self.manager)
+        self.assertIn("sourceBinding.resource", self.manager)
+        self.assertIn("CreateShaderResourceView", self.manager)
+        self.assertNotIn("CopyDescriptorsSimple(", self.manager)
+        self.assertNotIn("GetCPUDescriptorHandle(sourceSrvIndex)", self.manager)
 
     def test_object_root_signature_reserves_b7_and_t12_to_t17_for_planar(self) -> None:
         self.assertIn("kPlanarReflectionCBV = 19", self.pipeline)
