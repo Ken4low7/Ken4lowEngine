@@ -29,25 +29,29 @@ class EnvironmentMapBindingTests(unittest.TestCase):
 
     def test_environment_map_rejects_non_cubemap_textures(self) -> None:
         self.assertIn("metadata.IsCubemap()", self.environment_manager)
-        self.assertIn("D3D12_SRV_DIMENSION_TEXTURECUBE", self.environment_manager)
+        self.assertIn("TextureCubeを要求するShaderへ2D Textureを誤Bindしない", self.environment_manager)
 
     def test_skybox_texture_changes_feed_the_scene_environment(self) -> None:
         self.assertIn("EnvironmentMapManager.h", self.skybox)
         self.assertIn("EnvironmentMapManager::GetInstance()->SetSkyBoxEnvironment(filePath)", self.skybox)
 
-    def test_static_and_instanced_draws_resolve_environment_at_draw_time(self) -> None:
-        for renderer in (self.object3d, self.instanced):
+    def test_all_surface_renderers_resolve_environment_at_draw_time(self) -> None:
+        for renderer in (self.object3d, self.instanced, self.animation):
             self.assertIn("EnvironmentMapManager.h", renderer)
             self.assertIn("EnvironmentMapManager::GetInstance()->GetEnvironmentMapHandle()", renderer)
             self.assertNotIn('LoadTexture("SkyBox/skybox.dds")', renderer)
             self.assertNotIn('GetSrvHandleGPU("SkyBox/skybox.dds")', renderer)
 
-    def test_animation_legacy_handle_is_mirrored_by_the_shared_manager(self) -> None:
-        # AnimationModelの巨大な既存描画経路は壊さず、旧descriptor slotだけをScene共通Environmentへ向け直す。
-        self.assertIn("MirrorIntoLegacyBinding", self.environment_manager)
-        self.assertIn("CreateShaderResourceView", self.environment_manager)
-        self.assertIn("GetFallbackEnvironmentMapPath", self.environment_manager)
-        self.assertIn("environmentMapHandle_", self.animation)
+    def test_environment_switch_does_not_mutate_live_descriptors(self) -> None:
+        self.assertNotIn("MirrorIntoLegacyBinding", self.environment_manager)
+        self.assertNotIn("CreateShaderResourceView", self.environment_manager)
+        self.assertNotIn("CopyDescriptorsSimple", self.environment_manager)
+        self.assertIn("Frames in Flight中のdescriptor書き換えは行わない", self.environment_manager)
+
+    def test_fallback_path_is_centralized_in_environment_manager(self) -> None:
+        self.assertIn('static const std::string path = "SkyBox/skybox.dds"', self.environment_manager)
+        for renderer in (self.object3d, self.instanced, self.animation):
+            self.assertNotIn('"SkyBox/skybox.dds"', renderer)
 
     def test_explicit_override_can_diverge_from_visual_skybox(self) -> None:
         self.assertIn("explicitOverrideEnabled_", self.environment_manager)
