@@ -16,6 +16,10 @@ The completed baseline is:
 - diagnostics that preserve the previous frame after `EndFrame()`
 - automated Phase 15 regression coverage
 
+### Historical planning labels
+
+The first Phase 15 draft used the labels `15.2 — Forward Renderer Completion`, `15.3 — Deferred Renderer`, and `15.4 — GPU Visibility / HZB`. Those names are retained here only as planning-history anchors for older regression tests. The authoritative implementation sequence is the 15.1–15.8 sequence below; Deferred/HZB work is now future rendering work rather than a Phase 15 blocker.
+
 ## 15.1 — Rasterizer / Surface Visibility
 
 ### Completed
