@@ -24,6 +24,8 @@ struct Material
     float reflectionSourceAvailable;
     float planarReflectionEnabled;
     float planarReflectionStrength;
+    float4x4 planarReflectionViewProjection;
+    float4 planarReflectionPlaneNormal;
 };
 
 struct Camera
@@ -71,6 +73,7 @@ SamplerComparisonState gShadowSampler : register(s1);
 SamplerState gLinearSampler : register(s2);
 
 static const float kAlphaDiscardThreshold = 0.001f;
+static const float kPlanarNormalAlignmentThreshold = 0.90f;
 
 float ComputeFresnelSchlick(float cosTheta, float f0)
 {
@@ -266,17 +269,25 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     if (gMaterial.planarReflectionEnabled > 0.5f)
     {
-        uint planarWidth = 1;
-        uint planarHeight = 1;
-        gEmissiveTexture.GetDimensions(planarWidth, planarHeight);
-        float2 planarSize = max(float2((float)planarWidth, (float)planarHeight), float2(1.0f, 1.0f));
-        float2 planarUv = input.position.xy / planarSize; // 反射Cameraが鏡像を作るため、同じScreen座標をそのまま参照して二重反転を避ける。
-        const float2 uvMin = float2(0.0f, 0.0f);
-        const float2 uvMax = float2(1.0f, 1.0f);
-        if (all(planarUv >= uvMin) && all(planarUv <= uvMax))
+        const float3 planarNormal = normalize(gMaterial.planarReflectionPlaneNormal.xyz);
+        const float surfaceAlignment = abs(dot(normal, planarNormal));
+        if (surfaceAlignment >= kPlanarNormalAlignmentThreshold)
         {
-            float3 planarColor = gEmissiveTexture.SampleLevel(gLinearSampler, saturate(planarUv), 0.0f).rgb;
-            shadedColor = lerp(shadedColor, planarColor, saturate(gMaterial.planarReflectionStrength));
+            float4 reflectedClip = mul(float4(worldPosition, 1.0f), gMaterial.planarReflectionViewProjection);
+            if (reflectedClip.w > 1e-5f)
+            {
+                float2 reflectedNdc = reflectedClip.xy / reflectedClip.w;
+                float2 planarUv = float2(
+                    reflectedNdc.x * 0.5f + 0.5f,
+                    -reflectedNdc.y * 0.5f + 0.5f);
+                const float2 uvMin = float2(0.0f, 0.0f);
+                const float2 uvMax = float2(1.0f, 1.0f);
+                if (all(planarUv >= uvMin) && all(planarUv <= uvMax))
+                {
+                    float3 planarColor = gEmissiveTexture.SampleLevel(gLinearSampler, planarUv, 0.0f).rgb;
+                    shadedColor = lerp(shadedColor, planarColor, saturate(gMaterial.planarReflectionStrength)); // 鏡面と平行なPixelだけを反射Cameraへ再投影して合成する。
+                }
+            }
         }
     }
 
