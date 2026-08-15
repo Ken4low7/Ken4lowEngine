@@ -182,6 +182,22 @@ namespace Ken4lowEngine
 			return bucketIndex < kBucketCount ? buckets_[bucketIndex].size() : 0;
 		}
 
+		bool OwnsPayload(const void* payload) const
+		{
+			if (!frameActive_ || payload == nullptr)
+			{
+				return false;
+			}
+			for (const auto& bucket : buckets_)
+			{
+				for (const ForwardRenderItem& item : bucket)
+				{
+					if (item.payload == payload) return true; // 実行済みBucketもFrame終了まで所有し、Actorの通常Drawとの二重実行を防ぐ。
+				}
+			}
+			return false;
+		}
+
 		uint64_t GetFrameSerial() const { return frameSerial_; }
 		bool IsFrameActive() const { return frameActive_; }
 
