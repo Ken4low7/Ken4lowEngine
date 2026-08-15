@@ -122,7 +122,11 @@ namespace Ken4lowEngine
 		const ReflectionProbeDiagnostics diagnostics = ReflectionProbeManager::GetInstance()->GetDiagnostics(this);
 		ImGui::Text("状態: %s", diagnostics.captured ? (diagnostics.dirty ? "再Capture待ち" : "Captured") : "未Capture");
 		ImGui::Text("Capture Revision: %llu", static_cast<unsigned long long>(diagnostics.captureRevision));
-		ImGui::TextDisabled("Static/On Demandは必要時のみ更新し、Every Frameは高負荷です。");
+		if (updateMode_ != ReflectionProbeUpdateMode::EveryFrame)
+		{
+			ImGui::TextDisabled("Scene内の物体を移動・変更した後は「再キャプチャ」を押してください。"); // Static検証で古いCubemapを見続ける混乱を防ぐ。
+		}
+		ImGui::TextDisabled("Every Frameは動的確認用ですが、6面描画のため高負荷です。");
 #endif
 	}
 
