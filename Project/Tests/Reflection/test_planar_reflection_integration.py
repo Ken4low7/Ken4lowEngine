@@ -46,6 +46,19 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertIn("GetActiveProjectionMatrix", self.manager)
         self.assertIn("PushRenderViewOverride", self.manager)
 
+    def test_manager_uses_directx_row_vector_oblique_near_plane(self) -> None:
+        self.assertIn("BuildObliqueProjection", self.manager)
+        self.assertIn("Matrix4x4::TryInverse(projection, inverseProjection)", self.manager)
+        self.assertIn("farClipCorner", self.manager)
+        self.assertIn("TransformHomogeneousRow", self.manager)
+        self.assertIn("oblique.m[0][2] = planeView.x * scale", self.manager)
+        self.assertIn("oblique.m[1][2] = planeView.y * scale", self.manager)
+        self.assertIn("oblique.m[2][2] = planeView.z * scale", self.manager)
+        self.assertIn("oblique.m[3][2] = planeView.w * scale", self.manager)
+        self.assertIn("keepSideNormal", self.manager)
+        self.assertIn("cameraPosition - surface.desc.position", self.manager)
+        self.assertIn("surface.obliqueClipApplied = obliqueClipApplied", self.manager)
+
     def test_planar_target_matches_internal_game_viewport(self) -> None:
         self.assertIn("GameViewportConstants::Width", self.manager)
         self.assertIn("GameViewportConstants::Height", self.manager)
@@ -68,15 +81,24 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertIn("isCapturing_ = true", self.manager)
         self.assertIn("if (isCapturing_) return binding", self.manager)
 
+    def test_bridge_leaves_back_side_rejection_to_oblique_projection(self) -> None:
+        self.assertNotIn("IsFullyBehindMirrorPlane", self.bridge)
+        self.assertNotIn("BoundingSphere", self.bridge)
+        self.assertIn("Oblique Near Plane", self.bridge)
+
     def test_component_auto_fits_to_real_receiver_surface_and_serializes_controls(self) -> None:
         self.assertIn("autoFitToReceiverSurface_ = true", self.component_h)
+        self.assertIn("clipPlaneBias_ = 0.01f", self.component_h)
         self.assertIn("GetPlanePosition() const", self.component_h)
         self.assertIn("TryGetReflectionReceiverSurfacePoint", self.component)
         self.assertIn("GetComponents<ModelComponent>()", self.component)
         self.assertIn('outJson["AutoFitToReceiverSurface"]', self.component)
         self.assertIn('outJson["PlaneOffset"]', self.component)
         self.assertIn('outJson["SurfaceTolerance"]', self.component)
+        self.assertIn('outJson["ClipPlaneBias"]', self.component)
         self.assertIn("desc.position = GetPlanePosition()", self.component)
+        self.assertIn("desc.clipPlaneBias = clipPlaneBias_", self.component)
+        self.assertIn("Oblique Clip", self.component)
         self.assertIn("DrawPlane", self.component)
 
     def test_model_support_point_uses_real_vertices_instead_of_bounding_sphere(self) -> None:
@@ -103,8 +125,9 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertIn("PlanarReflectionManager::ScopedDrawBinding", self.model)
         self.assertIn("object3D_->Draw()", self.model)
 
-    def test_manager_reuses_exact_view_projection_used_for_capture(self) -> None:
+    def test_manager_reuses_exact_oblique_view_projection_used_for_capture(self) -> None:
         self.assertIn("Matrix4x4 capturedViewProjection", self.manager_h)
+        self.assertIn("reflectedView.projection = PlanarReflectionDetail::BuildObliqueProjection", self.manager)
         self.assertIn("surface.capturedViewProjection = reflectedView.viewProjection", self.manager)
         self.assertIn("binding.reflectedViewProjection = surface->capturedViewProjection", self.manager)
         self.assertIn("binding.planePosition = surface->desc.position", self.manager)
