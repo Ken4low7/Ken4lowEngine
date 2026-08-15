@@ -20,6 +20,8 @@ namespace Ken4lowEngine
 		Count,
 	};
 
+	inline constexpr size_t kForwardRenderBucketCount = static_cast<size_t>(ForwardRenderBucket::Count);
+
 	enum class ForwardSortMode : uint8_t
 	{
 		FrontToBack = 0,
@@ -59,6 +61,20 @@ namespace Ken4lowEngine
 		return bucket == ForwardRenderBucket::Transparent || bucket == ForwardRenderBucket::Additive;
 	}
 
+	constexpr const char* GetForwardRenderBucketName(ForwardRenderBucket bucket)
+	{
+		switch (bucket)
+		{
+		case ForwardRenderBucket::Opaque: return "Opaque";
+		case ForwardRenderBucket::Masked: return "Masked";
+		case ForwardRenderBucket::Transparent: return "Transparent";
+		case ForwardRenderBucket::Additive: return "Additive";
+		case ForwardRenderBucket::Count:
+		default:
+			return "Unknown";
+		}
+	}
+
 	using ForwardRenderDrawCallback = void(*)(void* payload);
 
 	struct ForwardRenderItem
@@ -85,6 +101,41 @@ namespace Ken4lowEngine
 	}
 
 	/// <summary>
+	/// EndFrame後もEditor/Validationから参照できる、直近Forward Frameの軽量統計です。
+	/// </summary>
+	struct ForwardRenderFrameStats
+	{
+		uint64_t frameSerial = 0;
+		std::array<size_t, kForwardRenderBucketCount> submittedByBucket{};
+		std::array<bool, kForwardRenderBucketCount> executedByBucket{};
+		std::array<ForwardRenderBucket, kForwardRenderBucketCount> executionOrder{};
+		size_t executionCount = 0;
+		size_t totalSubmitted = 0;
+		size_t rejectedSubmissions = 0;
+		size_t duplicateExecutionRequests = 0;
+		bool canonicalExecutionOrder = false;
+	};
+
+	constexpr bool IsCanonicalForwardExecutionOrder(
+		const std::array<ForwardRenderBucket, kForwardRenderBucketCount>& executionOrder,
+		size_t executionCount)
+	{
+		constexpr std::array<ForwardRenderBucket, kForwardRenderBucketCount> kExpectedOrder = {
+			ForwardRenderBucket::Opaque,
+			ForwardRenderBucket::Masked,
+			ForwardRenderBucket::Transparent,
+			ForwardRenderBucket::Additive,
+		};
+
+		if (executionCount != kExpectedOrder.size()) return false;
+		for (size_t index = 0; index < kExpectedOrder.size(); ++index)
+		{
+			if (executionOrder[index] != kExpectedOrder[index]) return false;
+		}
+		return true;
+	}
+
+	/// <summary>
 	/// 1回のScene 3D描画でForward Itemを収集し、Bucket契約に従って安定順序で実行するCPU Queueです。
 	/// </summary>
 	class ForwardRenderQueue
@@ -103,6 +154,10 @@ namespace Ken4lowEngine
 				bucket.clear();
 			}
 			bucketExecuted_.fill(false);
+			executionOrder_.fill(ForwardRenderBucket::Count);
+			executionCount_ = 0;
+			rejectedSubmissionCount_ = 0;
+			duplicateExecutionRequestCount_ = 0;
 			nextSubmissionOrder_ = 0;
 			++frameSerial_;
 			if (frameSerial_ == 0) ++frameSerial_;
@@ -111,6 +166,7 @@ namespace Ken4lowEngine
 
 		void EndFrame()
 		{
+			CaptureLastFrameStats(); // EndFrame後もEditor/CI診断から直近のBucket状態を確認できるようSnapshotを残す。
 			frameActive_ = false;
 		}
 
@@ -118,12 +174,14 @@ namespace Ken4lowEngine
 		{
 			if (!frameActive_ || item.payload == nullptr || item.draw == nullptr)
 			{
+				++rejectedSubmissionCount_;
 				return false;
 			}
 
 			const size_t bucketIndex = static_cast<size_t>(item.policy.bucket);
 			if (bucketIndex >= kBucketCount)
 			{
+				++rejectedSubmissionCount_;
 				return false;
 			}
 
@@ -143,6 +201,17 @@ namespace Ken4lowEngine
 			if (bucketIndex >= kBucketCount)
 			{
 				return;
+			}
+
+			if (bucketExecuted_[bucketIndex])
+			{
+				++duplicateExecutionRequestCount_;
+				return; // 同一Bucketの二重実行は半透明の二重合成へ直結するため、診断値を残してDraw自体を抑止する。
+			}
+
+			if (executionCount_ < executionOrder_.size())
+			{
+				executionOrder_[executionCount_++] = bucket;
 			}
 
 			auto& items = buckets_[bucketIndex];
@@ -198,15 +267,40 @@ namespace Ken4lowEngine
 			return false;
 		}
 
+		const ForwardRenderFrameStats& GetLastFrameStats() const { return lastFrameStats_; }
+		bool WasLastFrameExecutionOrderCanonical() const { return lastFrameStats_.canonicalExecutionOrder; }
 		uint64_t GetFrameSerial() const { return frameSerial_; }
 		bool IsFrameActive() const { return frameActive_; }
 
 	private:
-		static constexpr size_t kBucketCount = static_cast<size_t>(ForwardRenderBucket::Count);
+		static constexpr size_t kBucketCount = kForwardRenderBucketCount;
+
+		void CaptureLastFrameStats()
+		{
+			ForwardRenderFrameStats stats{};
+			stats.frameSerial = frameSerial_;
+			stats.executedByBucket = bucketExecuted_;
+			stats.executionOrder = executionOrder_;
+			stats.executionCount = executionCount_;
+			stats.rejectedSubmissions = rejectedSubmissionCount_;
+			stats.duplicateExecutionRequests = duplicateExecutionRequestCount_;
+			for (size_t index = 0; index < kBucketCount; ++index)
+			{
+				stats.submittedByBucket[index] = buckets_[index].size();
+				stats.totalSubmitted += stats.submittedByBucket[index];
+			}
+			stats.canonicalExecutionOrder = IsCanonicalForwardExecutionOrder(stats.executionOrder, stats.executionCount);
+			lastFrameStats_ = stats;
+		}
 
 		ForwardRenderQueue() = default;
 		std::array<std::vector<ForwardRenderItem>, kBucketCount> buckets_{};
 		std::array<bool, kBucketCount> bucketExecuted_{};
+		std::array<ForwardRenderBucket, kBucketCount> executionOrder_{};
+		ForwardRenderFrameStats lastFrameStats_{};
+		size_t executionCount_ = 0;
+		size_t rejectedSubmissionCount_ = 0;
+		size_t duplicateExecutionRequestCount_ = 0;
 		uint64_t nextSubmissionOrder_ = 0;
 		uint64_t frameSerial_ = 0;
 		bool frameActive_ = false;
