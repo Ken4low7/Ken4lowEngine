@@ -5,6 +5,7 @@ namespace Ken4lowEngine::PipelineStatePresets
 {
 
 	D3D12_BLEND_DESC MakeBlendAlpha();
+	D3D12_BLEND_DESC MakeBlendAdditive();
 	D3D12_BLEND_DESC MakeBlendOpaque();
 
 	D3D12_RASTERIZER_DESC MakeRasterizerCullBack();
