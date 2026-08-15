@@ -270,8 +270,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         uint planarHeight = 1;
         gEmissiveTexture.GetDimensions(planarWidth, planarHeight);
         float2 planarSize = max(float2((float)planarWidth, (float)planarHeight), float2(1.0f, 1.0f));
-        float2 planarUv = input.position.xy / planarSize;
-        planarUv.x = 1.0f - planarUv.x; // 通常LookAtが保持する右手系のX反転を戻し、鏡面Pixelと反射Camera画像を一致させる。
+        float2 planarUv = input.position.xy / planarSize; // 反射Cameraが鏡像を作るため、同じScreen座標をそのまま参照して二重反転を避ける。
         const float2 uvMin = float2(0.0f, 0.0f);
         const float2 uvMax = float2(1.0f, 1.0f);
         if (all(planarUv >= uvMin) && all(planarUv <= uvMax))
