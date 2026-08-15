@@ -6,7 +6,6 @@
 #include <DirectXCommon.h>
 #include "Object3DCommon.h"
 #include "PostEffectManager.h"
-#include <GpuParticleManager.h>
 #include <SceneManager.h>
 #include <Input.h>
 #include <GameTimer.h>
@@ -363,16 +362,15 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	void GameApplication::DrawCurrentScene3DPass()
 	{
-		// Scene 3D -> Debug Wireframe -> GPU Particle -> CPU Particle の順を Debug / Release で固定する。
+		// GPU ParticleはActorWorld内のForward Queueへ統合済みで、Scene 3Dの透明Bucketと同じ順序契約で描画される。
 		Object3DCommon::GetInstance()->BeginObject3DPass();
 
-		// 現在シーンが持つ通常の3Dモデルを最初に描画する。
+		// 現在シーンが持つ通常3DモデルとGPU Particleを共通Forward Queue経由で描画する。
 		sceneManager_->Draw3DObjects();
-		Object3DCommon::GetInstance()->EndObject3DPass(); // Main World以外のDebug/Particle/Editor drawを統計から切り離す。
+		Object3DCommon::GetInstance()->EndObject3DPass(); // Main World以外のDebug/Editor drawを統計から切り離す。
 
-		// デバッグ表示、GPUパーティクル、CPUパーティクルをモデル描画後に重ねる。
+		// デバッグ表示だけをForward World描画後に重ねる。
 		Wireframe::GetInstance()->Draw();
-		GpuParticleManager::GetInstance()->Draw();
 	}
 
 	/// -------------------------------------------------------------
