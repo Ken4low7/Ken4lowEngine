@@ -13,6 +13,8 @@
 
 namespace Ken4lowEngine
 {
+	class ForwardRenderQueue;
+
 	/// -------------------------------------------------------------
 	/// Actorにボーン付き3Dモデル描画とアニメーション再生機能を追加するComponentクラス。
 	/// -------------------------------------------------------------
@@ -79,6 +81,10 @@ namespace Ken4lowEngine
 		void Restart();
 		bool IsPlaying() const;
 		std::vector<ComponentProperty> CreateProperties(bool includeModelPath = true, bool includeAnimationName = true);
+		bool SubmitForwardOpaque(ForwardRenderQueue& queue);
+		bool SubmitForwardMasked(ForwardRenderQueue& queue);
+		bool SubmitForwardTransparent(ForwardRenderQueue& queue);
+		bool SubmitForwardAdditive(ForwardRenderQueue& queue);
 
 	private:
 		bool ReloadSkeletalModel();
@@ -89,6 +95,8 @@ namespace Ken4lowEngine
 		void SyncTransformToAnimationModel();
 		bool SelectConfiguredAnimation(bool resetTime);
 		bool EnsureAnimationSelection(bool resetTime);
+		bool SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode);
+		MaterialBlendMode ResolveForwardBlendMode() const;
 
 		/// <summary>共有AssetまたはComponent固有OverrideをAnimationModelへ反映します。</summary>
 		void ApplyMaterialBinding();
@@ -119,4 +127,6 @@ namespace Ken4lowEngine
 		bool reloadRequested_ = false;
 		bool resumeAfterReload_ = false;
 	};
-}
+} // namespace Ken4lowEngine
+
+#include "SkeletalMeshComponentForward.inl"
