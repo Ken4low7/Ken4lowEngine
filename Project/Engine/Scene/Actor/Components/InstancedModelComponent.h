@@ -13,6 +13,8 @@
 
 namespace Ken4lowEngine
 {
+	class ForwardRenderQueue;
+
 	/// -------------------------------------------------------------
 	///   Actorにインスタンシング描画機能を追加するComponentクラス
 	/// -------------------------------------------------------------
@@ -62,6 +64,8 @@ namespace Ken4lowEngine
 		void SetMaterialOverrideEnabled(bool enabled);
 		const MaterialBinding& GetMaterialBinding() const { return materialBinding_; }
 		std::vector<ComponentProperty> CreateProperties(bool includeModelPath = true);
+		bool SubmitForwardOpaque(ForwardRenderQueue& queue);
+		bool SubmitForwardMasked(ForwardRenderQueue& queue);
 
 		size_t GetEditableInstanceCount() const { return instanceTransforms_.size(); }
 		bool GetInstanceLocalTransform(size_t instanceIndex, InstanceTransform& outTransform) const;
@@ -70,6 +74,7 @@ namespace Ken4lowEngine
 		bool SetInstanceWorldTransform(size_t instanceIndex, const InstanceTransform& transform);
 
 	private:
+		bool SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode);
 		void RebuildInstances();
 		bool RebuildRenderer();
 		void RequestRebuild();
@@ -86,6 +91,7 @@ namespace Ken4lowEngine
 		MaterialBinding materialBinding_{};
 		std::string materialBindingStatus_ = "モデル既定Materialを使用中";
 		uint64_t materialRepositoryRevision_ = 0;
+		uint64_t lastForwardQueueSerial_ = 0;
 
 		int instanceCount_ = 100;
 		float spacing_ = 2.0f;
