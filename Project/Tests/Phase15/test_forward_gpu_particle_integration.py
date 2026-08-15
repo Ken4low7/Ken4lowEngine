@@ -52,7 +52,7 @@ class ForwardGpuParticleIntegrationTests(unittest.TestCase):
         self.assertIn("blendMode_ == BlendMode::kBlendModeNormal", self.renderer_cpp)
         self.assertIn("SortVisibleParticlesByDepth()", self.renderer_cpp)
         self.assertIn("depthSortPipelineState_", self.renderer_cpp)
-        self.assertIn("sortDepth", self.bridge_h)
+        self.assertIn("複数Emitterを跨ぐためCPU側に単一の正確なDepthは存在しない", self.bridge_h)
         self.assertIn("0.0f", self.bridge_h)
 
     def test_particle_graphics_pipeline_keeps_depth_read_only(self) -> None:
