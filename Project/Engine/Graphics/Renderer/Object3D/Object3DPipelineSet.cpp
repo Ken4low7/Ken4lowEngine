@@ -32,6 +32,8 @@ namespace Ken4lowEngine
 			kExtendedShadowCBV = 16,
 			kCsmShadowMapSRV = 17,
 			kPointShadowMapSRV = 18,
+			kPlanarReflectionCBV = 19,
+			kPlanarReflectionSRVTable = 20,
 			kCount
 		};
 
@@ -57,7 +59,7 @@ namespace Ken4lowEngine
 		}
 
 		D3D12_ROOT_SIGNATURE_DESC MakeObject3DRootSignatureDesc(
-			std::array<D3D12_DESCRIPTOR_RANGE, 11>& ranges,
+			std::array<D3D12_DESCRIPTOR_RANGE, 12>& ranges,
 			std::array<D3D12_ROOT_PARAMETER, Object3DRootParameterIndex::kCount>& rootParameters,
 			std::array<D3D12_STATIC_SAMPLER_DESC, 3>& staticSamplers)
 		{
@@ -99,7 +101,7 @@ namespace Ken4lowEngine
 				ranges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 				ranges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
-			for (size_t i = 9; i < ranges.size(); ++i)
+			for (size_t i = 9; i < 11; ++i)
 			{
 				ranges[i] = {};
 				ranges[i].BaseShaderRegister = static_cast<UINT>(i + 1); // t10:CSM t11:PointCube
@@ -107,6 +109,11 @@ namespace Ken4lowEngine
 				ranges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 				ranges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 			}
+			ranges[11] = {};
+			ranges[11].BaseShaderRegister = 12;
+			ranges[11].NumDescriptors = 6;
+			ranges[11].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+			ranges[11].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND; // Multi Planarはt12～t17を連続Tableとして確保する。
 
 			rootParameters[kMaterialCBV] = {};
 			rootParameters[kMaterialCBV].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -213,6 +220,17 @@ namespace Ken4lowEngine
 			rootParameters[kPointShadowMapSRV].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 			rootParameters[kPointShadowMapSRV].DescriptorTable.NumDescriptorRanges = 1;
 			rootParameters[kPointShadowMapSRV].DescriptorTable.pDescriptorRanges = &ranges[10];
+
+			rootParameters[kPlanarReflectionCBV] = {};
+			rootParameters[kPlanarReflectionCBV].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+			rootParameters[kPlanarReflectionCBV].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+			rootParameters[kPlanarReflectionCBV].Descriptor.ShaderRegister = 7;
+
+			rootParameters[kPlanarReflectionSRVTable] = {};
+			rootParameters[kPlanarReflectionSRVTable].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParameters[kPlanarReflectionSRVTable].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+			rootParameters[kPlanarReflectionSRVTable].DescriptorTable.NumDescriptorRanges = 1;
+			rootParameters[kPlanarReflectionSRVTable].DescriptorTable.pDescriptorRanges = &ranges[11];
 
 			staticSamplers[0] = {};
 			staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -343,7 +361,7 @@ namespace Ken4lowEngine
 
 		auto createSurfacePipeline = [&](MaterialCullMode cullMode, bool alpha, bool additive, const wchar_t* debugName, PipelineBundle& destination)
 		{
-			std::array<D3D12_DESCRIPTOR_RANGE, 11> ranges{};
+			std::array<D3D12_DESCRIPTOR_RANGE, 12> ranges{};
 			std::array<D3D12_ROOT_PARAMETER, Object3DRootParameterIndex::kCount> rootParameters{};
 			std::array<D3D12_STATIC_SAMPLER_DESC, 3> staticSamplers{};
 			D3D12_ROOT_SIGNATURE_DESC rootSigDesc = MakeObject3DRootSignatureDesc(ranges, rootParameters, staticSamplers);
