@@ -97,7 +97,7 @@ namespace Ken4lowEngine
 		ImGui::Text("Capture Revision: %llu", static_cast<unsigned long long>(diagnostics.captureRevision));
 		ImGui::TextDisabled("同じActorのModelComponentが鏡面Receiverになります。");
 		ImGui::TextDisabled("Local +Yが鏡面法線です。Planeモデルを推奨します。");
-		ImGui::TextDisabled("v1はLegacy Material専用です。PBR MaterialではPlanar反射を適用しません。");
+		ImGui::TextDisabled("Planar有効中はEmissive Texture用t9を鏡Textureへ一時利用するため、両者は併用しません。");
 		if (updateMode_ == PlanarReflectionUpdateMode::OnDemand)
 		{
 			ImGui::TextDisabled("On DemandはCamera移動後に再キャプチャが必要です。");
