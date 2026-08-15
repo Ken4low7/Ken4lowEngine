@@ -1,8 +1,6 @@
 #pragma once
 
 #include "DX12Include.h"
-#include "DirectXCommon.h"
-#include "SRVManager.h"
 #include "TextureManager.h"
 
 #include <cstdint>
@@ -130,34 +128,6 @@ namespace Ken4lowEngine
 			return AdoptLoadedCubeMap(texturePath);
 		}
 
-		bool MirrorIntoLegacyBinding(const std::string& texturePath, const DirectX::TexMetadata& metadata)
-		{
-			TextureManager* textureManager = TextureManager::GetInstance();
-			const std::string& legacyPath = GetFallbackEnvironmentMapPath();
-			textureManager->LoadTexture(legacyPath);
-
-			const uint32_t legacyIndex = textureManager->GetSrvIndex(legacyPath);
-			ID3D12Resource* sourceResource = textureManager->GetResource(texturePath);
-			ID3D12Device* device = DirectXCommon::GetInstance()->GetDevice();
-			if (legacyIndex == UINT32_MAX || !sourceResource || !device)
-			{
-				return false;
-			}
-
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-			srvDesc.Format = metadata.format;
-			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-			srvDesc.TextureCube.MostDetailedMip = 0;
-			srvDesc.TextureCube.MipLevels = UINT_MAX;
-			srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
-			device->CreateShaderResourceView(
-				sourceResource,
-				&srvDesc,
-				SRVManager::GetInstance()->GetCPUDescriptorHandle(legacyIndex));
-			return true; // 旧AnimationModelのdescriptor slotも現在SceneのCubemapを指す互換Bridgeにする。
-		}
-
 		bool AdoptLoadedCubeMap(const std::string& texturePath)
 		{
 			if (texturePath.empty())
@@ -173,7 +143,7 @@ namespace Ken4lowEngine
 					return false; // TextureCubeを要求するShaderへ2D Textureを誤Bindしない。
 				}
 				const D3D12_GPU_DESCRIPTOR_HANDLE handle = textureManager->GetSrvHandleGPU(texturePath);
-				if (handle.ptr == 0 || !MirrorIntoLegacyBinding(texturePath, metadata))
+				if (handle.ptr == 0)
 				{
 					return false;
 				}
@@ -182,7 +152,7 @@ namespace Ken4lowEngine
 				{
 					environmentMapPath_ = resolvedPath;
 					environmentMapHandle_ = handle;
-					++revision_; // 既存Objectを作り直さず、次のDrawから新Environmentへ切り替える。
+					++revision_; // RendererはDraw時に現在Handleを取得するので、Frames in Flight中のdescriptor書き換えは行わない。
 				}
 				return true;
 			}
