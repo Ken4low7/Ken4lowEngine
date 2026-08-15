@@ -101,6 +101,17 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertIn("Oblique Clip", self.component)
         self.assertIn("DrawPlane", self.component)
 
+    def test_component_has_six_axis_face_presets(self) -> None:
+        self.assertIn("enum class PlanarReflectionFacePreset", self.component_h)
+        for face in ("PositiveX", "NegativeX", "PositiveY", "NegativeY", "PositiveZ", "NegativeZ"):
+            self.assertIn(face, self.component_h)
+            self.assertIn(f"PlanarReflectionFacePreset::{face}", self.component)
+        for label in ('"+X##PlanarReflectionFace"', '"-X##PlanarReflectionFace"',
+                      '"+Y##PlanarReflectionFace"', '"-Y##PlanarReflectionFace"',
+                      '"+Z##PlanarReflectionFace"', '"-Z##PlanarReflectionFace"'):
+            self.assertIn(label, self.component)
+        self.assertIn("SyncToManager(true)", self.component)
+
     def test_model_support_point_uses_real_vertices_instead_of_bounding_sphere(self) -> None:
         self.assertIn("TryGetSupportPointAlongWorldDirection", self.object3d_h)
         self.assertIn("model_->GetModelData().subMeshes", self.object3d_h)
@@ -108,9 +119,10 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertIn("Vector3::Transform(localPosition, world)", self.object3d_h)
         self.assertIn("TryGetReflectionReceiverSurfacePoint", self.model_h)
 
-    def test_component_factory_exposes_planar_reflection(self) -> None:
+    def test_component_factory_allows_multiple_planar_reflections(self) -> None:
         self.assertIn("PlanarReflectionComponent.h", self.factory)
         self.assertIn("MakeComponentTypeInfo<PlanarReflectionComponent>", self.factory)
+        self.assertIn('MakeComponentTypeInfo<PlanarReflectionComponent>("PlanarReflectionComponent", true', self.factory)
         self.assertIn('"プラナーリフレクション"', self.factory)
 
     def test_existing_reflection_hook_schedules_planar_before_main_scene(self) -> None:
@@ -119,11 +131,14 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertLess(probe_index, planar_index)
         self.assertIn("HasActivePlanarSurface", self.probe_bridge)
 
-    def test_model_component_scopes_planar_binding_only_for_same_actor(self) -> None:
-        self.assertIn("GetComponent<PlanarReflectionComponent>()", self.model)
-        self.assertIn("planarManager->ResolveBinding(planar)", self.model)
+    def test_model_component_packs_up_to_six_surfaces_for_same_actor(self) -> None:
+        self.assertIn("PlanarReflectionDrawSet planarDrawSet", self.model)
+        self.assertIn("GetComponents<PlanarReflectionComponent>()", self.model)
+        self.assertIn("planarDrawSet.Add(planarManager->ResolveBinding(planar))", self.model)
+        self.assertIn("kMaxPlanarReflectionSurfacesPerDraw", self.model)
         self.assertIn("PlanarReflectionManager::ScopedDrawBinding", self.model)
         self.assertIn("object3D_->Draw()", self.model)
+        self.assertNotIn("GetComponent<PlanarReflectionComponent>()", self.model)
 
     def test_manager_reuses_exact_oblique_view_projection_used_for_capture(self) -> None:
         self.assertIn("Matrix4x4 capturedViewProjection", self.manager_h)
@@ -135,39 +150,51 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertNotIn("BuildPlanarReflectionViewProjection", self.model)
         self.assertNotIn("ReflectPoint", self.model)
 
-    def test_material_layout_carries_planar_plane_and_tolerance_without_root_growth(self) -> None:
-        self.assertIn("float planarReflectionEnabled;", self.material_h)
-        self.assertIn("float planarReflectionStrength;", self.material_h)
-        self.assertIn("Matrix4x4 planarReflectionViewProjection;", self.material_h)
-        self.assertIn("Vector4 planarReflectionPlane;", self.material_h)
-        self.assertIn("Vector4 planarReflectionSurfaceParams;", self.material_h)
+    def test_manager_builds_six_surface_draw_packet_and_transient_descriptor_table(self) -> None:
+        self.assertIn("kMaxPlanarReflectionSurfacesPerDraw = 6u", self.manager_h)
+        self.assertIn("struct PlanarReflectionDrawSet", self.manager_h)
+        self.assertIn("struct PlanarReflectionDrawCBData", self.manager_h)
+        self.assertIn("std::array<Matrix4x4, kMaxPlanarReflectionSurfacesPerDraw>", self.manager_h)
+        self.assertIn("AllocateTransient(kMaxPlanarReflectionSurfacesPerDraw)", self.manager)
+        self.assertIn("CopyDescriptorsSimple", self.manager)
+        self.assertIn("BindCurrentDrawState", self.manager)
+        self.assertIn("SetGraphicsRootConstantBufferView(constantBufferRootParameterIndex", self.manager)
+        self.assertIn("SetGraphicsRootDescriptorTable(rootParameterIndex, allocation.gpuHandle)", self.manager)
+
+    def test_object_root_signature_reserves_b7_and_t12_to_t17_for_planar(self) -> None:
+        self.assertIn("kPlanarReflectionCBV = 19", self.pipeline)
+        self.assertIn("kPlanarReflectionSRVTable = 20", self.pipeline)
+        self.assertIn("BaseShaderRegister = 12", self.pipeline)
+        self.assertIn("NumDescriptors = 6", self.pipeline)
+        self.assertIn("ShaderRegister = 7", self.pipeline)
+        self.assertIn("std::array<D3D12_DESCRIPTOR_RANGE, 12>", self.pipeline)
+
+    def test_material_keeps_emissive_t9_and_binds_planar_dedicated_slots(self) -> None:
         self.assertIn("sizeof(Material::MaterialCBData) == 240", self.material_cpp)
-        self.assertIn("planarBinding.planePosition", self.material_cpp)
-        self.assertIn("planarBinding.surfaceTolerance", self.material_cpp)
-        self.assertIn("emissiveOrPlanar", self.material_cpp)
-
-    def test_planar_texture_reuses_object_t9_slot_without_root_growth(self) -> None:
-        self.assertIn("kEmissiveSRV = 15", self.pipeline)
-        self.assertIn("BaseShaderRegister = static_cast<UINT>(i + 1)", self.pipeline)
+        self.assertIn("SetGraphicsRootDescriptorTable(emissiveRootIndex, emissive_)", self.material_cpp)
+        self.assertNotIn("emissiveOrPlanar", self.material_cpp)
+        self.assertIn("BindCurrentDrawState(commandList, 19, 20)", self.material_cpp)
         self.assertIn("Texture2D<float4> gEmissiveTexture : register(t9)", self.shader)
-        self.assertIn("planarReflectionEnabled", self.shader)
-        self.assertIn("planarReflectionStrength", self.shader)
 
-    def test_shader_uses_reflected_view_projection_instead_of_screen_copy(self) -> None:
-        self.assertIn("gMaterial.planarReflectionViewProjection", self.shader)
-        self.assertIn("mul(float4(worldPosition, 1.0f), gMaterial.planarReflectionViewProjection)", self.shader)
-        self.assertIn("reflectedClip.xy / reflectedClip.w", self.shader)
-        self.assertIn("SampleLevel(gLinearSampler, planarUv, 0.0f)", self.shader)
+    def test_shader_declares_multi_surface_planar_data_and_texture_array(self) -> None:
+        self.assertIn("kMaxPlanarReflectionSurfaces = 6u", self.shader)
+        self.assertIn("struct PlanarReflectionDrawData", self.shader)
+        self.assertIn("ConstantBuffer<PlanarReflectionDrawData> gPlanarReflection : register(b7)", self.shader)
+        self.assertIn("gPlanarReflectionTextures[kMaxPlanarReflectionSurfaces] : register(t12)", self.shader)
+        self.assertIn("SamplePlanarReflectionTexture", self.shader)
+        self.assertIn("switch (surfaceIndex)", self.shader)
+
+    def test_shader_selects_matching_surface_by_normal_distance_and_projective_uv(self) -> None:
+        self.assertIn("gPlanarReflection.surfaceCount", self.shader)
+        self.assertIn("for (uint surfaceIndex = 0u; surfaceIndex < kMaxPlanarReflectionSurfaces", self.shader)
+        self.assertIn("gPlanarReflection.plane[surfaceIndex]", self.shader)
+        self.assertIn("abs(dot(normal, planarNormal))", self.shader)
+        self.assertIn("planeDistance >= selectedPlaneDistance", self.shader)
+        self.assertIn("gPlanarReflection.reflectedViewProjection[surfaceIndex]", self.shader)
+        self.assertIn("selectedSurface = (int)surfaceIndex", self.shader)
+        self.assertIn("SamplePlanarReflectionTexture(selectedIndex, selectedUv)", self.shader)
         self.assertNotIn("input.position.xy / planarSize", self.shader)
         self.assertNotIn("planarUv.x = 1.0f - planarUv.x", self.shader)
-
-    def test_shader_masks_faces_by_normal_and_actual_plane_distance(self) -> None:
-        self.assertIn("planarReflectionPlane", self.shader)
-        self.assertIn("abs(dot(normal, planarNormal))", self.shader)
-        self.assertIn("kPlanarNormalAlignmentThreshold", self.shader)
-        self.assertIn("planeDistance = abs(dot(float4(worldPosition, 1.0f), gMaterial.planarReflectionPlane))", self.shader)
-        self.assertIn("planeTolerance", self.shader)
-        self.assertIn("planeDistance <= planeTolerance", self.shader)
 
 
 if __name__ == "__main__":
