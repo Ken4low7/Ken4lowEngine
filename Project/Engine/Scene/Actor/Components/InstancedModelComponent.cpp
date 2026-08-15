@@ -2,6 +2,8 @@
 #include "InstancedModelComponent.h"
 #include "AssetPathSelector.h"
 #include "MaterialRepository.h"
+#include "CameraManager.h"
+#include "Engine/Graphics/Renderer/Forward/ForwardRenderQueue.h"
 
 #include <algorithm>
 #include <cmath>
@@ -38,6 +40,18 @@ namespace Ken4lowEngine
 		float DivideScale(float value, float parentValue)
 		{
 			return std::abs(parentValue) > 0.0001f ? value / parentValue : value;
+		}
+
+		float CalculateForwardSortDepth(const Vector3& worldPosition)
+		{
+			const Vector3 cameraPosition = CameraManager::GetInstance()->GetActiveCameraPosition();
+			const Vector3 cameraForward = CameraManager::GetInstance()->GetActiveCameraForward();
+			const Vector3 toObject = {
+				worldPosition.x - cameraPosition.x,
+				worldPosition.y - cameraPosition.y,
+				worldPosition.z - cameraPosition.z,
+			};
+			return toObject.x * cameraForward.x + toObject.y * cameraForward.y + toObject.z * cameraForward.z;
 		}
 	}
 
@@ -102,9 +116,63 @@ namespace Ken4lowEngine
 		if (isRebuildRequested_) RebuildInstances();
 	}
 
+	bool InstancedModelComponent::SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode)
+	{
+		if (!visible_ || !IsActiveInHierarchy() || !renderer_ || !isInitializedRenderer_)
+		{
+			return false;
+		}
+		if (expectedBlendMode != MaterialBlendMode::Opaque && expectedBlendMode != MaterialBlendMode::Masked)
+		{
+			return false; // Transparent InstancingはInstance単位Sortが必要なため、この段階ではQueue移行しない。
+		}
+		if (renderer_->GetBlendMode() != expectedBlendMode)
+		{
+			return false;
+		}
+
+		ForwardRenderItem item = MakeForwardRenderItem(
+			renderer_.get(),
+			[](void* payload)
+			{
+				static_cast<InstancedObject3DRenderer*>(payload)->Draw();
+			},
+			expectedBlendMode,
+			CalculateForwardSortDepth(GetWorldPosition()));
+		if (!queue.Submit(item))
+		{
+			return false;
+		}
+
+		lastForwardQueueSerial_ = queue.GetFrameSerial();
+		return true;
+	}
+
+	bool InstancedModelComponent::SubmitForwardOpaque(ForwardRenderQueue& queue)
+	{
+		return SubmitForwardBucket(queue, MaterialBlendMode::Opaque);
+	}
+
+	bool InstancedModelComponent::SubmitForwardMasked(ForwardRenderQueue& queue)
+	{
+		return SubmitForwardBucket(queue, MaterialBlendMode::Masked);
+	}
+
 	void InstancedModelComponent::Draw()
 	{
-		if (visible_ && renderer_) renderer_->Draw();
+		if (!visible_ || !renderer_)
+		{
+			return;
+		}
+		ForwardRenderQueue* queue = ForwardRenderQueue::GetInstance();
+		const bool alreadySubmittedToForwardQueue =
+			queue->IsFrameActive() &&
+			queue->GetFrameSerial() == lastForwardQueueSerial_;
+		if (alreadySubmittedToForwardQueue)
+		{
+			return; // Queueへ渡したInstanced DrawはActor::Draw経路から二重実行しない。
+		}
+		renderer_->Draw();
 	}
 
 	void InstancedModelComponent::DrawImGui()
