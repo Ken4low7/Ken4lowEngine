@@ -95,7 +95,7 @@ namespace Ken4lowEngine
 
 	bool ModelComponent::SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode)
 	{
-		if (!visible_ || !IsActiveInHierarchy() || !object3D_ || object3D_->IsAlphaBlendEnabled())
+		if (!visible_ || !IsActiveInHierarchy() || !object3D_)
 		{
 			return false;
 		}
@@ -105,14 +105,14 @@ namespace Ken4lowEngine
 			return false;
 		}
 
-		ForwardRenderItem item{};
-		item.payload = object3D_.get();
-		item.draw = [](void* payload)
-		{
-			static_cast<Object3D*>(payload)->Draw(); // Blend PSOはObject3DがMaterialBlendModeから選ぶためQueue側は描画呼び出しだけを所有する。
-		};
-		item.policy = ResolveForwardRenderPolicy(expectedBlendMode);
-		item.sortDepth = CalculateForwardSortDepth(*object3D_);
+		ForwardRenderItem item = MakeForwardRenderItem(
+			object3D_.get(),
+			[](void* payload)
+			{
+				static_cast<Object3D*>(payload)->Draw(); // Blend PSOはObject3DがMaterialBlendModeから選ぶためQueue側は描画呼び出しだけを所有する。
+			},
+			expectedBlendMode,
+			CalculateForwardSortDepth(*object3D_));
 		if (!queue.Submit(item))
 		{
 			return false;
