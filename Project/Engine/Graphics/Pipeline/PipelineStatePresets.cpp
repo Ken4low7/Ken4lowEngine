@@ -18,6 +18,20 @@ namespace Ken4lowEngine::PipelineStatePresets
 		return desc;
 	}
 
+	D3D12_BLEND_DESC MakeBlendAdditive()
+	{
+		D3D12_BLEND_DESC desc{};
+		desc.RenderTarget[0].BlendEnable = TRUE;
+		desc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		desc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+		desc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD; // 発光色を既存Scene Colorへ加算し、エフェクトの明るさを素直に積み上げる。
+		desc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ZERO;
+		desc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+		desc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		desc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+		return desc;
+	}
+
 	D3D12_BLEND_DESC MakeBlendOpaque()
 	{
 		D3D12_BLEND_DESC desc{};
