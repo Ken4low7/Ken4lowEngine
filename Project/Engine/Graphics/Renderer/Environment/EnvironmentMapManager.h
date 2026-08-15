@@ -1,6 +1,8 @@
 #pragma once
 
 #include "DX12Include.h"
+#include "DirectXCommon.h"
+#include "SRVManager.h"
 #include "TextureManager.h"
 
 #include <cstdint>
@@ -104,6 +106,36 @@ namespace Ken4lowEngine
 			return AdoptLoadedCubeMap(texturePath);
 		}
 
+		bool MirrorIntoLegacyBinding(const std::string& texturePath)
+		{
+			TextureManager* textureManager = TextureManager::GetInstance();
+			const std::string& legacyPath = GetFallbackEnvironmentMapPath();
+			textureManager->LoadTexture(legacyPath);
+
+			const uint32_t sourceIndex = textureManager->GetSrvIndex(texturePath);
+			const uint32_t legacyIndex = textureManager->GetSrvIndex(legacyPath);
+			if (sourceIndex == UINT32_MAX || legacyIndex == UINT32_MAX)
+			{
+				return false;
+			}
+			if (sourceIndex == legacyIndex)
+			{
+				return true;
+			}
+
+			ID3D12Device* device = DirectXCommon::GetInstance()->GetDevice();
+			if (!device)
+			{
+				return false;
+			}
+			device->CopyDescriptorsSimple(
+				1,
+				SRVManager::GetInstance()->GetCPUDescriptorHandle(legacyIndex),
+				SRVManager::GetInstance()->GetCPUDescriptorHandle(sourceIndex),
+				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			return true; // 旧AnimationModelが保持するdescriptor slotも同じScene Environmentへ追従させる。
+		}
+
 		bool AdoptLoadedCubeMap(const std::string& texturePath)
 		{
 			if (texturePath.empty())
@@ -119,7 +151,7 @@ namespace Ken4lowEngine
 					return false; // TextureCubeを要求するShaderへ2D Textureを誤Bindしない。
 				}
 				const D3D12_GPU_DESCRIPTOR_HANDLE handle = textureManager->GetSrvHandleGPU(texturePath);
-				if (handle.ptr == 0)
+				if (handle.ptr == 0 || !MirrorIntoLegacyBinding(texturePath))
 				{
 					return false;
 				}
