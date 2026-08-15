@@ -53,7 +53,13 @@ At 256x256 the logical field storage is about 1.44 MiB before allocation/alignme
   - pressure-gradient subtraction from velocity
   - closed-domain normal velocity boundary
   - shared root signature across divergence / Jacobi / projection
-- [ ] 16.5 Density / Temperature
+- [x] 16.5 Density / Temperature
+  - reusable `GpuFluidScalarAdvectionPass`
+  - one shared scalar-advection shader/PSO for density and temperature
+  - projected velocity sampled from `t0`
+  - scalar read/write ping-pong through `t1` / `u0`
+  - per-field dissipation supplied with root constants at `b1`
+  - individual dispatch and combined `DispatchAll()` path
 - [ ] 16.6 Vorticity / Buoyancy
 - [ ] 16.7 FluidEmitterComponent
 - [ ] 16.8 Collider / Obstacle
@@ -95,10 +101,37 @@ With the default `pressureIterations = 40`, one pressure-projection call records
 
 Obstacle-aware neighbor sampling is intentionally deferred to 16.8. The current outer-domain pressure sampling clamps to edge cells, which acts as a simple Neumann pressure boundary, while projection explicitly removes outward normal velocity at the simulation border.
 
+## 16.5 Scalar advection flow
+
+`GpuFluidScalarAdvectionPass` transports density and temperature with the projected velocity field without duplicating the velocity-advection implementation into two scalar-specific passes.
+
+Binding contract:
+
+| Root parameter | Shader register | Resource |
+|---:|---|---|
+| 0 | `b0` | `GpuFluidSimulationConstants` |
+| 1 | `t0` | projected velocity read texture |
+| 2 | `t1` | density or temperature read texture |
+| 3 | `u0` | density or temperature write texture |
+| 4 | `b1` | four DWORD root constants; first float is scalar dissipation |
+| static sampler | `s0` | linear clamp |
+
+For each scalar field:
+
+1. Read the projected velocity at the current cell.
+2. Backtrace in world-units/sec using the same semi-Lagrangian convention as velocity advection.
+3. Bilinearly sample the previous scalar field.
+4. Apply `densityDissipation` or `temperatureDissipation` selected on the CPU.
+5. Insert a UAV barrier, transition the output to SRV state, and swap that scalar ping-pong field.
+
+`DispatchAll()` shares one simulation constant-buffer allocation between density and temperature and records two compute dispatches. The scalar shader does not clamp values to zero so temperature can later represent signed hot/cold deviations for buoyancy; source injection policy remains the responsibility of the emitter stage.
+
+The scalar fields must contain defined initial/source data before advection. A full simulation reset/source-injection path is intentionally owned by the later runtime/emitter integration rather than hidden inside advection, because clearing every scalar dispatch would destroy newly injected density and heat.
+
 ## Build integration
 
 `Project/Directory.Build.props` registers the Phase 16 C++ files and shader source files only for the `Ken4lowEngine` project. This keeps the existing large `.vcxproj` untouched while still making new Phase 16 sources part of the normal C++ build graph.
 
-## Next implementation target — 16.5
+## Next implementation target — 16.6
 
-Reuse the advection pattern for scalar density and temperature fields. Add reusable scalar-advection dispatch logic so smoke density and heat can be transported by the projected velocity field without duplicating the velocity-pass resource/state code.
+Add force passes for vorticity confinement and buoyancy. Temperature and density from 16.5 will drive buoyancy, while velocity curl will drive vorticity confinement. Both forces should write through velocity ping-pong so the corrected velocity can be projected again before rendering or the next simulation step.

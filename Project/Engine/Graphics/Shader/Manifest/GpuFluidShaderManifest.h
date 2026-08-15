@@ -12,6 +12,7 @@ enum class GpuFluidComputeShaderId : uint32_t
 	Divergence,
 	PressureJacobi,
 	Projection,
+	ScalarAdvection,
 };
 
 class GpuFluidShaderManifest
@@ -63,6 +64,19 @@ public:
 			static const ShaderDescriptor desc{
 				L"GpuFluidProjectionCS",
 				L"Resources/Shaders/GpuFluid/GpuFluidProjection.CS.hlsl",
+				L"main",
+				L"cs_6_0",
+				ShaderStage::Compute,
+				RootSignatureType::Compute
+			};
+			return desc;
+		}
+		case GpuFluidComputeShaderId::ScalarAdvection:
+		{
+			// DensityとTemperatureは同じScalar Advection Shaderを共有し、PSOの重複を避ける。
+			static const ShaderDescriptor desc{
+				L"GpuFluidScalarAdvectionCS",
+				L"Resources/Shaders/GpuFluid/GpuFluidScalarAdvection.CS.hlsl",
 				L"main",
 				L"cs_6_0",
 				ShaderStage::Compute,
