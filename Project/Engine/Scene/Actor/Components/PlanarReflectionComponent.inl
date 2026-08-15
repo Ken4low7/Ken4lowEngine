@@ -16,6 +16,9 @@ namespace Ken4lowEngine
 {
 	namespace PlanarReflectionComponentDetail
 	{
+		inline constexpr float kPi = 3.14159265358979323846f;
+		inline constexpr float kHalfPi = kPi * 0.5f;
+
 		inline const char* UpdateModeToString(PlanarReflectionUpdateMode updateMode)
 		{
 			return updateMode == PlanarReflectionUpdateMode::OnDemand ? "OnDemand" : "EveryFrame";
@@ -80,6 +83,19 @@ namespace Ken4lowEngine
 			changed = true;
 		}
 
+		ImGui::TextDisabled("面方向プリセット（Local +Yを指定方向へ向けます）");
+		if (ImGui::Button("+X##PlanarReflectionFace")) SetFacePreset(PlanarReflectionFacePreset::PositiveX);
+		ImGui::SameLine();
+		if (ImGui::Button("-X##PlanarReflectionFace")) SetFacePreset(PlanarReflectionFacePreset::NegativeX);
+		ImGui::SameLine();
+		if (ImGui::Button("+Y##PlanarReflectionFace")) SetFacePreset(PlanarReflectionFacePreset::PositiveY);
+		ImGui::SameLine();
+		if (ImGui::Button("-Y##PlanarReflectionFace")) SetFacePreset(PlanarReflectionFacePreset::NegativeY);
+		ImGui::SameLine();
+		if (ImGui::Button("+Z##PlanarReflectionFace")) SetFacePreset(PlanarReflectionFacePreset::PositiveZ);
+		ImGui::SameLine();
+		if (ImGui::Button("-Z##PlanarReflectionFace")) SetFacePreset(PlanarReflectionFacePreset::NegativeZ);
+
 		changed |= ImGui::Checkbox("法線を反転##PlanarReflectionFlipNormal", &flipNormal_);
 		changed |= ImGui::Checkbox("Receiver表面へ自動Fit##PlanarReflectionAutoFit", &autoFitToReceiverSurface_);
 		changed |= ImGui::DragFloat("鏡面オフセット##PlanarReflectionPlaneOffset", &planeOffset_, 0.01f, -100.0f, 100.0f, "%.3f");
@@ -108,9 +124,10 @@ namespace Ken4lowEngine
 		ImGui::Text("Oblique Clip: %s", diagnostics.obliqueClipApplied ? "ON" : "OFF");
 		ImGui::Text("鏡面位置: %.3f, %.3f, %.3f", planePosition.x, planePosition.y, planePosition.z);
 		ImGui::TextDisabled("Auto Fit ONでは同じActorのModel頂点から法線方向の最外面を鏡面にします。");
+		ImGui::TextDisabled("同じActorへ最大6面分追加でき、各Componentが1枚の独立した鏡面になります。");
+		ImGui::TextDisabled("Captureは全Component合計で1フレーム最大1面なので、複数面でも描画負荷を急増させません。");
 		ImGui::TextDisabled("クリップバイアスは鏡面より裏側や接触面の映り込みをOblique Near Planeで除去します。");
 		ImGui::TextDisabled("Local +Yが鏡面法線です。面判定許容幅の外側には鏡像を貼りません。");
-		ImGui::TextDisabled("Planar有効中はEmissive Texture用t9を鏡Textureへ一時利用するため、両者は併用しません。");
 		if (updateMode_ == PlanarReflectionUpdateMode::OnDemand)
 		{
 			ImGui::TextDisabled("On DemandはCamera移動後に再キャプチャが必要です。");
@@ -191,6 +208,38 @@ namespace Ken4lowEngine
 	inline void PlanarReflectionComponent::SetClipPlaneBias(float bias)
 	{
 		clipPlaneBias_ = std::clamp(bias, 0.0f, 1.0f);
+	}
+
+	inline void PlanarReflectionComponent::SetFacePreset(PlanarReflectionFacePreset preset)
+	{
+		using namespace PlanarReflectionComponentDetail;
+		Vector3 localRotation{};
+		switch (preset)
+		{
+		case PlanarReflectionFacePreset::PositiveX:
+			localRotation = { 0.0f, 0.0f, -kHalfPi };
+			break;
+		case PlanarReflectionFacePreset::NegativeX:
+			localRotation = { 0.0f, 0.0f, kHalfPi };
+			break;
+		case PlanarReflectionFacePreset::NegativeY:
+			localRotation = { kPi, 0.0f, 0.0f };
+			break;
+		case PlanarReflectionFacePreset::PositiveZ:
+			localRotation = { kHalfPi, 0.0f, 0.0f };
+			break;
+		case PlanarReflectionFacePreset::NegativeZ:
+			localRotation = { -kHalfPi, 0.0f, 0.0f };
+			break;
+		case PlanarReflectionFacePreset::PositiveY:
+		default:
+			localRotation = { 0.0f, 0.0f, 0.0f };
+			break;
+		}
+		flipNormal_ = false;
+		SetLocalRotation(localRotation);
+		RefreshWorldTransform();
+		SyncToManager(true); // 面プリセット変更時は対応するReflection Cameraを即座に再Capture対象へ戻す。
 	}
 
 	inline Vector3 PlanarReflectionComponent::GetPlaneNormal() const
