@@ -2,6 +2,7 @@
 
 #include "Engine/Graphics/Common/BlendModeType.h"
 #include "Engine/Graphics/Material/Material.h"
+#include "Engine/Graphics/RenderTarget/Depth/RenderDepthContext.h"
 
 #include <algorithm>
 #include <array>
@@ -166,6 +167,8 @@ namespace Ken4lowEngine
 
 		void EndFrame()
 		{
+			// Additive実行が省略された異常経路でもDepthを次FrameのWritable状態へ戻す。
+			RenderDepthContext::GetInstance()->RestoreDepthWrite();
 			CaptureLastFrameStats(); // EndFrame後もEditor/CI診断から直近のBucket状態を確認できるようSnapshotを残す。
 			frameActive_ = false;
 		}
@@ -209,6 +212,12 @@ namespace Ken4lowEngine
 				return; // 同一Bucketの二重実行は半透明の二重合成へ直結するため、診断値を残してDraw自体を抑止する。
 			}
 
+			if (bucket == ForwardRenderBucket::Transparent)
+			{
+				// Opaque/Masked/旧3D描画がDepthを書き終えた境界で、全Transparentが同じread-only Depthを共有する。
+				RenderDepthContext::GetInstance()->PrepareForShaderRead();
+			}
+
 			if (executionCount_ < executionOrder_.size())
 			{
 				executionOrder_[executionCount_++] = bucket;
@@ -237,6 +246,11 @@ namespace Ken4lowEngine
 			}
 
 			bucketExecuted_[bucketIndex] = true;
+			if (bucket == ForwardRenderBucket::Additive)
+			{
+				// Transparent/AdditiveはDepthを書かないため、両Bucket完了後にだけDEPTH_WRITEへ復帰する。
+				RenderDepthContext::GetInstance()->RestoreDepthWrite();
+			}
 		}
 
 		bool WasBucketExecuted(ForwardRenderBucket bucket) const

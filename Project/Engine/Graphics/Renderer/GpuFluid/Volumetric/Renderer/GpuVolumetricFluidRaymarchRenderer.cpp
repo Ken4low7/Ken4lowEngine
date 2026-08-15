@@ -4,10 +4,13 @@
 #include <CameraManager.h>
 #include <DirectXCommon.h>
 #include <GpuVolumetricFluidShaderManifest.h>
+#include <LightManager.h>
 #include <LogString.h>
 #include <SRVManager.h>
 #include <ShaderCompiler.h>
+#include "Engine/Graphics/RenderTarget/Depth/RenderDepthContext.h"
 
+#include <algorithm>
 #include <string>
 
 namespace Ken4lowEngine
@@ -87,16 +90,77 @@ bool GpuVolumetricFluidRaymarchRenderer::Draw(
 		return false;
 	}
 
+	Matrix4x4 inverseViewProjection = Matrix4x4::MakeIdentity();
+	if (!Matrix4x4::TryInverse(viewProjection, inverseViewProjection))
+	{
+		return false;
+	}
+
+	RenderDepthContext* depthContext = RenderDepthContext::GetInstance();
+	bool restoreDepthAfterDraw = false;
+	if (!depthContext->IsPreparedForShaderRead())
+	{
+		// Forward Queue外のMain View直接Drawでも同じDepth契約を利用する。Reflection overrideで未登録なら安全に失敗する。
+		if (!depthContext->PrepareForShaderRead())
+		{
+			return false;
+		}
+		restoreDepthAfterDraw = true;
+	}
+
+	const uint32_t sceneDepthSrvIndex = depthContext->GetActiveDepthSrvIndex();
+	const D3D12_VIEWPORT depthViewport = depthContext->GetActiveViewport();
+	if (sceneDepthSrvIndex == UINT32_MAX || depthViewport.Width <= 0.0f || depthViewport.Height <= 0.0f)
+	{
+		if (restoreDepthAfterDraw) depthContext->RestoreDepthWrite();
+		return false;
+	}
+
+	GpuVolumetricFluidRenderViewState viewState{};
+	viewState.viewProjection = viewProjection;
+	viewState.inverseViewProjection = inverseViewProjection;
+	viewState.cameraPosition = cameraPosition;
+	viewState.viewportWidth = depthViewport.Width;
+	viewState.viewportHeight = depthViewport.Height;
+	viewState.depthClearValue = depthContext->GetActiveClearDepth();
+
+	LightManager* lightManager = LightManager::GetInstance();
+	if (lightManager != nullptr)
+	{
+		const LightManager::LightingSettingsGPU& lightingSettings = lightManager->GetLightingSettings();
+		viewState.ambientColor = {
+			lightingSettings.ambientColor.x,
+			lightingSettings.ambientColor.y,
+			lightingSettings.ambientColor.z
+		};
+
+		float strongestDirectionalIntensity = 0.0f;
+		for (const LightManager::PunctualLightGPU& light : lightManager->GetPunctualLights())
+		{
+			if (light.enabled == 0u || light.lightType != 1u || light.intensity <= strongestDirectionalIntensity)
+			{
+				continue;
+			}
+
+			strongestDirectionalIntensity = light.intensity;
+			viewState.directionalLightDirectionToLight = Vector3::NormalizeSafe(
+				-light.direction,
+				{ 0.0f, 1.0f, 0.0f });
+			viewState.directionalLightColor = { light.color.x, light.color.y, light.color.z };
+			viewState.directionalLightIntensity = light.intensity;
+		}
+	}
+
 	const GpuVolumetricFluidRenderConstants constants = BuildGpuVolumetricFluidRenderConstants(
 		renderDesc,
 		domain,
 		grid.GetGridDesc(),
-		viewProjection,
-		cameraPosition);
+		viewState);
 	const FrameUploadArena::Allocation constantAllocation =
 		dxCommon_->GetFrameUploadArena().AllocateConstant(constants);
 	if (!constantAllocation.IsValid())
 	{
+		if (restoreDepthAfterDraw) depthContext->RestoreDepthWrite();
 		return false;
 	}
 
@@ -118,24 +182,31 @@ bool GpuVolumetricFluidRaymarchRenderer::Draw(
 		2, descriptors->GetGPUDescriptorHandle(temperature.srvIndex));
 	commandList->SetGraphicsRootDescriptorTable(
 		3, descriptors->GetGPUDescriptorHandle(obstacle.srvIndex));
+	commandList->SetGraphicsRootDescriptorTable(
+		4, descriptors->GetGPUDescriptorHandle(sceneDepthSrvIndex));
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Unit cubeの12 trianglesをSV_VertexIDで生成し、専用Vertex BufferなしでVolume proxyを描く。
 	commandList->DrawInstanced(36, 1, 0, 0);
 	++drawCount_;
+
+	if (restoreDepthAfterDraw)
+	{
+		depthContext->RestoreDepthWrite();
+	}
 	return true;
 }
 
 bool GpuVolumetricFluidRaymarchRenderer::CreateRootSignature()
 {
-	D3D12_ROOT_PARAMETER rootParameters[4]{};
+	D3D12_ROOT_PARAMETER rootParameters[5]{};
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
 	rootParameters[0].Descriptor.RegisterSpace = 0;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	D3D12_DESCRIPTOR_RANGE srvRanges[3]{};
-	for (uint32_t index = 0; index < 3; ++index)
+	D3D12_DESCRIPTOR_RANGE srvRanges[4]{};
+	for (uint32_t index = 0; index < 4; ++index)
 	{
 		srvRanges[index].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 		srvRanges[index].NumDescriptors = 1;
@@ -220,9 +291,10 @@ bool GpuVolumetricFluidRaymarchRenderer::CreatePipelineState()
 	rasterizerDesc.DepthClipEnable = TRUE;
 
 	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
-	depthStencilDesc.DepthEnable = TRUE;
+	// Scene DepthをPS内でRay停止距離へ使うため、proxy surface自身のDepth testではCamera-inside rayを落とさない。
+	depthStencilDesc.DepthEnable = FALSE;
 	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 	depthStencilDesc.StencilEnable = FALSE;
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineDesc{};

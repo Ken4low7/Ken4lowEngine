@@ -1,6 +1,7 @@
 struct GpuVolumetricFluidRenderConstants
 {
     float4x4 viewProjection;
+    float4x4 inverseViewProjection;
     float4 cameraPositionOpacity;
     float4 domainOriginAbsorption;
     float4 domainAxisUWidth;
@@ -8,7 +9,11 @@ struct GpuVolumetricFluidRenderConstants
     float4 domainAxisWDepth;
     float4 simulationScales;
     float4 emissionEarlyExitStepsMode;
-    float4 gridDimensionsPadding;
+    float4 gridDimensionsShadowDistance;
+    float4 depthViewportAnisotropy;
+    float4 lightDirectionIntensity;
+    float4 lightColorScattering;
+    float4 ambientSelfShadow;
     float4 smokeColor;
     float4 coldColor;
     float4 hotColor;
@@ -23,6 +28,7 @@ cbuffer VolumetricFluidRenderCB : register(b0)
 Texture3D<float> gDensity : register(t0);
 Texture3D<float> gTemperature : register(t1);
 Texture3D<uint> gObstacle : register(t2);
+Texture2D<float> gSceneDepth : register(t3);
 SamplerState gLinearClampSampler : register(s0);
 
 struct PSInput
@@ -31,6 +37,14 @@ struct PSInput
     float3 worldPosition : TEXCOORD0;
 };
 
+float3 GetVolumeExtent()
+{
+    return float3(
+        gRender.domainAxisUWidth.w,
+        gRender.domainAxisVHeight.w,
+        gRender.domainAxisWDepth.w);
+}
+
 float3 WorldToVolumeDistance(float3 worldPosition)
 {
     const float3 offset = worldPosition - gRender.domainOriginAbsorption.xyz;
@@ -38,6 +52,12 @@ float3 WorldToVolumeDistance(float3 worldPosition)
         dot(offset, gRender.domainAxisUWidth.xyz),
         dot(offset, gRender.domainAxisVHeight.xyz),
         dot(offset, gRender.domainAxisWDepth.xyz));
+}
+
+bool IsInsideVolumeDistance(float3 localDistance)
+{
+    const float3 extent = GetVolumeExtent();
+    return all(localDistance >= 0.0f) && all(localDistance <= extent);
 }
 
 bool IntersectSlab(
@@ -78,12 +98,9 @@ bool IntersectVolume(
         dot(rayDirectionWorld, gRender.domainAxisUWidth.xyz),
         dot(rayDirectionWorld, gRender.domainAxisVHeight.xyz),
         dot(rayDirectionWorld, gRender.domainAxisWDepth.xyz));
-    const float3 extent = float3(
-        gRender.domainAxisUWidth.w,
-        gRender.domainAxisVHeight.w,
-        gRender.domainAxisWDepth.w);
+    const float3 extent = GetVolumeExtent();
 
-    cameraInside = all(origin >= 0.0f) && all(origin <= extent);
+    cameraInside = IsInsideVolumeDistance(origin);
     tNear = -1.0e30f;
     tFar = 1.0e30f;
 
@@ -96,19 +113,91 @@ bool IntersectVolume(
 float3 WorldToUvw(float3 worldPosition)
 {
     const float3 localDistance = WorldToVolumeDistance(worldPosition);
-    return saturate(localDistance / float3(
-        gRender.domainAxisUWidth.w,
-        gRender.domainAxisVHeight.w,
-        gRender.domainAxisWDepth.w));
+    return saturate(localDistance / GetVolumeExtent());
 }
 
 uint LoadObstacle(float3 uvw)
 {
-    const uint3 dimensions = max(uint3(gRender.gridDimensionsPadding.xyz), uint3(1u, 1u, 1u));
+    const uint3 dimensions = max(
+        uint3(gRender.gridDimensionsShadowDistance.xyz),
+        uint3(1u, 1u, 1u));
     const uint3 cell = min(
         uint3(saturate(uvw) * float3(dimensions)),
         dimensions - 1u);
     return gObstacle.Load(int4(cell, 0));
+}
+
+float ReconstructSceneRayDistance(
+    float2 pixelPosition,
+    float3 rayDirection,
+    out bool hasOpaqueSurface)
+{
+    const float2 viewportSize = max(gRender.depthViewportAnisotropy.xy, float2(1.0f, 1.0f));
+    const uint2 maxPixel = uint2(viewportSize) - 1u;
+    const uint2 pixel = min(uint2(max(pixelPosition, 0.0f)), maxPixel);
+    const float sceneDepth = gSceneDepth.Load(int3(pixel, 0));
+    const float clearDepth = gRender.depthViewportAnisotropy.z;
+
+    // Clear値は「このPixelにOpaque Surfaceなし」を表し、standard/reversed depthのどちらでも同じ判定を使う。
+    if (abs(sceneDepth - clearDepth) <= 1.0e-5f)
+    {
+        hasOpaqueSurface = false;
+        return 1.0e30f;
+    }
+
+    // SV_POSITION.xyは既にPixel centerなので、そのままViewport正規化してNDCへ戻す。
+    const float2 uv = pixelPosition / viewportSize;
+    const float2 ndc = float2(uv.x * 2.0f - 1.0f, 1.0f - uv.y * 2.0f);
+    const float4 clipPosition = float4(ndc, sceneDepth, 1.0f);
+    const float4 worldH = mul(clipPosition, gRender.inverseViewProjection);
+    if (abs(worldH.w) <= 1.0e-6f)
+    {
+        hasOpaqueSurface = false;
+        return 1.0e30f;
+    }
+
+    const float3 sceneWorld = worldH.xyz / worldH.w;
+    const float rayDistance = dot(sceneWorld - gRender.cameraPositionOpacity.xyz, rayDirection);
+    hasOpaqueSurface = rayDistance > 0.0f;
+    return hasOpaqueSurface ? rayDistance : 1.0e30f;
+}
+
+float EvaluateHenyeyGreenstein(float cosTheta, float anisotropy)
+{
+    const float g = clamp(anisotropy, -0.949f, 0.949f);
+    const float gSquared = g * g;
+    const float denominator = max(1.0f + gSquared - 2.0f * g * cosTheta, 1.0e-4f);
+    return (1.0f - gSquared) / (12.5663706f * pow(denominator, 1.5f));
+}
+
+float EvaluateLightTransmittance(
+    float3 sampleWorld,
+    float3 lightDirectionToLight,
+    float density,
+    float cellSize)
+{
+    if (gRender.lightDirectionIntensity.w <= 0.0f || gRender.ambientSelfShadow.w <= 0.0f)
+    {
+        return 1.0f;
+    }
+
+    const float shadowDistance =
+        cellSize * max(gRender.gridDimensionsShadowDistance.w, 0.01f);
+    const float3 shadowWorld = sampleWorld + lightDirectionToLight * shadowDistance;
+    const float3 shadowLocal = WorldToVolumeDistance(shadowWorld);
+    if (!IsInsideVolumeDistance(shadowLocal))
+    {
+        return 1.0f;
+    }
+
+    const float shadowDensity = max(
+        0.0f,
+        gDensity.SampleLevel(gLinearClampSampler, WorldToUvw(shadowWorld), 0.0f) *
+            gRender.simulationScales.z);
+    const float meanDensity = 0.5f * (density + shadowDensity);
+    const float transmittance = exp(
+        -meanDensity * max(gRender.domainOriginAbsorption.w, 0.0f) * shadowDistance);
+    return lerp(1.0f, transmittance, saturate(gRender.ambientSelfShadow.w));
 }
 
 float4 main(PSInput input) : SV_TARGET
@@ -139,7 +228,12 @@ float4 main(PSInput input) : SV_TARGET
     }
 
     const float marchStart = max(tNear, 0.0f);
-    const float marchEnd = tFar;
+    bool hasOpaqueSurface = false;
+    const float sceneRayDistance = ReconstructSceneRayDistance(
+        input.position.xy,
+        rayDirection,
+        hasOpaqueSurface);
+    const float marchEnd = hasOpaqueSurface ? min(tFar, sceneRayDistance) : tFar;
     const float rayLength = marchEnd - marchStart;
     if (rayLength <= 1.0e-5f)
     {
@@ -153,6 +247,12 @@ float4 main(PSInput input) : SV_TARGET
     const uint stepCount = min(maxSteps, desiredStepCount);
     const float stepLength = rayLength / float(stepCount);
     const bool obstacleDebug = gRender.emissionEarlyExitStepsMode.w >= 0.5f;
+
+    const float3 lightDirectionToLight = normalize(gRender.lightDirectionIntensity.xyz);
+    const float3 viewDirectionToCamera = -rayDirection;
+    const float phase = EvaluateHenyeyGreenstein(
+        dot(lightDirectionToLight, viewDirectionToCamera),
+        gRender.depthViewportAnisotropy.w);
 
     float3 accumulatedColor = 0.0f;
     float transmittance = 1.0f;
@@ -196,8 +296,23 @@ float4 main(PSInput input) : SV_TARGET
 
                 sampleAlpha = 1.0f - exp(
                     -density * max(gRender.domainOriginAbsorption.w, 0.0f) * stepLength);
-                sampleColor = gRender.smokeColor.rgb +
+
+                const float lightTransmittance = EvaluateLightTransmittance(
+                    sampleWorld,
+                    lightDirectionToLight,
+                    density,
+                    cellSize);
+                const float3 directScattering =
+                    gRender.lightColorScattering.rgb *
+                    gRender.lightDirectionIntensity.w *
+                    gRender.lightColorScattering.w *
+                    phase *
+                    lightTransmittance;
+                const float3 scatteringLighting = gRender.ambientSelfShadow.rgb + directScattering;
+                const float3 thermalEmission =
                     thermalColor * (gRender.emissionEarlyExitStepsMode.x * temperatureAmount);
+
+                sampleColor = gRender.smokeColor.rgb * scatteringLighting + thermalEmission;
             }
         }
 

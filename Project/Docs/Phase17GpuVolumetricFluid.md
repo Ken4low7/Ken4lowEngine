@@ -13,7 +13,8 @@ Phase 17 extends the Phase 16 2D Eulerian solver into a true 3D volume while kee
 - Keep world/domain mapping independent from Scene Components.
 - Keep Phase17 compute/graphics shaders in a dedicated manifest.
 - Treat the `R8_UINT` obstacle Texture3D as a solver boundary contract, not only a visualization field.
-- Render the volume through the existing Transparent Forward Queue so sorting and render-view overrides remain consistent with the rest of the engine.
+- Render the volume through the existing Transparent Forward Queue so sorting and active render-view camera state stay consistent with the rest of the engine.
+- Make Scene Depth sampling a Forward-stage contract instead of letting one volume renderer transition a shared depth target independently.
 
 ## Roadmap
 
@@ -25,7 +26,7 @@ Phase 17 extends the Phase 16 2D Eulerian solver into a true 3D volume while kee
 - [x] 17.6 3D Emitter injection
 - [x] 17.7 Volumetric Collider / Obstacle raster
 - [x] 17.8 Volume Raymarch Rendering
-- [ ] 17.9 Depth-aware composition / lighting
+- [x] 17.9 Depth-aware composition / lighting
 - [ ] 17.10 Editor / Diagnostics / Stress Test
 
 ## 17.1 3D base data / domain API
@@ -68,9 +69,7 @@ Total logical storage is 39 bytes per voxel. A 64^3 volume is about 9.75 MiB and
 
 The shader uses `Texture3D<float4>`, linear clamp filtering, and `numthreads(8, 8, 4)`.
 
-After 17.7 the pass also samples the obstacle Texture3D. Solid destination voxels are forced to zero. If the backtrace source lands inside a solid voxel, the sample position falls back to the current voxel rather than pulling velocity through the wall.
-
-The pass inserts a UAV barrier and returns the write resource to compute-readable state before swapping velocity generations.
+After 17.7 the pass samples the obstacle Texture3D. Solid destination voxels are forced to zero and backtraces do not pull velocity through a solid voxel.
 
 ## 17.4 3D Divergence / Pressure / Projection
 
@@ -128,59 +127,114 @@ The intended fixed-step sequence remains:
 
 ## 17.8 Volume Raymarch Rendering
 
-### Render contract
-
-`GpuVolumetricFluidRenderDesc` separates visual quality from simulation settings. It exposes smoke/cold/hot/obstacle colors, opacity, density/temperature scales, absorption, thermal emission strength, raymarch step scale, early-exit threshold, maximum step count, and Smoke/ObstacleDebug modes.
-
-`GpuVolumetricFluidRenderConstants` is 256 bytes and explicitly mirrored by both raymarch shaders. It contains the active view-projection, active camera position, oriented U/V/W volume axes and extents, cell/quality scales, explicit grid XYZ dimensions, and color parameters.
-
-### Vertexless oriented volume proxy
-
-`GpuVolumetricFluidRaymarchRenderer` issues `DrawInstanced(36, 1, 0, 0)`. `GpuVolumetricFluidRaymarch.VS.hlsl` generates the twelve cube triangles from `SV_VertexID`, then maps unit-cube XYZ into world space using:
+`GpuVolumetricFluidRaymarchRenderer` draws a vertexless oriented unit cube with `DrawInstanced(36, 1, 0, 0)`. The vertex shader maps that cube into the U/V/W domain axes:
 
 `P = origin + U * width * x + V * height * y + W * depth * z`
 
-No dedicated vertex/index buffer is needed for fluid volumes.
-
-### Camera ray / oriented box intersection
-
-The pixel shader transforms the camera ray into the domain U/V/W distance basis and performs three slab intersections against `[0,width] x [0,height] x [0,depth]`.
-
-The proxy uses `CullMode = NONE` so it also works while the camera is inside the volume. To avoid raymarching the same pixel once on the entry face and again on the exit face, the shader keeps only the entry surface when the camera is outside and the exit surface when the camera is inside. The other proxy fragment is discarded before integration.
-
-### Front-to-back integration
-
-The full `[tNear,tFar]` interval is covered even when the requested sample spacing would exceed `maxSteps`. Desired spacing begins at `cellSize * stepScale`, then the actual step count is capped by the configured maximum.
+The pixel shader performs a camera-ray / oriented-box slab intersection and integrates Density/Temperature front-to-back over `[tNear,tFar]`.
 
 Density uses Beer-Lambert-style extinction:
 
 `alphaStep = 1 - exp(-density * absorption * stepLength)`
 
-Color and transmittance accumulate front-to-back:
+and the accumulated transmittance is:
 
 `C += T * alphaStep * sampleColor`
 
 `T *= (1 - alphaStep)`
 
-Temperature blends cold/hot colors and contributes a configurable simple emission term. The loop exits early when `T <= earlyExitTransmittance`.
+The loop exits early when `T <= earlyExitTransmittance`. The proxy uses `CullMode = NONE`; the shader keeps only the entry surface for an outside camera and the exit surface for a camera inside the volume so the same ray is not integrated twice.
 
-The Forward normal blend expects straight-alpha color, so integrated premultiplied color is converted back to straight color before returning the pixel.
+`GpuVolumetricFluidForwardRenderBridge` submits one Transparent Queue packet per volume and sorts from the complete 3D domain center. Camera state is resolved when the Queue callback executes rather than when the packet is submitted.
 
-### Texture3D bindings and obstacle debug
+17.8 originally used a 256-byte render constant block. Phase17.9 extends that contract to 384 bytes to add inverse ViewProjection, Scene Depth metadata, and lighting parameters.
 
-The renderer transitions and binds Density at `t0`, Temperature at `t1`, and Obstacle at `t2`. Smoke mode linearly samples Density/Temperature. `ObstacleDebug` converts UVW to a voxel coordinate using the explicit grid dimensions in the 256-byte render constant block and loads the existing `R8_UINT` mask directly.
+## 17.9 Depth-aware composition / lighting
 
-### Transparent Forward Queue integration
+### Shader-readable Forward depth contract
 
-`GpuVolumetricFluidForwardRenderBridge` submits one `MaterialBlendMode::Transparent` item per volume. Sort depth uses the full 3D domain center including the W/depth axis.
+`RenderDepthContext` owns the shared Depth-read transition boundary used by transparent rendering.
 
-The queued packet stores renderer/grid/domain/render settings, but the renderer resolves `CameraManager::GetActiveViewProjectionMatrix()` and `GetActiveCameraPosition()` only when the Queue executes the draw callback. Reflection Probe and other `RenderViewOverride` paths therefore keep the correct camera state.
+For the main `D24_UNORM_S8_UINT` depth target, the resource itself is created as `R24G8_TYPELESS`. Two views are then created over the same resource:
 
-The PSO uses normal alpha blending, depth test enabled, and depth writes disabled. Phase17.8 intentionally does not sample Scene Depth during ray integration; an opaque object located inside the volume can therefore still be overdrawn by samples behind that object. Phase17.9 owns that depth-aware clipping/composition work.
+- writable `D24_UNORM_S8_UINT` DSV for opaque/masked/legacy 3D drawing
+- read-only `D24_UNORM_S8_UINT` DSV for transparent drawing
+- `R24_UNORM_X8_TYPELESS` SRV for pixel-shader sampling
+
+At the Transparent bucket boundary the active resource transitions:
+
+`DEPTH_WRITE -> DEPTH_READ | PIXEL_SHADER_RESOURCE`
+
+and the same color target is rebound with the read-only DSV. After Additive rendering it returns to `DEPTH_WRITE`.
+
+This transition belongs to the Forward Queue instead of `GpuVolumetricFluidRaymarchRenderer`, so all transparent items see one consistent Depth state and one renderer cannot independently invalidate a shared attachment.
+
+`RenderDepthContextStats` records prepare/restore/failure/attachment counts so Phase17.10 can expose the state directly.
+
+### Scene Depth ray termination
+
+The volume renderer binds Scene Depth at `t3`. The 384-byte `GpuVolumetricFluidRenderConstants` now contains:
+
+- ViewProjection and inverse ViewProjection
+- active camera position
+- active viewport size and Depth clear value
+- oriented volume axes/extents and grid XYZ
+- raymarch quality settings
+- directional-light and ambient-scattering parameters
+- Density/Temperature/Obstacle colors and scales
+
+For each proxy pixel, the shader loads Scene Depth and reconstructs the actual opaque world position with the active inverse ViewProjection:
+
+`world = mul(float4(ndc.xy, sceneDepth, 1), inverseViewProjection)`
+
+The reconstructed world point is projected onto the same camera ray to obtain `sceneRayDistance`.
+
+The integration end becomes:
+
+`marchEnd = min(volumeExit, sceneRayDistance)`
+
+when an opaque surface is present. If the Depth sample equals the active clear value, the ray keeps the normal volume exit instead.
+
+This reconstruction does not hard-code a separate standard-depth or reversed-depth linearization formula. The active projection/inverse projection defines the conversion and the active clear value defines the unwritten-depth case.
+
+Because Scene Depth is now the ray-stop authority, the volume proxy PSO disables fixed-function Depth testing. This is required for the camera-inside case: an exit proxy face may lie behind opaque geometry even though the visible front segment of smoke must still be integrated up to that opaque surface.
+
+### Directional scattering
+
+At draw execution the renderer reads `LightManager` and selects the strongest enabled Directional Light. The CPU passes:
+
+- direction from the sample toward the light
+- light color
+- intensity
+- global ambient color
+
+The pixel shader evaluates a Henyey-Greenstein phase approximation using configurable anisotropy:
+
+`phase(cosTheta, g) = (1-g^2) / (4*pi*(1+g^2-2*g*cosTheta)^(3/2))`
+
+Direct light is combined with ambient scattering before multiplying the smoke color. Temperature emission remains additive so hot smoke/fire can still glow independently from incoming light.
+
+### One-tap volumetric self-shadow approximation
+
+A second full light-ray march would multiply the cost of every camera sample. Phase17.9 instead samples Density once more at a configurable distance toward the Directional Light.
+
+The current and offset densities estimate mean optical thickness:
+
+`T_light ~= exp(-meanDensity * absorption * shadowDistance)`
+
+`selfShadowStrength` blends between fully unshadowed direct light and that approximation. This adds at most one extra Density lookup per occupied camera-ray sample while still giving thick smoke a usable sense of internal light attenuation.
+
+### Render-view safety
+
+Main View depth is fully registered in `RenderDepthContext`.
+
+Reflection/other `CameraManager::RenderViewOverride` paths currently have their own private Depth attachments but do not yet register those attachments with `RenderDepthContext`. When an override is active and no Depth override has been registered, `PrepareForShaderRead()` explicitly refuses to fall back to the Main Depth. The depth-aware volumetric draw is skipped instead of rebinding the wrong RTV/DSV and corrupting the reflection capture.
+
+This is a deliberate safe fallback. Registering Reflection Probe / Planar Reflection depth attachments can later use the existing `PushOverride` / `PopOverride` API without changing the raymarch renderer or shader contract.
 
 ## Build integration
 
-`Project/Directory.Build.props` registers all current Phase17 data/pass/adapter/renderer/manifest/HLSL files only for the main `Ken4lowEngine` project.
+`Project/Directory.Build.props` registers the current Phase17 data/pass/adapter/renderer/depth-context/manifest/HLSL files only for the main `Ken4lowEngine` project.
 
 ## Validation
 
@@ -189,31 +243,36 @@ The PSO uses normal alpha blending, depth test enabled, and depth writes disable
 - Texture3D descriptor and grid contracts
 - deterministic reset and compute solver stages
 - 3D emitter and obstacle integration
-- 256-byte CPU/HLSL raymarch render contract
+- 384-byte CPU/HLSL raymarch render contract
 - vertexless 36-vertex oriented cube proxy
 - active render-view camera resolution at draw execution
 - camera-ray / oriented-box slab intersection
-- camera-inside and camera-outside proxy-surface selection
-- Density/Temperature Texture3D sampling
-- Beer-Lambert extinction and front-to-back transmittance
-- maximum step bound and early exit
+- Scene Depth `t3` binding and inverse-ViewProjection world reconstruction
+- ray termination at the nearest opaque surface
+- typeless D24/R24 Depth attachment and read-only DSV state
+- Transparent/ Additive Forward Depth transition ordering
+- Directional-Light phase scattering and one-tap Density self-shadow approximation
+- Reflection override safe-failure guard when no matching Depth override is registered
+- Beer-Lambert extinction, front-to-back transmittance, max-step bound, and early exit
 - existing obstacle-mask debug rendering
-- Transparent Forward Queue submission and 3D center sorting
 - shader manifest and build registration
 
 A real Windows / Visual Studio / DXC / GPU build is still required after repository integration.
 
-## Next implementation target — 17.9
+## Next implementation target — 17.10
 
-Implement **Depth-aware composition / lighting**.
+Implement **Editor / Diagnostics / Stress Test**.
 
 The next stage should add:
 
-- Scene Depth SRV access for the active Forward render target
-- conversion of scene depth into a world/view ray stop distance
-- raymarch termination at the nearest opaque scene surface instead of always at volume exit
-- robust handling for reversed/standard depth conventions used by the engine
-- simple directional-light or scene-light extinction/scattering support
-- optional shadow/transmittance approximation without a second full expensive volume solve
-- reflection-view-safe depth binding and camera constants
-- diagnostics for depth-clipped samples, step counts, and early exits that Phase17.10 can expose
+- a `GpuVolumetricFluidManager` or equivalent runtime owner that executes the complete fixed-step solver order
+- deterministic reset before the first compute read
+- Scene collection for shared 2D/3D `FluidEmitterComponent` and 3D collider obstacles
+- Forward submission of the active 3D volume
+- Editor controls for grid/domain/simulation/render settings
+- Density / Temperature / Obstacle debug visualization selection
+- dispatch, pressure-iteration, emitter/collider culling, descriptor, Depth-context, and draw counters
+- 64^3 / 128^3 stress presets and approximate logical GPU-memory display
+- safe reset/reinitialize when grid resolution or domain settings change
+- runtime validation of Depth clipping, camera-inside raymarching, and high-opacity early exit
+- final Phase17 completion checklist and known-limitations section

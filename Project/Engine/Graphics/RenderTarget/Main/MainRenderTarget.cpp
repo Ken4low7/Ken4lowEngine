@@ -2,6 +2,7 @@
 #include "DirectXCommon.h"
 #include "RTVManager.h"
 #include "DSVManager.h"
+#include "Engine/Graphics/RenderTarget/Depth/RenderDepthContext.h"
 
 #include <cwchar>
 
@@ -37,6 +38,10 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	void MainRenderTarget::Finalize()
 	{
+		RenderDepthContext* depthContext = RenderDepthContext::GetInstance();
+		depthContext->ClearDefaultTarget(depthStencilResource_.Get());
+		depthContext->ReleaseAttachment(depthStencilResource_.Get());
+
 		// RTV / DSV の解放
 		ReleaseDescriptors();
 
@@ -52,15 +57,31 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	void MainRenderTarget::CreateDepthStencilResource()
 	{
-		D3D12_CLEAR_VALUE clearValue{};
-		depthStencilResource_ = DSVManager::GetInstance()->CreateDepthStencilBuffer(
-			dxCommon_->GetClientWidth(),
-			dxCommon_->GetClientHeight(),
-			settings_.depthFormat,
-			clearValue
-		);
-		// MainRenderTargetの深度も名前を付け、DSV関連のDebugLayer出力から識別できるようにする。
-		depthStencilResource_->SetName(L"MainRenderTargetDepth");
+		if (settings_.depthFormat == DXGI_FORMAT_D24_UNORM_S8_UINT)
+		{
+			// D24 DSVとR24 SRVを同一resourceへ作れるよう、resource本体だけTYPELESSで所有する。
+			depthStencilResource_ = RenderDepthContext::CreateShaderReadableDepth24(
+				dxCommon_->GetDevice(),
+				dxCommon_->GetClientWidth(),
+				dxCommon_->GetClientHeight(),
+				settings_.clearDepth);
+		}
+		else
+		{
+			D3D12_CLEAR_VALUE clearValue{};
+			depthStencilResource_ = DSVManager::GetInstance()->CreateDepthStencilBuffer(
+				dxCommon_->GetClientWidth(),
+				dxCommon_->GetClientHeight(),
+				settings_.depthFormat,
+				clearValue
+			);
+		}
+
+		if (depthStencilResource_)
+		{
+			// MainRenderTargetの深度も名前を付け、DSV関連のDebugLayer出力から識別できるようにする。
+			depthStencilResource_->SetName(L"MainRenderTargetDepth");
+		}
 	}
 
 	/// -------------------------------------------------------------
@@ -218,6 +239,17 @@ namespace Ken4lowEngine
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = GetRtvHandleCPU(backBufferIndex);
 		D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = GetDsvHandleCPU();
 		commandList->OMSetRenderTargets(1, &rtvHandle, false, &dsvHandle);
+
+		if (settings_.depthFormat == DXGI_FORMAT_D24_UNORM_S8_UINT && depthStencilResource_)
+		{
+			RenderDepthBindingDesc depthBinding{};
+			depthBinding.resource = depthStencilResource_.Get();
+			depthBinding.colorRtv = rtvHandle;
+			depthBinding.writableDsv = dsvHandle;
+			depthBinding.viewport = viewport_;
+			depthBinding.clearDepth = settings_.clearDepth;
+			RenderDepthContext::GetInstance()->SetDefaultTarget(depthBinding);
+		}
 	}
 
 	/// -------------------------------------------------------------
@@ -226,7 +258,7 @@ namespace Ken4lowEngine
 	void MainRenderTarget::End(ID3D12GraphicsCommandList* commandList)
 	{
 		// 今は特に何もしない
-		// 後で必要なら barrier や resolve などをここへ寄せる
+		// 後で必要なら後処理をここへ寄せる
 		(void)commandList;
 	}
 
@@ -237,6 +269,10 @@ namespace Ken4lowEngine
 	{
 		(void)width;
 		(void)height;
+
+		RenderDepthContext* depthContext = RenderDepthContext::GetInstance();
+		depthContext->ClearDefaultTarget(depthStencilResource_.Get());
+		depthContext->ReleaseAttachment(depthStencilResource_.Get());
 
 		// 深度リソースを再生成
 		depthStencilResource_.Reset();

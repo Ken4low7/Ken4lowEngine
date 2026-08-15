@@ -1,6 +1,7 @@
 struct GpuVolumetricFluidRenderConstants
 {
     float4x4 viewProjection;
+    float4x4 inverseViewProjection;
     float4 cameraPositionOpacity;
     float4 domainOriginAbsorption;
     float4 domainAxisUWidth;
@@ -8,7 +9,11 @@ struct GpuVolumetricFluidRenderConstants
     float4 domainAxisWDepth;
     float4 simulationScales;
     float4 emissionEarlyExitStepsMode;
-    float4 gridDimensionsPadding;
+    float4 gridDimensionsShadowDistance;
+    float4 depthViewportAnisotropy;
+    float4 lightDirectionIntensity;
+    float4 lightColorScattering;
+    float4 ambientSelfShadow;
     float4 smokeColor;
     float4 coldColor;
     float4 hotColor;
