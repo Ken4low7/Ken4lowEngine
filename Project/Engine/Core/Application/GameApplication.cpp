@@ -7,8 +7,11 @@
 #include "Object3DCommon.h"
 #include "PostEffectManager.h"
 #include <SceneManager.h>
+#include <BaseScene.h>
 #include <Input.h>
 #include <GameTimer.h>
+#include "Engine/Graphics/Renderer/Reflection/ReflectionProbeManager.h"
+#include "Engine/Graphics/Renderer/Reflection/ReflectionProbeSceneBridge.h"
 
 #ifdef USE_IMGUI
 #include <ImGuiManager.h>
@@ -102,6 +105,7 @@ namespace Ken4lowEngine
 	{
 		// Framework 側でウィンドウ、DirectX、共通描画マネージャを先に初期化する。
 		Framework::Initialize();
+		ReflectionProbeManager::GetInstance()->Initialize(dxCommon_); // SkyBox/Descriptor初期化後にProbe用Cube RTを生成できる状態へする。
 
 		// RenderPipelineControllerは既存描画関数を順番に呼ぶだけの薄い入口として初期化する。
 		renderPipelineController_.Initialize(dxCommon_);
@@ -354,6 +358,7 @@ namespace Ken4lowEngine
 			}
 		}
 
+		ReflectionProbeManager::GetInstance()->Finalize(); // RTV/DSV/SRV Heapを破棄する前にProbe用Cube ResourceとDescriptorを返却する。
 		Framework::Finalize();
 	}
 
@@ -387,6 +392,17 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	void GameApplication::DrawGameWorldToSceneTarget()
 	{
+		if (sceneManager_)
+		{
+			if (BaseScene* scene = sceneManager_->GetCurrentScene())
+			{
+				if (ActorWorld* actorWorld = scene->GetSceneActorWorld())
+				{
+					ReflectionProbeSceneBridge::CapturePending(*actorWorld); // Main SceneTargetをBindする前に最大1Probeの6面を更新する。
+				}
+			}
+		}
+
 		// Debug / Release とも SceneRenderTarget へ 3D World + Particle を描画し、PostEffect 入力を必ず作る。
 		PostEffectManager::GetInstance()->BeginDraw();
 		DrawCurrentScene3DPass();
