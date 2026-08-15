@@ -99,7 +99,7 @@ namespace Ken4lowEngine
 		D3D12_GPU_DESCRIPTOR_HANDLE GetGlobalEnvironmentMapHandle()
 		{
 			EnsureEnvironmentMap();
-			return environmentMapHandle_; // Reflection Probe Capture中は局所Overrideを無視してSkyBox Environmentへ戻す。
+			return environmentMapHandle_; // Shader契約を壊さない有効Cubemapを返し、実際に使うかはSourceAvailableで判定する。
 		}
 
 		void PushDrawEnvironmentOverride(D3D12_GPU_DESCRIPTOR_HANDLE handle)
@@ -116,6 +116,23 @@ namespace Ken4lowEngine
 			{
 				drawEnvironmentOverrides_.pop_back();
 			}
+		}
+
+		/// <summary>
+		/// 実際のSkyBoxまたは明示EnvironmentがSceneに設定されているかを返します。
+		/// Shader用fallback Cubemapを内部で保持していても、それだけでは反射源として扱いません。
+		/// </summary>
+		bool HasGlobalReflectionSource() const
+		{
+			return explicitOverrideEnabled_ || !skyBoxTexturePath_.empty();
+		}
+
+		/// <summary>
+		/// 現在のDrawが局所Probeまたは有効なGlobal Environmentを持つかを返します。
+		/// </summary>
+		bool IsCurrentReflectionSourceAvailable() const
+		{
+			return !drawEnvironmentOverrides_.empty() || HasGlobalReflectionSource();
 		}
 
 		const std::string& GetEnvironmentMapPath()
