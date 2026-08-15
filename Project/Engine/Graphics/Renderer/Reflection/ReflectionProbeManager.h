@@ -117,3 +117,5 @@ namespace Ken4lowEngine
 		uint64_t captureSerial_ = 0;
 	};
 } // namespace Ken4lowEngine
+
+#include "ReflectionProbeManager.inl"
