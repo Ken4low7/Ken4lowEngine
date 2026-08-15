@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DX12Include.h"
+#include "Matrix4x4.h"
 #include "Vector3.h"
 
 #include <cstddef>
@@ -32,6 +33,8 @@ namespace Ken4lowEngine
 	struct PlanarReflectionBinding
 	{
 		D3D12_GPU_DESCRIPTOR_HANDLE texture{};
+		Matrix4x4 reflectedViewProjection = Matrix4x4::MakeIdentity();
+		Vector3 planeNormal{ 0.0f, 1.0f, 0.0f };
 		float strength = 0.0f;
 		bool valid = false;
 	};
