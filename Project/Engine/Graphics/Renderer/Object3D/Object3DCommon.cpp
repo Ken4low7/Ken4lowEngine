@@ -177,6 +177,21 @@ namespace Ken4lowEngine
 		LightManager::GetInstance()->BindExtendedShadowResources(16, 17, 18); // 残像も通常Object3Dと同じLight・Shadow契約で描画する。
 	}
 
+	void Object3DCommon::SetAdditiveRenderSetting(MaterialCullMode cullMode)
+	{
+		CullingDiagnostics::GetInstance()->SetActiveSurface(cullMode, CullingDiagnostics::SurfacePath::Alpha);
+		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
+		const PipelineBundle& pipeline = pipelineSet_.GetAdditive(cullMode);
+
+		commandList->SetGraphicsRootSignature(pipeline.rootSignature.Get());
+		commandList->SetPipelineState(pipeline.pipelineState.Get());
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		LightManager::GetInstance()->BindPunctualLights(5, 6);
+		LightManager::GetInstance()->BindLightingSettings(11);
+		LightManager::GetInstance()->BindExtendedShadowResources(16, 17, 18); // Additiveも通常Surfaceと同じLighting Root契約を維持する。
+	}
+
 	void Object3DCommon::SetInstancedRenderSetting(MaterialCullMode cullMode)
 	{
 		CullingDiagnostics::GetInstance()->SetActiveSurface(cullMode, CullingDiagnostics::SurfacePath::Instanced);
