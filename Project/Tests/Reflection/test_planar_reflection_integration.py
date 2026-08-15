@@ -9,7 +9,9 @@ PLANAR_BRIDGE = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Reflection"
 PROBE_BRIDGE = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Reflection" / "ReflectionProbeSceneBridge.h"
 PLANAR_COMPONENT_H = PROJECT_ROOT / "Engine" / "Scene" / "Actor" / "Components" / "PlanarReflectionComponent.h"
 PLANAR_COMPONENT_INL = PROJECT_ROOT / "Engine" / "Scene" / "Actor" / "Components" / "PlanarReflectionComponent.inl"
+MODEL_COMPONENT_H = PROJECT_ROOT / "Engine" / "Scene" / "Actor" / "Components" / "ModelComponent.h"
 MODEL_COMPONENT = PROJECT_ROOT / "Engine" / "Scene" / "Actor" / "Components" / "ModelComponent.cpp"
+OBJECT3D_H = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Object3D" / "Object3D.h"
 COMPONENT_FACTORY = PROJECT_ROOT / "Engine" / "Scene" / "Actor" / "Serialization" / "ComponentFactory.cpp"
 MATERIAL_H = PROJECT_ROOT / "Engine" / "Graphics" / "Material" / "Material.h"
 MATERIAL_CPP = PROJECT_ROOT / "Engine" / "Graphics" / "Material" / "Material.cpp"
@@ -26,7 +28,9 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         cls.probe_bridge = PROBE_BRIDGE.read_text(encoding="utf-8")
         cls.component_h = PLANAR_COMPONENT_H.read_text(encoding="utf-8")
         cls.component = PLANAR_COMPONENT_INL.read_text(encoding="utf-8")
+        cls.model_h = MODEL_COMPONENT_H.read_text(encoding="utf-8")
         cls.model = MODEL_COMPONENT.read_text(encoding="utf-8")
+        cls.object3d_h = OBJECT3D_H.read_text(encoding="utf-8")
         cls.factory = COMPONENT_FACTORY.read_text(encoding="utf-8")
         cls.material_h = MATERIAL_H.read_text(encoding="utf-8")
         cls.material_cpp = MATERIAL_CPP.read_text(encoding="utf-8")
@@ -64,14 +68,23 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertIn("isCapturing_ = true", self.manager)
         self.assertIn("if (isCapturing_) return binding", self.manager)
 
-    def test_component_uses_local_up_as_plane_normal_and_is_serializable(self) -> None:
-        self.assertIn("PlanarReflectionUpdateMode::EveryFrame", self.component_h)
-        self.assertIn("Vector3::Transform({ 0.0f, 1.0f, 0.0f }, rotation)", self.component)
-        self.assertIn('outJson["Strength"]', self.component)
-        self.assertIn('outJson["UpdateMode"]', self.component)
-        self.assertIn('outJson["FlipNormal"]', self.component)
-        self.assertIn("RequestCapture", self.component)
+    def test_component_auto_fits_to_real_receiver_surface_and_serializes_controls(self) -> None:
+        self.assertIn("autoFitToReceiverSurface_ = true", self.component_h)
+        self.assertIn("GetPlanePosition() const", self.component_h)
+        self.assertIn("TryGetReflectionReceiverSurfacePoint", self.component)
+        self.assertIn("GetComponents<ModelComponent>()", self.component)
+        self.assertIn('outJson["AutoFitToReceiverSurface"]', self.component)
+        self.assertIn('outJson["PlaneOffset"]', self.component)
+        self.assertIn('outJson["SurfaceTolerance"]', self.component)
+        self.assertIn("desc.position = GetPlanePosition()", self.component)
         self.assertIn("DrawPlane", self.component)
+
+    def test_model_support_point_uses_real_vertices_instead_of_bounding_sphere(self) -> None:
+        self.assertIn("TryGetSupportPointAlongWorldDirection", self.object3d_h)
+        self.assertIn("model_->GetModelData().subMeshes", self.object3d_h)
+        self.assertIn("for (const VertexData& vertex", self.object3d_h)
+        self.assertIn("Vector3::Transform(localPosition, world)", self.object3d_h)
+        self.assertIn("TryGetReflectionReceiverSurfacePoint", self.model_h)
 
     def test_component_factory_exposes_planar_reflection(self) -> None:
         self.assertIn("PlanarReflectionComponent.h", self.factory)
@@ -90,22 +103,24 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertIn("PlanarReflectionManager::ScopedDrawBinding", self.model)
         self.assertIn("object3D_->Draw()", self.model)
 
-    def test_model_builds_projective_data_from_same_reflected_camera_contract(self) -> None:
-        self.assertIn("BuildPlanarReflectionViewProjection", self.model)
-        self.assertIn("ReflectPoint", self.model)
-        self.assertIn("ReflectVector", self.model)
-        self.assertIn("planarBinding.planeNormal = planar->GetPlaneNormal()", self.model)
-        self.assertIn("planarBinding.reflectedViewProjection", self.model)
-        self.assertIn("Matrix4x4::LookAt", self.model)
+    def test_manager_reuses_exact_view_projection_used_for_capture(self) -> None:
+        self.assertIn("Matrix4x4 capturedViewProjection", self.manager_h)
+        self.assertIn("surface.capturedViewProjection = reflectedView.viewProjection", self.manager)
+        self.assertIn("binding.reflectedViewProjection = surface->capturedViewProjection", self.manager)
+        self.assertIn("binding.planePosition = surface->desc.position", self.manager)
+        self.assertIn("binding.surfaceTolerance = surface->desc.surfaceTolerance", self.manager)
+        self.assertNotIn("BuildPlanarReflectionViewProjection", self.model)
+        self.assertNotIn("ReflectPoint", self.model)
 
-    def test_material_layout_carries_planar_projection_without_root_growth(self) -> None:
+    def test_material_layout_carries_planar_plane_and_tolerance_without_root_growth(self) -> None:
         self.assertIn("float planarReflectionEnabled;", self.material_h)
         self.assertIn("float planarReflectionStrength;", self.material_h)
         self.assertIn("Matrix4x4 planarReflectionViewProjection;", self.material_h)
-        self.assertIn("Vector4 planarReflectionPlaneNormal;", self.material_h)
-        self.assertIn("sizeof(Material::MaterialCBData) == 224", self.material_cpp)
-        self.assertIn("GetCurrentDrawBinding", self.material_cpp)
-        self.assertIn("planarBinding.reflectedViewProjection", self.material_cpp)
+        self.assertIn("Vector4 planarReflectionPlane;", self.material_h)
+        self.assertIn("Vector4 planarReflectionSurfaceParams;", self.material_h)
+        self.assertIn("sizeof(Material::MaterialCBData) == 240", self.material_cpp)
+        self.assertIn("planarBinding.planePosition", self.material_cpp)
+        self.assertIn("planarBinding.surfaceTolerance", self.material_cpp)
         self.assertIn("emissiveOrPlanar", self.material_cpp)
 
     def test_planar_texture_reuses_object_t9_slot_without_root_growth(self) -> None:
@@ -123,11 +138,13 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertNotIn("input.position.xy / planarSize", self.shader)
         self.assertNotIn("planarUv.x = 1.0f - planarUv.x", self.shader)
 
-    def test_shader_masks_non_planar_faces_by_world_normal(self) -> None:
-        self.assertIn("planarReflectionPlaneNormal", self.shader)
+    def test_shader_masks_faces_by_normal_and_actual_plane_distance(self) -> None:
+        self.assertIn("planarReflectionPlane", self.shader)
         self.assertIn("abs(dot(normal, planarNormal))", self.shader)
         self.assertIn("kPlanarNormalAlignmentThreshold", self.shader)
-        self.assertIn("surfaceAlignment >= kPlanarNormalAlignmentThreshold", self.shader)
+        self.assertIn("planeDistance = abs(dot(float4(worldPosition, 1.0f), gMaterial.planarReflectionPlane))", self.shader)
+        self.assertIn("planeTolerance", self.shader)
+        self.assertIn("planeDistance <= planeTolerance", self.shader)
 
 
 if __name__ == "__main__":
