@@ -94,4 +94,3 @@ def test_volumetric_manifest_build_and_docs_register_velocity_advection():
     assert "GpuVolumetricFluidVelocityAdvection.CS.hlsl" in props
     assert "- [x] 17.3 3D Velocity Advection" in docs
     assert "## 17.3 3D Velocity Advection" in docs
-    assert "## Next implementation target — 17.4" in docs

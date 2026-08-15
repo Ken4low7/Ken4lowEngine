@@ -5,21 +5,21 @@ Phase 17 extends the Phase 16 2D Eulerian solver into a true 3D volume while kee
 ## Design direction
 
 - Keep Phase 16 `GpuFluid*` untouched and introduce the 3D path as `GpuVolumetricFluid*`.
-- Use native D3D12 `Texture3D` resources rather than stacking 2D slices in application code.
-- Reuse the existing persistent graphics SRV heap and compute SRV/UAV heap.
+- Use native D3D12 `Texture3D` resources rather than application-managed 2D slice stacks.
+- Reuse the existing graphics SRV heap and compute SRV/UAV heap.
 - Keep CPU/HLSL simulation constants explicitly mirrored.
-- Start with a conservative 64x64x64 default volume and explicit dimensional limits because cost grows cubically.
-- Preserve ping-pong semantics from Phase 16 so advection/projection passes can be ported without changing ownership rules.
-- Clear every field deterministically before any 3D compute pass is allowed to read it.
-- Keep world/domain mapping independent from Scene Components so emitters, colliders, and rendering can share one coordinate contract.
-- Keep Phase17 compute shaders in a dedicated manifest so 2D and 3D solver growth does not couple their shader IDs.
+- Start at 64x64x64 because volumetric cost grows cubically.
+- Preserve ping-pong ownership and explicit resource-state transitions from Phase 16.
+- Clear all fields deterministically before compute passes read them.
+- Keep world/domain mapping independent from Scene Components.
+- Keep Phase17 compute shaders in a dedicated manifest so 2D and 3D shader IDs remain independent.
 
 ## Roadmap
 
 - [x] 17.1 3D base data / domain API
 - [x] 17.2 Texture3D Grid / Resource / Reset foundation
 - [x] 17.3 3D Velocity Advection
-- [ ] 17.4 3D Divergence / Pressure / Projection
+- [x] 17.4 3D Divergence / Pressure / Projection
 - [ ] 17.5 3D Density / Temperature / Vorticity / Buoyancy
 - [ ] 17.6 3D Emitter injection
 - [ ] 17.7 Volumetric Collider / Obstacle raster
@@ -27,15 +27,15 @@ Phase 17 extends the Phase 16 2D Eulerian solver into a true 3D volume while kee
 - [ ] 17.9 Depth-aware composition / lighting
 - [ ] 17.10 Editor / Diagnostics / Stress Test
 
-## 17.1 3D base data and domain API
+## 17.1 3D base data / domain API
 
-`GpuVolumetricFluidGridDesc` defaults to 64x64x64 with a 0.25 world-unit cell size. Each dimension is capped at 256 voxels. Unlike a 2D grid, doubling all three axes multiplies voxel count by eight, so the limit belongs in the data contract rather than only in an Editor widget.
+`GpuVolumetricFluidGridDesc` defaults to 64x64x64 with `cellSize = 0.25f`. Each axis is capped at 256 voxels because doubling all three dimensions multiplies voxel count by eight.
 
-`GpuVolumetricFluidSimulationDesc` begins with:
+`GpuVolumetricFluidSimulationDesc` starts with:
 
 - fixed step: 1/60 s
 - pressure iterations: 32
-- max catch-up substeps: 2
+- max substeps: 2
 - velocity dissipation: 0.995
 - density dissipation: 0.999
 - temperature dissipation: 0.995
@@ -43,33 +43,29 @@ Phase 17 extends the Phase 16 2D Eulerian solver into a true 3D volume while kee
 - buoyancy: 1.0
 - smoke weight: 0.05
 
-Pressure iterations are capped at 192 for the initial 3D solver.
+Pressure iterations are capped at 192.
 
-### World / volume mapping
+### Domain mapping
 
-`GpuVolumetricFluidDomainMapping` defines one oriented volume using `origin`, `axisU`, `axisV`, and `axisW`. The three axes must be non-zero and pairwise orthogonal within a small tolerance.
+`GpuVolumetricFluidDomainMapping` defines an oriented volume with `origin`, `axisU`, `axisV`, and `axisW`.
 
-Mapping helpers provide:
+The shared mapping API provides:
 
 - `WorldToGrid`
 - `GridToWorld`
 - `WorldVelocityToFluid`
 
-This contract will later be shared by 3D emitters, obstacle rasterization, and the raymarch renderer rather than duplicating world-to-volume math in each pass.
+The axes must be non-zero and pairwise orthogonal. Emitters, obstacles, and volume rendering will all reuse this mapping contract.
 
-### Constant-buffer contract
+### Simulation constants
 
 `GpuVolumetricFluidSimulationConstants` is 80 bytes and is mirrored by `GpuVolumetricFluidCommon.hlsli`.
 
-The layout contains grid width/height/depth, cell size, inverse dimensions, inverse cell size, delta/elapsed time, dissipation values, vorticity strength, ambient temperature, buoyancy, and smoke weight.
-
-The HLSL common file centralizes voxel-center UVW conversion, UVW clamping, cell clamping, and in-grid tests for all 3D compute shaders.
+The common HLSL also provides voxel-center UVW conversion, UVW clamping, cell clamping, and in-grid tests.
 
 ## 17.2 Texture3D Grid / Resource / Reset foundation
 
-### Descriptor support
-
-The shared descriptor managers expose native Texture3D helpers:
+The descriptor managers expose native Texture3D helpers:
 
 `SRVManager`
 
@@ -80,121 +76,152 @@ The shared descriptor managers expose native Texture3D helpers:
 - `CreateSRVForTexture3DOnThisHeap`
 - `CreateUAVForTexture3D`
 
-The 3D UAV is created in both the shader-visible heap and the existing CPU-only clear heap. This keeps `ClearUnorderedAccessViewFloat/Uint` available for volume resources without introducing another descriptor allocator.
+The UAV is created in both the shader-visible heap and the CPU-only clear heap so `ClearUnorderedAccessViewFloat/Uint` works for 3D fields.
 
 ### Field layout
 
 | Field | Format | Resources | Logical bytes / voxel | Purpose |
 |---|---|---:|---:|---|
 | Velocity | `R16G16B16A16_FLOAT` | 2 | 16 | xyz velocity, w reserved |
-| Pressure | `R16_FLOAT` | 2 | 4 | Jacobi pressure solve |
+| Pressure | `R16_FLOAT` | 2 | 4 | pressure solve |
 | Divergence | `R16_FLOAT` | 1 | 2 | 3D divergence |
 | Density | `R16_FLOAT` | 2 | 4 | smoke density |
 | Temperature | `R16_FLOAT` | 2 | 4 | buoyancy source |
 | Vorticity | `R16G16B16A16_FLOAT` | 1 | 8 | xyz curl, w reserved |
 | Obstacle | `R8_UINT` | 1 | 1 | solid voxel mask |
 
-Total logical storage is **39 bytes per voxel** before committed-resource alignment/allocator overhead.
+Total logical storage is 39 bytes per voxel before resource-allocation overhead. A 64^3 volume is about 9.75 MiB and 128^3 is about 78 MiB.
 
-At the default 64^3 grid this is 10,223,616 bytes, approximately 9.75 MiB. A 128^3 volume is approximately 78 MiB, which is why 64^3 is the development default.
-
-### Resource ownership
-
-`GpuVolumetricFluidGridResource` owns velocity, pressure, density, and temperature ping-pong fields plus divergence, vorticity, and obstacle single fields.
-
-Every texture receives a persistent graphics SRV, compute SRV, compute UAV, and explicit resource-state tracking.
-
-Velocity and vorticity use RGBA16F because D3D12 has no three-channel 16-bit float texture format suitable for the same filtered Texture3D workflow. Only xyz is used by the solver; w remains reserved.
-
-### Deterministic reset
-
-`GpuVolumetricFluidResetPass` clears both generations of every ping-pong field plus all single fields, inserts UAV barriers, transitions them to compute-readable state, and resets ping-pong read indices to zero.
-
-This guarantees that every later Phase17 compute pass starts from deterministic field contents.
+`GpuVolumetricFluidResetPass` clears both generations of every ping-pong field plus divergence, vorticity, and obstacle, then resets all ping-pong read indices to zero.
 
 ## 17.3 3D Velocity Advection
 
-`GpuVolumetricFluidVelocityAdvectionPass` is the first 3D solver compute pass. It transports the current velocity field through itself with semi-Lagrangian backtracing.
-
-For a voxel center `x`:
+`GpuVolumetricFluidVelocityAdvectionPass` transports velocity through itself with semi-Lagrangian backtracing:
 
 `x_back = x - dt * velocity(x)`
 
-The implementation works in normalized Texture3D UVW coordinates. Velocity remains expressed in fluid world-units per second, so the backtrace is converted to voxel distance with `invCellSize` and then normalized independently by width, height, and depth.
+The shader uses `Texture3D<float4>`, linear clamp filtering, and `numthreads(8, 8, 4)`. Texture3D linear filtering supplies the eight-voxel interpolation required for trilinear sampling.
 
-### Shader path
+The pass performs:
 
-`GpuVolumetricFluidVelocityAdvection.CS.hlsl` binds:
+1. velocity read transition to `NON_PIXEL_SHADER_RESOURCE`,
+2. velocity write transition to `UNORDERED_ACCESS`,
+3. XYZ compute dispatch,
+4. UAV barrier,
+5. write transition back to compute-readable state,
+6. velocity ping-pong swap.
 
-| Root parameter | Register | Resource |
+Obstacle handling remains deferred to 17.7 so the basic 3D solver path can be validated independently.
+
+## 17.4 3D Divergence / Pressure / Projection
+
+`GpuVolumetricFluidPressureProjectionPass` makes the advected velocity field approximately divergence-free.
+
+One projection call records this sequence:
+
+`Clear Pressure -> Divergence -> Jacobi x N -> Projection`
+
+The pressure clear is a UAV clear and is not counted as a compute dispatch. With the default 32 pressure iterations, one projection records 34 compute dispatches.
+
+### Root contract
+
+The three compute stages share one root signature:
+
+| Root parameter | Register | Use |
 |---:|---|---|
 | 0 | `b0` | `GpuVolumetricFluidSimulationConstants` |
-| 1 | `t0` | current velocity `Texture3D<float4>` |
-| 2 | `u0` | next velocity `RWTexture3D<float4>` |
-| static sampler | `s0` | linear clamp sampler |
+| 1 | `t0` | velocity or divergence |
+| 2 | `t1` | pressure read when required |
+| 3 | `u0` | divergence, pressure write, or velocity write |
 
-The shader:
+The root contract intentionally leaves obstacle input out until 17.7.
 
-1. rejects dispatch threads outside width/height/depth,
-2. converts the voxel center to UVW,
-3. trilinearly samples current velocity,
-4. backtraces using `velocity * dt / cellSize`,
-5. clamps the source UVW to valid voxel centers,
-6. trilinearly samples the source position,
-7. applies `velocityDissipation`,
-8. writes xyz velocity and clears reserved w to zero.
+### 3D divergence
 
-`Texture3D` linear filtering performs the eight-voxel interpolation required for trilinear sampling.
+The divergence shader samples the six axis-aligned velocity neighbors:
 
-### Dispatch contract
+- left / right
+- bottom / top
+- back / front
 
-The pass uses `numthreads(8, 8, 4)`, or 256 threads per group. CPU dispatch counts are independently ceil-divided for X, Y, and Z.
+The centered-difference approximation is:
 
-Before dispatch, the read generation transitions to `NON_PIXEL_SHADER_RESOURCE` and the write generation to `UNORDERED_ACCESS`. After dispatch, a UAV barrier is inserted and the write generation transitions back to compute-readable state. Only then does the velocity ping-pong field swap generations.
+`div(u) = 0.5 / h * ((uR.x-uL.x) + (uT.y-uB.y) + (uF.z-uBack.z))`
 
-Obstacle handling is intentionally not mixed into 17.3. Phase17.7 will add solid-voxel behavior after the basic 3D advection/projection pipeline is independently testable.
+Neighbors outside the volume are treated as zero velocity, representing a closed domain with no flux beyond the six outer faces.
 
-### Shader manifest
+### 6-neighbor pressure Jacobi
 
-`GpuVolumetricFluidShaderManifest` is separate from `GpuFluidShaderManifest`. This keeps Phase16 2D compute IDs stable while Phase17 adds its own 3D shaders.
+The pressure Poisson equation uses six neighbors instead of the four-neighbor 2D stencil:
+
+`p_new = (pL + pR + pB + pT + pBack + pFront - div * h^2) / 6`
+
+Both pressure ping-pong generations are cleared before the solve. Each Jacobi iteration transitions the current read generation to SRV, the write generation to UAV, dispatches the full XYZ grid, inserts a UAV barrier, returns the write generation to SRV state, and only then swaps generations.
+
+At the outer domain faces, missing pressure neighbors use the center pressure. This is a simple Neumann pressure boundary and avoids generating artificial pressure gradients outside the volume.
+
+### 3D projection
+
+Projection subtracts the centered 3D pressure gradient:
+
+`u_projected = u - grad(p)`
+
+The gradient contains independent X, Y, and Z components. After subtraction, each outer volume face zeros only its normal velocity component:
+
+- X faces -> `velocity.x = 0`
+- Y faces -> `velocity.y = 0`
+- Z faces -> `velocity.z = 0`
+
+Tangential velocity remains available, so fluid may move along the walls while it cannot leave the volume.
+
+The projected velocity is written as `float4(xyz, 0)` so the reserved velocity W channel stays deterministic.
+
+### Dispatch and diagnostics
+
+All three stages use `numthreads(8, 8, 4)`. CPU group counts are ceil-divided independently for width, height, and depth.
+
+`GpuVolumetricFluidPressureProjectionPass` exposes:
+
+- total compute dispatch count
+- last pressure iteration count
+
+These counters will feed the Phase17.10 diagnostics panel.
 
 ## Build integration
 
-`Project/Directory.Build.props` registers the Phase17 C++ passes, shader manifest, and HLSL files only for the main `Ken4lowEngine` project.
+`Project/Directory.Build.props` registers the Phase17 resource/pass/manifest/HLSL files only for the main `Ken4lowEngine` project.
 
 ## Validation
 
-`Project/Tests/Phase17` statically checks:
+`Project/Tests/Phase17` statically checks the current 3D foundation, including:
 
 - Texture3D descriptor helpers
 - grid/domain contracts
-- 80-byte CPU/HLSL constant layout
-- Texture3D resource creation
-- field formats and ping-pong ownership
-- 39-byte logical memory estimate
-- deterministic reset coverage
-- XYZ velocity dispatch
-- CBV/SRV/UAV root contract
-- linear clamp sampler
-- semi-Lagrangian backtrace and trilinear Texture3D sampling
-- UAV barrier before ping-pong swap
-- shader manifest/build registration
-- roadmap state
+- 80-byte CPU/HLSL constants
+- Texture3D field formats and ownership
+- deterministic reset
+- 3D velocity advection
+- XYZ dispatch
+- pressure reset coverage
+- six-neighbor divergence
+- six-neighbor pressure Jacobi
+- Neumann outer pressure boundary
+- XYZ pressure-gradient subtraction
+- zero normal velocity on all six domain faces
+- UAV barrier before pressure/velocity ping-pong swaps
+- shader manifest and build registration
 
 A real Windows / Visual Studio / DXC / GPU build is still required after repository integration.
 
-## Next implementation target — 17.4
+## Next implementation target — 17.5
 
-Implement **3D Divergence / Pressure / Projection**:
-
-`div(u) = du/dx + dv/dy + dw/dz`
+Implement **3D Density / Temperature / Vorticity / Buoyancy**.
 
 The next stage should add:
 
-- 3D centered-difference divergence
-- pressure ping-pong clear
-- 6-neighbor Jacobi pressure solve
-- 3D pressure-gradient subtraction
-- zero normal velocity on all six volume boundaries
-- XYZ compute dispatch for every projection stage
-- one shared pressure-projection pass that can later accept obstacle voxels in 17.7
+- Texture3D scalar advection for density and temperature
+- 3D curl vector calculation
+- 3D vorticity confinement
+- buoyancy feedback into the Y velocity component
+- velocity projection after force application at the eventual runtime-manager integration point
+- the same XYZ dispatch, barrier, and ping-pong contracts used by 17.3/17.4
