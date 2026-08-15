@@ -16,13 +16,31 @@ namespace Ken4lowEngine
 {
 namespace
 {
+	constexpr const char* ToTargetDomainKey(FluidEmitterTargetDomain target)
+	{
+		switch (target)
+		{
+		case FluidEmitterTargetDomain::Volumetric3D: return "Volumetric3D";
+		case FluidEmitterTargetDomain::Both: return "Both";
+		case FluidEmitterTargetDomain::Fluid2D:
+		default: return "Fluid2D";
+		}
+	}
+
+	FluidEmitterTargetDomain ParseTargetDomain(const std::string& value)
+	{
+		if (value == "Volumetric3D") return FluidEmitterTargetDomain::Volumetric3D;
+		if (value == "Both") return FluidEmitterTargetDomain::Both;
+		return FluidEmitterTargetDomain::Fluid2D;
+	}
+
 	bool RegisterFluidEmitterComponentType()
 	{
 		ComponentFactory::ComponentTypeInfo typeInfo{};
 		typeInfo.className = "FluidEmitterComponent";
 		typeInfo.displayName = "Fluidエミッター";
 		typeInfo.category = "演出";
-		typeInfo.description = "GPU Fluidへ速度・密度・温度を注入するSource Componentです。";
+		typeInfo.description = "Target Domainを明示して2Dまたは3D GPU Fluidへ速度・密度・温度を注入するSource Componentです。";
 		typeInfo.allowMultiple = true;
 		typeInfo.canBeRoot = true;
 		typeInfo.createFunc = [](Actor* owner) -> ActorComponent*
@@ -47,7 +65,7 @@ void FluidEmitterComponent::DrawImGui()
 
 #ifdef USE_IMGUI
 	ImGui::SeparatorText("GPU Fluid Emitter");
-	ImGui::TextDisabled("Injects velocity, density, and temperature into 2D or 3D fluid domains.");
+	ImGui::TextDisabled("Target Domain decides whether this source feeds 2D Fluid, 3D Volumetric Fluid, or both.");
 	ComponentPropertyUtility::DrawImGui(CreateProperties());
 #endif // USE_IMGUI
 }
@@ -76,13 +94,12 @@ GpuFluidEmitterSource FluidEmitterComponent::BuildEmitterSource() const
 	source.densityRate = densityRate_;
 	source.temperatureRate = temperatureRate_;
 	source.falloffExponent = falloffExponent_;
-	source.enabled = emissionEnabled_ && IsActiveInHierarchy();
+	source.enabled = emissionEnabled_ && IsActiveInHierarchy() && Targets2D();
 	return source;
 }
 
 GpuVolumetricFluidEmitterSource FluidEmitterComponent::BuildVolumetricEmitterSource() const
 {
-	// 2D/3DでScene設定を二重管理せず、同じWorld-space Source値を各Solver契約へ変換する。
 	GpuVolumetricFluidEmitterSource source{};
 	source.worldPosition = GetWorldPosition();
 	source.worldVelocity = sourceVelocity_;
@@ -91,7 +108,7 @@ GpuVolumetricFluidEmitterSource FluidEmitterComponent::BuildVolumetricEmitterSou
 	source.densityRate = densityRate_;
 	source.temperatureRate = temperatureRate_;
 	source.falloffExponent = falloffExponent_;
-	source.enabled = emissionEnabled_ && IsActiveInHierarchy();
+	source.enabled = emissionEnabled_ && IsActiveInHierarchy() && TargetsVolumetric3D();
 	return source;
 }
 
@@ -116,6 +133,25 @@ void FluidEmitterComponent::SetFalloffExponent(float exponent)
 std::vector<ComponentProperty> FluidEmitterComponent::CreateProperties()
 {
 	return {
+		ComponentProperty{
+			"TargetDomain",
+			"Target Domain",
+			ComponentPropertyType::String,
+			[this]() -> ComponentPropertyValue { return std::string(ToTargetDomainKey(targetDomain_)); },
+			[this](const ComponentPropertyValue& value)
+			{
+				if (const std::string* typed = std::get_if<std::string>(&value))
+				{
+					targetDomain_ = ParseTargetDomain(*typed);
+				}
+			},
+			0.0f, 0.0f, 0.1f, false,
+			{
+				{ "Fluid2D", "2D Fluid" },
+				{ "Volumetric3D", "3D Volumetric" },
+				{ "Both", "Both (2D + 3D)" },
+			}
+		},
 		ComponentProperty{
 			"EmissionEnabled",
 			"Emission Enabled",
