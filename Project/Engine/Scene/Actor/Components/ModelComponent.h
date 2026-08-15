@@ -28,6 +28,14 @@ namespace Ken4lowEngine
 		void Draw() override;
 		void DrawShadow() override;
 		void DrawReflectionCapture();
+		BoundingSphere GetReflectionCaptureBounds() const
+		{
+			return object3D_ ? object3D_->GetWorldBoundsForCulling() : BoundingSphere{};
+		}
+		bool HasReflectionCaptureBounds() const
+		{
+			return object3D_ && object3D_->HasWorldBoundsForCulling(); // Planar Captureの簡易Clip判定は既存Culling Boundsを再利用する。
+		}
 		bool SupportsShadowCasting() const override { return true; }
 		bool SupportsEditorObjectId() const override { return true; }
 		void DrawEditorObjectId(uint32_t objectId) override
