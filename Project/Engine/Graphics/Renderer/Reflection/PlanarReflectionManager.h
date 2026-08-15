@@ -3,6 +3,7 @@
 #include "DX12Include.h"
 #include "Matrix4x4.h"
 #include "Vector3.h"
+#include "Vector4.h"
 
 #include <array>
 #include <cstddef>
@@ -66,6 +67,15 @@ namespace Ken4lowEngine
 		bool Empty() const { return count == 0; }
 	};
 
+	struct PlanarReflectionDrawCBData
+	{
+		uint32_t surfaceCount = 0;
+		float padding[3]{};
+		std::array<Matrix4x4, kMaxPlanarReflectionSurfacesPerDraw> reflectedViewProjection{};
+		std::array<Vector4, kMaxPlanarReflectionSurfacesPerDraw> plane{};
+		std::array<Vector4, kMaxPlanarReflectionSurfacesPerDraw> surfaceParams{}; // x=Tolerance, y=Strength
+	};
+
 	struct PlanarReflectionDiagnostics
 	{
 		bool registered = false;
@@ -119,6 +129,10 @@ namespace Ken4lowEngine
 		PlanarReflectionBinding ResolveBinding(const void* owner) const;
 		PlanarReflectionBinding GetCurrentDrawBinding() const;
 		PlanarReflectionDrawSet GetCurrentDrawSet() const;
+		bool BindCurrentDrawState(
+			ID3D12GraphicsCommandList* commandList,
+			UINT constantBufferRootParameterIndex,
+			UINT textureTableRootParameterIndex) const;
 		bool BindCurrentDrawDescriptorTable(ID3D12GraphicsCommandList* commandList, UINT rootParameterIndex) const;
 		PlanarReflectionDiagnostics GetDiagnostics(const void* owner) const;
 		bool IsCapturing() const { return isCapturing_; }
