@@ -127,7 +127,7 @@ def test_reset_pass_clears_all_generations_and_restores_pingpong_zero():
     assert "grid.GetTemperature().Reset()" in reset
 
 
-def test_phase17_build_registration_and_roadmap_are_present():
+def test_phase17_build_registration_and_foundation_roadmap_are_present():
     props = read("Directory.Build.props")
     docs = read("Docs/Phase17GpuVolumetricFluid.md")
 
@@ -137,5 +137,3 @@ def test_phase17_build_registration_and_roadmap_are_present():
     assert "GpuVolumetricFluidCommon.hlsli" in props
     assert "- [x] 17.1 3D base data / domain API" in docs
     assert "- [x] 17.2 Texture3D Grid / Resource / Reset foundation" in docs
-    assert "- [ ] 17.3 3D Velocity Advection" in docs
-    assert "## Next implementation target — 17.3" in docs

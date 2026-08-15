@@ -17,6 +17,7 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Editor\GpuFluidDiagnosticsPanel.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Resource\GpuVolumetricFluidGridResource.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidResetPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidVelocityAdvectionPass.cpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidEmitterTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidObstacleTypes.h" />
@@ -39,6 +40,8 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Data\GpuVolumetricFluidTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Resource\GpuVolumetricFluidGridResource.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidResetPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidVelocityAdvectionPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Shader\Manifest\GpuVolumetricFluidShaderManifest.h" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidCommon.hlsli" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVelocityAdvection.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidDivergence.CS.hlsl" />
@@ -53,5 +56,6 @@
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidForward.VS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidForward.PS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidCommon.hlsli" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidVelocityAdvection.CS.hlsl" />
   </ItemGroup>
 </Project>
