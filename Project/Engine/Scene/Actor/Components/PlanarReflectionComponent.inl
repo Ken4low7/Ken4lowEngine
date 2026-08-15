@@ -84,10 +84,12 @@ namespace Ken4lowEngine
 		changed |= ImGui::Checkbox("Receiver表面へ自動Fit##PlanarReflectionAutoFit", &autoFitToReceiverSurface_);
 		changed |= ImGui::DragFloat("鏡面オフセット##PlanarReflectionPlaneOffset", &planeOffset_, 0.01f, -100.0f, 100.0f, "%.3f");
 		changed |= ImGui::DragFloat("面判定許容幅##PlanarReflectionSurfaceTolerance", &surfaceTolerance_, 0.001f, 0.001f, 1.0f, "%.3f");
+		changed |= ImGui::DragFloat("クリップバイアス##PlanarReflectionClipBias", &clipPlaneBias_, 0.001f, 0.0f, 1.0f, "%.3f");
 		changed |= ImGui::Checkbox("平面を表示##PlanarReflectionDebugPlane", &debugPlaneVisible_);
 		changed |= ImGui::DragFloat("デバッグ平面サイズ##PlanarReflectionDebugSize", &debugPlaneSize_, 0.1f, 0.1f, 100.0f);
 		strength_ = std::clamp(strength_, 0.0f, 1.0f);
 		surfaceTolerance_ = std::clamp(surfaceTolerance_, 0.001f, 1.0f);
+		clipPlaneBias_ = std::clamp(clipPlaneBias_, 0.0f, 1.0f);
 		debugPlaneSize_ = (std::max)(debugPlaneSize_, 0.1f);
 
 		if (changed)
@@ -103,9 +105,10 @@ namespace Ken4lowEngine
 		const Vector3 planePosition = GetPlanePosition();
 		ImGui::Text("状態: %s", diagnostics.captured ? (diagnostics.dirty ? "再Capture待ち" : "Captured") : "未Capture");
 		ImGui::Text("Capture Revision: %llu", static_cast<unsigned long long>(diagnostics.captureRevision));
+		ImGui::Text("Oblique Clip: %s", diagnostics.obliqueClipApplied ? "ON" : "OFF");
 		ImGui::Text("鏡面位置: %.3f, %.3f, %.3f", planePosition.x, planePosition.y, planePosition.z);
 		ImGui::TextDisabled("Auto Fit ONでは同じActorのModel頂点から法線方向の最外面を鏡面にします。");
-		ImGui::TextDisabled("Auto Fit OFFではComponent Transform位置 + 鏡面オフセットを使用します。");
+		ImGui::TextDisabled("クリップバイアスは鏡面より裏側や接触面の映り込みをOblique Near Planeで除去します。");
 		ImGui::TextDisabled("Local +Yが鏡面法線です。面判定許容幅の外側には鏡像を貼りません。");
 		ImGui::TextDisabled("Planar有効中はEmissive Texture用t9を鏡Textureへ一時利用するため、両者は併用しません。");
 		if (updateMode_ == PlanarReflectionUpdateMode::OnDemand)
@@ -135,6 +138,7 @@ namespace Ken4lowEngine
 		outJson["AutoFitToReceiverSurface"] = autoFitToReceiverSurface_;
 		outJson["PlaneOffset"] = planeOffset_;
 		outJson["SurfaceTolerance"] = surfaceTolerance_;
+		outJson["ClipPlaneBias"] = clipPlaneBias_;
 		outJson["DebugPlaneVisible"] = debugPlaneVisible_;
 		outJson["DebugPlaneSize"] = debugPlaneSize_;
 	}
@@ -149,10 +153,12 @@ namespace Ken4lowEngine
 		if (const auto it = inJson.find("AutoFitToReceiverSurface"); it != inJson.end() && it->is_boolean()) autoFitToReceiverSurface_ = it->get<bool>();
 		if (const auto it = inJson.find("PlaneOffset"); it != inJson.end() && it->is_number()) planeOffset_ = it->get<float>();
 		if (const auto it = inJson.find("SurfaceTolerance"); it != inJson.end() && it->is_number()) surfaceTolerance_ = it->get<float>();
+		if (const auto it = inJson.find("ClipPlaneBias"); it != inJson.end() && it->is_number()) clipPlaneBias_ = it->get<float>();
 		if (const auto it = inJson.find("DebugPlaneVisible"); it != inJson.end() && it->is_boolean()) debugPlaneVisible_ = it->get<bool>();
 		if (const auto it = inJson.find("DebugPlaneSize"); it != inJson.end() && it->is_number()) debugPlaneSize_ = it->get<float>();
 		strength_ = std::clamp(strength_, 0.0f, 1.0f);
 		surfaceTolerance_ = std::clamp(surfaceTolerance_, 0.001f, 1.0f);
+		clipPlaneBias_ = std::clamp(clipPlaneBias_, 0.0f, 1.0f);
 		debugPlaneSize_ = (std::max)(debugPlaneSize_, 0.1f);
 	}
 
@@ -182,6 +188,11 @@ namespace Ken4lowEngine
 		surfaceTolerance_ = std::clamp(tolerance, 0.001f, 1.0f);
 	}
 
+	inline void PlanarReflectionComponent::SetClipPlaneBias(float bias)
+	{
+		clipPlaneBias_ = std::clamp(bias, 0.0f, 1.0f);
+	}
+
 	inline Vector3 PlanarReflectionComponent::GetPlaneNormal() const
 	{
 		const Matrix4x4 rotation = Matrix4x4::MakeRotateMatrix(GetWorldRotation());
@@ -204,7 +215,7 @@ namespace Ken4lowEngine
 			if (const Actor* owner = GetOwner())
 			{
 				const std::vector<const ModelComponent*> models = owner->GetComponents<ModelComponent>();
-				float bestProjection = -std::numeric_limits<float>::max();
+				float bestProjection = std::numeric_limits<float>::lowest();
 				bool found = false;
 				for (const ModelComponent* model : models)
 				{
@@ -231,6 +242,7 @@ namespace Ken4lowEngine
 		desc.normal = GetPlaneNormal();
 		desc.strength = strength_;
 		desc.surfaceTolerance = surfaceTolerance_;
+		desc.clipPlaneBias = clipPlaneBias_;
 		desc.updateMode = updateMode_;
 		desc.enabled = enabled_ && IsActiveInHierarchy();
 		return desc;
