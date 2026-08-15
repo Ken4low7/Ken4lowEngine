@@ -113,7 +113,18 @@ namespace Ken4lowEngine
 		void SetIgnoreStageChunkCulling(bool ignore) { ignoreStageChunkCulling_ = ignore; }
 		bool IsIgnoreStageChunkCulling() const { return ignoreStageChunkCulling_; }
 		bool HasWorldBoundsForCulling() const { return HasWorldBounds(); }
-		void SetAlphaBlendEnabled(bool enabled) { alphaBlendEnabled_ = enabled; }
+		void SetAlphaBlendEnabled(bool enabled)
+		{
+			alphaBlendEnabled_ = enabled;
+			if (enabled)
+			{
+				material_.SetBlendMode(MaterialBlendMode::Transparent); // Legacy Alpha指定もForward Queueが理解できるMaterial分類へ同期する。
+			}
+			else if (material_.GetBlendMode() == MaterialBlendMode::Transparent)
+			{
+				material_.SetBlendMode(MaterialBlendMode::Opaque);
+			}
+		}
 		bool IsAlphaBlendEnabled() const { return alphaBlendEnabled_; }
 
 		void SetDissolveThreshold(float threshold) { dissolveSetting_.threshold = threshold; }
