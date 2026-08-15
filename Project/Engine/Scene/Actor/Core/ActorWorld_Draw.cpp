@@ -65,6 +65,7 @@ namespace Ken4lowEngine
 					modelComponent->SubmitForwardOpaque(*forwardQueue);
 					modelComponent->SubmitForwardMasked(*forwardQueue); // MaskedもDepthWriteするためOpaque直後の専用Bucketへ収集する。
 					modelComponent->SubmitForwardTransparent(*forwardQueue);
+					modelComponent->SubmitForwardAdditive(*forwardQueue);
 				}
 			}
 		}
@@ -84,6 +85,7 @@ namespace Ken4lowEngine
 		}
 
 		forwardQueue->ExecuteBucket(ForwardRenderBucket::Transparent); // 半透明はDepthを書き終えた不透明・旧経路3D描画の後にBackToFrontで合成する。
+		forwardQueue->ExecuteBucket(ForwardRenderBucket::Additive); // 発光系は通常Alpha合成の後段へ分離し、加算Surface同士を安定順序で処理する。
 		forwardQueue->EndFrame();
 	}
 
