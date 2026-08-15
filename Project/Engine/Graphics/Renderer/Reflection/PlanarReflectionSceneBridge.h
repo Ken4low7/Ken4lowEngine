@@ -45,45 +45,24 @@ namespace Ken4lowEngine
 
 		static void DrawScene(ActorWorld& actorWorld, const Actor* excludedReceiver)
 		{
-			const PlanarReflectionComponent* receiverSurface = nullptr;
-			if (excludedReceiver)
-			{
-				const auto receiverSurfaces = excludedReceiver->GetComponents<PlanarReflectionComponent>();
-				if (!receiverSurfaces.empty())
-				{
-					receiverSurface = receiverSurfaces.front(); // const Actorでは読み取り専用Component一覧からCapture対象面を取得する。
-				}
-			}
-
 			for (const auto& actor : actorWorld.GetActors())
 			{
 				Actor* sceneActor = actor.get();
 				if (!CanUseActor(sceneActor) || sceneActor == excludedReceiver) continue;
 				if (HasActivePlanarSurface(sceneActor))
 				{
-					continue; // v1は鏡の中へ別の鏡を描かず、相互再帰や前Frame Texture依存を避ける。
+					continue; // 鏡の中へ別の鏡を描かず、相互再帰や前Frame Texture依存を避ける。
 				}
 
 				for (ModelComponent* model : sceneActor->GetComponents<ModelComponent>())
 				{
-					if (!model || IsFullyBehindMirrorPlane(*model, receiverSurface)) continue;
-					model->DrawReflectionCapture(); // 鏡の表側にあるOpaque/Maskedだけを反射Cameraから再描画する。
+					if (!model) continue;
+					model->DrawReflectionCapture(); // 鏡裏側はReflection CameraのOblique Near Planeで三角形単位にClipする。
 				}
 			}
 		}
 
 	private:
-		static bool IsFullyBehindMirrorPlane(
-			const ModelComponent& model,
-			const PlanarReflectionComponent* receiverSurface)
-		{
-			if (!receiverSurface || !model.HasReflectionCaptureBounds()) return false;
-			const BoundingSphere bounds = model.GetReflectionCaptureBounds();
-			const Vector3 planeNormal = receiverSurface->GetPlaneNormal();
-			const float signedDistance = Vector3::Dot(bounds.center - receiverSurface->GetWorldPosition(), planeNormal);
-			return signedDistance + bounds.radius < -0.001f; // 完全に鏡の裏側へ入った床/壁だけを簡易Clipし、鏡像を塞がないようにする。
-		}
-
 		static bool HasActivePlanarSurface(Actor* actor)
 		{
 			if (!actor) return false;
