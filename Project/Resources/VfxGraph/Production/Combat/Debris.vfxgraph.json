@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "graphName": "ProdCombatDebris",
+  "scalability": { "boundsMode": "Automatic", "fixedBoundsCenter": [0.0,0.0,0.0], "fixedBoundsRadius": 7.0, "frustumCulling": true, "maxDrawDistance": 120.0, "lodNearDistance": 20.0, "lodFarDistance": 65.0, "lodMidScale": 0.65, "lodFarScale": 0.35, "budgetCost": 3 },
+  "userParameters": [],
+  "emitters": [{
+    "name": "Debris", "maxParticles": 256, "loop": false, "duration": 2.5, "parameterBindings": [],
+    "nodes": [
+      { "id": 1, "name": "Burst", "stage": "Spawn", "type": "Burst", "enabled": true, "editorPosition": [0.0,0.0], "params": { "count": 18 } },
+      { "id": 2, "name": "Spawn", "stage": "Initialize", "type": "SpawnSphere", "enabled": true, "editorPosition": [220.0,0.0], "params": { "radius": 0.28 } },
+      { "id": 3, "name": "Lifetime", "stage": "Initialize", "type": "Lifetime", "enabled": true, "editorPosition": [440.0,0.0], "params": { "lifetime": 2.1, "random": 0.5 } },
+      { "id": 4, "name": "Velocity", "stage": "Initialize", "type": "InitialVelocity", "enabled": true, "editorPosition": [660.0,0.0], "params": { "velocity": [0.0,4.0,0.0], "random": [2.5,2.0,2.5], "speed": 0.0, "speedRandom": 0.0 } },
+      { "id": 5, "name": "Gravity", "stage": "Update", "type": "Gravity", "enabled": true, "editorPosition": [880.0,0.0], "params": { "acceleration": [0.0,-9.8,0.0] } },
+      { "id": 6, "name": "Drag", "stage": "Update", "type": "Drag", "enabled": true, "editorPosition": [1100.0,0.0], "params": { "damping": 0.08 } },
+      { "id": 7, "name": "Renderer", "stage": "Render", "type": "MeshRenderer", "enabled": true, "editorPosition": [1320.0,0.0], "params": { "meshPath": "Sample/cube.gltf", "subMeshIndex": 0, "blendMode": "Alpha", "startScale": [0.12,0.12,0.12], "endScale": [0.05,0.05,0.05], "startRotation": [0.0,0.0,0.0], "angularVelocity": [2.4,3.8,1.7] } }
+    ],
+    "edges": [{"from":1,"to":2},{"from":2,"to":3},{"from":3,"to":4},{"from":4,"to":5},{"from":5,"to":6},{"from":6,"to":7}]
+  }]
+}

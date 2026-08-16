@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "graphName": "ProdMagicArcaneRibbon",
+  "scalability": { "boundsMode": "Automatic", "fixedBoundsCenter": [0.0,0.0,0.0], "fixedBoundsRadius": 8.0, "frustumCulling": true, "maxDrawDistance": 120.0, "lodNearDistance": 20.0, "lodFarDistance": 70.0, "lodMidScale": 0.65, "lodFarScale": 0.35, "budgetCost": 3 },
+  "userParameters": [{ "name": "Intensity", "defaultValue": 1.0, "minValue": 0.5, "maxValue": 2.0 }],
+  "emitters": [{
+    "name": "ArcaneRibbon", "maxParticles": 768, "loop": true, "duration": 2.0,
+    "parameterBindings": [{ "parameterName": "Intensity", "target": "SpawnRate", "scale": 1.0, "bias": 0.0 }],
+    "nodes": [
+      { "id": 1, "name": "Rate", "stage": "Spawn", "type": "SpawnRate", "enabled": true, "editorPosition": [0.0,0.0], "params": { "rate": 36.0 } },
+      { "id": 2, "name": "Spawn", "stage": "Initialize", "type": "SpawnSphere", "enabled": true, "editorPosition": [220.0,0.0], "params": { "radius": 0.18 } },
+      { "id": 3, "name": "Lifetime", "stage": "Initialize", "type": "Lifetime", "enabled": true, "editorPosition": [440.0,0.0], "params": { "lifetime": 0.75, "random": 0.15 } },
+      { "id": 4, "name": "Velocity", "stage": "Initialize", "type": "InitialVelocity", "enabled": true, "editorPosition": [660.0,0.0], "params": { "velocity": [0.0,2.2,0.0], "random": [1.2,0.8,1.2], "speed": 0.0, "speedRandom": 0.0 } },
+      { "id": 5, "name": "Color", "stage": "Initialize", "type": "InitialColor", "enabled": true, "editorPosition": [880.0,0.0], "params": { "start": [0.48,0.2,1.0,1.0], "end": [0.08,0.65,1.0,0.0], "alphaFade": true } },
+      { "id": 6, "name": "Drag", "stage": "Update", "type": "Drag", "enabled": true, "editorPosition": [1100.0,0.0], "params": { "damping": 0.55 } },
+      { "id": 7, "name": "Gradient", "stage": "Update", "type": "ColorOverLife", "enabled": true, "editorPosition": [1320.0,0.0], "params": { "gradient": { "interpolation": "Linear", "keys": [{"time":0.0,"color":[0.7,0.3,1.0,1.0]},{"time":0.55,"color":[0.2,0.7,1.0,0.85]},{"time":1.0,"color":[0.05,0.15,0.9,0.0]}] } } },
+      { "id": 8, "name": "Renderer", "stage": "Render", "type": "RibbonRenderer", "enabled": true, "editorPosition": [1540.0,0.0], "params": { "texturePath": "Effects/white.dds", "blendMode": "Additive", "width": 0.07, "length": 0.9 } }
+    ],
+    "edges": [{"from":1,"to":2},{"from":2,"to":3},{"from":3,"to":4},{"from":4,"to":5},{"from":5,"to":6},{"from":6,"to":7},{"from":7,"to":8}]
+  }]
+}
