@@ -223,9 +223,6 @@
     <ClCompile Include="ApplicationLayer\Scene\DebugScene\DebugScene.cpp">
       <Filter>ApplicationLayer\Scene\DebugScene</Filter>
     </ClCompile>
-    <ClCompile Include="ApplicationLayer\SceneManagement\FadeManager\FadeManager.cpp">
-      <Filter>ApplicationLayer\SceneManager\FadeManager</Filter>
-    </ClCompile>
     <ClCompile Include="Engine\DebugTools\Performance\PerformanceMonitor.cpp">
       <Filter>Engine\DebugTools\Performance</Filter>
     </ClCompile>
@@ -952,6 +949,32 @@
     <ClCompile Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestGroundActor.cpp">
       <Filter>ApplicationLayer\Scene\DebugScene\ActorTest</Filter>
     </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\RenderTarget\Depth\RenderDepthContext.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Resource\GpuFluidGridResource.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidVelocityAdvectionPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidPressureProjectionPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidScalarAdvectionPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidForcePass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidEmitterInjectionPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidObstacleRasterPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidResetPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Manager\GpuFluidManager.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Renderer\GpuFluidForwardRenderer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\FluidEmitterComponent.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\GpuFluidColliderObstacleAdapter.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Editor\GpuFluidDiagnosticsPanel.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Resource\GpuVolumetricFluidGridResource.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidResetPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidVelocityAdvectionPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidPressureProjectionPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidScalarAdvectionPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidForcePass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidEmitterInjectionPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidObstacleRasterPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Renderer\GpuVolumetricFluidRaymarchRenderer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Manager\GpuVolumetricFluidManager.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\GpuVolumetricFluidColliderObstacleAdapter.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Editor\GpuVolumetricFluidDiagnosticsPanel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ApplicationLayer\SceneManagement\SceneFactory\SceneFactory.h">
@@ -959,9 +982,6 @@
     </ClInclude>
     <ClInclude Include="ApplicationLayer\Scene\DebugScene\DebugScene.h">
       <Filter>ApplicationLayer\Scene\DebugScene</Filter>
-    </ClInclude>
-    <ClInclude Include="ApplicationLayer\SceneManagement\FadeManager\FadeManager.h">
-      <Filter>ApplicationLayer\SceneManager\FadeManager</Filter>
     </ClInclude>
     <ClInclude Include="Engine\DebugTools\Performance\PerformanceMonitor.h">
       <Filter>Engine\DebugTools\Performance</Filter>
@@ -1953,6 +1973,49 @@
     <ClInclude Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestGroundActor.h">
       <Filter>ApplicationLayer\Scene\DebugScene\ActorTest</Filter>
     </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\RenderTarget\Depth\RenderDepthContext.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidEmitterTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidObstacleTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Data\GpuFluidRenderTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Resource\GpuFluidGridResource.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidVelocityAdvectionPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidPressureProjectionPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidScalarAdvectionPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidForcePass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidEmitterInjectionPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidObstacleRasterPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidResetPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Manager\GpuFluidManager.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Renderer\GpuFluidForwardRenderer.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Renderer\GpuFluidForwardRenderBridge.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\FluidEmitterComponent.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\GpuFluidColliderObstacleAdapter.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Editor\GpuFluidDiagnosticsPanel.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Shader\Manifest\GpuFluidShaderManifest.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Data\GpuVolumetricFluidTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Data\GpuVolumetricFluidEmitterTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Data\GpuVolumetricFluidObstacleTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Data\GpuVolumetricFluidRenderTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Resource\GpuVolumetricFluidGridResource.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidResetPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidVelocityAdvectionPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidPressureProjectionPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidScalarAdvectionPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidForcePass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidEmitterInjectionPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Pass\GpuVolumetricFluidObstacleRasterPass.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Renderer\GpuVolumetricFluidRaymarchRenderer.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Renderer\GpuVolumetricFluidForwardRenderBridge.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Manager\GpuVolumetricFluidManager.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\GpuVolumetricFluidColliderObstacleAdapter.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Editor\GpuVolumetricFluidDiagnosticsPanel.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Shader\Manifest\GpuVolumetricFluidShaderManifest.h" />
+    <ClInclude Include="Engine\Scene\Actor\Core\ActorHandle.h" />
+    <ClInclude Include="Engine\Scene\Actor\Core\WorldObjectId.h" />
+    <ClInclude Include="Engine\Graphics\Renderer\GpuParticle\Runtime\GpuParticleExecutionGraph.h" />
+    <ClInclude Include="Engine\Graphics\Renderer\GpuParticle\Runtime\GpuParticleEffectRuntime.h" />
+    <ClInclude Include="Engine\Graphics\Renderer\GpuParticle\Runtime\GpuParticleEffectModules.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shader">
@@ -2302,24 +2365,78 @@
     <None Include="Engine\Graphics\Renderer\Animation\Core\AnimationModelShadow.inl">
       <Filter>Engine\Graphics\Renderer\Animation\Core</Filter>
     </None>
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidCommon.hlsli" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVelocityAdvection.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidDivergence.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidPressureJacobi.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidProjection.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidScalarAdvection.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVorticityCurl.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVorticityConfinement.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidBuoyancy.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidEmitterInjection.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidObstacleRaster.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidForward.VS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidForward.PS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidCommon.hlsli" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidVelocityAdvection.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidDivergence.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidPressureJacobi.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidProjection.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidScalarAdvection.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidVorticityCurl.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidVorticityConfinement.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidBuoyancy.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidEmitterInjection.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidObstacleRaster.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidRaymarch.VS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidRaymarch.PS.hlsl" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Engine\Scene\Actor\Serialization\PrefabInstanceRegistry.cpp"><Filter>Engine\Scene\Actor\Serialization</Filter></ClCompile>
-    <ClCompile Include="Engine\Scene\Level\LevelSerializer.cpp"><Filter>Engine\Scene\Level</Filter></ClCompile>
-    <ClCompile Include="Engine\Scene\Level\LevelVersionMigration.cpp"><Filter>Engine\Scene\Level</Filter></ClCompile>
-    <ClCompile Include="Engine\Scene\Level\PrefabReferenceResolver.cpp"><Filter>Engine\Scene\Level</Filter></ClCompile>
-    <ClCompile Include="Engine\Scene\Level\TransactionalLevelLoader.cpp"><Filter>Engine\Scene\Level</Filter></ClCompile>
-    <ClCompile Include="Engine\Scene\Management\SceneDefinitionSerializer.cpp"><Filter>Engine\Scene\Management</Filter></ClCompile>
-    <ClInclude Include="Engine\Scene\Actor\Serialization\PrefabInstanceRegistry.h"><Filter>Engine\Scene\Actor\Serialization</Filter></ClInclude>
-    <ClInclude Include="Engine\Scene\Level\LevelDocument.h"><Filter>Engine\Scene\Level</Filter></ClInclude>
-    <ClInclude Include="Engine\Scene\Level\LevelSerializer.h"><Filter>Engine\Scene\Level</Filter></ClInclude>
-    <ClInclude Include="Engine\Scene\Level\LevelVersionMigration.h"><Filter>Engine\Scene\Level</Filter></ClInclude>
-    <ClInclude Include="Engine\Scene\Level\PrefabReferenceResolver.h"><Filter>Engine\Scene\Level</Filter></ClInclude>
-    <ClInclude Include="Engine\Scene\Level\TransactionalLevelLoader.h"><Filter>Engine\Scene\Level</Filter></ClInclude>
-    <ClInclude Include="Engine\Scene\Management\SceneDefinitionSerializer.h"><Filter>Engine\Scene\Management</Filter></ClInclude>
+    <ClCompile Include="Engine\Scene\Actor\Serialization\PrefabInstanceRegistry.cpp">
+      <Filter>Engine\Scene\Actor\Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Scene\Level\LevelSerializer.cpp">
+      <Filter>Engine\Scene\Level</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Scene\Level\LevelVersionMigration.cpp">
+      <Filter>Engine\Scene\Level</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Scene\Level\PrefabReferenceResolver.cpp">
+      <Filter>Engine\Scene\Level</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Scene\Level\TransactionalLevelLoader.cpp">
+      <Filter>Engine\Scene\Level</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Scene\Management\SceneDefinitionSerializer.cpp">
+      <Filter>Engine\Scene\Management</Filter>
+    </ClCompile>
+    <ClInclude Include="Engine\Scene\Actor\Serialization\PrefabInstanceRegistry.h">
+      <Filter>Engine\Scene\Actor\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Scene\Level\LevelDocument.h">
+      <Filter>Engine\Scene\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Scene\Level\LevelSerializer.h">
+      <Filter>Engine\Scene\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Scene\Level\LevelVersionMigration.h">
+      <Filter>Engine\Scene\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Scene\Level\PrefabReferenceResolver.h">
+      <Filter>Engine\Scene\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Scene\Level\TransactionalLevelLoader.h">
+      <Filter>Engine\Scene\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Scene\Management\SceneDefinitionSerializer.h">
+      <Filter>Engine\Scene\Management</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Engine\Core\Project\ProjectSettings.h"><Filter>Engine\Core</Filter></ClInclude>
+    <ClInclude Include="Engine\Core\Project\ProjectSettings.h">
+      <Filter>Engine\Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Engine\Core\Concurrency\JobSystem.cpp" />

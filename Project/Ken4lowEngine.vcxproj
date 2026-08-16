@@ -32,8 +32,10 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings"></ImportGroup>
-  <ImportGroup Label="Shared"></ImportGroup>
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
@@ -689,6 +691,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\Editor\EditorHierarchyPanel.h" />
     <ClInclude Include="Engine\Editor\EditorLevelDeferredController.h" />
     <ClInclude Include="Engine\Editor\EditorLevelOverlay.h" />
+    <ClInclude Include="Engine\Graphics\Renderer\GpuParticle\Runtime\GpuParticleEffectModules.h" />
+    <ClInclude Include="Engine\Graphics\Renderer\GpuParticle\Runtime\GpuParticleEffectRuntime.h" />
+    <ClInclude Include="Engine\Graphics\Renderer\GpuParticle\Runtime\GpuParticleExecutionGraph.h" />
     <ClInclude Include="Engine\Scene\Actor\Character\AttackBehaviors.h" />
     <ClInclude Include="Engine\Scene\Actor\Character\AttackComponent.h" />
     <ClInclude Include="Engine\Editor\EditorLevelService.h" />
@@ -1066,7 +1071,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets"></ImportGroup>
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
   <ItemGroup>
     <ClCompile Include="Engine\Scene\Actor\Serialization\PrefabInstanceRegistry.cpp" />
     <ClCompile Include="Engine\Scene\Level\LevelSerializer.cpp" />
