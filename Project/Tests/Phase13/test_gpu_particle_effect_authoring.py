@@ -191,11 +191,12 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         self.assertIn("EvaluateTargetFactor", self.runtime)
 
     def test_cpu_gpu_struct_strides_are_explicit(self) -> None:
-        # Phase22 extends both CPU mirrors intentionally; exact sizes continue to guard CPU/HLSL stride drift.
+        # Phase23 adds one previous-position sample while the emitter constant buffer remains unchanged.
         self.assertIn("static_assert(sizeof(GpuEmitterCBData) == 624)", self.emitter_data)
-        self.assertIn("static_assert(sizeof(ParticleCS) == 528)", self.buffers)
+        self.assertIn("static_assert(sizeof(ParticleCS) == 544)", self.buffers)
         self.assertIn("float4 sizeCurveLut", self.particle_data_shader)
         self.assertIn("float3 angularVelocity3D", self.particle_data_shader)
+        self.assertIn("float3 previousTranslate", self.particle_data_shader)
 
     def test_sample_effect_exercises_advanced_multi_emitter_authoring(self) -> None:
         self.assertEqual(self.sample["effectName"], "Phase13Explosion")
