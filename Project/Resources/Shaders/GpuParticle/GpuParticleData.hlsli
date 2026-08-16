@@ -140,6 +140,9 @@ struct Particle
     float4 subEmitterEndColor;
     uint subEmitterAlphaFade;
     float3 phase22Padding;
+
+    float3 previousTranslate;
+    float phase23Padding;
 };
 
 struct EmitterCBData
