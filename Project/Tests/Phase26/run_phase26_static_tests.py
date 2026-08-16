@@ -23,23 +23,23 @@ def main() -> int:
     for path in sorted(THIS_DIR.glob("test_*.py")):
         module = load_module(path)
         for name, function in inspect.getmembers(module, inspect.isfunction):
-  if not name.startswith("test_") or function.__module__ != module.__name__:
-      continue
-  executed += 1
-  try:
-      function()
-      print(f"PASS {path.name}::{name}")
-  except Exception:
-      failures.append(f"{path.name}::{name}")
-      print(f"FAIL {path.name}::{name}")
-      traceback.print_exc()
+            if not name.startswith("test_") or function.__module__ != module.__name__:
+                continue
+            executed += 1
+            try:
+                function()
+                print(f"PASS {path.name}::{name}")
+            except Exception:
+                failures.append(f"{path.name}::{name}")
+                print(f"FAIL {path.name}::{name}")
+                traceback.print_exc()
     if executed == 0:
         print("Phase26 static test runner found no tests.")
         return 1
     if failures:
         print(f"Phase26 static tests failed: {len(failures)} / {executed}")
         for failure in failures:
-  print(f"  - {failure}")
+            print(f"  - {failure}")
         return 1
     print(f"Phase26 static tests passed: {executed}")
     return 0
