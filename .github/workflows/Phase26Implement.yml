@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 3
 
       - name: Recover staged patch
         shell: python
@@ -24,7 +24,7 @@ jobs:
           import subprocess
 
           previous = subprocess.check_output(
-              ["git", "show", "HEAD^:.github/workflows/Phase26Implement.yml"],
+              ["git", "show", "9c49a7be136670b4b788e34ed3c6e9cc4908a4a2:.github/workflows/Phase26Implement.yml"],
               text=True,
           )
           marker = "        run: |\n"
@@ -39,11 +39,11 @@ jobs:
       - name: Apply Phase26 integration
         run: python /tmp/apply_phase26.py
 
-      - name: Commit Phase26 implementation
+      - name: Commit Phase26 project implementation
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Project .github/workflows/Phase26VfxIntegrationCI.yml
+          git add Project
           git commit -m "Phase26: integrate fluid light and post effects"
           git push
