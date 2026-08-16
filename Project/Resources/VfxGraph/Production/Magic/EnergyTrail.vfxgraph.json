@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "graphName": "ProdMagicEnergyTrail",
+  "scalability": { "boundsMode": "Automatic", "fixedBoundsCenter": [0.0,0.0,0.0], "fixedBoundsRadius": 9.0, "frustumCulling": true, "maxDrawDistance": 130.0, "lodNearDistance": 22.0, "lodFarDistance": 75.0, "lodMidScale": 0.65, "lodFarScale": 0.35, "budgetCost": 3 },
+  "userParameters": [{ "name": "Intensity", "defaultValue": 1.0, "minValue": 0.5, "maxValue": 2.0 }],
+  "emitters": [{
+    "name": "EnergyTrail", "maxParticles": 768, "loop": true, "duration": 2.0,
+    "parameterBindings": [{ "parameterName": "Intensity", "target": "SpawnRate", "scale": 1.0, "bias": 0.0 }],
+    "nodes": [
+      { "id": 1, "name": "Rate", "stage": "Spawn", "type": "SpawnRate", "enabled": true, "editorPosition": [0.0,0.0], "params": { "rate": 42.0 } },
+      { "id": 2, "name": "Spawn", "stage": "Initialize", "type": "SpawnPoint", "enabled": true, "editorPosition": [220.0,0.0], "params": {} },
+      { "id": 3, "name": "Lifetime", "stage": "Initialize", "type": "Lifetime", "enabled": true, "editorPosition": [440.0,0.0], "params": { "lifetime": 0.5, "random": 0.08 } },
+      { "id": 4, "name": "Velocity", "stage": "Initialize", "type": "InitialVelocity", "enabled": true, "editorPosition": [660.0,0.0], "params": { "velocity": [0.0,0.0,0.0], "random": [0.08,0.08,0.08], "speed": 0.0, "speedRandom": 0.0 } },
+      { "id": 5, "name": "Color", "stage": "Initialize", "type": "InitialColor", "enabled": true, "editorPosition": [880.0,0.0], "params": { "start": [0.15,0.75,1.0,1.0], "end": [0.02,0.2,1.0,0.0], "alphaFade": true } },
+      { "id": 6, "name": "Gradient", "stage": "Update", "type": "ColorOverLife", "enabled": true, "editorPosition": [1100.0,0.0], "params": { "gradient": { "interpolation": "Linear", "keys": [{"time":0.0,"color":[0.5,0.95,1.0,1.0]},{"time":0.5,"color":[0.08,0.55,1.0,0.8]},{"time":1.0,"color":[0.02,0.08,0.8,0.0]}] } } },
+      { "id": 7, "name": "Renderer", "stage": "Render", "type": "TrailRenderer", "enabled": true, "editorPosition": [1320.0,0.0], "params": { "texturePath": "Effects/white.dds", "blendMode": "Additive", "width": 0.045, "length": 1.35 } }
+    ],
+    "edges": [{"from":1,"to":2},{"from":2,"to":3},{"from":3,"to":4},{"from":4,"to":5},{"from":5,"to":6},{"from":6,"to":7}]
+  }]
+}
