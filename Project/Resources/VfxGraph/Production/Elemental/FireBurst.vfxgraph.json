@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "graphName": "ProdElementalFireBurst",
+  "scalability": { "boundsMode": "Automatic", "fixedBoundsCenter": [0.0,0.0,0.0], "fixedBoundsRadius": 7.0, "frustumCulling": true, "maxDrawDistance": 120.0, "lodNearDistance": 20.0, "lodFarDistance": 65.0, "lodMidScale": 0.65, "lodFarScale": 0.35, "budgetCost": 3 },
+  "userParameters": [{ "name": "Intensity", "defaultValue": 1.0, "minValue": 0.5, "maxValue": 2.0 }],
+  "emitters": [{
+    "name": "FireBurst", "maxParticles": 1024, "loop": false, "duration": 1.2,
+    "parameterBindings": [{ "parameterName": "Intensity", "target": "BurstCount", "scale": 1.0, "bias": 0.0 }],
+    "nodes": [
+      { "id": 1, "name": "Burst", "stage": "Spawn", "type": "Burst", "enabled": true, "editorPosition": [0.0,0.0], "params": { "count": 72 } },
+      { "id": 2, "name": "Spawn", "stage": "Initialize", "type": "SpawnSphere", "enabled": true, "editorPosition": [220.0,0.0], "params": { "radius": 0.3 } },
+      { "id": 3, "name": "Lifetime", "stage": "Initialize", "type": "Lifetime", "enabled": true, "editorPosition": [440.0,0.0], "params": { "lifetime": 1.0, "random": 0.3 } },
+      { "id": 4, "name": "Velocity", "stage": "Initialize", "type": "InitialVelocity", "enabled": true, "editorPosition": [660.0,0.0], "params": { "velocity": [0.0,2.4,0.0], "random": [1.0,1.2,1.0], "speed": 1.2, "speedRandom": 0.8 } },
+      { "id": 5, "name": "Color", "stage": "Initialize", "type": "InitialColor", "enabled": true, "editorPosition": [880.0,0.0], "params": { "start": [1.0,0.78,0.18,1.0], "end": [0.18,0.01,0.0,0.0], "alphaFade": true } },
+      { "id": 6, "name": "Size", "stage": "Initialize", "type": "InitialSize", "enabled": true, "editorPosition": [1100.0,0.0], "params": { "start": [0.1,0.1], "end": [0.65,0.65], "random": 0.25 } },
+      { "id": 7, "name": "Drag", "stage": "Update", "type": "Drag", "enabled": true, "editorPosition": [1320.0,0.0], "params": { "damping": 0.7 } },
+      { "id": 8, "name": "Color Curve", "stage": "Update", "type": "ColorOverLife", "enabled": true, "editorPosition": [1540.0,0.0], "params": { "gradient": { "interpolation": "Linear", "keys": [{"time":0.0,"color":[1.0,0.95,0.45,1.0]},{"time":0.35,"color":[1.0,0.3,0.02,0.9]},{"time":1.0,"color":[0.12,0.0,0.0,0.0]}] } } },
+      { "id": 9, "name": "Fluid", "stage": "Update", "type": "FluidOutput", "enabled": true, "editorPosition": [1760.0,0.0], "params": { "domain": "Volumetric3D", "localOffset": [0.0,0.0,0.0], "localVelocity": [0.0,1.7,0.0], "duration": 0.9, "radius": 0.55, "velocityStrength": 1.0, "densityRate": 0.8, "temperatureRate": 1.8, "falloffExponent": 2.0, "intensityParameter": "Intensity", "radiusParameter": "" } },
+      { "id": 10, "name": "Renderer", "stage": "Render", "type": "SpriteRenderer", "enabled": true, "editorPosition": [1980.0,0.0], "params": { "texturePath": "Effects/white.dds", "blendMode": "Additive", "billboard": true } },
+      { "id": 11, "name": "Light", "stage": "Render", "type": "LightOutput", "enabled": true, "editorPosition": [2200.0,0.0], "params": { "localOffset": [0.0,0.25,0.0], "color": [1.0,0.34,0.06], "duration": 0.3, "intensity": 4.5, "range": 5.5, "intensityParameter": "Intensity", "radiusParameter": "" } }
+    ],
+    "edges": [{"from":1,"to":2},{"from":2,"to":3},{"from":3,"to":4},{"from":4,"to":5},{"from":5,"to":6},{"from":6,"to":7},{"from":7,"to":8},{"from":8,"to":9},{"from":9,"to":10},{"from":10,"to":11}]
+  }]
+}
