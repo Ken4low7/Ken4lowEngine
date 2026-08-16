@@ -1,0 +1,81 @@
+name: BladeTrailPreviewDurationPatch
+
+on:
+  push:
+    branches:
+      - feature/blade-trail-npoint-ribbon
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add Blade Trail preview duration authoring
+        shell: python
+        run: |
+          from pathlib import Path
+
+          cpp_path = Path('Project/Engine/Scene/Actor/Components/BladeTrailComponent.cpp')
+          cpp = cpp_path.read_text(encoding='utf-8')
+
+          inspector_anchor = '''\t\tImGui::Checkbox("Visible", &visible_);\n\t\tImGui::Checkbox("Emit On Start", &emitOnStart_);\n\t\tImGui::Text("Samples: %d / %u", static_cast<int>(samples_.size()), maxSamples_);\n\n\t\tImGui::SeparatorText("Blade Endpoints");\n'''
+          inspector_replacement = '''\t\tImGui::Checkbox("Visible", &visible_);\n\t\tImGui::Checkbox("Emit On Start", &emitOnStart_);\n\t\tImGui::Text("Samples: %d / %u", static_cast<int>(samples_.size()), maxSamples_);\n\n\t\tImGui::SeparatorText("Preview");\n\t\tImGui::DragFloat("Preview Duration", &previewArcDuration_, 0.01f, 0.05f, 1.0f, "%.2f s"); // 小さいほど高速、大きいほど低速でPreview Arcを再生する。\n\t\tpreviewArcDuration_ = std::clamp(previewArcDuration_, 0.05f, 1.0f);\n\t\tImGui::TextDisabled("0.10s = fast slash / 0.28s = default / 0.60s = heavy slash");\n\n\t\tImGui::SeparatorText("Blade Endpoints");\n'''
+          if 'ImGui::DragFloat("Preview Duration"' not in cpp:
+              if inspector_anchor not in cpp:
+                  raise RuntimeError('Inspector anchor not found')
+              cpp = cpp.replace(inspector_anchor, inspector_replacement, 1)
+
+          json_anchor = '''\t\toutJson["SmoothingSubdivisions"] = smoothingSubdivisions_;\n\t\toutJson["HeadColor"] = { headColor_.x, headColor_.y, headColor_.z, headColor_.w };\n'''
+          json_replacement = '''\t\toutJson["SmoothingSubdivisions"] = smoothingSubdivisions_;\n\t\toutJson["PreviewArcDuration"] = previewArcDuration_;\n\t\toutJson["HeadColor"] = { headColor_.x, headColor_.y, headColor_.z, headColor_.w };\n'''
+          if 'outJson["PreviewArcDuration"]' not in cpp:
+              if json_anchor not in cpp:
+                  raise RuntimeError('ToJson anchor not found')
+              cpp = cpp.replace(json_anchor, json_replacement, 1)
+
+          fromjson_anchor = '''\t\tif (inJson.contains("SmoothingSubdivisions") && inJson["SmoothingSubdivisions"].is_number_unsigned()) smoothingSubdivisions_ = std::clamp(inJson["SmoothingSubdivisions"].get<uint32_t>(), 1u, 4u);\n\t\tif (inJson.contains("TexturePath") && inJson["TexturePath"].is_string()) texturePath_ = inJson["TexturePath"].get<std::string>();\n'''
+          fromjson_replacement = '''\t\tif (inJson.contains("SmoothingSubdivisions") && inJson["SmoothingSubdivisions"].is_number_unsigned()) smoothingSubdivisions_ = std::clamp(inJson["SmoothingSubdivisions"].get<uint32_t>(), 1u, 4u);\n\t\tif (inJson.contains("PreviewArcDuration") && inJson["PreviewArcDuration"].is_number()) previewArcDuration_ = std::clamp(inJson["PreviewArcDuration"].get<float>(), 0.05f, 1.0f);\n\t\tif (inJson.contains("TexturePath") && inJson["TexturePath"].is_string()) texturePath_ = inJson["TexturePath"].get<std::string>();\n'''
+          if 'inJson.contains("PreviewArcDuration")' not in cpp:
+              if fromjson_anchor not in cpp:
+                  raise RuntimeError('FromJson anchor not found')
+              cpp = cpp.replace(fromjson_anchor, fromjson_replacement, 1)
+
+          cpp_path.write_text(cpp, encoding='utf-8')
+
+          test_path = Path('Project/Tests/BladeTrail/test_blade_trail_npoint_ribbon.py')
+          test = test_path.read_text(encoding='utf-8')
+          test_anchor = '''        self.assertIn('ImGui::Button("Preview Arc")', source)\n        self.assertIn("ImGuiColorEditFlags_Uint8", source)\n'''
+          test_replacement = '''        self.assertIn('ImGui::Button("Preview Arc")', source)\n        self.assertIn('ImGui::DragFloat("Preview Duration"', source)\n        self.assertIn('previewArcDuration_ = std::clamp(previewArcDuration_, 0.05f, 1.0f)', source)\n        self.assertIn("ImGuiColorEditFlags_Uint8", source)\n'''
+          if 'ImGui::DragFloat("Preview Duration"' not in test:
+              if test_anchor not in test:
+                  raise RuntimeError('Test inspector anchor not found')
+              test = test.replace(test_anchor, test_replacement, 1)
+
+          field_anchor = '''            '"SmoothingSubdivisions"',\n            '"HeadColor"',\n'''
+          field_replacement = '''            '"SmoothingSubdivisions"',\n            '"PreviewArcDuration"',\n            '"HeadColor"',\n'''
+          if "'\"PreviewArcDuration\"'" not in test:
+              if field_anchor not in test:
+                  raise RuntimeError('Test serialization anchor not found')
+              test = test.replace(field_anchor, field_replacement, 1)
+          test_path.write_text(test, encoding='utf-8')
+
+          doc_path = Path('Project/Docs/BladeTrailNPointRibbon.md')
+          doc = doc_path.read_text(encoding='utf-8')
+          if 'Preview Duration' not in doc:
+              doc += '''\n## Preview speed\n\n`Preview Arc` follows the same incremental sampling model as gameplay. `Preview Duration` controls only the editor preview swing duration and is saved as `PreviewArcDuration`. Smaller values produce faster preview swings; larger values produce slower, heavier swings. It does not alter gameplay weapon or animation speed.\n\nSuggested values:\n- `0.10 s`: fast slash / iai-style preview\n- `0.28 s`: default slash preview\n- `0.60 s`: heavy weapon preview\n'''
+              doc_path.write_text(doc, encoding='utf-8')
+
+      - name: Commit preview duration support
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Project/Engine/Scene/Actor/Components/BladeTrailComponent.cpp Project/Tests/BladeTrail/test_blade_trail_npoint_ribbon.py Project/Docs/BladeTrailNPointRibbon.md
+          if ! git diff --cached --quiet; then
+            git commit -m "BladeTrail: expose preview swing duration"
+            git push
+          fi
