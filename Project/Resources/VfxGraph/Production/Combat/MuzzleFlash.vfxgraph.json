@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "graphName": "ProdCombatMuzzleFlash",
+  "scalability": { "boundsMode": "Automatic", "fixedBoundsCenter": [0.0,0.0,0.0], "fixedBoundsRadius": 3.0, "frustumCulling": true, "maxDrawDistance": 100.0, "lodNearDistance": 20.0, "lodFarDistance": 60.0, "lodMidScale": 0.7, "lodFarScale": 0.4, "budgetCost": 1 },
+  "userParameters": [{ "name": "Intensity", "defaultValue": 1.0, "minValue": 0.5, "maxValue": 2.0 }],
+  "emitters": [{
+    "name": "MuzzleFlash", "maxParticles": 256, "loop": false, "duration": 0.12,
+    "parameterBindings": [{ "parameterName": "Intensity", "target": "Size", "scale": 0.65, "bias": 0.35 }],
+    "nodes": [
+      { "id": 1, "name": "Burst", "stage": "Spawn", "type": "Burst", "enabled": true, "editorPosition": [0.0,0.0], "params": { "count": 12 } },
+      { "id": 2, "name": "Spawn", "stage": "Initialize", "type": "SpawnPoint", "enabled": true, "editorPosition": [220.0,0.0], "params": {} },
+      { "id": 3, "name": "Lifetime", "stage": "Initialize", "type": "Lifetime", "enabled": true, "editorPosition": [440.0,0.0], "params": { "lifetime": 0.09, "random": 0.02 } },
+      { "id": 4, "name": "Velocity", "stage": "Initialize", "type": "InitialVelocity", "enabled": true, "editorPosition": [660.0,0.0], "params": { "velocity": [0.0,0.0,2.0], "random": [0.4,0.4,0.6], "speed": 0.0, "speedRandom": 0.0 } },
+      { "id": 5, "name": "Color", "stage": "Initialize", "type": "InitialColor", "enabled": true, "editorPosition": [880.0,0.0], "params": { "start": [1.0,0.92,0.58,1.0], "end": [1.0,0.2,0.02,0.0], "alphaFade": true } },
+      { "id": 6, "name": "Size", "stage": "Initialize", "type": "InitialSize", "enabled": true, "editorPosition": [1100.0,0.0], "params": { "start": [0.22,0.22], "end": [0.05,0.05], "random": 0.25 } },
+      { "id": 7, "name": "Size Curve", "stage": "Update", "type": "SizeOverLife", "enabled": true, "editorPosition": [1320.0,0.0], "params": { "curve": { "interpolation": "SmoothStep", "keys": [{"time":0.0,"value":0.25},{"time":0.12,"value":1.0},{"time":1.0,"value":0.0}] } } },
+      { "id": 8, "name": "Renderer", "stage": "Render", "type": "SpriteRenderer", "enabled": true, "editorPosition": [1540.0,0.0], "params": { "texturePath": "Effects/white.dds", "blendMode": "Additive", "billboard": true } },
+      { "id": 9, "name": "Flash Light", "stage": "Render", "type": "LightOutput", "enabled": true, "editorPosition": [1760.0,0.0], "params": { "localOffset": [0.0,0.0,0.25], "color": [1.0,0.68,0.25], "duration": 0.08, "intensity": 4.0, "range": 4.5, "intensityParameter": "Intensity", "radiusParameter": "" } },
+      { "id": 10, "name": "Bloom", "stage": "Render", "type": "PostEffectOutput", "enabled": true, "editorPosition": [1980.0,0.0], "params": { "effectName": "Bloom", "duration": 0.08, "weight": 0.35, "intensityParameter": "Intensity" } }
+    ],
+    "edges": [{"from":1,"to":2},{"from":2,"to":3},{"from":3,"to":4},{"from":4,"to":5},{"from":5,"to":6},{"from":6,"to":7},{"from":7,"to":8},{"from":8,"to":9},{"from":9,"to":10}]
+  }]
+}
