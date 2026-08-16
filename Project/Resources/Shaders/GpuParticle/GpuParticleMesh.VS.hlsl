@@ -16,7 +16,7 @@ struct PerView
 };
 
 StructuredBuffer<Particle> gParticles : register(t0);
-StructuredBuffer<uint> gVisibleParticleIndices : register(t1);
+Buffer<uint> gVisibleParticleIndices : register(t1);
 ConstantBuffer<PerView> gPerView : register(b0);
 
 float3 RotateEulerXYZ(float3 position, float3 rotation)

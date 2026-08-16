@@ -10,8 +10,8 @@ struct GpuDrivenDraw
 
 ConstantBuffer<GpuDrivenDraw> gDraw : register(b0);
 RWStructuredBuffer<Particle> gParticles : register(u0);
-RWStructuredBuffer<uint> gVisibleParticleIndices : register(u1);
-RWStructuredBuffer<uint> gIndirectDrawArgs : register(u2);
+RWBuffer<uint> gVisibleParticleIndices : register(u1);
+RWBuffer<uint> gIndirectDrawArgs : register(u2);
 
 [numthreads(256, 1, 1)]
 void main(uint3 dispatchThreadId : SV_DispatchThreadID)

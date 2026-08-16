@@ -59,6 +59,22 @@ class GpuDrivenParticleRenderingTests(unittest.TestCase):
         self.assertIn("type == D3D12_HEAP_TYPE_DEFAULT", self.resource_manager_cpp)
         self.assertIn("actualInitState = D3D12_RESOURCE_STATE_COMMON", self.resource_manager_cpp)
 
+    def test_gpu_driven_uint_scratch_buffers_use_r32_typed_views(self) -> None:
+        # Visible index / indirect args are scalar uint arrays, so ClearUAV and HLSL use one typed R32_UINT view contract.
+        gpu_driven_section = self.buffers_cpp.split("void GpuParticleBuffers::CreateGpuDrivenDrawBuffers()", 1)[1]
+        self.assertGreaterEqual(gpu_driven_section.count("DXGI_FORMAT_R32_UINT"), 3)
+        self.assertGreaterEqual(gpu_driven_section.count("StructureByteStride = 0"), 3)
+        self.assertNotIn("CreateUAVForStructuredBuffer(\n\t\tvisibleParticleIndexUavIndex_", gpu_driven_section)
+        self.assertNotIn("CreateUAVForStructuredBuffer(\n\t\tindirectDrawArgsUavIndex_", gpu_driven_section)
+        self.assertIn("GetClearCPUDescriptorHandle(visibleParticleIndexUavIndex_)", gpu_driven_section)
+        self.assertIn("GetClearCPUDescriptorHandle(indirectDrawArgsUavIndex_)", gpu_driven_section)
+        self.assertIn("Buffer<uint> gVisibleParticleIndices : register(t1)", self.sprite_vs)
+        self.assertIn("Buffer<uint> gVisibleParticleIndices : register(t1)", self.mesh_vs)
+        self.assertIn("RWBuffer<uint> gVisibleParticleIndices : register(u1)", self.compact_cs)
+        self.assertIn("RWBuffer<uint> gIndirectDrawArgs : register(u2)", self.compact_cs)
+        self.assertIn("RWBuffer<uint> gVisibleParticleIndices : register(u1)", self.sort_cs)
+        self.assertIn("RWBuffer<uint> gIndirectDrawArgs : register(u2)", self.sort_cs)
+
     def test_compaction_filters_dead_and_other_render_groups(self) -> None:
         # CPU reference keeps the intended visible-index contract readable beside the HLSL implementation.
         particles = [
@@ -83,7 +99,7 @@ class GpuDrivenParticleRenderingTests(unittest.TestCase):
 
     def test_vertex_shaders_resolve_compacted_indices(self) -> None:
         for shader in (self.sprite_vs, self.mesh_vs):
-            self.assertIn("StructuredBuffer<uint> gVisibleParticleIndices : register(t1)", shader)
+            self.assertIn("Buffer<uint> gVisibleParticleIndices : register(t1)", shader)
             self.assertIn("gVisibleParticleIndices[instanceId]", shader)
             self.assertIn("gParticles[particleIndex]", shader)
 
@@ -129,7 +145,7 @@ class GpuDrivenParticleRenderingTests(unittest.TestCase):
         self.assertIn("compactBarriers[1].UAV.pResource = indirectBuffer", self.renderer_cpp)
 
     def test_uav_clears_use_direct_cpu_only_descriptors(self) -> None:
-        # D3D12 forbids copying descriptors from a shader-visible heap, so clear descriptors must be created directly.
+        # D3D12 requires ClearUAV's CPU descriptor to come from a non-shader-visible heap.
         self.assertIn("clearCpuDescriptorHeap_", self.uav_h)
         self.assertIn("D3D12_DESCRIPTOR_HEAP_FLAG_NONE", self.uav_cpp)
         self.assertNotIn("MirrorUavDescriptorForClear", self.uav_h + self.uav_cpp)

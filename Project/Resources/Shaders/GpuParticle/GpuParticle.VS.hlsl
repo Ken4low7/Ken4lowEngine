@@ -37,7 +37,7 @@ float4x4 MakeBasisRowMajor(float3 xAxis, float3 yAxis, float3 zAxis)
 }
 
 StructuredBuffer<Particle> gParticles : register(t0);
-StructuredBuffer<uint> gVisibleParticleIndices : register(t1);
+Buffer<uint> gVisibleParticleIndices : register(t1);
 ConstantBuffer<PerView> gPerView : register(b0);
 
 VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID)

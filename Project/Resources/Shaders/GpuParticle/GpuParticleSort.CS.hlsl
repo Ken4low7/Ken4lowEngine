@@ -19,8 +19,8 @@ struct SortConstants
 ConstantBuffer<PerView> gPerView : register(b0);
 ConstantBuffer<SortConstants> gSort : register(b1);
 RWStructuredBuffer<Particle> gParticles : register(u0);
-RWStructuredBuffer<uint> gVisibleParticleIndices : register(u1);
-RWStructuredBuffer<uint> gIndirectDrawArgs : register(u2);
+RWBuffer<uint> gVisibleParticleIndices : register(u1);
+RWBuffer<uint> gIndirectDrawArgs : register(u2);
 
 static const uint GPU_PARTICLE_INVALID_INDEX = 0xFFFFFFFFu;
 static const float GPU_PARTICLE_SORT_SENTINEL = 3.402823466e+38f;

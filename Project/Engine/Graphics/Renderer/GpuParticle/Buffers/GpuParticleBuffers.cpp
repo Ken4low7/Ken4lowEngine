@@ -209,6 +209,8 @@ void GpuParticleBuffers::CreateFreeListBuffer()
 void GpuParticleBuffers::CreateGpuDrivenDrawBuffers()
 {
 	auto* device = DirectXCommon::GetInstance()->GetDevice();
+	auto* uavManager = UAVManager::GetInstance();
+	auto* srvManager = SRVManager::GetInstance();
 
 	visibleParticleIndexBuffer_ = ResourceManager::CreateBufferResource(
 		device,
@@ -217,13 +219,35 @@ void GpuParticleBuffers::CreateGpuDrivenDrawBuffers()
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		D3D12_RESOURCE_STATE_COMMON);
 
-	visibleParticleIndexUavIndex_ = UAVManager::GetInstance()->Allocate();
-	UAVManager::GetInstance()->CreateUAVForStructuredBuffer(
-		visibleParticleIndexUavIndex_, visibleParticleIndexBuffer_.Get(), kMaxParticles, sizeof(uint32_t));
+	visibleParticleIndexUavIndex_ = uavManager->Allocate();
+	D3D12_UNORDERED_ACCESS_VIEW_DESC visibleUavDesc{};
+	visibleUavDesc.Format = DXGI_FORMAT_R32_UINT;
+	visibleUavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	visibleUavDesc.Buffer.FirstElement = 0;
+	visibleUavDesc.Buffer.NumElements = kMaxParticles;
+	visibleUavDesc.Buffer.StructureByteStride = 0;
+	visibleUavDesc.Buffer.CounterOffsetInBytes = 0;
+	visibleUavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+	// Visible indexはuint配列なのでTyped R32_UINT Viewにする。ClearUAVとBuffer<uint>の契約を同じViewへ揃える。
+	device->CreateUnorderedAccessView(
+		visibleParticleIndexBuffer_.Get(), nullptr, &visibleUavDesc,
+		uavManager->GetCPUDescriptorHandle(visibleParticleIndexUavIndex_));
+	device->CreateUnorderedAccessView(
+		visibleParticleIndexBuffer_.Get(), nullptr, &visibleUavDesc,
+		uavManager->GetClearCPUDescriptorHandle(visibleParticleIndexUavIndex_));
 
-	visibleParticleIndexSrvIndex_ = SRVManager::GetInstance()->Allocate();
-	SRVManager::GetInstance()->CreateSRVForStructureBuffer(
-		visibleParticleIndexSrvIndex_, visibleParticleIndexBuffer_.Get(), kMaxParticles, sizeof(uint32_t));
+	visibleParticleIndexSrvIndex_ = srvManager->Allocate();
+	D3D12_SHADER_RESOURCE_VIEW_DESC visibleSrvDesc{};
+	visibleSrvDesc.Format = DXGI_FORMAT_R32_UINT;
+	visibleSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	visibleSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	visibleSrvDesc.Buffer.FirstElement = 0;
+	visibleSrvDesc.Buffer.NumElements = kMaxParticles;
+	visibleSrvDesc.Buffer.StructureByteStride = 0;
+	visibleSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	device->CreateShaderResourceView(
+		visibleParticleIndexBuffer_.Get(), &visibleSrvDesc,
+		srvManager->GetCPUDescriptorHandle(visibleParticleIndexSrvIndex_));
 
 	indirectDrawArgsBuffer_ = ResourceManager::CreateBufferResource(
 		device,
@@ -232,10 +256,22 @@ void GpuParticleBuffers::CreateGpuDrivenDrawBuffers()
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		D3D12_RESOURCE_STATE_COMMON);
 
-	// GPU-driven scratch bufferはCOMMONから最初のUAVアクセスへ暗黙promotionさせ、生成時State警告を出さない。
-	indirectDrawArgsUavIndex_ = UAVManager::GetInstance()->Allocate();
-	UAVManager::GetInstance()->CreateUAVForStructuredBuffer(
-		indirectDrawArgsUavIndex_, indirectDrawArgsBuffer_.Get(), kIndirectArgumentWordCount, sizeof(uint32_t));
+	indirectDrawArgsUavIndex_ = uavManager->Allocate();
+	D3D12_UNORDERED_ACCESS_VIEW_DESC indirectUavDesc{};
+	indirectUavDesc.Format = DXGI_FORMAT_R32_UINT;
+	indirectUavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	indirectUavDesc.Buffer.FirstElement = 0;
+	indirectUavDesc.Buffer.NumElements = kIndirectArgumentWordCount;
+	indirectUavDesc.Buffer.StructureByteStride = 0;
+	indirectUavDesc.Buffer.CounterOffsetInBytes = 0;
+	indirectUavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+	// Indirect argumentsも5個のuintとして扱い、ExecuteIndirectへ渡すResource本体のbyte layoutは変えない。
+	device->CreateUnorderedAccessView(
+		indirectDrawArgsBuffer_.Get(), nullptr, &indirectUavDesc,
+		uavManager->GetCPUDescriptorHandle(indirectDrawArgsUavIndex_));
+	device->CreateUnorderedAccessView(
+		indirectDrawArgsBuffer_.Get(), nullptr, &indirectUavDesc,
+		uavManager->GetClearCPUDescriptorHandle(indirectDrawArgsUavIndex_));
 }
 
 } // namespace Ken4lowEngine
