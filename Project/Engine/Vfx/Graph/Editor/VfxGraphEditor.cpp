@@ -755,7 +755,7 @@ bool VfxGraphEditor::DrawNodePayloadEditor(VfxGraphNodeDesc& node)
 
 	if (auto* p = std::get_if<VfxGraphSpawnRateNode>(&node.payload))
 	{
-		changed |= ImGui::DragFloat("Rate", &p->rate, 0.1f, 0.0f, 100000.0f);
+		changed = ImGui::DragFloat("Rate", &p->rate, 0.1f, 0.0f, 100000.0f) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphBurstNode>(&node.payload))
 	{
@@ -768,64 +768,64 @@ bool VfxGraphEditor::DrawNodePayloadEditor(VfxGraphNodeDesc& node)
 	}
 	else if (auto* p = std::get_if<VfxGraphSpawnSphereNode>(&node.payload))
 	{
-		changed |= ImGui::DragFloat("Radius", &p->radius, 0.01f, 0.0f, 10000.0f);
+		changed = ImGui::DragFloat("Radius", &p->radius, 0.01f, 0.0f, 10000.0f) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphSpawnBoxNode>(&node.payload))
 	{
-		changed |= ImGui::DragFloat3("Size", &p->size.x, 0.01f, 0.0f, 10000.0f);
+		changed = ImGui::DragFloat3("Size", &p->size.x, 0.01f, 0.0f, 10000.0f) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphLifetimeNode>(&node.payload))
 	{
-		changed |= ImGui::DragFloat("Lifetime", &p->lifetime, 0.01f, 0.001f, 120.0f);
-		changed |= ImGui::DragFloat("Random", &p->random, 0.01f, 0.0f, 120.0f);
+		changed = ImGui::DragFloat("Lifetime", &p->lifetime, 0.01f, 0.001f, 120.0f) || changed;
+		changed = ImGui::DragFloat("Random", &p->random, 0.01f, 0.0f, 120.0f) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphInitialVelocityNode>(&node.payload))
 	{
-		changed |= ImGui::DragFloat3("Velocity", &p->velocity.x, 0.05f);
-		changed |= ImGui::DragFloat3("Velocity Random", &p->random.x, 0.05f, 0.0f, 10000.0f);
-		changed |= ImGui::DragFloat("Speed", &p->speed, 0.05f);
-		changed |= ImGui::DragFloat("Speed Random", &p->speedRandom, 0.05f, 0.0f, 10000.0f);
+		changed = ImGui::DragFloat3("Velocity", &p->velocity.x, 0.05f) || changed;
+		changed = ImGui::DragFloat3("Velocity Random", &p->random.x, 0.05f, 0.0f, 10000.0f) || changed;
+		changed = ImGui::DragFloat("Speed", &p->speed, 0.05f) || changed;
+		changed = ImGui::DragFloat("Speed Random", &p->speedRandom, 0.05f, 0.0f, 10000.0f) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphInitialColorNode>(&node.payload))
 	{
-		changed |= ImGui::ColorEdit4("Start", &p->start.x);
-		changed |= ImGui::ColorEdit4("End", &p->end.x);
-		changed |= ImGui::Checkbox("Alpha Fade", &p->alphaFade);
+		changed = ImGui::ColorEdit4("Start", &p->start.x) || changed;
+		changed = ImGui::ColorEdit4("End", &p->end.x) || changed;
+		changed = ImGui::Checkbox("Alpha Fade", &p->alphaFade) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphInitialSizeNode>(&node.payload))
 	{
-		changed |= ImGui::DragFloat2("Start Size", &p->start.x, 0.01f, 0.0f, 10000.0f);
-		changed |= ImGui::DragFloat2("End Size", &p->end.x, 0.01f, 0.0f, 10000.0f);
-		changed |= ImGui::DragFloat("Size Random", &p->random, 0.01f, 0.0f, 10000.0f);
+		changed = ImGui::DragFloat2("Start Size", &p->start.x, 0.01f, 0.0f, 10000.0f) || changed;
+		changed = ImGui::DragFloat2("End Size", &p->end.x, 0.01f, 0.0f, 10000.0f) || changed;
+		changed = ImGui::DragFloat("Size Random", &p->random, 0.01f, 0.0f, 10000.0f) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphGravityNode>(&node.payload))
 	{
-		changed |= ImGui::DragFloat3("Acceleration", &p->acceleration.x, 0.05f);
+		changed = ImGui::DragFloat3("Acceleration", &p->acceleration.x, 0.05f) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphDragNode>(&node.payload))
 	{
-		changed |= ImGui::DragFloat("Damping", &p->damping, 0.01f, 0.0f, 1000.0f);
+		changed = ImGui::DragFloat("Damping", &p->damping, 0.01f, 0.0f, 1000.0f) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphInitialRotationNode>(&node.payload))
 	{
-		changed |= ImGui::DragFloat("Rotation", &p->rotation, 0.01f);
-		changed |= ImGui::DragFloat("Rotation Random", &p->random, 0.01f, 0.0f, 100.0f);
+		changed = ImGui::DragFloat("Rotation", &p->rotation, 0.01f) || changed;
+		changed = ImGui::DragFloat("Rotation Random", &p->random, 0.01f, 0.0f, 100.0f) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphRotationRateNode>(&node.payload))
 	{
-		changed |= ImGui::DragFloat("Radians / sec", &p->radiansPerSecond, 0.01f);
+		changed = ImGui::DragFloat("Radians / sec", &p->radiansPerSecond, 0.01f) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphSizeOverLifeNode>(&node.payload))
 	{
 		const size_t oldKeyCount = p->multiplier.keys.size();
 		DrawFloatCurveEditor(p->multiplier);
-		changed |= oldKeyCount != p->multiplier.keys.size() || ImGui::IsItemEdited();
+		changed = oldKeyCount != p->multiplier.keys.size() || ImGui::IsItemEdited() || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphColorOverLifeNode>(&node.payload))
 	{
 		const size_t oldKeyCount = p->gradient.keys.size();
 		DrawColorGradientEditor(p->gradient);
-		changed |= oldKeyCount != p->gradient.keys.size() || ImGui::IsItemEdited();
+		changed = oldKeyCount != p->gradient.keys.size() || ImGui::IsItemEdited() || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphCollisionNode>(&node.payload))
 	{
@@ -837,18 +837,18 @@ bool VfxGraphEditor::DrawNodePayloadEditor(VfxGraphNodeDesc& node)
 		if (ImGui::Combo("Response", &response, kResponses, IM_ARRAYSIZE(kResponses))) { p->response = static_cast<VfxCollisionResponse>(response); changed = true; }
 		if (p->shape == VfxCollisionShape::Plane)
 		{
-			changed |= ImGui::DragFloat3("Plane Normal", &p->planeNormal.x, 0.01f);
-			changed |= ImGui::DragFloat("Plane Distance", &p->planeDistance, 0.01f);
+			changed = ImGui::DragFloat3("Plane Normal", &p->planeNormal.x, 0.01f) || changed;
+			changed = ImGui::DragFloat("Plane Distance", &p->planeDistance, 0.01f) || changed;
 		}
 		else
 		{
-			changed |= ImGui::DragFloat3("Sphere Center", &p->sphereCenter.x, 0.01f);
-			changed |= ImGui::DragFloat("Sphere Radius", &p->sphereRadius, 0.01f, 0.001f, 10000.0f);
+			changed = ImGui::DragFloat3("Sphere Center", &p->sphereCenter.x, 0.01f) || changed;
+			changed = ImGui::DragFloat("Sphere Radius", &p->sphereRadius, 0.01f, 0.001f, 10000.0f) || changed;
 		}
-		changed |= ImGui::DragFloat("Particle Radius", &p->particleRadius, 0.001f, 0.0f, 1000.0f);
-		changed |= ImGui::SliderFloat("Restitution", &p->restitution, 0.0f, 1.0f);
-		changed |= ImGui::SliderFloat("Friction", &p->friction, 0.0f, 1.0f);
-		changed |= ImGui::Checkbox("Generate Event", &p->generateEvent);
+		changed = ImGui::DragFloat("Particle Radius", &p->particleRadius, 0.001f, 0.0f, 1000.0f) || changed;
+		changed = ImGui::SliderFloat("Restitution", &p->restitution, 0.0f, 1.0f) || changed;
+		changed = ImGui::SliderFloat("Friction", &p->friction, 0.0f, 1.0f) || changed;
+		changed = ImGui::Checkbox("Generate Event", &p->generateEvent) || changed;
 	}
 	else if (std::holds_alternative<VfxGraphDeathEventNode>(node.payload))
 	{
@@ -861,46 +861,46 @@ bool VfxGraphEditor::DrawNodePayloadEditor(VfxGraphNodeDesc& node)
 		if (ImGui::Combo("Source Event", &eventType, kEvents, IM_ARRAYSIZE(kEvents))) { p->sourceEvent = static_cast<VfxParticleEventType>(eventType); changed = true; }
 		int count = static_cast<int>(p->count);
 		if (ImGui::DragInt("Child Count", &count, 1.0f, 1, static_cast<int>(VfxGraphDesc::kMaxSubEmitterSpawnCount))) { p->count = static_cast<uint32_t>(count); changed = true; }
-		changed |= ImGui::DragFloat("Child Lifetime", &p->lifeTime, 0.01f, 0.001f, 120.0f);
-		changed |= ImGui::DragFloat("Child Speed", &p->speed, 0.01f, 0.0f, 10000.0f);
-		changed |= ImGui::DragFloat("Spread", &p->spread, 0.01f, 0.0f, 100.0f);
-		changed |= ImGui::DragFloat("Inherit Velocity", &p->inheritVelocity, 0.01f);
-		changed |= ImGui::DragFloat2("Child Start Size", &p->startSize.x, 0.01f, 0.0f, 10000.0f);
-		changed |= ImGui::DragFloat2("Child End Size", &p->endSize.x, 0.01f, 0.0f, 10000.0f);
-		changed |= ImGui::ColorEdit4("Child Start Color", &p->startColor.x);
-		changed |= ImGui::ColorEdit4("Child End Color", &p->endColor.x);
-		changed |= ImGui::Checkbox("Child Alpha Fade", &p->alphaFade);
+		changed = ImGui::DragFloat("Child Lifetime", &p->lifeTime, 0.01f, 0.001f, 120.0f) || changed;
+		changed = ImGui::DragFloat("Child Speed", &p->speed, 0.01f, 0.0f, 10000.0f) || changed;
+		changed = ImGui::DragFloat("Spread", &p->spread, 0.01f, 0.0f, 100.0f) || changed;
+		changed = ImGui::DragFloat("Inherit Velocity", &p->inheritVelocity, 0.01f) || changed;
+		changed = ImGui::DragFloat2("Child Start Size", &p->startSize.x, 0.01f, 0.0f, 10000.0f) || changed;
+		changed = ImGui::DragFloat2("Child End Size", &p->endSize.x, 0.01f, 0.0f, 10000.0f) || changed;
+		changed = ImGui::ColorEdit4("Child Start Color", &p->startColor.x) || changed;
+		changed = ImGui::ColorEdit4("Child End Color", &p->endColor.x) || changed;
+		changed = ImGui::Checkbox("Child Alpha Fade", &p->alphaFade) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphSpriteRendererNode>(&node.payload))
 	{
 		editString("Texture", p->texturePath);
-		changed |= DrawBlendMode("Blend", p->blendMode);
-		changed |= ImGui::Checkbox("Billboard", &p->billboard);
+		changed = DrawBlendMode("Blend", p->blendMode) || changed;
+		changed = ImGui::Checkbox("Billboard", &p->billboard) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphRibbonRendererNode>(&node.payload))
 	{
 		editString("Texture", p->texturePath);
-		changed |= DrawBlendMode("Blend", p->blendMode);
-		changed |= ImGui::DragFloat("Width", &p->width, 0.001f, 0.001f, 100.0f);
-		changed |= ImGui::DragFloat("Length", &p->length, 0.01f, 0.001f, 10000.0f);
+		changed = DrawBlendMode("Blend", p->blendMode) || changed;
+		changed = ImGui::DragFloat("Width", &p->width, 0.001f, 0.001f, 100.0f) || changed;
+		changed = ImGui::DragFloat("Length", &p->length, 0.01f, 0.001f, 10000.0f) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphTrailRendererNode>(&node.payload))
 	{
 		editString("Texture", p->texturePath);
-		changed |= DrawBlendMode("Blend", p->blendMode);
-		changed |= ImGui::DragFloat("Width", &p->width, 0.001f, 0.001f, 100.0f);
-		changed |= ImGui::DragFloat("Length", &p->length, 0.01f, 0.001f, 10000.0f);
+		changed = DrawBlendMode("Blend", p->blendMode) || changed;
+		changed = ImGui::DragFloat("Width", &p->width, 0.001f, 0.001f, 100.0f) || changed;
+		changed = ImGui::DragFloat("Length", &p->length, 0.01f, 0.001f, 10000.0f) || changed;
 	}
 	else if (auto* p = std::get_if<VfxGraphMeshRendererNode>(&node.payload))
 	{
 		editString("Mesh", p->meshPath);
 		int subMesh = static_cast<int>(p->subMeshIndex);
 		if (ImGui::DragInt("Sub Mesh", &subMesh, 1.0f, 0, 1024)) { p->subMeshIndex = static_cast<uint32_t>(subMesh); changed = true; }
-		changed |= DrawBlendMode("Blend", p->blendMode);
-		changed |= ImGui::DragFloat3("Start Scale", &p->startScale.x, 0.01f, 0.0f, 1000.0f);
-		changed |= ImGui::DragFloat3("End Scale", &p->endScale.x, 0.01f, 0.0f, 1000.0f);
-		changed |= ImGui::DragFloat3("Start Rotation", &p->startRotation.x, 0.01f);
-		changed |= ImGui::DragFloat3("Angular Velocity", &p->angularVelocity.x, 0.01f);
+		changed = DrawBlendMode("Blend", p->blendMode) || changed;
+		changed = ImGui::DragFloat3("Start Scale", &p->startScale.x, 0.01f, 0.0f, 1000.0f) || changed;
+		changed = ImGui::DragFloat3("End Scale", &p->endScale.x, 0.01f, 0.0f, 1000.0f) || changed;
+		changed = ImGui::DragFloat3("Start Rotation", &p->startRotation.x, 0.01f) || changed;
+		changed = ImGui::DragFloat3("Angular Velocity", &p->angularVelocity.x, 0.01f) || changed;
 	}
 	return changed;
 #else
@@ -925,7 +925,7 @@ void VfxGraphEditor::DrawFloatCurveEditor(VfxFloatCurve& curve)
 	{
 		ImGui::PushID(static_cast<int>(i));
 		bool changed = ImGui::DragFloat("Time", &curve.keys[i].time, 0.01f, 0.0f, 1.0f);
-		changed |= ImGui::DragFloat("Value", &curve.keys[i].value, 0.01f);
+		changed = ImGui::DragFloat("Value", &curve.keys[i].value, 0.01f) || changed;
 		ImGui::SameLine();
 		if (ImGui::SmallButton("Remove"))
 		{
@@ -967,7 +967,7 @@ void VfxGraphEditor::DrawColorGradientEditor(VfxColorGradient& gradient)
 	{
 		ImGui::PushID(static_cast<int>(i));
 		bool changed = ImGui::DragFloat("Time", &gradient.keys[i].time, 0.01f, 0.0f, 1.0f);
-		changed |= ImGui::ColorEdit4("Color", &gradient.keys[i].color.x);
+		changed = ImGui::ColorEdit4("Color", &gradient.keys[i].color.x) || changed;
 		ImGui::SameLine();
 		if (ImGui::SmallButton("Remove"))
 		{
