@@ -86,7 +86,8 @@ def test_compiler_rejects_ambiguous_foundation_modules():
     compiler = read("Engine/Vfx/Graph/Runtime/VfxGraphCompiler.cpp")
     assert "duplicate enabled node type" in compiler
     assert "may enable only one spawn shape node" in compiler
-    assert "requires exactly one enabled SpriteRenderer node" in compiler
+    # Later phases add renderer types, but the one-renderer-per-emitter foundation contract remains unchanged.
+    assert "requires exactly one enabled renderer node" in compiler
 
 
 def test_graph_lowers_to_existing_phase13_effect_desc():

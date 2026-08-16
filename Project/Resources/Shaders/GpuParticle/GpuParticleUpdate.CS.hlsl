@@ -122,6 +122,7 @@ void SpawnSubEmitter(Particle parent, uint eventBit, float3 eventPosition, float
 
         Particle child = (Particle)0;
         child.translate = eventPosition + direction * max(parent.collisionParticleRadius, 0.001f);
+        child.previousTranslate = child.translate;
         child.velocity = parent.velocity * parent.subEmitterInheritVelocity + direction * parent.subEmitterSpeed;
         child.lifeTime = max(parent.subEmitterLifeTime, 0.01f);
         child.currentTime = 0.0f;
@@ -228,6 +229,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
     Particle p = gParticles[particleIndex];
     if (p.lifeTime <= 0.0f) return;
 
+    // Phase23 stores one previous sample per particle so ribbon/trail quads represent real frame-to-frame motion.
+    p.previousTranslate = p.translate;
     float dt = gPerFrame.deltaTime;
     p.currentTime += dt;
 

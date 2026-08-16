@@ -94,8 +94,11 @@ class GpuParticleBuffers
 		Vector4 subEmitterEndColor{ 1.0f, 0.1f, 0.0f, 0.0f };
 		uint32_t subEmitterAlphaFade = 1u;
 		float phase22Padding[3]{};
+
+		Vector3 previousTranslate{};
+		float phase23Padding = 0.0f;
 	};
-	static_assert(sizeof(ParticleCS) == 528); // HLSL Particle構造体とのPhase22 stride一致を保証する。
+	static_assert(sizeof(ParticleCS) == 544); // HLSL Particle構造体とのPhase23 trail history stride一致を保証する。
 
 	struct PerView
 	{

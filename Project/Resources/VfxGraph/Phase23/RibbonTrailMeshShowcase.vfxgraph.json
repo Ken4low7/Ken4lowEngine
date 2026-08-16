@@ -1,0 +1,305 @@
+{
+  "schemaVersion": 1,
+  "graphName": "Phase23RibbonTrailMeshShowcase",
+  "userParameters": [
+    {
+      "name": "Intensity",
+      "defaultValue": 1.0,
+      "minValue": 0.25,
+      "maxValue": 3.0
+    }
+  ],
+  "emitters": [
+    {
+      "name": "EnergyRibbon",
+      "maxParticles": 512,
+      "loop": false,
+      "duration": 1.0,
+      "parameterBindings": [
+        {
+          "parameterName": "Intensity",
+          "target": "BurstCount",
+          "scale": 1.0,
+          "bias": 0.0
+        }
+      ],
+      "nodes": [
+        {
+          "id": 1,
+          "name": "Ribbon Burst",
+          "stage": "Spawn",
+          "type": "Burst",
+          "enabled": true,
+          "editorPosition": [0.0, 0.0],
+          "params": { "count": 24 }
+        },
+        {
+          "id": 2,
+          "name": "Ribbon Spawn",
+          "stage": "Initialize",
+          "type": "SpawnPoint",
+          "enabled": true,
+          "editorPosition": [220.0, 0.0],
+          "params": {}
+        },
+        {
+          "id": 3,
+          "name": "Ribbon Lifetime",
+          "stage": "Initialize",
+          "type": "Lifetime",
+          "enabled": true,
+          "editorPosition": [440.0, 0.0],
+          "params": { "lifetime": 0.8, "random": 0.2 }
+        },
+        {
+          "id": 4,
+          "name": "Ribbon Velocity",
+          "stage": "Initialize",
+          "type": "InitialVelocity",
+          "enabled": true,
+          "editorPosition": [660.0, 0.0],
+          "params": {
+            "velocity": [0.0, 4.0, 0.0],
+            "random": [2.0, 1.0, 2.0],
+            "speed": 0.0,
+            "speedRandom": 0.0
+          }
+        },
+        {
+          "id": 5,
+          "name": "Ribbon Color",
+          "stage": "Initialize",
+          "type": "InitialColor",
+          "enabled": true,
+          "editorPosition": [880.0, 0.0],
+          "params": {
+            "start": [0.25, 0.7, 1.0, 1.0],
+            "end": [0.1, 0.2, 1.0, 0.0],
+            "alphaFade": true
+          }
+        },
+        {
+          "id": 6,
+          "name": "Ribbon Gradient",
+          "stage": "Update",
+          "type": "ColorOverLife",
+          "enabled": true,
+          "editorPosition": [1100.0, 0.0],
+          "params": {
+            "gradient": {
+              "interpolation": "Linear",
+              "keys": [
+                { "time": 0.0, "color": [0.4, 0.85, 1.0, 1.0] },
+                { "time": 0.6, "color": [0.2, 0.45, 1.0, 0.8] },
+                { "time": 1.0, "color": [0.05, 0.1, 0.8, 0.0] }
+              ]
+            }
+          }
+        },
+        {
+          "id": 7,
+          "name": "Ribbon Renderer",
+          "stage": "Render",
+          "type": "RibbonRenderer",
+          "enabled": true,
+          "editorPosition": [1320.0, 0.0],
+          "params": {
+            "texturePath": "Effects/white.dds",
+            "blendMode": "Additive",
+            "width": 0.08,
+            "length": 0.8
+          }
+        }
+      ],
+      "edges": [
+        { "from": 1, "to": 2 },
+        { "from": 2, "to": 3 },
+        { "from": 3, "to": 4 },
+        { "from": 4, "to": 5 },
+        { "from": 5, "to": 6 },
+        { "from": 6, "to": 7 }
+      ]
+    },
+    {
+      "name": "TracerTrail",
+      "maxParticles": 256,
+      "loop": false,
+      "duration": 1.0,
+      "parameterBindings": [
+        {
+          "parameterName": "Intensity",
+          "target": "BurstCount",
+          "scale": 1.0,
+          "bias": 0.0
+        }
+      ],
+      "nodes": [
+        {
+          "id": 101,
+          "name": "Trail Burst",
+          "stage": "Spawn",
+          "type": "Burst",
+          "enabled": true,
+          "editorPosition": [0.0, 240.0],
+          "params": { "count": 12 }
+        },
+        {
+          "id": 102,
+          "name": "Trail Spawn",
+          "stage": "Initialize",
+          "type": "SpawnPoint",
+          "enabled": true,
+          "editorPosition": [220.0, 240.0],
+          "params": {}
+        },
+        {
+          "id": 103,
+          "name": "Trail Lifetime",
+          "stage": "Initialize",
+          "type": "Lifetime",
+          "enabled": true,
+          "editorPosition": [440.0, 240.0],
+          "params": { "lifetime": 0.45, "random": 0.1 }
+        },
+        {
+          "id": 104,
+          "name": "Trail Velocity",
+          "stage": "Initialize",
+          "type": "InitialVelocity",
+          "enabled": true,
+          "editorPosition": [660.0, 240.0],
+          "params": {
+            "velocity": [8.0, 0.0, 0.0],
+            "random": [0.5, 0.5, 0.5],
+            "speed": 0.0,
+            "speedRandom": 0.0
+          }
+        },
+        {
+          "id": 105,
+          "name": "Trail Color",
+          "stage": "Initialize",
+          "type": "InitialColor",
+          "enabled": true,
+          "editorPosition": [880.0, 240.0],
+          "params": {
+            "start": [1.0, 0.7, 0.15, 1.0],
+            "end": [1.0, 0.15, 0.02, 0.0],
+            "alphaFade": true
+          }
+        },
+        {
+          "id": 106,
+          "name": "Trail Renderer",
+          "stage": "Render",
+          "type": "TrailRenderer",
+          "enabled": true,
+          "editorPosition": [1100.0, 240.0],
+          "params": {
+            "texturePath": "Effects/white.dds",
+            "blendMode": "Additive",
+            "width": 0.05,
+            "length": 1.25
+          }
+        }
+      ],
+      "edges": [
+        { "from": 101, "to": 102 },
+        { "from": 102, "to": 103 },
+        { "from": 103, "to": 104 },
+        { "from": 104, "to": 105 },
+        { "from": 105, "to": 106 }
+      ]
+    },
+    {
+      "name": "MeshDebris",
+      "maxParticles": 128,
+      "loop": false,
+      "duration": 1.0,
+      "parameterBindings": [
+        {
+          "parameterName": "Intensity",
+          "target": "BurstCount",
+          "scale": 1.0,
+          "bias": 0.0
+        }
+      ],
+      "nodes": [
+        {
+          "id": 201,
+          "name": "Mesh Burst",
+          "stage": "Spawn",
+          "type": "Burst",
+          "enabled": true,
+          "editorPosition": [0.0, 480.0],
+          "params": { "count": 10 }
+        },
+        {
+          "id": 202,
+          "name": "Mesh Spawn",
+          "stage": "Initialize",
+          "type": "SpawnSphere",
+          "enabled": true,
+          "editorPosition": [220.0, 480.0],
+          "params": { "radius": 0.25 }
+        },
+        {
+          "id": 203,
+          "name": "Mesh Lifetime",
+          "stage": "Initialize",
+          "type": "Lifetime",
+          "enabled": true,
+          "editorPosition": [440.0, 480.0],
+          "params": { "lifetime": 2.0, "random": 0.5 }
+        },
+        {
+          "id": 204,
+          "name": "Mesh Velocity",
+          "stage": "Initialize",
+          "type": "InitialVelocity",
+          "enabled": true,
+          "editorPosition": [660.0, 480.0],
+          "params": {
+            "velocity": [0.0, 4.0, 0.0],
+            "random": [2.0, 2.0, 2.0],
+            "speed": 0.0,
+            "speedRandom": 0.0
+          }
+        },
+        {
+          "id": 205,
+          "name": "Mesh Gravity",
+          "stage": "Update",
+          "type": "Gravity",
+          "enabled": true,
+          "editorPosition": [880.0, 480.0],
+          "params": { "acceleration": [0.0, -9.8, 0.0] }
+        },
+        {
+          "id": 206,
+          "name": "Mesh Renderer",
+          "stage": "Render",
+          "type": "MeshRenderer",
+          "enabled": true,
+          "editorPosition": [1100.0, 480.0],
+          "params": {
+            "meshPath": "Sample/cube.gltf",
+            "subMeshIndex": 0,
+            "blendMode": "Alpha",
+            "startScale": [0.18, 0.18, 0.18],
+            "endScale": [0.08, 0.08, 0.08],
+            "startRotation": [0.0, 0.0, 0.0],
+            "angularVelocity": [2.0, 3.0, 1.5]
+          }
+        }
+      ],
+      "edges": [
+        { "from": 201, "to": 202 },
+        { "from": 202, "to": 203 },
+        { "from": 203, "to": 204 },
+        { "from": 204, "to": 205 },
+        { "from": 205, "to": 206 }
+      ]
+    }
+  ]
+}

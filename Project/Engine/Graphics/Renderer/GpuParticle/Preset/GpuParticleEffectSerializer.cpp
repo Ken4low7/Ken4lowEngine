@@ -109,12 +109,22 @@ namespace Ken4lowEngine
 
 	std::string ToString(GpuParticleRenderType type)
 	{
-		return type == GpuParticleRenderType::Mesh ? "Mesh" : "Sprite";
+		switch (type)
+		{
+		case GpuParticleRenderType::Mesh: return "Mesh";
+		case GpuParticleRenderType::Ribbon: return "Ribbon";
+		case GpuParticleRenderType::Trail: return "Trail";
+		case GpuParticleRenderType::Sprite:
+		default: return "Sprite";
+		}
 	}
 
 	GpuParticleRenderType GpuParticleRenderTypeFromString(const std::string& text)
 	{
-		return text == "Mesh" ? GpuParticleRenderType::Mesh : GpuParticleRenderType::Sprite;
+		if (text == "Mesh") return GpuParticleRenderType::Mesh;
+		if (text == "Ribbon") return GpuParticleRenderType::Ribbon;
+		if (text == "Trail") return GpuParticleRenderType::Trail;
+		return GpuParticleRenderType::Sprite;
 	}
 
 	std::string ToString(GpuParticleBlendMode mode)
@@ -163,12 +173,19 @@ namespace Ken4lowEngine
 
 	const char* GpuParticleEffectSerializer::ToString(GpuParticleRenderType value)
 	{
-		return value == GpuParticleRenderType::Mesh ? "Mesh" : "Sprite";
+		switch (value)
+		{
+		case GpuParticleRenderType::Mesh: return "Mesh";
+		case GpuParticleRenderType::Ribbon: return "Ribbon";
+		case GpuParticleRenderType::Trail: return "Trail";
+		case GpuParticleRenderType::Sprite:
+		default: return "Sprite";
+		}
 	}
 
 	bool GpuParticleEffectSerializer::TryParseRenderType(const std::string& text, GpuParticleRenderType& outValue)
 	{
-		if (text != "Sprite" && text != "Mesh") return false;
+		if (text != "Sprite" && text != "Mesh" && text != "Ribbon" && text != "Trail") return false;
 		outValue = GpuParticleRenderTypeFromString(text);
 		return true;
 	}

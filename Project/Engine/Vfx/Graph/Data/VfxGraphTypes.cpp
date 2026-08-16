@@ -96,6 +96,9 @@ VfxGraphNodeStage GetExpectedVfxGraphNodeStage(VfxGraphNodeType type)
 	case VfxGraphNodeType::SubEmitter:
 		return VfxGraphNodeStage::Update;
 	case VfxGraphNodeType::SpriteRenderer:
+	case VfxGraphNodeType::RibbonRenderer:
+	case VfxGraphNodeType::TrailRenderer:
+	case VfxGraphNodeType::MeshRenderer:
 		return VfxGraphNodeStage::Render;
 	default:
 		return VfxGraphNodeStage::Spawn;
@@ -137,6 +140,9 @@ const char* ToString(VfxGraphNodeType type)
 	case VfxGraphNodeType::Collision: return "Collision";
 	case VfxGraphNodeType::DeathEvent: return "DeathEvent";
 	case VfxGraphNodeType::SubEmitter: return "SubEmitter";
+	case VfxGraphNodeType::RibbonRenderer: return "RibbonRenderer";
+	case VfxGraphNodeType::TrailRenderer: return "TrailRenderer";
+	case VfxGraphNodeType::MeshRenderer: return "MeshRenderer";
 	default: return "SpawnRate";
 	}
 }
@@ -203,6 +209,9 @@ bool TryParseVfxGraphNodeType(const std::string& text, VfxGraphNodeType& outType
 	else if (text == "Collision") outType = VfxGraphNodeType::Collision;
 	else if (text == "DeathEvent") outType = VfxGraphNodeType::DeathEvent;
 	else if (text == "SubEmitter") outType = VfxGraphNodeType::SubEmitter;
+	else if (text == "RibbonRenderer") outType = VfxGraphNodeType::RibbonRenderer;
+	else if (text == "TrailRenderer") outType = VfxGraphNodeType::TrailRenderer;
+	else if (text == "MeshRenderer") outType = VfxGraphNodeType::MeshRenderer;
 	else return false;
 	return true;
 }

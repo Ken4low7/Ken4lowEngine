@@ -103,6 +103,9 @@ enum class VfxGraphNodeType : uint32_t
 	Collision,
 	DeathEvent,
 	SubEmitter,
+	RibbonRenderer,
+	TrailRenderer,
+	MeshRenderer,
 };
 
 struct VfxGraphSpawnRateNode
@@ -228,6 +231,33 @@ struct VfxGraphSpriteRendererNode
 	bool billboard = true;
 };
 
+struct VfxGraphRibbonRendererNode
+{
+	std::string texturePath = "Effects/white.dds";
+	GpuParticleBlendMode blendMode = GpuParticleBlendMode::Additive;
+	float width = 0.08f;
+	float length = 0.8f;
+};
+
+struct VfxGraphTrailRendererNode
+{
+	std::string texturePath = "Effects/white.dds";
+	GpuParticleBlendMode blendMode = GpuParticleBlendMode::Additive;
+	float width = 0.05f;
+	float length = 1.25f;
+};
+
+struct VfxGraphMeshRendererNode
+{
+	std::string meshPath = "Sample/cube.gltf";
+	uint32_t subMeshIndex = 0u;
+	GpuParticleBlendMode blendMode = GpuParticleBlendMode::Alpha;
+	Vector3 startScale{ 1.0f, 1.0f, 1.0f };
+	Vector3 endScale{ 1.0f, 1.0f, 1.0f };
+	Vector3 startRotation{};
+	Vector3 angularVelocity{};
+};
+
 using VfxGraphNodePayload = std::variant<
 	VfxGraphSpawnRateNode,
 	VfxGraphBurstNode,
@@ -247,7 +277,10 @@ using VfxGraphNodePayload = std::variant<
 	VfxGraphColorOverLifeNode,
 	VfxGraphCollisionNode,
 	VfxGraphDeathEventNode,
-	VfxGraphSubEmitterNode>;
+	VfxGraphSubEmitterNode,
+	VfxGraphRibbonRendererNode,
+	VfxGraphTrailRendererNode,
+	VfxGraphMeshRendererNode>;
 
 struct VfxGraphNodeDesc
 {

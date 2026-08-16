@@ -79,12 +79,12 @@ def test_serializer_round_trips_collision_event_and_sub_emitter_payloads():
     assert "TryParseVfxParticleEventType" in serializer
 
 
-def test_cpu_hlsl_phase22_layout_contracts_are_explicit():
+def test_cpu_hlsl_phase22_layout_contracts_remain_explicit_after_phase23_history_extension():
     emitter_data = read("Engine/Graphics/Renderer/GpuParticle/Data/GpuParticleEmitterData.h")
     buffers = read("Engine/Graphics/Renderer/GpuParticle/Buffers/GpuParticleBuffers.h")
     hlsl = read("Resources/Shaders/GpuParticle/GpuParticleData.hlsli")
     assert "static_assert(sizeof(GpuEmitterCBData) == 624)" in emitter_data
-    assert "static_assert(sizeof(ParticleCS) == 528)" in buffers
+    assert "static_assert(sizeof(ParticleCS) == 544)" in buffers
     for token in (
         "collisionShape",
         "collisionResponse",
@@ -156,8 +156,11 @@ def test_phase22_sample_exercises_collision_and_death_sub_emitters():
     assert death_nodes["SubEmitter"]["params"]["sourceEvent"] == "Death"
 
 
-def test_phase22_keeps_phase23_features_out_of_collision_backend():
+def test_phase22_collision_event_contracts_survive_phase23_renderer_extension():
     types = read("Engine/Vfx/Graph/Data/VfxGraphTypes.h")
-    assert "RibbonRenderer" not in types
-    assert "TrailRenderer" not in types
-    assert "MeshParticleRenderer" not in types
+    compiler = read("Engine/Vfx/Graph/Runtime/VfxGraphCompiler.cpp")
+    assert "VfxGraphCollisionNode" in types
+    assert "VfxGraphDeathEventNode" in types
+    assert "VfxGraphSubEmitterNode" in types
+    assert "outEmitter.collisionShape" in compiler
+    assert "outEmitter.subEmitterEventMask" in compiler

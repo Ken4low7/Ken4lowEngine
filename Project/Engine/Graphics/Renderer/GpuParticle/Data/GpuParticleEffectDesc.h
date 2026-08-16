@@ -16,6 +16,8 @@ enum class GpuParticleRenderType : uint32_t
 {
 	Sprite = 0,
 	Mesh = 1,
+	Ribbon = 2,
+	Trail = 3,
 };
 
 enum class GpuParticleBlendMode : uint32_t
