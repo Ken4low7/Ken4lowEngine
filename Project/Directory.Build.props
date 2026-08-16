@@ -92,5 +92,13 @@
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidObstacleRaster.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidRaymarch.VS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidRaymarch.PS.hlsl" />
+    <!-- N-point Blade Trailは既存FrameUploadArenaとRuntime描画基盤へ追加登録する。 -->
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\BladeTrail\BladeTrailRenderer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\BladeTrailComponent.cpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\BladeTrail\BladeTrailRenderer.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\BladeTrailComponent.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Shader\Manifest\BladeTrailShaderManifest.h" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\BladeTrail\BladeTrail.VS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\BladeTrail\BladeTrail.PS.hlsl" />
   </ItemGroup>
 </Project>
