@@ -45,16 +45,21 @@ def test_compiler_accepts_exactly_one_renderer_and_lowers_phase23_modes():
     assert "outEmitter.angularVelocity = p.angularVelocity" in compiler
 
 
-def test_ribbon_and_trail_reuse_existing_velocity_aligned_gpu_sprite_path():
+def test_ribbon_and_trail_use_previous_position_history_on_existing_sprite_path():
     runtime = read("Engine/Graphics/Renderer/GpuParticle/Runtime/GpuParticleEffectRuntime.h")
+    particle_data = read("Resources/Shaders/GpuParticle/GpuParticleData.hlsli")
+    update_shader = read("Resources/Shaders/GpuParticle/GpuParticleUpdate.CS.hlsl")
     vertex_shader = read("Resources/Shaders/GpuParticle/GpuParticle.VS.hlsl")
     assert "GpuParticleRenderType::Ribbon" in runtime
     assert "GpuParticleRenderType::Trail" in runtime
     assert "info.kind = GpuParticleKind::Ribbon" in runtime
     assert "info.billboardFlags = BillboardMode::Ribbon" in runtime
-    assert "BILLBOARD_RIBBON" in vertex_shader
-    assert "float3 tangent = SafeNormalize(particle.velocity" in vertex_shader
+    assert "float3 previousTranslate" in particle_data
+    assert "p.previousTranslate = p.translate" in update_shader
+    assert "float3 segment = particle.translate - particle.previousTranslate" in vertex_shader
     assert "float3 side = cross(camForward, tangent)" in vertex_shader
+    assert "particle.translate = (particle.previousTranslate + particle.translate) * 0.5f" in vertex_shader
+    assert "particle.scale.y = max(segmentLength * max(particle.scale.y" in vertex_shader
 
 
 def test_mesh_renderer_uses_existing_mesh_asset_and_draw_pipeline():
@@ -97,11 +102,14 @@ def test_flat_effect_serializer_round_trips_phase23_render_types():
         assert f'case GpuParticleRenderType::{render_type}: return "{render_type}"' in serializer
 
 
-def test_phase23_does_not_expand_particle_or_emitter_gpu_strides():
+def test_phase23_adds_one_history_sample_without_expanding_emitter_cb():
     particle = read("Engine/Graphics/Renderer/GpuParticle/Buffers/GpuParticleBuffers.h")
     emitter = read("Engine/Graphics/Renderer/GpuParticle/Data/GpuParticleEmitterData.h")
-    assert "static_assert(sizeof(ParticleCS) == 528)" in particle
+    particle_data = read("Resources/Shaders/GpuParticle/GpuParticleData.hlsli")
+    assert "static_assert(sizeof(ParticleCS) == 544)" in particle
     assert "static_assert(sizeof(GpuEmitterCBData) == 624)" in emitter
+    assert "Vector3 previousTranslate" in particle
+    assert "float3 previousTranslate" in particle_data
 
 
 def test_phase23_sample_contains_ribbon_trail_and_mesh_emitters():
