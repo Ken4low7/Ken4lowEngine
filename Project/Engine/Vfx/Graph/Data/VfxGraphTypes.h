@@ -22,6 +22,47 @@ enum class VfxGraphNodeStage : uint32_t
 	Render,
 };
 
+enum class VfxCurveInterpolation : uint32_t
+{
+	Linear = 0,
+	Step,
+	SmoothStep,
+};
+
+struct VfxFloatCurveKey
+{
+	float time = 0.0f;
+	float value = 1.0f;
+};
+
+struct VfxFloatCurve
+{
+	VfxCurveInterpolation interpolation = VfxCurveInterpolation::Linear;
+	std::vector<VfxFloatCurveKey> keys{
+		{ 0.0f, 1.0f },
+		{ 1.0f, 1.0f },
+	};
+
+	[[nodiscard]] float Evaluate(float normalizedTime) const;
+};
+
+struct VfxColorGradientKey
+{
+	float time = 0.0f;
+	Vector4 color{ 1.0f, 1.0f, 1.0f, 1.0f };
+};
+
+struct VfxColorGradient
+{
+	VfxCurveInterpolation interpolation = VfxCurveInterpolation::Linear;
+	std::vector<VfxColorGradientKey> keys{
+		{ 0.0f, { 1.0f, 1.0f, 1.0f, 1.0f } },
+		{ 1.0f, { 1.0f, 1.0f, 1.0f, 0.0f } },
+	};
+
+	[[nodiscard]] Vector4 Evaluate(float normalizedTime) const;
+};
+
 enum class VfxGraphNodeType : uint32_t
 {
 	SpawnRate = 0,
@@ -36,6 +77,10 @@ enum class VfxGraphNodeType : uint32_t
 	Gravity,
 	Drag,
 	SpriteRenderer,
+	InitialRotation,
+	RotationRate,
+	SizeOverLife,
+	ColorOverLife,
 };
 
 struct VfxGraphSpawnRateNode
@@ -100,6 +145,27 @@ struct VfxGraphDragNode
 	float damping = 0.0f;
 };
 
+struct VfxGraphInitialRotationNode
+{
+	float rotation = 0.0f;
+	float random = 0.0f;
+};
+
+struct VfxGraphRotationRateNode
+{
+	float radiansPerSecond = 0.0f;
+};
+
+struct VfxGraphSizeOverLifeNode
+{
+	VfxFloatCurve multiplier{};
+};
+
+struct VfxGraphColorOverLifeNode
+{
+	VfxColorGradient gradient{};
+};
+
 struct VfxGraphSpriteRendererNode
 {
 	std::string texturePath = "Effects/white.dds";
@@ -119,7 +185,11 @@ using VfxGraphNodePayload = std::variant<
 	VfxGraphInitialSizeNode,
 	VfxGraphGravityNode,
 	VfxGraphDragNode,
-	VfxGraphSpriteRendererNode>;
+	VfxGraphSpriteRendererNode,
+	VfxGraphInitialRotationNode,
+	VfxGraphRotationRateNode,
+	VfxGraphSizeOverLifeNode,
+	VfxGraphColorOverLifeNode>;
 
 struct VfxGraphNodeDesc
 {
@@ -155,6 +225,8 @@ struct VfxGraphDesc
 	static constexpr uint32_t kMaxEmitters = 32u;
 	static constexpr uint32_t kMaxNodesPerEmitter = 128u;
 	static constexpr uint32_t kMaxEdgesPerEmitter = 256u;
+	static constexpr uint32_t kMaxCurveKeys = 32u;
+	static constexpr uint32_t kMaxGradientKeys = 32u;
 
 	uint32_t schemaVersion = kSchemaVersion;
 	std::string graphName = "NewVfxGraph";
