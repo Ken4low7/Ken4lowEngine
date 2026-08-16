@@ -22,6 +22,7 @@
 #include "Editor/EditorWindowManager.h"
 #include "Editor/EditorModeController.h"
 #include "Engine/Vfx/Editor/VfxTimelineEditor.h"
+#include "Engine/Vfx/Graph/Editor/VfxGraphEditor.h"
 #endif // USE_IMGUI
 #include "JsonAssets/JsonEditorWindow.h"
 #include <DisplaySettings.h>
@@ -115,6 +116,7 @@ namespace Ken4lowEngine
 		EditorGpuPickingManager::GetInstance()->Initialize();
 		EditorSelectionOutlineManager::GetInstance()->Initialize();
 		VfxTimelineEditor::GetInstance()->Initialize();
+		VfxGraphEditor::GetInstance()->Initialize(); // Phase25 Graph authoring/preview shares the existing GPU particle runtime.
 #endif // USE_IMGUI
 
 		Input::GetInstance()->Initialize(winApp_);
@@ -251,6 +253,7 @@ namespace Ken4lowEngine
 					auto& editorWindowState = editorWindows->GetWindowState();
 					JsonEditorWindow::GetInstance()->Draw(&editorWindowState.showJsonAssetManager);
 					VfxTimelineEditor::GetInstance()->Draw(&editorWindowState.showVfxTimeline);
+					VfxGraphEditor::GetInstance()->Draw(&editorWindowState.showVfxGraphEditor);
 
 					winApp_->DrawDisplaySettingsImGui(&editorWindowState.showDisplay);
 					ParameterManager::GetInstance()->Update(&editorWindowState.showParameters);
@@ -291,6 +294,7 @@ namespace Ken4lowEngine
 #ifdef USE_IMGUI
 		EditorWindowManager::GetInstance()->SetSceneManager(nullptr);
 		VfxTimelineEditor::GetInstance()->Finalize();
+		VfxGraphEditor::GetInstance()->Finalize();
 		EditorSelectionOutlineManager::GetInstance()->Finalize();
 		EditorGpuPickingManager::GetInstance()->Finalize();
 #endif // USE_IMGUI

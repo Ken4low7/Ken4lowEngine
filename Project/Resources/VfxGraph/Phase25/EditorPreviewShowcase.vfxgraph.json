@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "graphName": "Phase25EditorPreviewShowcase",
+  "userParameters": [
+    {
+      "name": "Intensity",
+      "defaultValue": 1.0,
+      "minValue": 0.25,
+      "maxValue": 3.0
+    }
+  ],
+  "emitters": [
+    {
+      "name": "EditorSparkBurst",
+      "maxParticles": 1024,
+      "loop": true,
+      "duration": 1.0,
+      "parameterBindings": [
+        {
+          "parameterName": "Intensity",
+          "target": "BurstCount",
+          "scale": 1.0,
+          "bias": 0.0
+        }
+      ],
+      "nodes": [
+        {
+          "id": 1,
+          "name": "Burst",
+          "stage": "Spawn",
+          "type": "Burst",
+          "enabled": true,
+          "editorPosition": [0.0, 20.0],
+          "params": { "count": 24 }
+        },
+        {
+          "id": 2,
+          "name": "Sphere Spawn",
+          "stage": "Initialize",
+          "type": "SpawnSphere",
+          "enabled": true,
+          "editorPosition": [240.0, 20.0],
+          "params": { "radius": 0.2 }
+        },
+        {
+          "id": 3,
+          "name": "Lifetime",
+          "stage": "Initialize",
+          "type": "Lifetime",
+          "enabled": true,
+          "editorPosition": [480.0, 20.0],
+          "params": { "lifetime": 1.2, "random": 0.25 }
+        },
+        {
+          "id": 4,
+          "name": "Velocity",
+          "stage": "Initialize",
+          "type": "InitialVelocity",
+          "enabled": true,
+          "editorPosition": [720.0, 20.0],
+          "params": {
+            "velocity": [0.0, 3.5, 0.0],
+            "random": [2.0, 1.0, 2.0],
+            "speed": 0.0,
+            "speedRandom": 0.0
+          }
+        },
+        {
+          "id": 5,
+          "name": "Initial Color",
+          "stage": "Initialize",
+          "type": "InitialColor",
+          "enabled": true,
+          "editorPosition": [960.0, 20.0],
+          "params": {
+            "start": [0.2, 0.8, 1.0, 1.0],
+            "end": [0.15, 0.1, 1.0, 0.0],
+            "alphaFade": true
+          }
+        },
+        {
+          "id": 6,
+          "name": "Gravity",
+          "stage": "Update",
+          "type": "Gravity",
+          "enabled": true,
+          "editorPosition": [1200.0, 20.0],
+          "params": { "acceleration": [0.0, -3.0, 0.0] }
+        },
+        {
+          "id": 7,
+          "name": "Size Curve",
+          "stage": "Update",
+          "type": "SizeOverLife",
+          "enabled": true,
+          "editorPosition": [1440.0, 20.0],
+          "params": {
+            "multiplier": {
+              "interpolation": "SmoothStep",
+              "keys": [
+                { "time": 0.0, "value": 0.25 },
+                { "time": 0.2, "value": 1.0 },
+                { "time": 1.0, "value": 0.1 }
+              ]
+            }
+          }
+        },
+        {
+          "id": 8,
+          "name": "Color Gradient",
+          "stage": "Update",
+          "type": "ColorOverLife",
+          "enabled": true,
+          "editorPosition": [1680.0, 20.0],
+          "params": {
+            "gradient": {
+              "interpolation": "Linear",
+              "keys": [
+                { "time": 0.0, "color": [0.2, 0.9, 1.0, 1.0] },
+                { "time": 0.55, "color": [0.35, 0.25, 1.0, 0.9] },
+                { "time": 1.0, "color": [0.1, 0.05, 0.8, 0.0] }
+              ]
+            }
+          }
+        },
+        {
+          "id": 9,
+          "name": "Sprite Renderer",
+          "stage": "Render",
+          "type": "SpriteRenderer",
+          "enabled": true,
+          "editorPosition": [1920.0, 20.0],
+          "params": {
+            "texturePath": "Effects/white.dds",
+            "blendMode": "Additive",
+            "billboard": true
+          }
+        }
+      ],
+      "edges": [
+        { "from": 1, "to": 2 },
+        { "from": 2, "to": 3 },
+        { "from": 3, "to": 4 },
+        { "from": 4, "to": 5 },
+        { "from": 5, "to": 6 },
+        { "from": 6, "to": 7 },
+        { "from": 7, "to": 8 },
+        { "from": 8, "to": 9 }
+      ]
+    }
+  ]
+}
