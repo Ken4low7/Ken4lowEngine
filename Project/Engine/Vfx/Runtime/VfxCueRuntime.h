@@ -38,6 +38,7 @@ public:
 	void StopAll();
 	bool SetWorldPosition(VfxCueHandle handle, const Vector3& worldPosition);
 	bool SetFloatParameter(VfxCueHandle handle, const std::string& parameterName, float value);
+	bool SetRuntimeScale(VfxCueHandle handle, float runtimeScale);
 
 	uint32_t RunStressBurst(
 		const std::string& cueName,
@@ -75,6 +76,7 @@ private:
 		std::string cueName;
 		VfxCueProgram program{};
 		Vector3 worldPosition{};
+		float runtimeScale = 1.0f;
 		float elapsed = 0.0f;
 		uint32_t nextInstructionIndex = 0;
 		bool justStarted = true;

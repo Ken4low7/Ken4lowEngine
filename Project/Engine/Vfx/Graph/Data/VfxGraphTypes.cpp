@@ -194,6 +194,16 @@ const char* ToString(VfxGraphFluidDomain domain)
 	}
 }
 
+const char* ToString(VfxGraphBoundsMode mode)
+{
+	switch (mode)
+	{
+	case VfxGraphBoundsMode::Automatic: return "Automatic";
+	case VfxGraphBoundsMode::FixedSphere: return "FixedSphere";
+	default: return "Automatic";
+	}
+}
+
 bool TryParseVfxGraphNodeStage(const std::string& text, VfxGraphNodeStage& outStage)
 {
 	if (text == "Spawn") outStage = VfxGraphNodeStage::Spawn;
@@ -264,6 +274,14 @@ bool TryParseVfxGraphFluidDomain(const std::string& text, VfxGraphFluidDomain& o
 {
 	if (text == "Fluid2D") outDomain = VfxGraphFluidDomain::Fluid2D;
 	else if (text == "Volumetric3D") outDomain = VfxGraphFluidDomain::Volumetric3D;
+	else return false;
+	return true;
+}
+
+bool TryParseVfxGraphBoundsMode(const std::string& text, VfxGraphBoundsMode& outMode)
+{
+	if (text == "Automatic") outMode = VfxGraphBoundsMode::Automatic;
+	else if (text == "FixedSphere") outMode = VfxGraphBoundsMode::FixedSphere;
 	else return false;
 	return true;
 }

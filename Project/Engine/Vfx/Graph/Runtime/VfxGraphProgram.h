@@ -3,6 +3,7 @@
 #include "Engine/Graphics/Renderer/GpuParticle/Data/GpuParticleEffectDesc.h"
 #include "Engine/Vfx/Graph/Data/VfxGraphTypes.h"
 #include "Engine/Vfx/Data/VfxCueTypes.h"
+#include "Engine/Graphics/Culling/BoundingVolume.h"
 
 #include <cstdint>
 #include <string>
@@ -24,6 +25,8 @@ struct VfxGraphProgram
 	std::vector<VfxGraphCompiledEmitter> emitters;
 	VfxCueDesc integrationOneShotCue{};
 	VfxCueDesc integrationLoopCue{};
+	BoundingSphere localBounds{};
+	VfxGraphScalabilityDesc scalability{};
 
 	[[nodiscard]] bool HasIntegrationTracks() const { return !integrationOneShotCue.tracks.empty(); }
 };

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "graphName": "Phase27ScalableIntegratedExplosion",
+  "scalability": {
+    "boundsMode": "Automatic",
+    "fixedBoundsCenter": [0.0, 0.0, 0.0],
+    "fixedBoundsRadius": 8.0,
+    "frustumCulling": true,
+    "maxDrawDistance": 140.0,
+    "lodNearDistance": 20.0,
+    "lodFarDistance": 65.0,
+    "lodMidScale": 0.6,
+    "lodFarScale": 0.3,
+    "budgetCost": 4
+  },
+  "userParameters": [
+    { "name": "Intensity", "defaultValue": 1.0, "minValue": 0.0, "maxValue": 4.0 },
+    { "name": "Radius", "defaultValue": 1.0, "minValue": 0.25, "maxValue": 3.0 }
+  ],
+  "emitters": [
+    {
+      "name": "ExplosionCore",
+      "maxParticles": 2048,
+      "loop": false,
+      "duration": 1.0,
+      "parameterBindings": [
+        { "parameterName": "Intensity", "target": "Alpha", "scale": 1.0, "bias": 0.0 }
+      ],
+      "nodes": [
+        { "id": 1, "name": "Burst", "stage": "Spawn", "type": "Burst", "enabled": true, "editorPosition": [0.0, 0.0], "params": { "count": 96 } },
+        { "id": 2, "name": "Sphere", "stage": "Initialize", "type": "SpawnSphere", "enabled": true, "editorPosition": [220.0, 0.0], "params": { "radius": 0.3 } },
+        { "id": 3, "name": "Lifetime", "stage": "Initialize", "type": "Lifetime", "enabled": true, "editorPosition": [440.0, 0.0], "params": { "lifetime": 0.9, "random": 0.25 } },
+        { "id": 4, "name": "Velocity", "stage": "Initialize", "type": "InitialVelocity", "enabled": true, "editorPosition": [660.0, 0.0], "params": { "velocity": [0.0, 1.0, 0.0], "random": [1.0, 1.0, 1.0], "speed": 5.0, "speedRandom": 2.0 } },
+        { "id": 5, "name": "Color", "stage": "Initialize", "type": "InitialColor", "enabled": true, "editorPosition": [880.0, 0.0], "params": { "start": [1.0, 0.7, 0.2, 1.0], "end": [0.3, 0.02, 0.0, 0.0], "alphaFade": true } },
+        { "id": 6, "name": "Fluid Source", "stage": "Update", "type": "FluidOutput", "enabled": true, "editorPosition": [1100.0, -120.0], "params": { "domain": "Volumetric3D", "localOffset": [0.0, 0.0, 0.0], "localVelocity": [0.0, 1.5, 0.0], "duration": 0.8, "radius": 0.55, "velocityStrength": 1.25, "densityRate": 1.5, "temperatureRate": 1.2, "falloffExponent": 2.0, "intensityParameter": "Intensity", "radiusParameter": "Radius" } },
+        { "id": 7, "name": "Sprite", "stage": "Render", "type": "SpriteRenderer", "enabled": true, "editorPosition": [1100.0, 120.0], "params": { "texturePath": "Resources/Texture/white.png", "blendMode": "Additive", "billboard": true } },
+        { "id": 8, "name": "Flash Light", "stage": "Render", "type": "LightOutput", "enabled": true, "editorPosition": [1320.0, 40.0], "params": { "localOffset": [0.0, 0.4, 0.0], "color": [1.0, 0.55, 0.18], "duration": 0.18, "intensity": 8.0, "range": 7.0, "intensityParameter": "Intensity", "radiusParameter": "Radius" } },
+        { "id": 9, "name": "Bloom Pulse", "stage": "Render", "type": "PostEffectOutput", "enabled": true, "editorPosition": [1540.0, 40.0], "params": { "effectName": "Bloom", "duration": 0.22, "weight": 1.0, "intensityParameter": "Intensity" } }
+      ],
+      "edges": [
+        { "from": 1, "to": 2 },
+        { "from": 2, "to": 3 },
+        { "from": 3, "to": 4 },
+        { "from": 4, "to": 5 },
+        { "from": 5, "to": 6 },
+        { "from": 6, "to": 7 },
+        { "from": 7, "to": 8 },
+        { "from": 8, "to": 9 }
+      ]
+    }
+  ]
+}

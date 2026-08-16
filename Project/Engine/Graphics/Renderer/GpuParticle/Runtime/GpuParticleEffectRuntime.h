@@ -92,6 +92,12 @@ public:
 
 	bool Play(const std::string& effectName, const Vector3& worldPosition)
 	{
+		return Play(effectName, worldPosition, 1.0f);
+	}
+
+	bool Play(const std::string& effectName, const Vector3& worldPosition, float runtimeScale)
+	{
+		runtimeScale = std::clamp(runtimeScale, 0.0f, 1.0f);
 		const GpuParticleCompiledEffect* effect = FindEffect(effectName);
 		if (!effect || !ValidateEffectSupport(*effect)) return false;
 		uint32_t& nextSlot = nextBurstSlotByEffect_[effectName];
@@ -101,7 +107,7 @@ public:
 		for (std::size_t index = 0; index < effect->emitters.size(); ++index)
 		{
 			const GpuParticleCompiledEmitter& emitterDesc = effect->emitters[index];
-			GpuParticleEmitter* emitter = EnsureEmitter(*effect, emitterDesc, index, worldPosition, false, burstSlot, nullptr);
+			GpuParticleEmitter* emitter = EnsureEmitter(*effect, emitterDesc, index, worldPosition, false, burstSlot, nullptr, runtimeScale);
 			if (!emitter)
 			{
 				SetStatus(false, "Play failed while creating emitter: " + emitterDesc.name);
@@ -109,7 +115,7 @@ public:
 			}
 			const uint32_t burstCount = ScaleCount(
 				emitterDesc.emission.burstCount,
-				EvaluateTargetFactor(*effect, emitterDesc, GpuParticleParameterTarget::BurstCount, nullptr));
+				EvaluateTargetFactor(*effect, emitterDesc, GpuParticleParameterTarget::BurstCount, nullptr) * runtimeScale);
 			if (burstCount > 0) emittedAny |= emitter->RequestEmit(burstCount) > 0;
 			emittedAny |= emitter->HasEmissionSchedule();
 		}
@@ -122,6 +128,12 @@ public:
 
 	PlayHandle PlayLoop(const std::string& effectName, const Vector3& worldPosition)
 	{
+		return PlayLoop(effectName, worldPosition, 1.0f);
+	}
+
+	PlayHandle PlayLoop(const std::string& effectName, const Vector3& worldPosition, float runtimeScale)
+	{
+		runtimeScale = std::clamp(runtimeScale, 0.0f, 1.0f);
 		const GpuParticleCompiledEffect* effect = FindEffect(effectName);
 		if (!effect || !ValidateEffectSupport(*effect)) return {};
 		LoopInstance instance{};
@@ -129,11 +141,12 @@ public:
 		instance.handle = handle;
 		instance.effectName = effectName;
 		instance.worldPosition = worldPosition;
+		instance.runtimeScale = runtimeScale;
 
 		for (std::size_t index = 0; index < effect->emitters.size(); ++index)
 		{
 			const GpuParticleCompiledEmitter& emitterDesc = effect->emitters[index];
-			GpuParticleEmitter* emitter = EnsureEmitter(*effect, emitterDesc, index, worldPosition, true, handle.id, &instance.parameterOverrides);
+			GpuParticleEmitter* emitter = EnsureEmitter(*effect, emitterDesc, index, worldPosition, true, handle.id, &instance.parameterOverrides, runtimeScale);
 			if (!emitter)
 			{
 				RemoveEmitters(instance.emitterNames);
@@ -143,7 +156,7 @@ public:
 			instance.emitterNames.push_back(BuildEmitterName(effectName, emitterDesc, index, true, handle.id));
 			const uint32_t burstCount = ScaleCount(
 				emitterDesc.emission.burstCount,
-				EvaluateTargetFactor(*effect, emitterDesc, GpuParticleParameterTarget::BurstCount, &instance.parameterOverrides));
+				EvaluateTargetFactor(*effect, emitterDesc, GpuParticleParameterTarget::BurstCount, &instance.parameterOverrides) * runtimeScale);
 			if (burstCount > 0) emitter->RequestEmit(burstCount);
 		}
 		activeLoops_[handle.id] = std::move(instance);
@@ -192,6 +205,14 @@ public:
 		auto instanceIt = activeLoops_.find(handle.id);
 		if (instanceIt == activeLoops_.end()) return false;
 		instanceIt->second.worldPosition = worldPosition;
+		return RefreshLoopInstance(instanceIt->second);
+	}
+
+	bool SetLoopRuntimeScale(PlayHandle handle, float runtimeScale)
+	{
+		auto instanceIt = activeLoops_.find(handle.id);
+		if (instanceIt == activeLoops_.end() || !std::isfinite(runtimeScale)) return false;
+		instanceIt->second.runtimeScale = std::clamp(runtimeScale, 0.0f, 1.0f);
 		return RefreshLoopInstance(instanceIt->second);
 	}
 
@@ -266,6 +287,7 @@ private:
 		PlayHandle handle{};
 		std::string effectName;
 		Vector3 worldPosition{};
+		float runtimeScale = 1.0f;
 		ParameterMap parameterOverrides;
 		std::vector<std::string> emitterNames;
 	};
@@ -366,12 +388,13 @@ private:
 		const Vector3& worldPosition,
 		bool loopMode,
 		uint32_t instanceId,
-		const ParameterMap* parameterOverrides)
+		const ParameterMap* parameterOverrides,
+		float runtimeScale)
 	{
 		GpuParticleManager* manager = GpuParticleManager::GetInstance();
 		const std::string emitterName = BuildEmitterName(effect.name, emitterDesc, emitterIndex, loopMode, instanceId);
 		GpuParticleEmitter::EmitterInfo info{};
-		if (!CompileEmitterInfo(effect, emitterDesc, loopMode, parameterOverrides, info)) return nullptr;
+		if (!CompileEmitterInfo(effect, emitterDesc, loopMode, parameterOverrides, runtimeScale, info)) return nullptr;
 		if (GpuParticleEmitter* existing = manager->GetEmitter(emitterName))
 		{
 			existing->GetInfoMutable() = info;
@@ -390,8 +413,10 @@ private:
 		const GpuParticleCompiledEmitter& emitterDesc,
 		bool loopMode,
 		const ParameterMap* parameterOverrides,
+		float runtimeScale,
 		GpuParticleEmitter::EmitterInfo& info)
 	{
+		runtimeScale = std::clamp(runtimeScale, 0.0f, 1.0f);
 		const float lifeFactor = EvaluateTargetFactor(effect, emitterDesc, GpuParticleParameterTarget::LifeTime, parameterOverrides);
 		const float speedFactor = EvaluateTargetFactor(effect, emitterDesc, GpuParticleParameterTarget::Speed, parameterOverrides);
 		const float sizeFactor = EvaluateTargetFactor(effect, emitterDesc, GpuParticleParameterTarget::Size, parameterOverrides);
@@ -484,7 +509,7 @@ private:
 		info.collisionFriction = emitterDesc.update.collisionFriction;
 		info.eventMask = emitterDesc.update.eventMask;
 		info.subEmitterEventMask = emitterDesc.update.subEmitterEventMask;
-		info.subEmitterCount = emitterDesc.update.subEmitterCount;
+		info.subEmitterCount = ScaleCount(emitterDesc.update.subEmitterCount, runtimeScale);
 		info.subEmitterLifeTime = emitterDesc.update.subEmitterLifeTime;
 		info.subEmitterSpeed = emitterDesc.update.subEmitterSpeed * speedFactor;
 		info.subEmitterSpread = emitterDesc.update.subEmitterSpread;
@@ -500,7 +525,7 @@ private:
 		info.spriteSheetColumns = static_cast<uint32_t>((std::max)(emitterDesc.render.spriteSheetColumns, 1));
 		info.spriteSheetFrameRate = (std::max)(emitterDesc.render.spriteSheetFrameRate, 0.0f);
 
-		const float effectiveSpawnRate = (std::max)(emitterDesc.emission.spawnRate * spawnRateFactor, 0.0f);
+		const float effectiveSpawnRate = (std::max)(emitterDesc.emission.spawnRate * spawnRateFactor * runtimeScale, 0.0f);
 		info.loopForever = loopMode && emitterDesc.emission.loop;
 		info.emissionDuration = info.loopForever ? 0.0f : (std::max)(emitterDesc.emission.duration, 0.0f);
 		if (effectiveSpawnRate > 0.0f && (info.loopForever || info.emissionDuration > 0.0f))
@@ -554,7 +579,7 @@ private:
 			GpuParticleEmitter* emitter = manager->GetEmitter(instance.emitterNames[index]);
 			if (!emitter) return false;
 			GpuParticleEmitter::EmitterInfo info{};
-			if (!CompileEmitterInfo(effect, effect.emitters[index], true, &instance.parameterOverrides, info)) return false;
+			if (!CompileEmitterInfo(effect, effect.emitters[index], true, &instance.parameterOverrides, instance.runtimeScale, info)) return false;
 			emitter->GetInfoMutable() = info;
 			emitter->SetPosition(Add(instance.worldPosition, effect.emitters[index].localPosition));
 		}

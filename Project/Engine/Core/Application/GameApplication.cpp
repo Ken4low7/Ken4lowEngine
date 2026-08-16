@@ -13,6 +13,7 @@
 #include "Engine/Graphics/Renderer/Reflection/ReflectionProbeManager.h"
 #include "Engine/Graphics/Renderer/Reflection/ReflectionProbeSceneBridge.h"
 #include "Engine/Vfx/Runtime/VfxCueRuntime.h"
+#include "Engine/Vfx/Graph/Runtime/VfxGraphRuntime.h"
 
 #ifdef USE_IMGUI
 #include <ImGuiManager.h>
@@ -161,6 +162,7 @@ namespace Ken4lowEngine
 
 		// Cameraの通常更新前に前FrameのVFX presentation offsetだけ戻し、shakeをTransformへ累積しない。
 		VfxCueRuntime::GetInstance()->BeginFrame();
+		VfxGraphRuntime::GetInstance()->BeginFrame();
 
 		if (defaultCamera_)
 		{
@@ -175,6 +177,7 @@ namespace Ken4lowEngine
 		{
 			actorWorld = currentScene->GetSceneActorWorld();
 		}
+		VfxGraphRuntime::GetInstance()->UpdateScalability();
 		VfxCueRuntime::GetInstance()->Update(GameTimer::GetInstance()->GetDeltaTime(), actorWorld);
 
 		PostEffectManager::GetInstance()->Update();

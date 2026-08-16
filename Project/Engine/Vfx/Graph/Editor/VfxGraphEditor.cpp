@@ -459,6 +459,27 @@ void VfxGraphEditor::DrawGraphHeader()
 	}
 	ImGui::SameLine();
 	ImGui::Text("Emitters: %d", static_cast<int>(editableGraph_.emitters.size()));
+	if (ImGui::TreeNode("Phase27 Scalability"))
+	{
+		auto& scalability = editableGraph_.scalability;
+		const char* boundsModes[] = { "Automatic", "FixedSphere" };
+		int boundsMode = static_cast<int>(scalability.boundsMode);
+		if (ImGui::Combo("Bounds Mode", &boundsMode, boundsModes, IM_ARRAYSIZE(boundsModes))) { scalability.boundsMode = static_cast<VfxGraphBoundsMode>(boundsMode); MarkGraphDirty(); }
+		if (scalability.boundsMode == VfxGraphBoundsMode::FixedSphere)
+		{
+			if (ImGui::DragFloat3("Bounds Center", &scalability.fixedBoundsCenter.x, 0.05f)) MarkGraphDirty();
+			if (ImGui::DragFloat("Bounds Radius", &scalability.fixedBoundsRadius, 0.05f, 0.1f, 10000.0f)) MarkGraphDirty();
+		}
+		if (ImGui::Checkbox("Frustum Culling", &scalability.frustumCulling)) MarkGraphDirty();
+		if (ImGui::DragFloat("Max Draw Distance", &scalability.maxDrawDistance, 1.0f, 0.0f, 100000.0f)) MarkGraphDirty();
+		if (ImGui::DragFloat("LOD Near", &scalability.lodNearDistance, 0.5f, 0.0f, 100000.0f)) MarkGraphDirty();
+		if (ImGui::DragFloat("LOD Far", &scalability.lodFarDistance, 0.5f, 0.0f, 100000.0f)) MarkGraphDirty();
+		if (ImGui::SliderFloat("LOD Mid Scale", &scalability.lodMidScale, 0.05f, 1.0f)) MarkGraphDirty();
+		if (ImGui::SliderFloat("LOD Far Scale", &scalability.lodFarScale, 0.01f, 1.0f)) MarkGraphDirty();
+		int budgetCost = static_cast<int>(scalability.budgetCost);
+		if (ImGui::DragInt("Budget Cost", &budgetCost, 1.0f, 1, 64)) { scalability.budgetCost = static_cast<uint32_t>((std::max)(budgetCost, 1)); MarkGraphDirty(); }
+		ImGui::TreePop();
+	}
 	ImGui::Separator();
 #endif // USE_IMGUI
 }
