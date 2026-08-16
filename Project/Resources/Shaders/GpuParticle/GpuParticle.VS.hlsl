@@ -54,7 +54,9 @@ VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID
         float3 camRight = SafeNormalize(gPerView.billboardMatrix[0].xyz, float3(1, 0, 0));
         float3 camUp = SafeNormalize(gPerView.billboardMatrix[1].xyz, float3(0, 1, 0));
         float3 camForward = SafeNormalize(gPerView.billboardMatrix[2].xyz, float3(0, 0, 1));
-        float3 tangent = SafeNormalize(particle.velocity, camUp);
+        float3 segment = particle.translate - particle.previousTranslate;
+        float segmentLength = length(segment);
+        float3 tangent = SafeNormalize(segment, SafeNormalize(particle.velocity, camUp));
         float3 side = cross(camForward, tangent);
         float sideLen = length(side);
         if (sideLen <= 1e-5f)
@@ -67,6 +69,10 @@ VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID
         }
         float3 forward = SafeNormalize(cross(side, tangent), camForward);
         worldMatrix = MakeBasisRowMajor(side, tangent, forward);
+
+        // Phase23 centers the quad on the previous-current segment and treats authored length as a motion-length multiplier.
+        particle.translate = (particle.previousTranslate + particle.translate) * 0.5f;
+        particle.scale.y = max(segmentLength * max(particle.scale.y, 0.0001f), 0.0001f);
     }
     else if (IsBillboardMode(particle.billboardMode, BILLBOARD_CAMERA))
     {
