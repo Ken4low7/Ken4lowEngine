@@ -12,7 +12,6 @@
 namespace Ken4lowEngine
 {
 
-// HLSL EmitterCBDataと同一順序で保持し、Runtime Authoring値をEmit Computeへ渡す。
 struct GpuEmitterCBData
 {
 	Vector3 translate;
@@ -82,9 +81,31 @@ struct GpuEmitterCBData
 	float angularVelocityPadding = 0.0f;
 	Vector3 angularVelocityRandom{};
 	float angularVelocityRandomPadding = 0.0f;
+
+	uint32_t collisionShape = 0u;
+	uint32_t collisionResponse = 0u;
+	uint32_t eventMask = 0u;
+	uint32_t subEmitterEventMask = 0u;
+	Vector3 collisionPlaneNormal{ 0.0f, 1.0f, 0.0f };
+	float collisionPlaneDistance = 0.0f;
+	Vector3 collisionSphereCenter{};
+	float collisionSphereRadius = 1.0f;
+	float collisionParticleRadius = 0.02f;
+	float collisionRestitution = 0.5f;
+	float collisionFriction = 0.1f;
+	uint32_t subEmitterCount = 0u;
+	float subEmitterLifeTime = 0.2f;
+	float subEmitterSpeed = 1.5f;
+	float subEmitterSpread = 1.0f;
+	float subEmitterInheritVelocity = 0.2f;
+	Vector2 subEmitterStartSize{ 0.04f, 0.04f };
+	Vector2 subEmitterEndSize{ 0.12f, 0.12f };
+	Vector4 subEmitterStartColor{ 1.0f, 0.8f, 0.2f, 1.0f };
+	Vector4 subEmitterEndColor{ 1.0f, 0.1f, 0.0f, 0.0f };
+	uint32_t subEmitterAlphaFade = 1u;
+	float phase22Padding[3]{};
 };
 
-// drawTypeの上位4bitへBlendModeを埋め込み、既存Managerの描画重複排除キーもそのまま利用する。
 inline constexpr uint32_t kGpuParticleBlendTagShift = 28u;
 inline constexpr uint32_t kGpuParticleBlendTagMask = 0xF0000000u;
 inline constexpr uint32_t kGpuParticleMaterialDrawTypeMask = 0x0FFFFFFFu;
@@ -104,39 +125,29 @@ inline constexpr uint32_t UnpackGpuParticleMaterialDrawType(uint32_t packedDrawT
 inline constexpr BlendMode UnpackGpuParticleBlendMode(uint32_t packedDrawType)
 {
 	const uint32_t blendTag = (packedDrawType & kGpuParticleBlendTagMask) >> kGpuParticleBlendTagShift;
-	if (blendTag == 0u)
-	{
-		return BlendMode::kBlendModeAdd;
-	}
-
+	if (blendTag == 0u) return BlendMode::kBlendModeAdd;
 	const uint32_t decoded = blendTag - 1u;
 	const uint32_t maxMode = static_cast<uint32_t>(BlendMode::kcountOfBlendMode) - 1u;
 	return decoded <= maxMode ? static_cast<BlendMode>(decoded) : BlendMode::kBlendModeAdd;
 }
 
-inline uint32_t BuildGpuParticleRenderGroup(
-	std::string_view textureOrMeshKey,
-	uint32_t materialDrawType,
-	BlendMode blendMode)
+inline uint32_t BuildGpuParticleRenderGroup(std::string_view textureOrMeshKey, uint32_t materialDrawType, BlendMode blendMode)
 {
-	// FNV-1aでTexture/Mesh・Material種別・Blendを1つのGPU描画グループへ固定し、別TextureのDefault粒子が重複描画されるのを防ぐ。
 	uint32_t hash = 2166136261u;
 	for (const unsigned char c : textureOrMeshKey)
 	{
 		hash ^= c;
 		hash *= 16777619u;
 	}
-
 	for (uint32_t shift = 0; shift < 32u; shift += 8u)
 	{
 		hash ^= (materialDrawType >> shift) & 0xFFu;
 		hash *= 16777619u;
 	}
-
 	hash ^= static_cast<uint32_t>(blendMode);
 	hash *= 16777619u;
 	return hash == 0u ? 1u : hash;
 }
 
-static_assert(sizeof(GpuEmitterCBData) == 480); // HLSL cbufferと16byteパッキングを一致させる。
+static_assert(sizeof(GpuEmitterCBData) == 624); // HLSL EmitterCBDataとPhase22拡張後も16byteパッキングを一致させる。
 } // namespace Ken4lowEngine
