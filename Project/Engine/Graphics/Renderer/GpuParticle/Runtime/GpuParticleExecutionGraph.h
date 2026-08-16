@@ -42,6 +42,12 @@ struct GpuParticleExecutionGraphStats
 		return GetPassCount() > 0u ? 2u : 0u;
 	}
 
+	[[nodiscard]] uint32_t EstimateUavBarrierCount() const
+	{
+		const uint32_t passCount = GetPassCount();
+		return passCount > 0u ? passCount - 1u : 0u;
+	}
+
 	[[nodiscard]] uint32_t EstimatePipelineSwitchCount() const
 	{
 		return (updatePassCount > 0u ? 1u : 0u) + (emitPassCount > 0u ? 1u : 0u);
