@@ -245,6 +245,8 @@ namespace Ken4lowEngine
 				ImGui::MenuItem("Display", nullptr, &windowState_.showDisplay);
 				ImGui::MenuItem("Parameters", nullptr, &windowState_.showParameters);
 				ImGui::MenuItem("Json Asset Manager", nullptr, &windowState_.showJsonAssetManager);
+				ImGui::MenuItem("VFX Timeline", nullptr, &windowState_.showVfxTimeline);
+				ImGui::MenuItem("VFX Graph Editor", nullptr, &windowState_.showVfxGraphEditor);
 				ImGui::EndMenu();
 			}
 

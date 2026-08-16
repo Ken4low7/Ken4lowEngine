@@ -31,6 +31,7 @@ namespace Ken4lowEngine
 		bool showLightEditor = true;
 		bool showJsonAssetManager = true;
 		bool showVfxTimeline = true; // Phase18はTimeline/Preview/Diagnosticsを独立Dock Windowとして既定表示する。
+		bool showVfxGraphEditor = true; // Phase25 Graph authoringとlive previewを独立Dock Windowとして表示する。
 
 		bool showTitleDebug = true;
 		bool showStageSelectDebug = true;
