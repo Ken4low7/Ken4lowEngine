@@ -22,6 +22,11 @@ bool IsValidInterpolation(VfxCurveInterpolation interpolation)
 	return static_cast<uint32_t>(interpolation) <= static_cast<uint32_t>(VfxCurveInterpolation::SmoothStep);
 }
 
+bool IsValidBlendMode(GpuParticleBlendMode blendMode)
+{
+	return static_cast<uint32_t>(blendMode) <= static_cast<uint32_t>(GpuParticleBlendMode::Multiply);
+}
+
 void ValidateFloatCurve(const VfxFloatCurve& curve, std::vector<std::string>& errors, const std::string& prefix)
 {
 	if (!IsValidInterpolation(curve.interpolation)) errors.push_back(prefix + "curve interpolation is invalid");
@@ -83,6 +88,9 @@ bool PayloadMatchesType(const VfxGraphNodeDesc& node)
 	case VfxGraphNodeType::Collision: return std::holds_alternative<VfxGraphCollisionNode>(node.payload);
 	case VfxGraphNodeType::DeathEvent: return std::holds_alternative<VfxGraphDeathEventNode>(node.payload);
 	case VfxGraphNodeType::SubEmitter: return std::holds_alternative<VfxGraphSubEmitterNode>(node.payload);
+	case VfxGraphNodeType::RibbonRenderer: return std::holds_alternative<VfxGraphRibbonRendererNode>(node.payload);
+	case VfxGraphNodeType::TrailRenderer: return std::holds_alternative<VfxGraphTrailRendererNode>(node.payload);
+	case VfxGraphNodeType::MeshRenderer: return std::holds_alternative<VfxGraphMeshRendererNode>(node.payload);
 	default: return false;
 	}
 }
@@ -187,8 +195,37 @@ void ValidateNodeValues(const VfxGraphNodeDesc& node, std::vector<std::string>& 
 		break;
 	}
 	case VfxGraphNodeType::SpriteRenderer:
-		if (std::get<VfxGraphSpriteRendererNode>(node.payload).texturePath.empty()) errors.push_back(prefix + "SpriteRenderer requires texturePath");
+	{
+		const auto& p = std::get<VfxGraphSpriteRendererNode>(node.payload);
+		if (p.texturePath.empty()) errors.push_back(prefix + "SpriteRenderer requires texturePath");
+		if (!IsValidBlendMode(p.blendMode)) errors.push_back(prefix + "SpriteRenderer blendMode is invalid");
 		break;
+	}
+	case VfxGraphNodeType::RibbonRenderer:
+	{
+		const auto& p = std::get<VfxGraphRibbonRendererNode>(node.payload);
+		if (p.texturePath.empty()) errors.push_back(prefix + "RibbonRenderer requires texturePath");
+		if (!IsValidBlendMode(p.blendMode)) errors.push_back(prefix + "RibbonRenderer blendMode is invalid");
+		if (!std::isfinite(p.width) || p.width <= 0.0f || !std::isfinite(p.length) || p.length <= 0.0f) errors.push_back(prefix + "ribbon width/length must be finite and > 0");
+		break;
+	}
+	case VfxGraphNodeType::TrailRenderer:
+	{
+		const auto& p = std::get<VfxGraphTrailRendererNode>(node.payload);
+		if (p.texturePath.empty()) errors.push_back(prefix + "TrailRenderer requires texturePath");
+		if (!IsValidBlendMode(p.blendMode)) errors.push_back(prefix + "TrailRenderer blendMode is invalid");
+		if (!std::isfinite(p.width) || p.width <= 0.0f || !std::isfinite(p.length) || p.length <= 0.0f) errors.push_back(prefix + "trail width/length must be finite and > 0");
+		break;
+	}
+	case VfxGraphNodeType::MeshRenderer:
+	{
+		const auto& p = std::get<VfxGraphMeshRendererNode>(node.payload);
+		if (p.meshPath.empty()) errors.push_back(prefix + "MeshRenderer requires meshPath");
+		if (!IsValidBlendMode(p.blendMode)) errors.push_back(prefix + "MeshRenderer blendMode is invalid");
+		if (!IsFinite(p.startScale) || !IsFinite(p.endScale) || !IsFinite(p.startRotation) || !IsFinite(p.angularVelocity)) errors.push_back(prefix + "mesh transform values must be finite");
+		if (p.startScale.x < 0.0f || p.startScale.y < 0.0f || p.startScale.z < 0.0f || p.endScale.x < 0.0f || p.endScale.y < 0.0f || p.endScale.z < 0.0f) errors.push_back(prefix + "mesh scale must be non-negative");
+		break;
+	}
 	case VfxGraphNodeType::Burst:
 	case VfxGraphNodeType::SpawnPoint:
 	case VfxGraphNodeType::DeathEvent:
@@ -285,6 +322,11 @@ uint32_t EventMask(VfxParticleEventType eventType)
 	return eventType == VfxParticleEventType::Death ? kGpuParticleEventDeath : kGpuParticleEventCollision;
 }
 
+bool IsRendererNode(VfxGraphNodeType type)
+{
+	return type == VfxGraphNodeType::SpriteRenderer || type == VfxGraphNodeType::RibbonRenderer || type == VfxGraphNodeType::TrailRenderer || type == VfxGraphNodeType::MeshRenderer;
+}
+
 bool CompileEmitter(const VfxGraphEmitterDesc& source, const std::vector<GpuParticleUserParameterDesc>& userParameters,
 	GpuParticleEmitterDesc& outEmitter, VfxGraphCompiledEmitter& outCompiled, std::vector<std::string>& errors, std::vector<std::string>& warnings)
 {
@@ -319,14 +361,14 @@ bool CompileEmitter(const VfxGraphEmitterDesc& source, const std::vector<GpuPart
 		if (!node.enabled) continue;
 		++typeCounts[node.type];
 		if (node.type == VfxGraphNodeType::SpawnPoint || node.type == VfxGraphNodeType::SpawnSphere || node.type == VfxGraphNodeType::SpawnBox) ++spawnShapeCount;
-		if (node.type == VfxGraphNodeType::SpriteRenderer) ++rendererCount;
+		if (IsRendererNode(node.type)) ++rendererCount;
 		if (node.type == VfxGraphNodeType::Collision && std::get<VfxGraphCollisionNode>(node.payload).generateEvent) collisionEventProducer = true;
 		if (node.type == VfxGraphNodeType::DeathEvent) deathEventProducer = true;
 		if (node.type == VfxGraphNodeType::SubEmitter) subEmitterNode = &std::get<VfxGraphSubEmitterNode>(node.payload);
 	}
 	for (const auto& [type, count] : typeCounts) if (count > 1u) errors.push_back("Emitter '" + source.name + "' has duplicate enabled node type: " + std::string(ToString(type)));
 	if (spawnShapeCount > 1u) errors.push_back("Emitter '" + source.name + "' may enable only one spawn shape node");
-	if (rendererCount != 1u) errors.push_back("Emitter '" + source.name + "' requires exactly one enabled SpriteRenderer node");
+	if (rendererCount != 1u) errors.push_back("Emitter '" + source.name + "' requires exactly one enabled renderer node");
 	if (subEmitterNode)
 	{
 		if (subEmitterNode->sourceEvent == VfxParticleEventType::Collision && !collisionEventProducer) errors.push_back("Emitter '" + source.name + "' SubEmitter requires a Collision node with generateEvent=true");
@@ -457,7 +499,49 @@ bool CompileEmitter(const VfxGraphEmitterDesc& source, const std::vector<GpuPart
 		}
 		case VfxGraphNodeType::SpriteRenderer:
 		{
-			const auto& p = std::get<VfxGraphSpriteRendererNode>(node.payload); outEmitter.renderType = GpuParticleRenderType::Sprite; outEmitter.texturePath = p.texturePath; outEmitter.blendMode = p.blendMode; outEmitter.billboard = p.billboard; break;
+			const auto& p = std::get<VfxGraphSpriteRendererNode>(node.payload);
+			outEmitter.renderType = GpuParticleRenderType::Sprite;
+			outEmitter.texturePath = p.texturePath;
+			outEmitter.blendMode = p.blendMode;
+			outEmitter.billboard = p.billboard;
+			break;
+		}
+		case VfxGraphNodeType::RibbonRenderer:
+		{
+			const auto& p = std::get<VfxGraphRibbonRendererNode>(node.payload);
+			outEmitter.renderType = GpuParticleRenderType::Ribbon;
+			outEmitter.texturePath = p.texturePath;
+			outEmitter.blendMode = p.blendMode;
+			outEmitter.billboard = true;
+			outEmitter.startSize = { p.width, p.length };
+			outEmitter.endSize = { p.width, p.length };
+			// Phase23 reuses the existing velocity-aligned sprite path instead of introducing a second ribbon particle backend.
+			break;
+		}
+		case VfxGraphNodeType::TrailRenderer:
+		{
+			const auto& p = std::get<VfxGraphTrailRendererNode>(node.payload);
+			outEmitter.renderType = GpuParticleRenderType::Trail;
+			outEmitter.texturePath = p.texturePath;
+			outEmitter.blendMode = p.blendMode;
+			outEmitter.billboard = true;
+			outEmitter.startSize = { p.width, p.length };
+			outEmitter.endSize = { p.width, p.length };
+			break;
+		}
+		case VfxGraphNodeType::MeshRenderer:
+		{
+			const auto& p = std::get<VfxGraphMeshRendererNode>(node.payload);
+			outEmitter.renderType = GpuParticleRenderType::Mesh;
+			outEmitter.meshPath = p.meshPath;
+			outEmitter.meshSubMeshIndex = p.subMeshIndex;
+			outEmitter.blendMode = p.blendMode;
+			outEmitter.billboard = false;
+			outEmitter.startScale3D = p.startScale;
+			outEmitter.endScale3D = p.endScale;
+			outEmitter.startRotation3D = p.startRotation;
+			outEmitter.angularVelocity = p.angularVelocity;
+			break;
 		}
 		default: break;
 		}
