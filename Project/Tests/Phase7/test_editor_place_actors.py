@@ -21,6 +21,7 @@ class EditorPlaceActorsTests(unittest.TestCase):
             "EditorPlaceableType::SpotLight",
             "EditorPlaceableType::TriggerBox",
             "EditorPlaceableType::TriggerSphere",
+            "EditorPlaceableType::ActorPrefab",
         ]
         for token in required_tokens:
             self.assertIn(token, text)
@@ -44,6 +45,25 @@ class EditorPlaceActorsTests(unittest.TestCase):
         self.assertIn("ImGuiMouseButton_Right", panel_text)
         self.assertIn("RecordPlacementCommand", service_text)
         self.assertIn("MarkLevelDirty", service_text)
+
+    def test_place_actors_lists_actor_prefabs_and_preserves_viewport_display_switch(self) -> None:
+        shell = ENGINE_ROOT / "Editor" / "EditorShell.h"
+        context = ENGINE_ROOT / "Editor" / "EditorContext.h"
+        service = ENGINE_ROOT / "Editor" / "EditorAssetPlacementService.h"
+        shell_text = shell.read_text(encoding="utf-8")
+        context_text = context.read_text(encoding="utf-8")
+        service_text = service.read_text(encoding="utf-8")
+
+        self.assertIn('std::filesystem::path prefabDirectory{ "Resources/ActorPrefabs" }', shell_text)
+        self.assertIn('ImGui::CollapsingHeader("プリファブ"', shell_text)
+        self.assertIn("QueuePrefabPlacement", shell_text)
+        self.assertIn("QueuePrefabPlacement", context_text)
+        self.assertIn("SpawnActorFromJson(request.assetPath", service_text)
+
+        combo_index = shell_text.index('ImGui::BeginCombo("##ビューポート表示"')
+        tool_gate_index = shell_text.index("if (viewportWidth >= 560.0f)")
+        self.assertLess(combo_index, tool_gate_index)
+        self.assertNotIn("if (viewportWidth >= 850.0f)", shell_text)
 
 
 if __name__ == "__main__":

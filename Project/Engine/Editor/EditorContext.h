@@ -26,6 +26,7 @@ namespace Ken4lowEngine
 		ReflectionProbe,
 		TriggerBox,
 		TriggerSphere,
+		ActorPrefab,
 	};
 
 	/// <summary>
@@ -35,6 +36,7 @@ namespace Ken4lowEngine
 	{
 		EditorPlaceableType type = EditorPlaceableType::None;
 		std::string displayName;
+		std::string assetPath; // ActorPrefab選択時だけResourcesからのJSONパスを保持する。
 		uint64_t serial = 0;
 		bool pending = false;
 	};
@@ -68,9 +70,19 @@ namespace Ken4lowEngine
 		{
 			placementRequest_.type = type;
 			placementRequest_.displayName.assign(displayName.begin(), displayName.end());
+			placementRequest_.assetPath.clear();
 			placementRequest_.serial = ++placementSerial_;
 			placementRequest_.pending = type != EditorPlaceableType::None;
 			// Viewport左クリックがこの要求をワールド座標へ変換し、Editor用ActorWorldへ1体生成する。
+		}
+
+		void QueuePrefabPlacement(std::string_view prefabPath, std::string_view displayName)
+		{
+			placementRequest_.type = EditorPlaceableType::ActorPrefab;
+			placementRequest_.displayName.assign(displayName.begin(), displayName.end());
+			placementRequest_.assetPath.assign(prefabPath.begin(), prefabPath.end());
+			placementRequest_.serial = ++placementSerial_;
+			placementRequest_.pending = !placementRequest_.assetPath.empty();
 		}
 
 		const EditorPlacementRequest& GetPlacementRequest() const { return placementRequest_; }
@@ -80,6 +92,7 @@ namespace Ken4lowEngine
 		{
 			placementRequest_.type = EditorPlaceableType::None;
 			placementRequest_.displayName.clear();
+			placementRequest_.assetPath.clear();
 			placementRequest_.pending = false;
 		}
 

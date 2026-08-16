@@ -202,6 +202,25 @@ namespace Ken4lowEngine
 			case EditorPlaceableType::TriggerSphere:
 				result.spawnedActor = &actorWorld->SpawnActor<EditorPlacedTriggerActor>(ECollisionShapeType::Sphere, worldPosition);
 				break;
+			case EditorPlaceableType::ActorPrefab:
+			{
+				if (request.assetPath.empty())
+				{
+					result.message = "配置するActor Prefabのパスが空です。";
+					return result;
+				}
+				ActorSpawnOptions options{};
+				options.applySpawnOffset = false;
+				options.disableAutoRegisterMainCamera = true;
+				options.trackPrefabReference = true;
+				result.spawnedActor = actorWorld->SpawnActorFromJson(request.assetPath, options);
+				if (!result.spawnedActor)
+				{
+					result.message = "Actor Prefabの読み込みに失敗しました: " + request.assetPath;
+					return result;
+				}
+				break;
+			}
 			default:
 				result.message = "このPlace Actors項目は配置に対応していません。";
 				return result;
@@ -213,7 +232,10 @@ namespace Ken4lowEngine
 				return result;
 			}
 
-			result.spawnedActor->SetName(MakeUniqueActorName(*actorWorld, request.displayName));
+			if (request.type != EditorPlaceableType::ActorPrefab)
+			{
+				result.spawnedActor->SetName(MakeUniqueActorName(*actorWorld, request.displayName));
+			}
 			result.succeeded = true;
 			result.message = request.displayName + " を配置しました。";
 			FinalizePlacement(*scene, *actorWorld, *result.spawnedActor, worldPosition);

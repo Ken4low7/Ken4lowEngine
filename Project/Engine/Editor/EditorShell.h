@@ -20,8 +20,11 @@
 #include <array>
 #include <cctype>
 #include <cmath>
+#include <filesystem>
 #include <string>
 #include <string_view>
+#include <system_error>
+#include <vector>
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -381,18 +384,41 @@ namespace Ken4lowEngine
 			if (ImGui::Begin(EditorPanelIds::ViewportToolbarOverlay, nullptr, flags))
 			{
 				DrawPlaybackControls();
+
+				auto* viewportController = EditorViewportController::GetInstance();
+				// Editor/Gameは表示確認の基本操作なので、狭いViewportでも補助ツールより優先して残す。
 				ImGui::SameLine();
 				ImGui::TextDisabled("|");
 				ImGui::SameLine();
-				DrawViewportToolButton("選択", EditorViewportTool::Select);
-				ImGui::SameLine();
-				DrawViewportToolButton("移動", EditorViewportTool::Translate);
-				ImGui::SameLine();
-				DrawViewportToolButton("回転", EditorViewportTool::Rotate);
-				ImGui::SameLine();
-				DrawViewportToolButton("拡縮", EditorViewportTool::Scale);
+				ImGui::SetNextItemWidth(viewportWidth >= 560.0f ? 130.0f : 108.0f);
+				if (ImGui::BeginCombo("##ビューポート表示", viewportController->GetDisplayModeText()))
+				{
+					const bool editorSelected = viewportController->IsEditorDisplay();
+					if (ImGui::Selectable("エディター表示", editorSelected))
+					{
+						viewportController->SetDisplayMode(EditorViewportDisplayMode::Editor);
+					}
+					const bool gameSelected = viewportController->IsGameDisplay();
+					if (ImGui::Selectable("ゲーム表示", gameSelected))
+					{
+						viewportController->SetDisplayMode(EditorViewportDisplayMode::Game);
+					}
+					ImGui::EndCombo();
+				}
 
-				auto* viewportController = EditorViewportController::GetInstance();
+				if (viewportWidth >= 560.0f)
+				{
+					ImGui::SameLine();
+					ImGui::TextDisabled("|");
+					ImGui::SameLine();
+					DrawViewportToolButton("選択", EditorViewportTool::Select);
+					ImGui::SameLine();
+					DrawViewportToolButton("移動", EditorViewportTool::Translate);
+					ImGui::SameLine();
+					DrawViewportToolButton("回転", EditorViewportTool::Rotate);
+					ImGui::SameLine();
+					DrawViewportToolButton("拡縮", EditorViewportTool::Scale);
+				}
 				if (viewportWidth >= 650.0f)
 				{
 					ImGui::SameLine();
@@ -436,27 +462,6 @@ namespace Ken4lowEngine
 					}
 				}
 
-				if (viewportWidth >= 850.0f)
-				{
-					ImGui::SameLine();
-					ImGui::TextDisabled("|");
-					ImGui::SameLine();
-					ImGui::SetNextItemWidth(130.0f);
-					if (ImGui::BeginCombo("##ビューポート表示", viewportController->GetDisplayModeText()))
-					{
-						const bool editorSelected = viewportController->IsEditorDisplay();
-						if (ImGui::Selectable("エディター表示", editorSelected))
-						{
-							viewportController->SetDisplayMode(EditorViewportDisplayMode::Editor);
-						}
-						const bool gameSelected = viewportController->IsGameDisplay();
-						if (ImGui::Selectable("ゲーム表示", gameSelected))
-						{
-							viewportController->SetDisplayMode(EditorViewportDisplayMode::Game);
-						}
-						ImGui::EndCombo();
-					}
-				}
 
 				if (viewportWidth >= 1030.0f)
 				{
@@ -635,6 +640,60 @@ namespace Ken4lowEngine
 			}
 		}
 
+		void DrawPrefabCategory()
+		{
+			const std::filesystem::path prefabDirectory{ "Resources/ActorPrefabs" };
+			std::error_code error;
+			if (!std::filesystem::exists(prefabDirectory, error) || error)
+			{
+				if (ImGui::CollapsingHeader("プリファブ", ImGuiTreeNodeFlags_DefaultOpen))
+				{
+					ImGui::TextDisabled("Resources/ActorPrefabs が見つかりません。");
+				}
+				return;
+			}
+
+			std::vector<std::filesystem::path> prefabFiles;
+			for (std::filesystem::directory_iterator it(prefabDirectory, error), end; !error && it != end; it.increment(error))
+			{
+				if (!it->is_regular_file(error) || error) continue;
+				const std::filesystem::path& filePath = it->path();
+				if (filePath.extension() == ".json") prefabFiles.push_back(filePath);
+			}
+			std::sort(prefabFiles.begin(), prefabFiles.end());
+
+			const std::string_view searchFilter{ placeActorsSearch_.data() };
+			bool hasVisiblePrefab = false;
+			for (const std::filesystem::path& filePath : prefabFiles)
+			{
+				const std::string displayName = filePath.stem().generic_string();
+				if (ContainsCaseInsensitive(displayName, searchFilter) || ContainsCaseInsensitive("Prefab Actor JSON", searchFilter))
+				{
+					hasVisiblePrefab = true;
+					break;
+				}
+			}
+			if (!hasVisiblePrefab) return;
+			if (!ImGui::CollapsingHeader("プリファブ", ImGuiTreeNodeFlags_DefaultOpen)) return;
+
+			for (const std::filesystem::path& filePath : prefabFiles)
+			{
+				const std::string displayName = filePath.stem().generic_string();
+				if (!ContainsCaseInsensitive(displayName, searchFilter) && !ContainsCaseInsensitive("Prefab Actor JSON", searchFilter)) continue;
+				const std::string prefabPath = filePath.generic_string();
+				ImGui::PushID(prefabPath.c_str());
+				if (ImGui::Button(displayName.c_str(), ImVec2(-1.0f, 34.0f)))
+				{
+					EditorContext::GetInstance()->QueuePrefabPlacement(prefabPath, displayName);
+				}
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::SetTooltip("Actor Prefabを選択し、Main Viewportをクリックして配置します。\n%s", prefabPath.c_str());
+				}
+				ImGui::PopID();
+			}
+		}
+
 		void DrawPlaceActors()
 		{
 			constexpr std::array<PlaceableEntry, 4> basicEntries = {
@@ -657,7 +716,7 @@ namespace Ken4lowEngine
 			if (ImGui::Begin(EditorPanelIds::PlaceActors, nullptr, flags))
 			{
 				ImGui::TextUnformatted("アクタを配置");
-				ImGui::TextDisabled("配置する種類を選択してください。実際の配置は後続Phaseで接続します。");
+				ImGui::TextDisabled("項目を選択し、Main Viewportをクリックして配置します。");
 				ImGui::Separator();
 				ImGui::SetNextItemWidth(-1.0f);
 				ImGui::InputTextWithHint("##PlaceActorsSearch", "クラスを検索...", placeActorsSearch_.data(), placeActorsSearch_.size());
@@ -666,6 +725,7 @@ namespace Ken4lowEngine
 				DrawPlaceableCategory("基本", basicEntries.data(), basicEntries.size());
 				DrawPlaceableCategory("ライト", lightEntries.data(), lightEntries.size());
 				DrawPlaceableCategory("ボリューム", volumeEntries.data(), volumeEntries.size());
+				DrawPrefabCategory();
 
 				const EditorPlacementRequest& request = EditorContext::GetInstance()->GetPlacementRequest();
 				if (request.pending)
