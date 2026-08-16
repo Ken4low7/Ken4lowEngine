@@ -94,11 +94,14 @@ VfxGraphNodeStage GetExpectedVfxGraphNodeStage(VfxGraphNodeType type)
 	case VfxGraphNodeType::Collision:
 	case VfxGraphNodeType::DeathEvent:
 	case VfxGraphNodeType::SubEmitter:
+	case VfxGraphNodeType::FluidOutput:
 		return VfxGraphNodeStage::Update;
 	case VfxGraphNodeType::SpriteRenderer:
 	case VfxGraphNodeType::RibbonRenderer:
 	case VfxGraphNodeType::TrailRenderer:
 	case VfxGraphNodeType::MeshRenderer:
+	case VfxGraphNodeType::LightOutput:
+	case VfxGraphNodeType::PostEffectOutput:
 		return VfxGraphNodeStage::Render;
 	default:
 		return VfxGraphNodeStage::Spawn;
@@ -143,6 +146,9 @@ const char* ToString(VfxGraphNodeType type)
 	case VfxGraphNodeType::RibbonRenderer: return "RibbonRenderer";
 	case VfxGraphNodeType::TrailRenderer: return "TrailRenderer";
 	case VfxGraphNodeType::MeshRenderer: return "MeshRenderer";
+	case VfxGraphNodeType::FluidOutput: return "FluidOutput";
+	case VfxGraphNodeType::LightOutput: return "LightOutput";
+	case VfxGraphNodeType::PostEffectOutput: return "PostEffectOutput";
 	default: return "SpawnRate";
 	}
 }
@@ -175,6 +181,16 @@ const char* ToString(VfxCollisionResponse response)
 	case VfxCollisionResponse::Slide: return "Slide";
 	case VfxCollisionResponse::Kill: return "Kill";
 	default: return "Bounce";
+	}
+}
+
+const char* ToString(VfxGraphFluidDomain domain)
+{
+	switch (domain)
+	{
+	case VfxGraphFluidDomain::Fluid2D: return "Fluid2D";
+	case VfxGraphFluidDomain::Volumetric3D: return "Volumetric3D";
+	default: return "Volumetric3D";
 	}
 }
 
@@ -212,6 +228,9 @@ bool TryParseVfxGraphNodeType(const std::string& text, VfxGraphNodeType& outType
 	else if (text == "RibbonRenderer") outType = VfxGraphNodeType::RibbonRenderer;
 	else if (text == "TrailRenderer") outType = VfxGraphNodeType::TrailRenderer;
 	else if (text == "MeshRenderer") outType = VfxGraphNodeType::MeshRenderer;
+	else if (text == "FluidOutput") outType = VfxGraphNodeType::FluidOutput;
+	else if (text == "LightOutput") outType = VfxGraphNodeType::LightOutput;
+	else if (text == "PostEffectOutput") outType = VfxGraphNodeType::PostEffectOutput;
 	else return false;
 	return true;
 }
@@ -237,6 +256,14 @@ bool TryParseVfxCollisionResponse(const std::string& text, VfxCollisionResponse&
 	if (text == "Bounce") outResponse = VfxCollisionResponse::Bounce;
 	else if (text == "Slide") outResponse = VfxCollisionResponse::Slide;
 	else if (text == "Kill") outResponse = VfxCollisionResponse::Kill;
+	else return false;
+	return true;
+}
+
+bool TryParseVfxGraphFluidDomain(const std::string& text, VfxGraphFluidDomain& outDomain)
+{
+	if (text == "Fluid2D") outDomain = VfxGraphFluidDomain::Fluid2D;
+	else if (text == "Volumetric3D") outDomain = VfxGraphFluidDomain::Volumetric3D;
 	else return false;
 	return true;
 }

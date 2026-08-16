@@ -1,5 +1,7 @@
 #include "VfxGraphRuntime.h"
 
+#include "Engine/Vfx/Runtime/VfxCueRuntime.h"
+
 #include <utility>
 
 namespace Ken4lowEngine
@@ -27,7 +29,25 @@ bool VfxGraphRuntime::RegisterGraph(const VfxGraphDesc& graph)
 		return false;
 	}
 
-	const bool replacing = programs_.contains(graph.graphName);
+	VfxCueRuntime* cueRuntime = VfxCueRuntime::GetInstance();
+	const auto previous = programs_.find(graph.graphName);
+	if (compiled.program.HasIntegrationTracks())
+	{
+		if (!cueRuntime->RegisterCue(compiled.program.integrationOneShotCue) || !cueRuntime->RegisterCue(compiled.program.integrationLoopCue))
+		{
+			++stats_.integrationFailures;
+			SetStatus(false, "Phase18 VFX Runtime rejected graph integrations: " + graph.graphName);
+			return false;
+		}
+	}
+	else if (previous != programs_.end() && previous->second.HasIntegrationTracks())
+	{
+		// Hot reloadでOutputが消えた時は古いgenerated Cueを残さない。
+		cueRuntime->UnregisterCue(previous->second.integrationOneShotCue.cueName);
+		cueRuntime->UnregisterCue(previous->second.integrationLoopCue.cueName);
+	}
+
+	const bool replacing = previous != programs_.end();
 	programs_[graph.graphName] = std::move(compiled.program);
 	if (!replacing) ++stats_.registeredGraphs;
 	SetStatus(true, "Registered VFX Graph: " + graph.graphName);
@@ -67,12 +87,32 @@ bool VfxGraphRuntime::ReloadGraph(const std::string& graphName)
 bool VfxGraphRuntime::Play(const std::string& graphName, const Vector3& worldPosition)
 {
 	++stats_.playRequests;
-	if (!IsRegistered(graphName))
+	const VfxGraphProgram* program = GetProgram(graphName);
+	if (program == nullptr)
 	{
 		SetStatus(false, "Play failed because graph is not registered: " + graphName);
 		return false;
 	}
+
+	VfxCueHandle integrationHandle{};
+	if (program->HasIntegrationTracks())
+	{
+		integrationHandle = VfxCueRuntime::GetInstance()->Play(program->integrationOneShotCue.cueName, worldPosition);
+		if (!integrationHandle.IsValid())
+		{
+			++stats_.integrationFailures;
+			SetStatus(false, "Phase18 runtime failed to play graph integrations: " + graphName);
+			return false;
+		}
+		++stats_.integrationStarts;
+	}
+
 	const bool success = GpuParticleEffectRuntime::GetInstance()->Play(graphName, worldPosition);
+	if (!success && integrationHandle.IsValid())
+	{
+		VfxCueRuntime::GetInstance()->Stop(integrationHandle);
+		++stats_.integrationStops;
+	}
 	if (success) ++stats_.playSuccesses;
 	SetStatus(success, success ? "Played VFX Graph: " + graphName : "Phase13 runtime failed to play graph: " + graphName);
 	return success;
@@ -80,20 +120,37 @@ bool VfxGraphRuntime::Play(const std::string& graphName, const Vector3& worldPos
 
 VfxGraphPlayHandle VfxGraphRuntime::PlayLoop(const std::string& graphName, const Vector3& worldPosition)
 {
-	if (!IsRegistered(graphName))
+	const VfxGraphProgram* program = GetProgram(graphName);
+	if (program == nullptr)
 	{
 		SetStatus(false, "PlayLoop failed because graph is not registered: " + graphName);
 		return {};
 	}
-	const GpuParticleEffectRuntime::PlayHandle handle = GpuParticleEffectRuntime::GetInstance()->PlayLoop(graphName, worldPosition);
-	if (!handle.IsValid())
+
+	const GpuParticleEffectRuntime::PlayHandle particleHandle = GpuParticleEffectRuntime::GetInstance()->PlayLoop(graphName, worldPosition);
+	if (!particleHandle.IsValid())
 	{
 		SetStatus(false, "Phase13 runtime failed to start loop graph: " + graphName);
 		return {};
 	}
+
+	VfxCueHandle integrationHandle{};
+	if (program->HasIntegrationTracks())
+	{
+		integrationHandle = VfxCueRuntime::GetInstance()->Play(program->integrationLoopCue.cueName, worldPosition);
+		if (!integrationHandle.IsValid())
+		{
+			GpuParticleEffectRuntime::GetInstance()->StopLoop(particleHandle);
+			++stats_.integrationFailures;
+			SetStatus(false, "Phase18 runtime failed to start loop graph integrations: " + graphName);
+			return {};
+		}
+		++stats_.integrationStarts;
+	}
+
 	++stats_.loopStarts;
 	SetStatus(true, "Looped VFX Graph: " + graphName);
-	return { handle, graphName };
+	return { particleHandle, integrationHandle, graphName };
 }
 
 bool VfxGraphRuntime::StopLoop(VfxGraphPlayHandle handle)
@@ -103,7 +160,15 @@ bool VfxGraphRuntime::StopLoop(VfxGraphPlayHandle handle)
 		SetStatus(false, "StopLoop received invalid graph handle.");
 		return false;
 	}
-	const bool success = GpuParticleEffectRuntime::GetInstance()->StopLoop(handle.particleHandle);
+	const bool particleSuccess = GpuParticleEffectRuntime::GetInstance()->StopLoop(handle.particleHandle);
+	bool integrationSuccess = true;
+	if (handle.integrationHandle.IsValid())
+	{
+		integrationSuccess = VfxCueRuntime::GetInstance()->Stop(handle.integrationHandle);
+		if (integrationSuccess) ++stats_.integrationStops;
+		else ++stats_.integrationFailures;
+	}
+	const bool success = particleSuccess && integrationSuccess;
 	if (success) ++stats_.loopStops;
 	SetStatus(success, success ? "Stopped VFX Graph loop: " + handle.graphName : "Failed to stop VFX Graph loop: " + handle.graphName);
 	return success;
@@ -112,7 +177,9 @@ bool VfxGraphRuntime::StopLoop(VfxGraphPlayHandle handle)
 bool VfxGraphRuntime::SetLoopPosition(VfxGraphPlayHandle handle, const Vector3& worldPosition)
 {
 	if (!handle.IsValid()) return false;
-	return GpuParticleEffectRuntime::GetInstance()->SetLoopPosition(handle.particleHandle, worldPosition);
+	const bool particleSuccess = GpuParticleEffectRuntime::GetInstance()->SetLoopPosition(handle.particleHandle, worldPosition);
+	const bool integrationSuccess = !handle.integrationHandle.IsValid() || VfxCueRuntime::GetInstance()->SetWorldPosition(handle.integrationHandle, worldPosition);
+	return particleSuccess && integrationSuccess;
 }
 
 bool VfxGraphRuntime::SetFloatParameter(const std::string& graphName, const std::string& parameterName, float value)
@@ -124,7 +191,9 @@ bool VfxGraphRuntime::SetFloatParameter(const std::string& graphName, const std:
 bool VfxGraphRuntime::SetFloatParameter(VfxGraphPlayHandle handle, const std::string& parameterName, float value)
 {
 	if (!handle.IsValid()) return false;
-	return GpuParticleEffectRuntime::GetInstance()->SetFloatParameter(handle.particleHandle, parameterName, value);
+	const bool particleSuccess = GpuParticleEffectRuntime::GetInstance()->SetFloatParameter(handle.particleHandle, parameterName, value);
+	const bool integrationSuccess = !handle.integrationHandle.IsValid() || VfxCueRuntime::GetInstance()->SetFloatParameter(handle.integrationHandle, parameterName, value);
+	return particleSuccess && integrationSuccess;
 }
 
 bool VfxGraphRuntime::IsRegistered(const std::string& graphName) const
