@@ -316,9 +316,19 @@ private:
 				SetStatus(false, "Emitter maxParticles must be greater than zero: " + emitter.name);
 				return false;
 			}
+			if (static_cast<uint32_t>(emitter.render.renderType) > static_cast<uint32_t>(GpuParticleRenderType::Trail))
+			{
+				SetStatus(false, "Invalid authored render type: " + emitter.name);
+				return false;
+			}
 			if (emitter.render.renderType == GpuParticleRenderType::Mesh && emitter.render.meshPath.empty())
 			{
 				SetStatus(false, "Mesh emitter requires meshPath: " + emitter.name);
+				return false;
+			}
+			if ((emitter.render.renderType == GpuParticleRenderType::Ribbon || emitter.render.renderType == GpuParticleRenderType::Trail) && emitter.render.texturePath.empty())
+			{
+				SetStatus(false, "Ribbon/Trail emitter requires texturePath: " + emitter.name);
 				return false;
 			}
 			if (static_cast<uint32_t>(emitter.spawn.shape) > static_cast<uint32_t>(GpuParticleSpawnShape::Hemisphere))
@@ -403,6 +413,14 @@ private:
 			info.kind = GpuParticleKind::Mesh;
 			info.textureFilePath = "Mesh:" + std::to_string(meshId);
 			info.billboardFlags = BillboardMode::None;
+		}
+		else if (emitterDesc.render.renderType == GpuParticleRenderType::Ribbon || emitterDesc.render.renderType == GpuParticleRenderType::Trail)
+		{
+			// Phase23 maps both authoring modes onto the existing velocity-aligned ribbon billboard path.
+			info.kind = GpuParticleKind::Ribbon;
+			info.ribbonType = GpuRibbonType::Trail;
+			info.textureFilePath = emitterDesc.render.texturePath.empty() ? "Effects/white.dds" : emitterDesc.render.texturePath;
+			info.billboardFlags = BillboardMode::Ribbon;
 		}
 		else
 		{
