@@ -4,6 +4,7 @@
 #include "AnimatedModelComponent.h"
 #include "AudioComponent.h"
 #include "BillboardComponent.h"
+#include "BladeTrailComponent.h"
 #include "CameraComponent.h"
 #include "../Character/CharacterAnimationComponent.h"
 #include "../Character/AttackComponent.h"
@@ -141,6 +142,9 @@ namespace Ken4lowEngine
 			MakeComponentTypeInfo<AudioComponent>("AudioComponent", true, "オーディオコンポーネント", "オーディオ", "Actorに音声再生機能を持たせるためのComponentです。"),
 
 			MakeComponentTypeInfo<WorldAudioComponent>("WorldAudioComponent", true, "ワールドオーディオコンポーネント", "オーディオ", "Actorの3D位置に基づいて距離減衰する音声を再生するComponentです。"),
+
+			// 剣のRoot/Tip履歴を保持する専用ComponentはGPU Particle Trailとは独立して登録する。
+			MakeComponentTypeInfo<BladeTrailComponent>("BladeTrailComponent", true, "ブレードトレイル", "演出", "剣のRoot/Tip履歴から滑らかなN-point Ribbon斬撃軌跡を描画します。"),
 
 			MakeComponentTypeInfo<GpuParticleComponent>("GpuParticleComponent", true, "GPUパーティクルコンポーネント", "演出", "ActorにGPUパーティクル演出を持たせるためのComponentです。"),
 			};
