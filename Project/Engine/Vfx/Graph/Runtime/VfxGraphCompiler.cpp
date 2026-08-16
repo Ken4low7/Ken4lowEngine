@@ -28,6 +28,102 @@ bool IsValidBlendMode(GpuParticleBlendMode blendMode)
 	return static_cast<uint32_t>(blendMode) <= static_cast<uint32_t>(GpuParticleBlendMode::Multiply);
 }
 
+float Length(const Vector3& value)
+{
+	return std::sqrt(value.x * value.x + value.y * value.y + value.z * value.z);
+}
+
+float MaxSize(const Vector2& value)
+{
+	return (std::max)(std::abs(value.x), std::abs(value.y));
+}
+
+BoundingSphere EstimateAutomaticBounds(const VfxGraphDesc& graph)
+{
+	float radius = 1.0f;
+	for (const VfxGraphEmitterDesc& emitter : graph.emitters)
+	{
+		float spawnExtent = 0.0f;
+		float lifetime = 1.0f;
+		float velocityExtent = 0.0f;
+		float gravityExtent = 0.0f;
+		float renderExtent = 0.1f;
+		float childExtent = 0.0f;
+		for (const VfxGraphNodeDesc& node : emitter.nodes)
+		{
+			if (!node.enabled) continue;
+			switch (node.type)
+			{
+			case VfxGraphNodeType::SpawnSphere:
+				spawnExtent = (std::max)(spawnExtent, std::get<VfxGraphSpawnSphereNode>(node.payload).radius);
+				break;
+			case VfxGraphNodeType::SpawnBox:
+			{
+				const Vector3 size = std::get<VfxGraphSpawnBoxNode>(node.payload).size;
+				spawnExtent = (std::max)(spawnExtent, 0.5f * Length(size));
+				break;
+			}
+			case VfxGraphNodeType::Lifetime:
+			{
+				const auto& p = std::get<VfxGraphLifetimeNode>(node.payload);
+				lifetime = (std::max)(lifetime, p.lifetime + p.random);
+				break;
+			}
+			case VfxGraphNodeType::InitialVelocity:
+			{
+				const auto& p = std::get<VfxGraphInitialVelocityNode>(node.payload);
+				velocityExtent = (std::max)(velocityExtent, Length(p.velocity) + Length(p.random) + p.speed + p.speedRandom);
+				break;
+			}
+			case VfxGraphNodeType::Gravity:
+				gravityExtent = (std::max)(gravityExtent, Length(std::get<VfxGraphGravityNode>(node.payload).acceleration));
+				break;
+			case VfxGraphNodeType::InitialSize:
+			{
+				const auto& p = std::get<VfxGraphInitialSizeNode>(node.payload);
+				renderExtent = (std::max)(renderExtent, (std::max)(MaxSize(p.start), MaxSize(p.end)) + p.random);
+				break;
+			}
+			case VfxGraphNodeType::RibbonRenderer:
+			{
+				const auto& p = std::get<VfxGraphRibbonRendererNode>(node.payload);
+				renderExtent = (std::max)(renderExtent, p.width + p.length);
+				break;
+			}
+			case VfxGraphNodeType::TrailRenderer:
+			{
+				const auto& p = std::get<VfxGraphTrailRendererNode>(node.payload);
+				renderExtent = (std::max)(renderExtent, p.width + p.length);
+				break;
+			}
+			case VfxGraphNodeType::SubEmitter:
+			{
+				const auto& p = std::get<VfxGraphSubEmitterNode>(node.payload);
+				childExtent = (std::max)(childExtent, p.speed * p.lifeTime + MaxSize(p.endSize));
+				break;
+			}
+			case VfxGraphNodeType::FluidOutput:
+			{
+				const auto& p = std::get<VfxGraphFluidOutputNode>(node.payload);
+				radius = (std::max)(radius, Length(p.localOffset) + p.radius + Length(p.localVelocity) * p.duration);
+				break;
+			}
+			case VfxGraphNodeType::LightOutput:
+			{
+				const auto& p = std::get<VfxGraphLightOutputNode>(node.payload);
+				radius = (std::max)(radius, Length(p.localOffset) + p.range);
+				break;
+			}
+			default:
+				break;
+			}
+		}
+		const float particleExtent = spawnExtent + velocityExtent * lifetime + 0.5f * gravityExtent * lifetime * lifetime + renderExtent + childExtent;
+		radius = (std::max)(radius, particleExtent);
+	}
+	return { {}, (std::max)(radius, 0.1f) };
+}
+
 void ValidateFloatCurve(const VfxFloatCurve& curve, std::vector<std::string>& errors, const std::string& prefix)
 {
 	if (!IsValidInterpolation(curve.interpolation)) errors.push_back(prefix + "curve interpolation is invalid");
@@ -566,6 +662,17 @@ VfxGraphCompileResult VfxGraphCompiler::Compile(const VfxGraphDesc& graph)
 	if (graph.graphName.empty() || graph.graphName.size() > 96u) result.errors.push_back("graphName must contain 1-96 characters");
 	if (graph.emitters.empty()) result.errors.push_back("VFX Graph must contain at least one emitter");
 	if (graph.emitters.size() > VfxGraphDesc::kMaxEmitters) result.errors.push_back("VFX Graph exceeds kMaxEmitters");
+	const VfxGraphScalabilityDesc& scalability = graph.scalability;
+	if (static_cast<uint32_t>(scalability.boundsMode) > static_cast<uint32_t>(VfxGraphBoundsMode::FixedSphere)) result.errors.push_back("VFX Graph boundsMode is invalid");
+	if (!IsFinite(scalability.fixedBoundsCenter) || !std::isfinite(scalability.fixedBoundsRadius) || scalability.fixedBoundsRadius <= 0.0f) result.errors.push_back("VFX Graph fixed bounds are invalid");
+	if (!std::isfinite(scalability.maxDrawDistance) || scalability.maxDrawDistance < 0.0f) result.errors.push_back("VFX Graph maxDrawDistance must be finite and >= 0");
+	if (!std::isfinite(scalability.lodNearDistance) || !std::isfinite(scalability.lodFarDistance) || scalability.lodNearDistance < 0.0f || scalability.lodFarDistance < scalability.lodNearDistance) result.errors.push_back("VFX Graph LOD distances are invalid");
+	if (!std::isfinite(scalability.lodMidScale) || !std::isfinite(scalability.lodFarScale) || scalability.lodMidScale <= 0.0f || scalability.lodMidScale > 1.0f || scalability.lodFarScale <= 0.0f || scalability.lodFarScale > scalability.lodMidScale) result.errors.push_back("VFX Graph LOD scales must satisfy 0 < far <= mid <= 1");
+	if (scalability.budgetCost == 0u) result.errors.push_back("VFX Graph budgetCost must be > 0");
+	result.program.scalability = scalability;
+	result.program.localBounds = scalability.boundsMode == VfxGraphBoundsMode::FixedSphere
+		? BoundingSphere{ scalability.fixedBoundsCenter, scalability.fixedBoundsRadius }
+		: EstimateAutomaticBounds(graph);
 
 	std::unordered_set<std::string> parameterNames;
 	for (const auto& parameter : graph.userParameters)

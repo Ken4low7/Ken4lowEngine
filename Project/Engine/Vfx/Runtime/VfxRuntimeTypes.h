@@ -39,6 +39,8 @@ struct VfxRuntimeBudget
 	uint32_t maxTransientLights = 32;
 	uint32_t maxFluidTracks = 64;
 	uint32_t maxCameraShakes = 16;
+	uint32_t maxVfxGraphStartCostPerFrame = 64;
+	uint32_t maxActiveVfxGraphLoopCost = 128;
 };
 
 struct VfxRuntimeStats

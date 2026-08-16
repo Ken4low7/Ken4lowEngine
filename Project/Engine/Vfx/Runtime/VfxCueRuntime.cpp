@@ -275,6 +275,14 @@ bool VfxCueRuntime::SetFloatParameter(VfxCueHandle handle, const std::string& pa
 	return true;
 }
 
+bool VfxCueRuntime::SetRuntimeScale(VfxCueHandle handle, float runtimeScale)
+{
+	const auto it = instances_.find(handle.value);
+	if (it == instances_.end() || !std::isfinite(runtimeScale)) return false;
+	it->second.runtimeScale = std::clamp(runtimeScale, 0.0f, 1.0f);
+	return true;
+}
+
 uint32_t VfxCueRuntime::RunStressBurst(
 	const std::string& cueName,
 	uint32_t count,
@@ -512,6 +520,8 @@ VfxResolvedTrackParameters VfxCueRuntime::ResolveTrackParameters(
 			break;
 		}
 	}
+	// Phase27 applies graph LOD to existing Fluid/Light/PostEffect adapters without duplicating subsystem backends.
+	resolved.intensityScale *= instance.runtimeScale;
 	return resolved;
 }
 
