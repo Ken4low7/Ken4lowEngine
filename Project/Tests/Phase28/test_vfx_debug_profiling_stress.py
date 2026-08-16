@@ -80,12 +80,14 @@ def test_editor_exposes_overview_history_stress_and_budget_tabs():
     assert "GetEditableBudget()" in window
 
 
-def test_application_captures_after_vfx_runtime_updates_and_draws_companion_window():
+def test_application_captures_after_completed_frame_and_draws_companion_window():
     app = read("Engine/Core/Application/GameApplication.cpp")
     scalability = app.index("VfxGraphRuntime::GetInstance()->UpdateScalability();")
     cue_update = app.index("VfxCueRuntime::GetInstance()->Update")
+    final_end_frame = app.rindex("GameTimer::GetInstance()->EndFrame();")
     capture = app.index("VfxGraphDiagnostics::GetInstance()->CaptureFrame();")
-    assert scalability < cue_update < capture
+    assert scalability < cue_update < final_end_frame < capture
+    assert app.count("VfxGraphDiagnostics::GetInstance()->CaptureFrame();") == 1
     assert "VfxDiagnosticsWindow::GetInstance()->Draw(editorWindowState.showVfxGraphEditor);" in app
 
 
