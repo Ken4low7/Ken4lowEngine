@@ -1,0 +1,73 @@
+name: BladeTrailPreviewPatch
+
+on:
+  push:
+    branches:
+      - feature/blade-trail-npoint-ribbon
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch animated Blade Trail preview
+        shell: python
+        run: |
+          from pathlib import Path
+
+          header_path = Path('Project/Engine/Scene/Actor/Components/BladeTrailComponent.h')
+          header = header_path.read_text(encoding='utf-8')
+          header = header.replace(
+              'void GeneratePreviewArc();\n',
+              'void GeneratePreviewArc();\n\t\tvoid SamplePreviewArc(float normalizedTime);\n',
+              1)
+          header = header.replace(
+              '\t\tbool rendererAcquired_ = false;\n',
+              '\t\tbool rendererAcquired_ = false;\n\n\t\t// Editor Previewも実ゲーム同様に時間経過で軌跡を伸ばす。\n\t\tbool previewArcActive_ = false;\n\t\tfloat previewArcElapsed_ = 0.0f;\n\t\tfloat previewArcDuration_ = 0.28f;\n',
+              1)
+          header_path.write_text(header, encoding='utf-8')
+
+          cpp_path = Path('Project/Engine/Scene/Actor/Components/BladeTrailComponent.cpp')
+          cpp = cpp_path.read_text(encoding='utf-8')
+
+          old_update_editor = '''\tvoid BladeTrailComponent::UpdateEditor(float deltaTime)\n\t{\n\t\tAgeHistory(deltaTime);\n\t\tif (emitting_)\n\t\t{\n\t\t\tSampleCurrentBlade();\n\t\t}\n\t}\n'''
+          new_update_editor = '''\tvoid BladeTrailComponent::UpdateEditor(float deltaTime)\n\t{\n\t\tAgeHistory(deltaTime);\n\t\tif (previewArcActive_)\n\t\t{\n\t\t\tpreviewArcElapsed_ += (std::max)(deltaTime, 0.0f);\n\t\t\tconst float safeDuration = (std::max)(previewArcDuration_, 0.05f);\n\t\t\tconst float normalizedTime = Saturate(previewArcElapsed_ / safeDuration);\n\t\t\tSamplePreviewArc(normalizedTime); // 実ゲームと同じように1Frameずつ軌跡を伸ばす。\n\t\t\tif (normalizedTime >= 1.0f)\n\t\t\t{\n\t\t\t\tpreviewArcActive_ = false;\n\t\t\t}\n\t\t}\n\t\telse if (emitting_)\n\t\t{\n\t\t\tSampleCurrentBlade();\n\t\t}\n\t}\n'''
+          if old_update_editor not in cpp:
+              raise RuntimeError('UpdateEditor anchor not found')
+          cpp = cpp.replace(old_update_editor, new_update_editor, 1)
+
+          cpp = cpp.replace(
+              '\tvoid BladeTrailComponent::BeginTrail(bool clearHistory)\n\t{\n',
+              '\tvoid BladeTrailComponent::BeginTrail(bool clearHistory)\n\t{\n\t\tpreviewArcActive_ = false; // Gameplay記録開始時はEditor Previewを停止する。\n',
+              1)
+          cpp = cpp.replace(
+              '\tvoid BladeTrailComponent::ClearTrail()\n\t{\n\t\tsamples_.clear();\n',
+              '\tvoid BladeTrailComponent::ClearTrail()\n\t{\n\t\tpreviewArcActive_ = false;\n\t\tpreviewArcElapsed_ = 0.0f;\n\t\tsamples_.clear();\n',
+              1)
+
+          start = cpp.index('\tvoid BladeTrailComponent::GeneratePreviewArc()\n')
+          end = cpp.index('\n\tvoid BladeTrailComponent::DrawImGui()\n', start)
+          replacement = '''\tvoid BladeTrailComponent::GeneratePreviewArc()\n\t{\n\t\tClearTrail();\n\t\temitting_ = false;\n\t\tpreviewArcElapsed_ = 0.0f;\n\t\tpreviewArcActive_ = true;\n\t\tSamplePreviewArc(0.0f); // 最初の1点だけ作り、以降はUpdateEditorで弧をなぞる。\n\t}\n\n\tvoid BladeTrailComponent::SamplePreviewArc(float normalizedTime)\n\t{\n\t\tMatrix4x4 ownerWorld = Matrix4x4::MakeIdentity();\n\t\tif (Actor* owner = GetOwner())\n\t\t{\n\t\t\tif (SceneComponent* rootComponent = owner->GetRootComponent())\n\t\t\t{\n\t\t\t\townerWorld = Matrix4x4::MakeAffineMatrix(\n\t\t\t\t\trootComponent->GetWorldScale(),\n\t\t\t\t\trootComponent->GetWorldRotation(),\n\t\t\t\t\trootComponent->GetWorldPosition());\n\t\t\t}\n\t\t}\n\n\t\tconst float t = Saturate(normalizedTime);\n\t\tconst float angle = -1.15f + 2.30f * t;\n\t\tconst Matrix4x4 localRotation = Matrix4x4::MakeRotateY(angle);\n\t\tconst Vector3 rotatedRoot = Vector3::Transform(localRootOffset_, localRotation);\n\t\tconst Vector3 rotatedTip = Vector3::Transform(localTipOffset_, localRotation);\n\t\tAppendSample(\n\t\t\tVector3::Transform(rotatedRoot, ownerWorld),\n\t\t\tVector3::Transform(rotatedTip, ownerWorld));\n\t}\n'''
+          cpp = cpp[:start] + replacement + cpp[end:]
+
+          cpp = cpp.replace(
+              'ImGui::TextDisabled("For skeletal weapons call SetBladeWorldEndpoints(root, tip) each frame.");\n',
+              'ImGui::TextDisabled("For skeletal weapons call SetBladeWorldEndpoints(root, tip) each frame.");\n\t\tImGui::TextDisabled("Slash tip: set Local Root near the outer blade (for example Z=0.8) to avoid a filled fan.");\n',
+              1)
+          cpp_path.write_text(cpp, encoding='utf-8')
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Project/Engine/Scene/Actor/Components/BladeTrailComponent.h Project/Engine/Scene/Actor/Components/BladeTrailComponent.cpp
+          if ! git diff --cached --quiet; then
+            git commit -m "BladeTrail: animate editor preview arc"
+            git push
+          fi
