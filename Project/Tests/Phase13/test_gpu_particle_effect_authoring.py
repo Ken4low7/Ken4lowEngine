@@ -191,9 +191,9 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         self.assertIn("EvaluateTargetFactor", self.runtime)
 
     def test_cpu_gpu_struct_strides_are_explicit(self) -> None:
-        # StructuredBuffer/CB stride changes must be intentional because a silent mismatch corrupts every particle.
-        self.assertIn("static_assert(sizeof(GpuEmitterCBData) == 480)", self.emitter_data)
-        self.assertIn("static_assert(sizeof(ParticleCS) == 384)", self.buffers)
+        # Phase22 extends both CPU mirrors intentionally; exact sizes continue to guard CPU/HLSL stride drift.
+        self.assertIn("static_assert(sizeof(GpuEmitterCBData) == 624)", self.emitter_data)
+        self.assertIn("static_assert(sizeof(ParticleCS) == 528)", self.buffers)
         self.assertIn("float4 sizeCurveLut", self.particle_data_shader)
         self.assertIn("float3 angularVelocity3D", self.particle_data_shader)
 

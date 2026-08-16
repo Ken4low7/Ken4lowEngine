@@ -91,6 +91,9 @@ VfxGraphNodeStage GetExpectedVfxGraphNodeStage(VfxGraphNodeType type)
 	case VfxGraphNodeType::RotationRate:
 	case VfxGraphNodeType::SizeOverLife:
 	case VfxGraphNodeType::ColorOverLife:
+	case VfxGraphNodeType::Collision:
+	case VfxGraphNodeType::DeathEvent:
+	case VfxGraphNodeType::SubEmitter:
 		return VfxGraphNodeStage::Update;
 	case VfxGraphNodeType::SpriteRenderer:
 		return VfxGraphNodeStage::Render;
@@ -131,7 +134,41 @@ const char* ToString(VfxGraphNodeType type)
 	case VfxGraphNodeType::RotationRate: return "RotationRate";
 	case VfxGraphNodeType::SizeOverLife: return "SizeOverLife";
 	case VfxGraphNodeType::ColorOverLife: return "ColorOverLife";
+	case VfxGraphNodeType::Collision: return "Collision";
+	case VfxGraphNodeType::DeathEvent: return "DeathEvent";
+	case VfxGraphNodeType::SubEmitter: return "SubEmitter";
 	default: return "SpawnRate";
+	}
+}
+
+const char* ToString(VfxParticleEventType eventType)
+{
+	switch (eventType)
+	{
+	case VfxParticleEventType::Collision: return "Collision";
+	case VfxParticleEventType::Death: return "Death";
+	default: return "Collision";
+	}
+}
+
+const char* ToString(VfxCollisionShape shape)
+{
+	switch (shape)
+	{
+	case VfxCollisionShape::Plane: return "Plane";
+	case VfxCollisionShape::Sphere: return "Sphere";
+	default: return "Plane";
+	}
+}
+
+const char* ToString(VfxCollisionResponse response)
+{
+	switch (response)
+	{
+	case VfxCollisionResponse::Bounce: return "Bounce";
+	case VfxCollisionResponse::Slide: return "Slide";
+	case VfxCollisionResponse::Kill: return "Kill";
+	default: return "Bounce";
 	}
 }
 
@@ -163,6 +200,34 @@ bool TryParseVfxGraphNodeType(const std::string& text, VfxGraphNodeType& outType
 	else if (text == "RotationRate") outType = VfxGraphNodeType::RotationRate;
 	else if (text == "SizeOverLife") outType = VfxGraphNodeType::SizeOverLife;
 	else if (text == "ColorOverLife") outType = VfxGraphNodeType::ColorOverLife;
+	else if (text == "Collision") outType = VfxGraphNodeType::Collision;
+	else if (text == "DeathEvent") outType = VfxGraphNodeType::DeathEvent;
+	else if (text == "SubEmitter") outType = VfxGraphNodeType::SubEmitter;
+	else return false;
+	return true;
+}
+
+bool TryParseVfxParticleEventType(const std::string& text, VfxParticleEventType& outEventType)
+{
+	if (text == "Collision") outEventType = VfxParticleEventType::Collision;
+	else if (text == "Death") outEventType = VfxParticleEventType::Death;
+	else return false;
+	return true;
+}
+
+bool TryParseVfxCollisionShape(const std::string& text, VfxCollisionShape& outShape)
+{
+	if (text == "Plane") outShape = VfxCollisionShape::Plane;
+	else if (text == "Sphere") outShape = VfxCollisionShape::Sphere;
+	else return false;
+	return true;
+}
+
+bool TryParseVfxCollisionResponse(const std::string& text, VfxCollisionResponse& outResponse)
+{
+	if (text == "Bounce") outResponse = VfxCollisionResponse::Bounce;
+	else if (text == "Slide") outResponse = VfxCollisionResponse::Slide;
+	else if (text == "Kill") outResponse = VfxCollisionResponse::Kill;
 	else return false;
 	return true;
 }

@@ -1,15 +1,15 @@
 #pragma once
 #include <array>
-#include <string>
 #include <deque>
 #include <limits>
+#include <string>
 #include <Vector2.h>
 #include <Vector3.h>
 #include <Vector4.h>
 
-#include "GpuParticleType.h"		// GPUパーティクルの種類
-#include "GpuParticleEmitterData.h" // エミッターのCBデータ
-#include "BillboardMode.h" // ビルボードモード
+#include "GpuParticleType.h"
+#include "GpuParticleEmitterData.h"
+#include "BillboardMode.h"
 
 namespace Ken4lowEngine
 {
@@ -28,8 +28,6 @@ public:
 	{
 		std::string textureFilePath;
 		float radius = 0.0f;
-
-		// 定期発生。loopForever=falseならemissionDurationで自動停止する。
 		uint32_t loopCount = 0;
 		float loopFrequency = 0.0f;
 		bool loopForever = true;
@@ -91,11 +89,32 @@ public:
 		Vector3 attractorPosition{};
 		float attractorStrength = 0.0f;
 		float attractorRadius = 0.0f;
-
 		Vector3 startRotation3D{};
 		Vector3 rotationRandom3D{};
 		Vector3 angularVelocity{};
 		Vector3 angularVelocityRandom{};
+
+		uint32_t collisionShape = 0u;
+		uint32_t collisionResponse = 0u;
+		Vector3 collisionPlaneNormal{ 0.0f, 1.0f, 0.0f };
+		float collisionPlaneDistance = 0.0f;
+		Vector3 collisionSphereCenter{};
+		float collisionSphereRadius = 1.0f;
+		float collisionParticleRadius = 0.02f;
+		float collisionRestitution = 0.5f;
+		float collisionFriction = 0.1f;
+		uint32_t eventMask = 0u;
+		uint32_t subEmitterEventMask = 0u;
+		uint32_t subEmitterCount = 0u;
+		float subEmitterLifeTime = 0.2f;
+		float subEmitterSpeed = 1.5f;
+		float subEmitterSpread = 1.0f;
+		float subEmitterInheritVelocity = 0.2f;
+		Vector2 subEmitterStartSize{ 0.04f, 0.04f };
+		Vector2 subEmitterEndSize{ 0.12f, 0.12f };
+		Vector4 subEmitterStartColor{ 1.0f, 0.8f, 0.2f, 1.0f };
+		Vector4 subEmitterEndColor{ 1.0f, 0.1f, 0.0f, 0.0f };
+		bool subEmitterAlphaFade = true;
 	};
 
 public:
@@ -104,7 +123,6 @@ public:
 	void UpdateActivity(float deltaTime);
 	bool BuildCB(GpuEmitterCBData& out, float deltaTime);
 
-	/// Burst pool再利用時に有限Emissionの経過時間だけを初期化し、既存生存Particleには触れない。
 	void ResetEmissionSchedule()
 	{
 		loopTimer_ = 0.0f;
@@ -113,11 +131,7 @@ public:
 
 	static void SetForwardDrawPass(GpuParticleForwardDrawPass pass) { forwardDrawPass_ = pass; }
 	static GpuParticleForwardDrawPass GetForwardDrawPass() { return forwardDrawPass_; }
-
-public:
 	void SetPosition(const Vector3& position) { position_ = position; }
-
-public:
 	const std::string& GetName() const { return name_; }
 	const EmitterInfo& GetInfo() const { return info_; }
 
@@ -142,19 +156,16 @@ public:
 		const BlendMode blendMode = UnpackGpuParticleBlendMode(GetDrawType());
 		switch (forwardDrawPass_)
 		{
-		case GpuParticleForwardDrawPass::Transparent:
-			return blendMode != BlendMode::kBlendModeAdd;
-		case GpuParticleForwardDrawPass::Additive:
-			return blendMode == BlendMode::kBlendModeAdd;
+		case GpuParticleForwardDrawPass::Transparent: return blendMode != BlendMode::kBlendModeAdd;
+		case GpuParticleForwardDrawPass::Additive: return blendMode == BlendMode::kBlendModeAdd;
 		case GpuParticleForwardDrawPass::All:
-		default:
-			return true;
+		default: return true;
 		}
 	}
 
 	bool HasActiveParticles() const
 	{
-		if (!MatchesForwardDrawPass()) return false; // Forward Queue実行中だけBlend分類でEmitterを絞り、共有GPU BufferのBatch構造は維持する。
+		if (!MatchesForwardDrawPass()) return false;
 		return estimatedActiveParticleCount_ > 0 || pendingBurstCount_ > 0 || HasEmissionSchedule();
 	}
 
@@ -163,21 +174,14 @@ private:
 
 	uint32_t GetEffectiveType() const
 	{
-		if (info_.kind == GpuParticleKind::Sprite)
-		{
-			return static_cast<uint32_t>(info_.spriteType);
-		}
-		if (info_.kind == GpuParticleKind::Ribbon)
-		{
-			return static_cast<uint32_t>(ToGpuParticleType(info_.ribbonType));
-		}
+		if (info_.kind == GpuParticleKind::Sprite) return static_cast<uint32_t>(info_.spriteType);
+		if (info_.kind == GpuParticleKind::Ribbon) return static_cast<uint32_t>(ToGpuParticleType(info_.ribbonType));
 		return static_cast<uint32_t>(info_.spriteType);
 	}
 
 	uint32_t GetPackedBillboardMode() const
 	{
-		const uint32_t flags = ToU32(info_.billboardFlags);
-		return PackBillboardMode(info_.kind, flags);
+		return PackBillboardMode(info_.kind, ToU32(info_.billboardFlags));
 	}
 
 private:
@@ -201,6 +205,5 @@ private:
 	uint32_t estimatedActiveParticleCount_ = 0;
 	inline static thread_local GpuParticleForwardDrawPass forwardDrawPass_ = GpuParticleForwardDrawPass::All;
 };
-
 
 } // namespace Ken4lowEngine
