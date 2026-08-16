@@ -5,6 +5,7 @@
 #include <json.hpp>
 
 #include <array>
+#include <type_traits>
 #include <utility>
 
 namespace Ken4lowEngine
@@ -56,6 +57,93 @@ namespace
 	json WriteVector4(const Vector4& value)
 	{
 		return json::array({ value.x, value.y, value.z, value.w });
+	}
+
+	const char* CurveInterpolationToString(VfxCurveInterpolation interpolation)
+	{
+		switch (interpolation)
+		{
+		case VfxCurveInterpolation::Linear: return "Linear";
+		case VfxCurveInterpolation::Step: return "Step";
+		case VfxCurveInterpolation::SmoothStep: return "SmoothStep";
+		default: return "Linear";
+		}
+	}
+
+	bool TryParseCurveInterpolation(const std::string& text, VfxCurveInterpolation& outInterpolation)
+	{
+		if (text == "Linear") outInterpolation = VfxCurveInterpolation::Linear;
+		else if (text == "Step") outInterpolation = VfxCurveInterpolation::Step;
+		else if (text == "SmoothStep") outInterpolation = VfxCurveInterpolation::SmoothStep;
+		else return false;
+		return true;
+	}
+
+	bool ReadFloatCurve(const json& value, VfxFloatCurve& outCurve)
+	{
+		if (!value.is_object()) return false;
+		const std::string interpolationText = value.value("interpolation", std::string("Linear"));
+		if (!TryParseCurveInterpolation(interpolationText, outCurve.interpolation)) return false;
+
+		const auto keysIt = value.find("keys");
+		if (keysIt == value.end() || !keysIt->is_array()) return false;
+		outCurve.keys.clear();
+		for (const json& source : *keysIt)
+		{
+			if (!source.is_object()) return false;
+			const auto timeIt = source.find("time");
+			const auto valueIt = source.find("value");
+			if (timeIt == source.end() || valueIt == source.end() || !timeIt->is_number() || !valueIt->is_number()) return false;
+			outCurve.keys.push_back({ timeIt->get<float>(), valueIt->get<float>() });
+		}
+		return true;
+	}
+
+	json WriteFloatCurve(const VfxFloatCurve& curve)
+	{
+		json result;
+		result["interpolation"] = CurveInterpolationToString(curve.interpolation);
+		result["keys"] = json::array();
+		for (const VfxFloatCurveKey& key : curve.keys)
+		{
+			result["keys"].push_back({ { "time", key.time }, { "value", key.value } });
+		}
+		return result;
+	}
+
+	bool ReadColorGradient(const json& value, VfxColorGradient& outGradient)
+	{
+		if (!value.is_object()) return false;
+		const std::string interpolationText = value.value("interpolation", std::string("Linear"));
+		if (!TryParseCurveInterpolation(interpolationText, outGradient.interpolation)) return false;
+
+		const auto keysIt = value.find("keys");
+		if (keysIt == value.end() || !keysIt->is_array()) return false;
+		outGradient.keys.clear();
+		for (const json& source : *keysIt)
+		{
+			if (!source.is_object()) return false;
+			const auto timeIt = source.find("time");
+			const auto colorIt = source.find("color");
+			if (timeIt == source.end() || !timeIt->is_number() || colorIt == source.end()) return false;
+			VfxColorGradientKey key{};
+			key.time = timeIt->get<float>();
+			if (!ReadVector4(*colorIt, key.color)) return false;
+			outGradient.keys.push_back(key);
+		}
+		return true;
+	}
+
+	json WriteColorGradient(const VfxColorGradient& gradient)
+	{
+		json result;
+		result["interpolation"] = CurveInterpolationToString(gradient.interpolation);
+		result["keys"] = json::array();
+		for (const VfxColorGradientKey& key : gradient.keys)
+		{
+			result["keys"].push_back({ { "time", key.time }, { "color", WriteVector4(key.color) } });
+		}
+		return result;
 	}
 
 	const char* BlendModeToString(GpuParticleBlendMode blendMode)
@@ -200,6 +288,37 @@ namespace
 			node.payload = payload;
 			return true;
 		}
+		case VfxGraphNodeType::InitialRotation:
+		{
+			VfxGraphInitialRotationNode payload{};
+			payload.rotation = params.value("rotation", payload.rotation);
+			payload.random = params.value("random", payload.random);
+			node.payload = payload;
+			return true;
+		}
+		case VfxGraphNodeType::RotationRate:
+		{
+			VfxGraphRotationRateNode payload{};
+			payload.radiansPerSecond = params.value("radiansPerSecond", payload.radiansPerSecond);
+			node.payload = payload;
+			return true;
+		}
+		case VfxGraphNodeType::SizeOverLife:
+		{
+			VfxGraphSizeOverLifeNode payload{};
+			const auto curveIt = params.find("curve");
+			if (curveIt == params.end() || !ReadFloatCurve(*curveIt, payload.multiplier)) return false;
+			node.payload = std::move(payload);
+			return true;
+		}
+		case VfxGraphNodeType::ColorOverLife:
+		{
+			VfxGraphColorOverLifeNode payload{};
+			const auto gradientIt = params.find("gradient");
+			if (gradientIt == params.end() || !ReadColorGradient(*gradientIt, payload.gradient)) return false;
+			node.payload = std::move(payload);
+			return true;
+		}
 		case VfxGraphNodeType::SpriteRenderer:
 		{
 			VfxGraphSpriteRendererNode payload{};
@@ -251,6 +370,14 @@ namespace
 			}
 			else if constexpr (std::is_same_v<T, VfxGraphGravityNode>) params["acceleration"] = WriteVector3(payload.acceleration);
 			else if constexpr (std::is_same_v<T, VfxGraphDragNode>) params["damping"] = payload.damping;
+			else if constexpr (std::is_same_v<T, VfxGraphInitialRotationNode>)
+			{
+				params["rotation"] = payload.rotation;
+				params["random"] = payload.random;
+			}
+			else if constexpr (std::is_same_v<T, VfxGraphRotationRateNode>) params["radiansPerSecond"] = payload.radiansPerSecond;
+			else if constexpr (std::is_same_v<T, VfxGraphSizeOverLifeNode>) params["curve"] = WriteFloatCurve(payload.multiplier);
+			else if constexpr (std::is_same_v<T, VfxGraphColorOverLifeNode>) params["gradient"] = WriteColorGradient(payload.gradient);
 			else if constexpr (std::is_same_v<T, VfxGraphSpriteRendererNode>)
 			{
 				params["texturePath"] = payload.texturePath;

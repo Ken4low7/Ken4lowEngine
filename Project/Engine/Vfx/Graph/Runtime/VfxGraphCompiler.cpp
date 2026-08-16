@@ -28,6 +28,59 @@ namespace
 		return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z) && std::isfinite(value.w);
 	}
 
+	bool IsValidInterpolation(VfxCurveInterpolation interpolation)
+	{
+		return static_cast<uint32_t>(interpolation) <= static_cast<uint32_t>(VfxCurveInterpolation::SmoothStep);
+	}
+
+	void ValidateFloatCurve(const VfxFloatCurve& curve, std::vector<std::string>& errors, const std::string& prefix)
+	{
+		if (!IsValidInterpolation(curve.interpolation)) errors.push_back(prefix + "curve interpolation is invalid");
+		if (curve.keys.empty())
+		{
+			errors.push_back(prefix + "curve requires at least one key");
+			return;
+		}
+		if (curve.keys.size() > VfxGraphDesc::kMaxCurveKeys) errors.push_back(prefix + "curve exceeds kMaxCurveKeys");
+
+		float previousTime = -1.0f;
+		for (const VfxFloatCurveKey& key : curve.keys)
+		{
+			if (!std::isfinite(key.time) || !std::isfinite(key.value))
+			{
+				errors.push_back(prefix + "curve keys must be finite");
+				continue;
+			}
+			if (key.time < 0.0f || key.time > 1.0f) errors.push_back(prefix + "curve key time must be in [0, 1]");
+			if (key.time <= previousTime) errors.push_back(prefix + "curve key times must be strictly increasing");
+			previousTime = key.time;
+		}
+	}
+
+	void ValidateColorGradient(const VfxColorGradient& gradient, std::vector<std::string>& errors, const std::string& prefix)
+	{
+		if (!IsValidInterpolation(gradient.interpolation)) errors.push_back(prefix + "gradient interpolation is invalid");
+		if (gradient.keys.empty())
+		{
+			errors.push_back(prefix + "gradient requires at least one key");
+			return;
+		}
+		if (gradient.keys.size() > VfxGraphDesc::kMaxGradientKeys) errors.push_back(prefix + "gradient exceeds kMaxGradientKeys");
+
+		float previousTime = -1.0f;
+		for (const VfxColorGradientKey& key : gradient.keys)
+		{
+			if (!std::isfinite(key.time) || !IsFinite(key.color))
+			{
+				errors.push_back(prefix + "gradient keys must be finite");
+				continue;
+			}
+			if (key.time < 0.0f || key.time > 1.0f) errors.push_back(prefix + "gradient key time must be in [0, 1]");
+			if (key.time <= previousTime) errors.push_back(prefix + "gradient key times must be strictly increasing");
+			previousTime = key.time;
+		}
+	}
+
 	bool PayloadMatchesType(const VfxGraphNodeDesc& node)
 	{
 		switch (node.type)
@@ -44,6 +97,10 @@ namespace
 		case VfxGraphNodeType::Gravity: return std::holds_alternative<VfxGraphGravityNode>(node.payload);
 		case VfxGraphNodeType::Drag: return std::holds_alternative<VfxGraphDragNode>(node.payload);
 		case VfxGraphNodeType::SpriteRenderer: return std::holds_alternative<VfxGraphSpriteRendererNode>(node.payload);
+		case VfxGraphNodeType::InitialRotation: return std::holds_alternative<VfxGraphInitialRotationNode>(node.payload);
+		case VfxGraphNodeType::RotationRate: return std::holds_alternative<VfxGraphRotationRateNode>(node.payload);
+		case VfxGraphNodeType::SizeOverLife: return std::holds_alternative<VfxGraphSizeOverLifeNode>(node.payload);
+		case VfxGraphNodeType::ColorOverLife: return std::holds_alternative<VfxGraphColorOverLifeNode>(node.payload);
 		default: return false;
 		}
 	}
@@ -120,6 +177,26 @@ namespace
 			if (!std::isfinite(damping) || damping < 0.0f) errors.push_back(prefix + "drag damping must be finite and >= 0");
 			break;
 		}
+		case VfxGraphNodeType::InitialRotation:
+		{
+			const auto& payload = std::get<VfxGraphInitialRotationNode>(node.payload);
+			if (!std::isfinite(payload.rotation) || !std::isfinite(payload.random) || payload.random < 0.0f)
+			{
+				errors.push_back(prefix + "rotation must be finite and random must be >= 0");
+			}
+			break;
+		}
+		case VfxGraphNodeType::RotationRate:
+		{
+			if (!std::isfinite(std::get<VfxGraphRotationRateNode>(node.payload).radiansPerSecond)) errors.push_back(prefix + "rotation rate must be finite");
+			break;
+		}
+		case VfxGraphNodeType::SizeOverLife:
+			ValidateFloatCurve(std::get<VfxGraphSizeOverLifeNode>(node.payload).multiplier, errors, prefix);
+			break;
+		case VfxGraphNodeType::ColorOverLife:
+			ValidateColorGradient(std::get<VfxGraphColorOverLifeNode>(node.payload).gradient, errors, prefix);
+			break;
 		case VfxGraphNodeType::SpriteRenderer:
 		{
 			const auto& payload = std::get<VfxGraphSpriteRendererNode>(node.payload);
@@ -305,9 +382,15 @@ namespace
 		outEmitter.startSize = { 0.1f, 0.1f };
 		outEmitter.endSize = { 0.1f, 0.1f };
 		outEmitter.sizeRandom = 0.0f;
+		outEmitter.useSizeCurve = false;
+		outEmitter.sizeCurveLut = { 1.0f, 1.0f, 1.0f, 1.0f };
 		outEmitter.startColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 		outEmitter.endColor = { 1.0f, 1.0f, 1.0f, 0.0f };
 		outEmitter.alphaFade = true;
+		outEmitter.useColorGradient = false;
+		outEmitter.startRotation = 0.0f;
+		outEmitter.rotationRandom = 0.0f;
+		outEmitter.rotationSpeed = 0.0f;
 		outEmitter.parameterBindings = source.parameterBindings;
 
 		std::unordered_map<uint32_t, const VfxGraphNodeDesc*> enabledNodes;
@@ -375,6 +458,41 @@ namespace
 			case VfxGraphNodeType::Drag:
 				outEmitter.damping = std::get<VfxGraphDragNode>(node.payload).damping;
 				break;
+			case VfxGraphNodeType::InitialRotation:
+			{
+				const auto& payload = std::get<VfxGraphInitialRotationNode>(node.payload);
+				outEmitter.startRotation = payload.rotation;
+				outEmitter.rotationRandom = payload.random;
+				break;
+			}
+			case VfxGraphNodeType::RotationRate:
+				outEmitter.rotationSpeed = std::get<VfxGraphRotationRateNode>(node.payload).radiansPerSecond;
+				break;
+			case VfxGraphNodeType::SizeOverLife:
+			{
+				const VfxFloatCurve& curve = std::get<VfxGraphSizeOverLifeNode>(node.payload).multiplier;
+				outEmitter.useSizeCurve = true;
+				// Authoring curves stay flexible while the GPU backend receives its fixed four-sample LUT.
+				outEmitter.sizeCurveLut = {
+					curve.Evaluate(0.0f),
+					curve.Evaluate(1.0f / 3.0f),
+					curve.Evaluate(2.0f / 3.0f),
+					curve.Evaluate(1.0f),
+				};
+				break;
+			}
+			case VfxGraphNodeType::ColorOverLife:
+			{
+				const VfxColorGradient& gradient = std::get<VfxGraphColorOverLifeNode>(node.payload).gradient;
+				outEmitter.useColorGradient = true;
+				outEmitter.colorGradientLut = {
+					gradient.Evaluate(0.0f),
+					gradient.Evaluate(1.0f / 3.0f),
+					gradient.Evaluate(2.0f / 3.0f),
+					gradient.Evaluate(1.0f),
+				};
+				break;
+			}
 			case VfxGraphNodeType::SpriteRenderer:
 			{
 				const auto& payload = std::get<VfxGraphSpriteRendererNode>(node.payload);
