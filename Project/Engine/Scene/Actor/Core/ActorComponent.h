@@ -17,6 +17,7 @@ namespace Ken4lowEngine
 
 	// ActorComponentが所有者Actorを参照するための前方宣言
 	class Actor;
+	class ActorHandle;
 	class ActorWorld;
 
 	/// -------------------------------------------------------------
@@ -163,6 +164,9 @@ namespace Ken4lowEngine
 		{
 			return owner_; // ActorComponentはActorを所有せず、参照だけ保持する
 		}
+
+		/// WorldId + ActorIdを含む正規Handleを返し、Gameplay/Event側がOwner生ポインタを保持しないようにする。
+		ActorHandle GetOwnerHandle() const;
 
 	public: /// ---------- Runtime ID ---------- ///
 

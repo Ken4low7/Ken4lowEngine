@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "abilityName": "Phase19Pulse",
+  "abilityTag": "Ability.Combat.Pulse",
+  "targetPolicy": "OptionalActor",
+  "cooldownSeconds": 0.5,
+  "durationSeconds": 0.35,
+  "cost": {
+    "attribute": "Energy",
+    "amount": 10.0
+  },
+  "requiredTags": [
+    "State.CanAct"
+  ],
+  "blockedTags": [
+    "State.Stunned",
+    "State.Dead"
+  ],
+  "grantedTags": [
+    "State.Casting"
+  ],
+  "selfModifiers": [
+    {
+      "attribute": "MoveSpeedScale",
+      "operation": "Multiply",
+      "magnitude": 0.7,
+      "durationSeconds": 0.35,
+      "stackKey": "Phase19PulseSlow",
+      "stackingPolicy": "RefreshDuration",
+      "removeOnAbilityEnd": true
+    }
+  ],
+  "events": {
+    "activation": "Gameplay.Ability.Pulse.Activated",
+    "completion": "Gameplay.Ability.Pulse.Completed",
+    "cancel": "Gameplay.Ability.Pulse.Cancelled"
+  },
+  "vfx": {
+    "cueName": "Phase18Explosion",
+    "cueAssetPath": "Resources/Vfx/Phase18/Explosion.vfx.json",
+    "intensityParameter": "Intensity",
+    "intensity": 0.65,
+    "stopOnAbilityEnd": false
+  }
+}

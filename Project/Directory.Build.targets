@@ -24,4 +24,35 @@
 
     <None Include="$(MSBuildThisFileDirectory)Resources\Vfx\Phase18\Explosion.vfx.json" />
   </ItemGroup>
+
+  <!-- Phase19のSibling module間includeを既存Projectと同じ短いHeader名で解決する。 -->
+  <ItemDefinitionGroup Condition="'$(MSBuildProjectName)' == 'Ken4lowEngine'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)Engine\Gameplay\Tags;$(MSBuildThisFileDirectory)Engine\Gameplay\Events;$(MSBuildThisFileDirectory)Engine\Gameplay\Attributes;$(MSBuildThisFileDirectory)Engine\Gameplay\Ability;$(MSBuildThisFileDirectory)Engine\Gameplay\Diagnostics;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <!-- Phase19 GameplayはScene/Characterの所有権を奪わず、Actor Componentから使う独立Runtime層として登録する。 -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Ken4lowEngine'">
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Core\ActorComponentHandle.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Tags\GameplayTag.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Events\GameplayEventRouter.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Attributes\GameplayAttributeSet.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilitySerializer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilityCompiler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilityComponent.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Diagnostics\GameplayAbilityDiagnostics.cpp" />
+
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Tags\GameplayTag.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Events\GameplayEventRouter.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Attributes\GameplayAttributeSet.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilityTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilitySerializer.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilityCompiler.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilityComponent.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Diagnostics\GameplayAbilityDiagnostics.h" />
+
+    <None Include="$(MSBuildThisFileDirectory)Resources\Gameplay\Abilities\Phase19Pulse.ability.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\ActorPrefabs\Phase19AbilityActor.json" />
+  </ItemGroup>
 </Project>

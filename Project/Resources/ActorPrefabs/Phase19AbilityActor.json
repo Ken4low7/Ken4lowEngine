@@ -1,0 +1,51 @@
+{
+  "Active": true,
+  "Class": "Actor",
+  "Components": [
+    {
+      "Active": true,
+      "Class": "SceneComponent",
+      "DrawOrder": 0,
+      "LocalPosition": [0.0, 0.0, 0.0],
+      "LocalRotation": [0.0, 0.0, 0.0],
+      "LocalScale": [1.0, 1.0, 1.0],
+      "Name": "Phase19 Root",
+      "Parent": "",
+      "Type": "SceneComponent",
+      "UpdateOrder": -100
+    },
+    {
+      "Active": true,
+      "AbilityAssets": [
+        "Resources/Gameplay/Abilities/Phase19Pulse.ability.json"
+      ],
+      "Attributes": [
+        {
+          "Name": "Energy",
+          "BaseValue": 100.0,
+          "MinValue": 0.0,
+          "MaxValue": 100.0
+        },
+        {
+          "Name": "MoveSpeedScale",
+          "BaseValue": 1.0,
+          "MinValue": 0.0,
+          "MaxValue": 3.0
+        }
+      ],
+      "Class": "GameplayAbilityComponent",
+      "DrawOrder": 0,
+      "GameplayTags": [
+        "State.CanAct"
+      ],
+      "Name": "Gameplay Ability",
+      "Type": "ActorComponent",
+      "UpdateOrder": 20
+    }
+  ],
+  "Layer": "Default",
+  "Name": "Phase19 Ability Actor",
+  "Tags": [
+    "Phase19Sample"
+  ]
+}
