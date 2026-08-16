@@ -14,6 +14,7 @@
 #include "Engine/Graphics/Renderer/Reflection/ReflectionProbeSceneBridge.h"
 #include "Engine/Vfx/Runtime/VfxCueRuntime.h"
 #include "Engine/Vfx/Graph/Runtime/VfxGraphRuntime.h"
+#include "Engine/Vfx/Graph/Diagnostics/VfxGraphDiagnostics.h"
 
 #ifdef USE_IMGUI
 #include <ImGuiManager.h>
@@ -24,6 +25,7 @@
 #include "Editor/EditorModeController.h"
 #include "Engine/Vfx/Editor/VfxTimelineEditor.h"
 #include "Engine/Vfx/Graph/Editor/VfxGraphEditor.h"
+#include "Engine/Vfx/Graph/Editor/VfxDiagnosticsWindow.h"
 #endif // USE_IMGUI
 #include "JsonAssets/JsonEditorWindow.h"
 #include <DisplaySettings.h>
@@ -179,6 +181,7 @@ namespace Ken4lowEngine
 		}
 		VfxGraphRuntime::GetInstance()->UpdateScalability();
 		VfxCueRuntime::GetInstance()->Update(GameTimer::GetInstance()->GetDeltaTime(), actorWorld);
+		VfxGraphDiagnostics::GetInstance()->CaptureFrame(); // Phase28 samples existing runtime counters without a GPU fence wait.
 
 		PostEffectManager::GetInstance()->Update();
 		JsonEditorWindow::GetInstance()->Update(GameTimer::GetInstance()->GetDeltaTime());
@@ -257,6 +260,7 @@ namespace Ken4lowEngine
 					JsonEditorWindow::GetInstance()->Draw(&editorWindowState.showJsonAssetManager);
 					VfxTimelineEditor::GetInstance()->Draw(&editorWindowState.showVfxTimeline);
 					VfxGraphEditor::GetInstance()->Draw(&editorWindowState.showVfxGraphEditor);
+					VfxDiagnosticsWindow::GetInstance()->Draw(editorWindowState.showVfxGraphEditor);
 
 					winApp_->DrawDisplaySettingsImGui(&editorWindowState.showDisplay);
 					ParameterManager::GetInstance()->Update(&editorWindowState.showParameters);
