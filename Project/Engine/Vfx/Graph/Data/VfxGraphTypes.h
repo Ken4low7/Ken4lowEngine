@@ -48,6 +48,12 @@ enum class VfxCollisionResponse : uint32_t
 	Kill,
 };
 
+enum class VfxGraphFluidDomain : uint32_t
+{
+	Fluid2D = 0,
+	Volumetric3D,
+};
+
 struct VfxFloatCurveKey
 {
 	float time = 0.0f;
@@ -106,6 +112,9 @@ enum class VfxGraphNodeType : uint32_t
 	RibbonRenderer,
 	TrailRenderer,
 	MeshRenderer,
+	FluidOutput,
+	LightOutput,
+	PostEffectOutput,
 };
 
 struct VfxGraphSpawnRateNode
@@ -258,6 +267,40 @@ struct VfxGraphMeshRendererNode
 	Vector3 angularVelocity{};
 };
 
+struct VfxGraphFluidOutputNode
+{
+	VfxGraphFluidDomain domain = VfxGraphFluidDomain::Volumetric3D;
+	Vector3 localOffset{};
+	Vector3 localVelocity{ 0.0f, 1.0f, 0.0f };
+	float duration = 1.0f;
+	float radius = 0.5f;
+	float velocityStrength = 1.0f;
+	float densityRate = 1.0f;
+	float temperatureRate = 1.0f;
+	float falloffExponent = 2.0f;
+	std::string intensityParameter;
+	std::string radiusParameter;
+};
+
+struct VfxGraphLightOutputNode
+{
+	Vector3 localOffset{};
+	Vector3 color{ 1.0f, 0.8f, 0.4f };
+	float duration = 0.15f;
+	float intensity = 3.0f;
+	float range = 5.0f;
+	std::string intensityParameter;
+	std::string radiusParameter;
+};
+
+struct VfxGraphPostEffectOutputNode
+{
+	std::string effectName = "Bloom";
+	float duration = 0.25f;
+	float weight = 1.0f;
+	std::string intensityParameter;
+};
+
 using VfxGraphNodePayload = std::variant<
 	VfxGraphSpawnRateNode,
 	VfxGraphBurstNode,
@@ -280,7 +323,10 @@ using VfxGraphNodePayload = std::variant<
 	VfxGraphSubEmitterNode,
 	VfxGraphRibbonRendererNode,
 	VfxGraphTrailRendererNode,
-	VfxGraphMeshRendererNode>;
+	VfxGraphMeshRendererNode,
+	VfxGraphFluidOutputNode,
+	VfxGraphLightOutputNode,
+	VfxGraphPostEffectOutputNode>;
 
 struct VfxGraphNodeDesc
 {
@@ -319,6 +365,7 @@ struct VfxGraphDesc
 	static constexpr uint32_t kMaxCurveKeys = 32u;
 	static constexpr uint32_t kMaxGradientKeys = 32u;
 	static constexpr uint32_t kMaxSubEmitterSpawnCount = 64u;
+	static constexpr uint32_t kMaxIntegrationTracks = 64u;
 
 	uint32_t schemaVersion = kSchemaVersion;
 	std::string graphName = "NewVfxGraph";
@@ -332,10 +379,12 @@ const char* ToString(VfxGraphNodeType type);
 const char* ToString(VfxParticleEventType eventType);
 const char* ToString(VfxCollisionShape shape);
 const char* ToString(VfxCollisionResponse response);
+const char* ToString(VfxGraphFluidDomain domain);
 bool TryParseVfxGraphNodeStage(const std::string& text, VfxGraphNodeStage& outStage);
 bool TryParseVfxGraphNodeType(const std::string& text, VfxGraphNodeType& outType);
 bool TryParseVfxParticleEventType(const std::string& text, VfxParticleEventType& outEventType);
 bool TryParseVfxCollisionShape(const std::string& text, VfxCollisionShape& outShape);
 bool TryParseVfxCollisionResponse(const std::string& text, VfxCollisionResponse& outResponse);
+bool TryParseVfxGraphFluidDomain(const std::string& text, VfxGraphFluidDomain& outDomain);
 
 } // namespace Ken4lowEngine

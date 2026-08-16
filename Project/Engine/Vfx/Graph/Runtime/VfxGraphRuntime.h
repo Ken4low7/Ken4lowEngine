@@ -3,6 +3,7 @@
 #include "Engine/Vfx/Graph/Asset/VfxGraphSerializer.h"
 #include "Engine/Vfx/Graph/Runtime/VfxGraphCompiler.h"
 #include "Engine/Graphics/Renderer/GpuParticle/Runtime/GpuParticleEffectRuntime.h"
+#include "Engine/Vfx/Runtime/VfxRuntimeTypes.h"
 
 #include <string>
 #include <unordered_map>
@@ -13,6 +14,7 @@ namespace Ken4lowEngine
 struct VfxGraphPlayHandle
 {
 	GpuParticleEffectRuntime::PlayHandle particleHandle{};
+	VfxCueHandle integrationHandle{};
 	std::string graphName;
 
 	[[nodiscard]] bool IsValid() const
@@ -30,11 +32,14 @@ struct VfxGraphRuntimeStats
 	uint64_t loopStarts = 0u;
 	uint64_t loopStops = 0u;
 	uint64_t reloads = 0u;
+	uint64_t integrationStarts = 0u;
+	uint64_t integrationStops = 0u;
+	uint64_t integrationFailures = 0u;
 };
 
 /// <summary>
-/// Niagara-like Graph AssetをCompileし、既存Phase13 GPU Particle Runtimeへ渡すFacade。
-/// GPU Particle backendの所有権は移さず、Graph側はAuthoring/Compile責務だけを持つ。
+/// Niagara-like Graph AssetをCompileし、粒子はPhase13、Subsystem統合OutputはPhase18 Runtimeへ渡すFacade。
+/// Fluid / Light / PostEffectの所有権は各既存Subsystemに残す。
 /// </summary>
 class VfxGraphRuntime
 {

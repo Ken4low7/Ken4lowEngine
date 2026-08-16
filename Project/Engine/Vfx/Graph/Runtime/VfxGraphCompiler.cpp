@@ -1,4 +1,5 @@
 #include "VfxGraphCompiler.h"
+#include "VfxGraphIntegrationCompiler.h"
 
 #include <algorithm>
 #include <cmath>
@@ -91,6 +92,9 @@ bool PayloadMatchesType(const VfxGraphNodeDesc& node)
 	case VfxGraphNodeType::RibbonRenderer: return std::holds_alternative<VfxGraphRibbonRendererNode>(node.payload);
 	case VfxGraphNodeType::TrailRenderer: return std::holds_alternative<VfxGraphTrailRendererNode>(node.payload);
 	case VfxGraphNodeType::MeshRenderer: return std::holds_alternative<VfxGraphMeshRendererNode>(node.payload);
+	case VfxGraphNodeType::FluidOutput: return std::holds_alternative<VfxGraphFluidOutputNode>(node.payload);
+	case VfxGraphNodeType::LightOutput: return std::holds_alternative<VfxGraphLightOutputNode>(node.payload);
+	case VfxGraphNodeType::PostEffectOutput: return std::holds_alternative<VfxGraphPostEffectOutputNode>(node.payload);
 	default: return false;
 	}
 }
@@ -585,11 +589,17 @@ VfxGraphCompileResult VfxGraphCompiler::Compile(const VfxGraphDesc& graph)
 			result.program.emitters.push_back(std::move(compiledMetadata));
 		}
 	}
+	if (result.errors.empty())
+	{
+		VfxGraphIntegrationCompiler::Compile(graph, result.program.integrationOneShotCue, result.program.integrationLoopCue, result.errors);
+	}
 	result.success = result.errors.empty();
 	if (!result.success)
 	{
 		result.program.particleEffect.emitters.clear();
 		result.program.emitters.clear();
+		result.program.integrationOneShotCue.tracks.clear();
+		result.program.integrationLoopCue.tracks.clear();
 	}
 	return result;
 }

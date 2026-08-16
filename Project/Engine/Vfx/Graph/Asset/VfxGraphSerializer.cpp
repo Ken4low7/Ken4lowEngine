@@ -242,6 +242,25 @@ bool ReadNodePayload(VfxGraphNodeDesc& node, const json& params)
 		if (params.contains("angularVelocity") && !ReadVector3(params["angularVelocity"], p.angularVelocity)) return false;
 		node.payload = p; return true;
 	}
+	case VfxGraphNodeType::FluidOutput:
+	{
+		VfxGraphFluidOutputNode p{}; if (!TryParseVfxGraphFluidDomain(params.value("domain", std::string("Volumetric3D")), p.domain)) return false;
+		if (params.contains("localOffset") && !ReadVector3(params["localOffset"], p.localOffset)) return false;
+		if (params.contains("localVelocity") && !ReadVector3(params["localVelocity"], p.localVelocity)) return false;
+		p.duration = params.value("duration", p.duration); p.radius = params.value("radius", p.radius); p.velocityStrength = params.value("velocityStrength", p.velocityStrength);
+		p.densityRate = params.value("densityRate", p.densityRate); p.temperatureRate = params.value("temperatureRate", p.temperatureRate); p.falloffExponent = params.value("falloffExponent", p.falloffExponent);
+		p.intensityParameter = params.value("intensityParameter", p.intensityParameter); p.radiusParameter = params.value("radiusParameter", p.radiusParameter); node.payload = std::move(p); return true;
+	}
+	case VfxGraphNodeType::LightOutput:
+	{
+		VfxGraphLightOutputNode p{}; if (params.contains("localOffset") && !ReadVector3(params["localOffset"], p.localOffset)) return false; if (params.contains("color") && !ReadVector3(params["color"], p.color)) return false;
+		p.duration = params.value("duration", p.duration); p.intensity = params.value("intensity", p.intensity); p.range = params.value("range", p.range);
+		p.intensityParameter = params.value("intensityParameter", p.intensityParameter); p.radiusParameter = params.value("radiusParameter", p.radiusParameter); node.payload = std::move(p); return true;
+	}
+	case VfxGraphNodeType::PostEffectOutput:
+	{
+		VfxGraphPostEffectOutputNode p{}; p.effectName = params.value("effectName", p.effectName); p.duration = params.value("duration", p.duration); p.weight = params.value("weight", p.weight); p.intensityParameter = params.value("intensityParameter", p.intensityParameter); node.payload = std::move(p); return true;
+	}
 	default: return false;
 	}
 }
@@ -285,6 +304,21 @@ json WriteNodePayload(const VfxGraphNodeDesc& node)
 		{
 			params["meshPath"] = payload.meshPath; params["subMeshIndex"] = payload.subMeshIndex; params["blendMode"] = BlendModeToString(payload.blendMode);
 			params["startScale"] = WriteVector3(payload.startScale); params["endScale"] = WriteVector3(payload.endScale); params["startRotation"] = WriteVector3(payload.startRotation); params["angularVelocity"] = WriteVector3(payload.angularVelocity);
+		}
+		else if constexpr (std::is_same_v<T, VfxGraphFluidOutputNode>)
+		{
+			params["domain"] = ToString(payload.domain); params["localOffset"] = WriteVector3(payload.localOffset); params["localVelocity"] = WriteVector3(payload.localVelocity); params["duration"] = payload.duration; params["radius"] = payload.radius;
+			params["velocityStrength"] = payload.velocityStrength; params["densityRate"] = payload.densityRate; params["temperatureRate"] = payload.temperatureRate; params["falloffExponent"] = payload.falloffExponent;
+			params["intensityParameter"] = payload.intensityParameter; params["radiusParameter"] = payload.radiusParameter;
+		}
+		else if constexpr (std::is_same_v<T, VfxGraphLightOutputNode>)
+		{
+			params["localOffset"] = WriteVector3(payload.localOffset); params["color"] = WriteVector3(payload.color); params["duration"] = payload.duration; params["intensity"] = payload.intensity; params["range"] = payload.range;
+			params["intensityParameter"] = payload.intensityParameter; params["radiusParameter"] = payload.radiusParameter;
+		}
+		else if constexpr (std::is_same_v<T, VfxGraphPostEffectOutputNode>)
+		{
+			params["effectName"] = payload.effectName; params["duration"] = payload.duration; params["weight"] = payload.weight; params["intensityParameter"] = payload.intensityParameter;
 		}
 	}, node.payload);
 	return params;

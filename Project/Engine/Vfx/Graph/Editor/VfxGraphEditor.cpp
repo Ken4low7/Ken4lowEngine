@@ -17,7 +17,7 @@ namespace Ken4lowEngine
 {
 namespace
 {
-	constexpr std::array<VfxGraphNodeType, 22> kNodeTypes = {
+	constexpr std::array<VfxGraphNodeType, 25> kNodeTypes = {
 		VfxGraphNodeType::SpawnRate,
 		VfxGraphNodeType::Burst,
 		VfxGraphNodeType::SpawnPoint,
@@ -40,6 +40,9 @@ namespace
 		VfxGraphNodeType::RibbonRenderer,
 		VfxGraphNodeType::TrailRenderer,
 		VfxGraphNodeType::MeshRenderer,
+		VfxGraphNodeType::FluidOutput,
+		VfxGraphNodeType::LightOutput,
+		VfxGraphNodeType::PostEffectOutput,
 	};
 
 	VfxGraphNodePayload MakeDefaultPayload(VfxGraphNodeType type)
@@ -68,6 +71,9 @@ namespace
 		case VfxGraphNodeType::RibbonRenderer: return VfxGraphRibbonRendererNode{};
 		case VfxGraphNodeType::TrailRenderer: return VfxGraphTrailRendererNode{};
 		case VfxGraphNodeType::MeshRenderer: return VfxGraphMeshRendererNode{};
+		case VfxGraphNodeType::FluidOutput: return VfxGraphFluidOutputNode{};
+		case VfxGraphNodeType::LightOutput: return VfxGraphLightOutputNode{};
+		case VfxGraphNodeType::PostEffectOutput: return VfxGraphPostEffectOutputNode{};
 		default: return VfxGraphSpawnRateNode{};
 		}
 	}
@@ -902,6 +908,39 @@ bool VfxGraphEditor::DrawNodePayloadEditor(VfxGraphNodeDesc& node)
 		changed = ImGui::DragFloat3("Start Rotation", &meshRenderer->startRotation.x, 0.01f) || changed;
 		changed = ImGui::DragFloat3("Angular Velocity", &meshRenderer->angularVelocity.x, 0.01f) || changed;
 	}
+	else if (auto* fluidOutput = std::get_if<VfxGraphFluidOutputNode>(&node.payload))
+	{
+		static const char* kDomains[] = { "Fluid2D", "Volumetric3D" };
+		int domain = static_cast<int>(fluidOutput->domain);
+		if (ImGui::Combo("Domain", &domain, kDomains, IM_ARRAYSIZE(kDomains))) { fluidOutput->domain = static_cast<VfxGraphFluidDomain>(domain); changed = true; }
+		changed = ImGui::DragFloat3("Local Offset", &fluidOutput->localOffset.x, 0.01f) || changed;
+		changed = ImGui::DragFloat3("Source Velocity", &fluidOutput->localVelocity.x, 0.01f) || changed;
+		changed = ImGui::DragFloat("Duration", &fluidOutput->duration, 0.01f, 0.001f, 120.0f) || changed;
+		changed = ImGui::DragFloat("Radius", &fluidOutput->radius, 0.01f, 0.001f, 1000.0f) || changed;
+		changed = ImGui::DragFloat("Velocity Strength", &fluidOutput->velocityStrength, 0.01f, 0.0f, 1000.0f) || changed;
+		changed = ImGui::DragFloat("Density Rate", &fluidOutput->densityRate, 0.01f) || changed;
+		changed = ImGui::DragFloat("Temperature Rate", &fluidOutput->temperatureRate, 0.01f) || changed;
+		changed = ImGui::DragFloat("Falloff Exponent", &fluidOutput->falloffExponent, 0.01f, 0.001f, 32.0f) || changed;
+		editString("Intensity Parameter", fluidOutput->intensityParameter);
+		editString("Radius Parameter", fluidOutput->radiusParameter);
+	}
+	else if (auto* lightOutput = std::get_if<VfxGraphLightOutputNode>(&node.payload))
+	{
+		changed = ImGui::DragFloat3("Local Offset", &lightOutput->localOffset.x, 0.01f) || changed;
+		changed = ImGui::ColorEdit3("Color", &lightOutput->color.x) || changed;
+		changed = ImGui::DragFloat("Duration", &lightOutput->duration, 0.01f, 0.001f, 120.0f) || changed;
+		changed = ImGui::DragFloat("Intensity", &lightOutput->intensity, 0.01f, 0.0f, 100000.0f) || changed;
+		changed = ImGui::DragFloat("Range", &lightOutput->range, 0.01f, 0.001f, 10000.0f) || changed;
+		editString("Intensity Parameter", lightOutput->intensityParameter);
+		editString("Radius Parameter", lightOutput->radiusParameter);
+	}
+	else if (auto* postEffectOutput = std::get_if<VfxGraphPostEffectOutputNode>(&node.payload))
+	{
+		editString("Effect Name", postEffectOutput->effectName);
+		changed = ImGui::DragFloat("Duration", &postEffectOutput->duration, 0.01f, 0.001f, 120.0f) || changed;
+		changed = ImGui::SliderFloat("Weight", &postEffectOutput->weight, 0.0f, 1.0f) || changed;
+		editString("Intensity Parameter", postEffectOutput->intensityParameter);
+	}
 	return changed;
 #else
 	(void)node;
@@ -1021,7 +1060,7 @@ void VfxGraphEditor::DrawPreviewPanel()
 		VfxGraphRuntime::GetInstance()->SetLoopPosition(previewHandle_, previewPosition_);
 	}
 	ImGui::SameLine();
-	ImGui::TextDisabled("Preview uses the live Phase20-24 GPU Particle runtime in the scene viewport.");
+	ImGui::TextDisabled("Preview uses Phase13 particles plus Phase18 Fluid/Light/PostEffect adapters through the Phase26 graph runtime.");
 #endif // USE_IMGUI
 }
 
@@ -1031,7 +1070,7 @@ void VfxGraphEditor::DrawCompileDiagnostics()
 	ImGui::SeparatorText("Compiler Diagnostics");
 	if (compileResult_.success)
 	{
-		ImGui::Text("Compile: OK | emitters=%d | warnings=%d", static_cast<int>(compileResult_.program.emitters.size()), static_cast<int>(compileResult_.warnings.size()));
+		ImGui::Text("Compile: OK | emitters=%d | integrations=%d | warnings=%d", static_cast<int>(compileResult_.program.emitters.size()), static_cast<int>(compileResult_.program.integrationOneShotCue.tracks.size()), static_cast<int>(compileResult_.warnings.size()));
 	}
 	else
 	{

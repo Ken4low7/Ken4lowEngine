@@ -2,6 +2,7 @@
 
 #include "Engine/Graphics/Renderer/GpuParticle/Data/GpuParticleEffectDesc.h"
 #include "Engine/Vfx/Graph/Data/VfxGraphTypes.h"
+#include "Engine/Vfx/Data/VfxCueTypes.h"
 
 #include <cstdint>
 #include <string>
@@ -21,6 +22,10 @@ struct VfxGraphProgram
 	std::string graphName;
 	GpuParticleEffectDesc particleEffect{};
 	std::vector<VfxGraphCompiledEmitter> emitters;
+	VfxCueDesc integrationOneShotCue{};
+	VfxCueDesc integrationLoopCue{};
+
+	[[nodiscard]] bool HasIntegrationTracks() const { return !integrationOneShotCue.tracks.empty(); }
 };
 
 struct VfxGraphCompileResult
