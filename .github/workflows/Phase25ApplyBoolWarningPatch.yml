@@ -27,8 +27,8 @@ jobs:
           text = path.read_text(encoding="utf-8")
           pattern = re.compile(r"^(\s*)changed \|= (.+);$", re.MULTILINE)
           matches = pattern.findall(text)
-          if len(matches) != 22:
-              raise RuntimeError(f"Expected 22 bool accumulation sites, found {len(matches)}")
+          if len(matches) != 54:
+              raise RuntimeError(f"Expected 54 bool accumulation sites, found {len(matches)}")
 
           def replace(match):
               indent, expression = match.groups()
