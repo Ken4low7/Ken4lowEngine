@@ -4,6 +4,7 @@
 #include "Engine/Vfx/Graph/Runtime/VfxGraphProgram.h"
 #include "Engine/Vfx/Graph/Runtime/VfxGraphRuntime.h"
 
+#include <cmath>
 #include <cstdint>
 #include <string>
 
