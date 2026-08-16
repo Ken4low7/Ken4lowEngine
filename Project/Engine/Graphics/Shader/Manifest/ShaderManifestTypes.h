@@ -24,6 +24,7 @@ namespace Ken4lowEngine
 		Compute,
 		GpuFluid,
 		GpuVolumetricFluid,
+		BladeTrail, // 既存値を保持したまま武器軌跡専用Graphics契約を末尾へ追加する。
 	};
 
 	struct ShaderDescriptor
