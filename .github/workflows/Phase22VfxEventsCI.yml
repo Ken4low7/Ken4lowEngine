@@ -1,0 +1,49 @@
+name: Phase22VfxEventsCI
+
+on:
+  push:
+    branches:
+      - master
+      - "feature/**"
+  pull_request:
+    branches:
+      - master
+      - "feature/phase21-particle-modules-curves-gradients"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  phase22-static-contracts:
+    name: Phase22 VFX Events Static Contracts
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Project
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          show-progress: false
+
+      - name: Validate Engine Module Ownership
+        run: python Tools/Scripts/ValidateEngineModules.py
+
+      - name: Validate Project Assets
+        run: python Tools/Scripts/ValidateProjectAssets.py
+
+      - name: Check Broken References
+        run: python Tools/Scripts/CheckBrokenReferences.py
+
+      - name: Run Phase13 GPU Particle Regression Contracts
+        run: python -m unittest discover -s Tests/Phase13 -p "test_*.py" -v
+
+      - name: Run Phase20 Foundation Contracts
+        run: python Tests/Phase20/run_phase20_static_tests.py
+
+      - name: Run Phase21 Curve Module Contracts
+        run: python Tests/Phase21/run_phase21_static_tests.py
+
+      - name: Run Phase22 Event Contracts
+        run: python Tests/Phase22/run_phase22_static_tests.py
