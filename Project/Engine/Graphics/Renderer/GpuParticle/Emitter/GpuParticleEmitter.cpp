@@ -10,6 +10,7 @@ namespace
 	constexpr uint32_t kDescOverrideFlag = 1u << 0;
 	constexpr uint32_t kSizeCurveFlag = 1u << 2;
 	constexpr uint32_t kColorGradientFlag = 1u << 3;
+	constexpr uint32_t kCollisionFlag = 1u << 4;
 
 	float EstimateGpuParticleLifeTimeSec(GpuParticleType type)
 	{
@@ -29,8 +30,7 @@ namespace
 		case GpuParticleType::MuzzleFlash: return 0.085f;
 		case GpuParticleType::BulletTracer: return 0.30f;
 		case GpuParticleType::Default:
-		default:
-			return 1.00f;
+		default: return 1.00f;
 		}
 	}
 }
@@ -43,8 +43,6 @@ GpuParticleEmitter::GpuParticleEmitter(const std::string& name, const EmitterInf
 uint32_t GpuParticleEmitter::RequestEmit(uint32_t count)
 {
 	if (count == 0 || info_.maxParticles == 0) return 0;
-
-	// Runtime EmitterがmaxParticlesを超えて無限に増えないよう、CPU推定生存数と発生待ち数で抑制する。
 	const uint64_t reserved = static_cast<uint64_t>(estimatedActiveParticleCount_) + pendingBurstCount_;
 	const uint64_t available = reserved < info_.maxParticles ? info_.maxParticles - reserved : 0;
 	const uint32_t accepted = static_cast<uint32_t>((std::min)(static_cast<uint64_t>(count), available));
@@ -54,11 +52,7 @@ uint32_t GpuParticleEmitter::RequestEmit(uint32_t count)
 
 void GpuParticleEmitter::UpdateActivity(float deltaTime)
 {
-	for (auto& batch : activeBatches_)
-	{
-		batch.remainingSec -= deltaTime;
-	}
-
+	for (auto& batch : activeBatches_) batch.remainingSec -= deltaTime;
 	while (!activeBatches_.empty() && activeBatches_.front().remainingSec <= 0.0f)
 	{
 		estimatedActiveParticleCount_ -= std::min(estimatedActiveParticleCount_, activeBatches_.front().count);
@@ -68,12 +62,16 @@ void GpuParticleEmitter::UpdateActivity(float deltaTime)
 
 float GpuParticleEmitter::EstimateParticleLifeTimeSec() const
 {
-	if (info_.useDescSpawnOverride)
-	{
-		return (std::max)(info_.lifeTime + std::abs(info_.lifeTimeRandom), 0.01f) + 0.10f;
-	}
+	float parentLife = info_.useDescSpawnOverride
+		? (std::max)(info_.lifeTime + std::abs(info_.lifeTimeRandom), 0.01f)
+		: EstimateGpuParticleLifeTimeSec(static_cast<GpuParticleType>(GetEffectiveType())) * std::max(info_.lifeScale, 0.01f);
 
-	return EstimateGpuParticleLifeTimeSec(static_cast<GpuParticleType>(GetEffectiveType())) * std::max(info_.lifeScale, 0.01f) + 0.10f;
+	// GPU-local Sub Emitterの子寿命まで描画対象を保持し、CPU推定が先に0になるのを防ぐ。
+	if (info_.subEmitterEventMask != 0u && info_.subEmitterCount > 0u)
+	{
+		parentLife += (std::max)(info_.subEmitterLifeTime, 0.01f);
+	}
+	return parentLife + 0.10f;
 }
 
 void GpuParticleEmitter::RegisterActiveBatch(uint32_t count)
@@ -94,8 +92,6 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 			scheduleDelta = (std::min)(scheduleDelta, remaining);
 			emissionElapsed_ += scheduleDelta;
 		}
-
-		// 有限durationでは最後の端数フレームを切り詰め、指定時間を超えた定期発生を行わない。
 		loopTimer_ += scheduleDelta;
 		while (loopTimer_ >= info_.loopFrequency && scheduleDelta > 0.0f)
 		{
@@ -115,6 +111,7 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 	if (info_.useDescSpawnOverride) out.overrideFlags |= kDescOverrideFlag;
 	if (info_.useSizeCurve) out.overrideFlags |= kSizeCurveFlag;
 	if (info_.useColorGradient) out.overrideFlags |= kColorGradientFlag;
+	if (info_.collisionShape != 0u) out.overrideFlags |= kCollisionFlag;
 	out.maxParticles = info_.maxParticles;
 
 	const uint32_t packedDrawType = GetDrawType();
@@ -122,7 +119,6 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 		info_.textureFilePath,
 		UnpackGpuParticleMaterialDrawType(packedDrawType),
 		UnpackGpuParticleBlendMode(packedDrawType));
-	// Desc Overrideはlegacy Type Presetを使わないためtype channelをMaterial renderGroupとして再利用し、Spawn shader変更なしで正しいTexture選別を保証する。
 	out.type = info_.useDescSpawnOverride ? out.renderGroup : GetEffectiveType();
 
 	out.positionRandom = info_.positionRandom;
@@ -171,6 +167,28 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 	out.angularVelocity = info_.angularVelocity;
 	out.angularVelocityRandom = info_.angularVelocityRandom;
 
+	out.collisionShape = info_.collisionShape;
+	out.collisionResponse = info_.collisionResponse;
+	out.eventMask = info_.eventMask;
+	out.subEmitterEventMask = info_.subEmitterEventMask;
+	out.collisionPlaneNormal = info_.collisionPlaneNormal;
+	out.collisionPlaneDistance = info_.collisionPlaneDistance;
+	out.collisionSphereCenter = info_.collisionSphereCenter;
+	out.collisionSphereRadius = (std::max)(info_.collisionSphereRadius, 0.0f);
+	out.collisionParticleRadius = (std::max)(info_.collisionParticleRadius, 0.0f);
+	out.collisionRestitution = std::clamp(info_.collisionRestitution, 0.0f, 1.0f);
+	out.collisionFriction = std::clamp(info_.collisionFriction, 0.0f, 1.0f);
+	out.subEmitterCount = info_.subEmitterCount;
+	out.subEmitterLifeTime = (std::max)(info_.subEmitterLifeTime, 0.01f);
+	out.subEmitterSpeed = (std::max)(info_.subEmitterSpeed, 0.0f);
+	out.subEmitterSpread = (std::max)(info_.subEmitterSpread, 0.0f);
+	out.subEmitterInheritVelocity = (std::max)(info_.subEmitterInheritVelocity, 0.0f);
+	out.subEmitterStartSize = info_.subEmitterStartSize;
+	out.subEmitterEndSize = info_.subEmitterEndSize;
+	out.subEmitterStartColor = info_.subEmitterStartColor;
+	out.subEmitterEndColor = info_.subEmitterEndColor;
+	out.subEmitterAlphaFade = info_.subEmitterAlphaFade ? 1u : 0u;
+
 	if (pendingBurstCount_ == 0)
 	{
 		out.emit = 0;
@@ -185,6 +203,5 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 	pendingBurstCount_ = 0;
 	return true;
 }
-
 
 } // namespace Ken4lowEngine
