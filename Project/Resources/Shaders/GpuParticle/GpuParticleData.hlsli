@@ -1,19 +1,15 @@
 #pragma once
 
-/// ---------- Config ---------- ///
 static const uint kMaxParticleCount = 131072;
 
-/// ---------- 描画種類 ---------- ///
 static const uint GPU_PARTICLE_KIND_SHIFT = 16;
 static const uint GPU_PARTICLE_KIND_MASK = 0x00FF0000;
 static const uint GPU_PARTICLE_BB_MASK = 0x0000FFFF;
-
 static const uint GPU_PARTICLE_KIND_SPRITE = 0;
 static const uint GPU_PARTICLE_KIND_MESH = 1;
 static const uint GPU_PARTICLE_KIND_RIBBON = 2;
 static const uint GPU_PARTICLE_KIND_BEAM = 3;
 
-/// ---------- ビルボードフラグ ---------- ///
 static const uint BILLBOARD_NONE = 0;
 static const uint BILLBOARD_CAMERA = 1u << 0;
 static const uint BILLBOARD_YAXIS = 1u << 1;
@@ -25,6 +21,17 @@ static const uint GPU_PARTICLE_CUSTOM_DESC_OVERRIDE = 1u << 0;
 static const uint GPU_PARTICLE_CUSTOM_ALPHA_FADE = 1u << 1;
 static const uint GPU_PARTICLE_CUSTOM_SIZE_CURVE = 1u << 2;
 static const uint GPU_PARTICLE_CUSTOM_COLOR_GRADIENT = 1u << 3;
+static const uint GPU_PARTICLE_CUSTOM_COLLISION = 1u << 4;
+static const uint GPU_PARTICLE_CUSTOM_COLLISION_LATCHED = 1u << 5;
+
+static const uint GPU_PARTICLE_EVENT_COLLISION = 1u << 0;
+static const uint GPU_PARTICLE_EVENT_DEATH = 1u << 1;
+static const uint GPU_PARTICLE_COLLISION_NONE = 0u;
+static const uint GPU_PARTICLE_COLLISION_PLANE = 1u;
+static const uint GPU_PARTICLE_COLLISION_SPHERE = 2u;
+static const uint GPU_PARTICLE_COLLISION_BOUNCE = 0u;
+static const uint GPU_PARTICLE_COLLISION_SLIDE = 1u;
+static const uint GPU_PARTICLE_COLLISION_KILL = 2u;
 
 uint GPUParticle_GetKind(uint packedBillboardMode)
 {
@@ -42,7 +49,6 @@ uint GPUParticle_PackBillboardMode(uint kind, uint billboardFlags)
            (billboardFlags & GPU_PARTICLE_BB_MASK);
 }
 
-/// ---------- パーティクルタイプ ---------- ///
 static const uint GPU_PARTICLE_TYPE_DEFAULT = 0;
 static const uint GPU_PARTICLE_TYPE_BLOOD = 1;
 static const uint GPU_PARTICLE_TYPE_DUST = 2;
@@ -58,15 +64,12 @@ static const uint GPU_PARTICLE_TYPE_PLAYER_DAMAGE_BLOOD = 11;
 static const uint GPU_PARTICLE_TYPE_MUZZLE_FLASH = 12;
 static const uint GPU_PARTICLE_TYPE_BULLET_TRACER = 13;
 
-/// ---------- パーティクルデータ ---------- ///
 struct Particle
 {
     float3 translate;
     float _pad0;
-
     float3 scale;
     float lifeTime;
-
     float3 velocity;
     float currentTime;
 
@@ -74,16 +77,13 @@ struct Particle
     uint billboardMode;
     uint atlasCols;
     uint atlasRows;
-
     uint animFrameCount;
     float animFps;
     uint animFlags;
     uint startFrame;
-
     float animSpeed;
     uint renderGroup;
     float2 _pad1;
-
     float4 color;
 
     float3 startScale;
@@ -98,7 +98,6 @@ struct Particle
     float rotationSpeed;
     float2 customPadding2;
 
-    // Authoring Curve/Force/Mesh Rotationを粒子ごとに固定し、Emitter再利用後も既に生成済みの見た目を変えない。
     float4 sizeCurveLut;
     float4 colorGradientLut0;
     float4 colorGradientLut1;
@@ -118,9 +117,31 @@ struct Particle
     float rotation3DPadding;
     float3 angularVelocity3D;
     float angularVelocity3DPadding;
+
+    uint collisionShape;
+    uint collisionResponse;
+    uint eventMask;
+    uint subEmitterEventMask;
+    float3 collisionPlaneNormal;
+    float collisionPlaneDistance;
+    float3 collisionSphereCenter;
+    float collisionSphereRadius;
+    float collisionParticleRadius;
+    float collisionRestitution;
+    float collisionFriction;
+    uint subEmitterCount;
+    float subEmitterLifeTime;
+    float subEmitterSpeed;
+    float subEmitterSpread;
+    float subEmitterInheritVelocity;
+    float2 subEmitterStartSize;
+    float2 subEmitterEndSize;
+    float4 subEmitterStartColor;
+    float4 subEmitterEndColor;
+    uint subEmitterAlphaFade;
+    float3 phase22Padding;
 };
 
-/// ---------- エミッター ---------- ///
 struct EmitterCBData
 {
     float3 translate;
@@ -190,9 +211,31 @@ struct EmitterCBData
     float angularVelocityPadding;
     float3 angularVelocityRandom;
     float angularVelocityRandomPadding;
+
+    uint collisionShape;
+    uint collisionResponse;
+    uint eventMask;
+    uint subEmitterEventMask;
+    float3 collisionPlaneNormal;
+    float collisionPlaneDistance;
+    float3 collisionSphereCenter;
+    float collisionSphereRadius;
+    float collisionParticleRadius;
+    float collisionRestitution;
+    float collisionFriction;
+    uint subEmitterCount;
+    float subEmitterLifeTime;
+    float subEmitterSpeed;
+    float subEmitterSpread;
+    float subEmitterInheritVelocity;
+    float2 subEmitterStartSize;
+    float2 subEmitterEndSize;
+    float4 subEmitterStartColor;
+    float4 subEmitterEndColor;
+    uint subEmitterAlphaFade;
+    float3 phase22Padding;
 };
 
-/// ---------- 時間制御 ---------- ///
 struct PerFrame
 {
     float time;
