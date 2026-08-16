@@ -54,6 +54,26 @@ enum class VfxGraphFluidDomain : uint32_t
 	Volumetric3D,
 };
 
+enum class VfxGraphBoundsMode : uint32_t
+{
+	Automatic = 0,
+	FixedSphere,
+};
+
+struct VfxGraphScalabilityDesc
+{
+	VfxGraphBoundsMode boundsMode = VfxGraphBoundsMode::Automatic;
+	Vector3 fixedBoundsCenter{};
+	float fixedBoundsRadius = 8.0f;
+	bool frustumCulling = true;
+	float maxDrawDistance = 150.0f;
+	float lodNearDistance = 25.0f;
+	float lodFarDistance = 75.0f;
+	float lodMidScale = 0.65f;
+	float lodFarScale = 0.35f;
+	uint32_t budgetCost = 1u;
+};
+
 struct VfxFloatCurveKey
 {
 	float time = 0.0f;
@@ -369,6 +389,7 @@ struct VfxGraphDesc
 
 	uint32_t schemaVersion = kSchemaVersion;
 	std::string graphName = "NewVfxGraph";
+	VfxGraphScalabilityDesc scalability{};
 	std::vector<GpuParticleUserParameterDesc> userParameters;
 	std::vector<VfxGraphEmitterDesc> emitters;
 };
@@ -380,11 +401,13 @@ const char* ToString(VfxParticleEventType eventType);
 const char* ToString(VfxCollisionShape shape);
 const char* ToString(VfxCollisionResponse response);
 const char* ToString(VfxGraphFluidDomain domain);
+const char* ToString(VfxGraphBoundsMode mode);
 bool TryParseVfxGraphNodeStage(const std::string& text, VfxGraphNodeStage& outStage);
 bool TryParseVfxGraphNodeType(const std::string& text, VfxGraphNodeType& outType);
 bool TryParseVfxParticleEventType(const std::string& text, VfxParticleEventType& outEventType);
 bool TryParseVfxCollisionShape(const std::string& text, VfxCollisionShape& outShape);
 bool TryParseVfxCollisionResponse(const std::string& text, VfxCollisionResponse& outResponse);
 bool TryParseVfxGraphFluidDomain(const std::string& text, VfxGraphFluidDomain& outDomain);
+bool TryParseVfxGraphBoundsMode(const std::string& text, VfxGraphBoundsMode& outMode);
 
 } // namespace Ken4lowEngine

@@ -335,6 +335,21 @@ bool VfxGraphSerializer::Load(VfxGraphDesc& outGraph, const std::string& filePat
 	graph.graphName = root.value("graphName", std::string{});
 	if (graph.graphName.empty()) return false;
 
+	if (const auto scalability = root.find("scalability"); scalability != root.end())
+	{
+		if (!scalability->is_object()) return false;
+		if (!TryParseVfxGraphBoundsMode(scalability->value("boundsMode", std::string("Automatic")), graph.scalability.boundsMode)) return false;
+		if (scalability->contains("fixedBoundsCenter") && !ReadVector3((*scalability)["fixedBoundsCenter"], graph.scalability.fixedBoundsCenter)) return false;
+		graph.scalability.fixedBoundsRadius = scalability->value("fixedBoundsRadius", graph.scalability.fixedBoundsRadius);
+		graph.scalability.frustumCulling = scalability->value("frustumCulling", graph.scalability.frustumCulling);
+		graph.scalability.maxDrawDistance = scalability->value("maxDrawDistance", graph.scalability.maxDrawDistance);
+		graph.scalability.lodNearDistance = scalability->value("lodNearDistance", graph.scalability.lodNearDistance);
+		graph.scalability.lodFarDistance = scalability->value("lodFarDistance", graph.scalability.lodFarDistance);
+		graph.scalability.lodMidScale = scalability->value("lodMidScale", graph.scalability.lodMidScale);
+		graph.scalability.lodFarScale = scalability->value("lodFarScale", graph.scalability.lodFarScale);
+		graph.scalability.budgetCost = scalability->value("budgetCost", graph.scalability.budgetCost);
+	}
+
 	if (const auto it = root.find("userParameters"); it != root.end())
 	{
 		if (!it->is_array()) return false;
@@ -386,6 +401,18 @@ bool VfxGraphSerializer::Save(const VfxGraphDesc& graph, const std::string& file
 	json root;
 	root["schemaVersion"] = VfxGraphDesc::kSchemaVersion;
 	root["graphName"] = graph.graphName;
+	root["scalability"] = {
+		{ "boundsMode", ToString(graph.scalability.boundsMode) },
+		{ "fixedBoundsCenter", WriteVector3(graph.scalability.fixedBoundsCenter) },
+		{ "fixedBoundsRadius", graph.scalability.fixedBoundsRadius },
+		{ "frustumCulling", graph.scalability.frustumCulling },
+		{ "maxDrawDistance", graph.scalability.maxDrawDistance },
+		{ "lodNearDistance", graph.scalability.lodNearDistance },
+		{ "lodFarDistance", graph.scalability.lodFarDistance },
+		{ "lodMidScale", graph.scalability.lodMidScale },
+		{ "lodFarScale", graph.scalability.lodFarScale },
+		{ "budgetCost", graph.scalability.budgetCost },
+	};
 	root["userParameters"] = json::array();
 	for (const auto& p : graph.userParameters) root["userParameters"].push_back({ { "name", p.name }, { "defaultValue", p.defaultValue }, { "minValue", p.minValue }, { "maxValue", p.maxValue } });
 	root["emitters"] = json::array();
