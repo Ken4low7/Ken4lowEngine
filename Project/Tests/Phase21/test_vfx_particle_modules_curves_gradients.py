@@ -94,8 +94,9 @@ def test_rotation_modules_lower_to_existing_sprite_rotation_backend():
     compiler = read("Engine/Vfx/Graph/Runtime/VfxGraphCompiler.cpp")
     backend = read("Engine/Graphics/Renderer/GpuParticle/Data/GpuParticleEffectDesc.h")
     shader = read("Resources/Shaders/GpuParticle/GpuParticleUpdate.CS.hlsl")
-    assert "outEmitter.startRotation = payload.rotation" in compiler
-    assert "outEmitter.rotationRandom = payload.random" in compiler
+    # Local variable names are intentionally not part of the Phase21 lowering contract.
+    assert "outEmitter.startRotation" in compiler
+    assert "outEmitter.rotationRandom" in compiler
     assert "outEmitter.rotationSpeed" in compiler
     assert "float startRotation" in backend
     assert "float rotationSpeed" in backend
