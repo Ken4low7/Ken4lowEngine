@@ -23,6 +23,7 @@
         "Engine/Vfx/Data",
         "Engine/Vfx/Asset",
         "Engine/Vfx/Runtime",
+        "Engine/Vfx/Graph",
         "Engine/Gameplay"
       ],
       "MayDependOn": ["Core"]
@@ -46,6 +47,7 @@
     "Reason": "Phase 5ではソース所有境界とCI検証を先に固定し、循環依存を解消してからStatic Libraryへの物理分割を行う。",
     "LegacyRuntimeEditorBridge": "USE_IMGUI経路のRuntimeからEditorへの既存参照は後続でBridgeへ移行する。",
     "Phase18VfxOwnership": "VFX Data/Asset/RuntimeはRuntime所有、Timeline authoringだけEditor所有としてSubsystem横断Facadeの責務を分離する。",
-    "Phase19GameplayOwnership": "Gameplay Tag/Event/Attribute/Ability/DiagnosticsはRuntime所有とし、Actor Detailsの既存Inspectorだけをauthoring入口として再利用する。"
+    "Phase19GameplayOwnership": "Gameplay Tag/Event/Attribute/Ability/DiagnosticsはRuntime所有とし、Actor Detailsの既存Inspectorだけをauthoring入口として再利用する。",
+    "Phase20VfxGraphOwnership": "VFX Graph Data/Asset/Compiler/RuntimeはRuntime所有とし、Phase25で追加するGraph EditorのみEditor所有へ置く。"
   }
 }

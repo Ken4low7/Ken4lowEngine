@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "graphName": "Phase20EnergyBurst",
+  "userParameters": [
+    {
+      "name": "Intensity",
+      "defaultValue": 1.0,
+      "minValue": 0.25,
+      "maxValue": 3.0
+    }
+  ],
+  "emitters": [
+    {
+      "name": "EnergyCore",
+      "maxParticles": 2048,
+      "loop": false,
+      "duration": 0.35,
+      "parameterBindings": [
+        {
+          "parameterName": "Intensity",
+          "target": "BurstCount",
+          "scale": 0.75,
+          "bias": 0.25
+        },
+        {
+          "parameterName": "Intensity",
+          "target": "Size",
+          "scale": 0.5,
+          "bias": 0.5
+        }
+      ],
+      "nodes": [
+        {
+          "id": 1,
+          "name": "Burst",
+          "stage": "Spawn",
+          "type": "Burst",
+          "enabled": true,
+          "editorPosition": [0.0, 0.0],
+          "params": {
+            "count": 72
+          }
+        },
+        {
+          "id": 2,
+          "name": "Sphere Spawn",
+          "stage": "Initialize",
+          "type": "SpawnSphere",
+          "enabled": true,
+          "editorPosition": [220.0, 0.0],
+          "params": {
+            "radius": 0.2
+          }
+        },
+        {
+          "id": 3,
+          "name": "Lifetime",
+          "stage": "Initialize",
+          "type": "Lifetime",
+          "enabled": true,
+          "editorPosition": [440.0, 0.0],
+          "params": {
+            "lifetime": 0.45,
+            "random": 0.12
+          }
+        },
+        {
+          "id": 4,
+          "name": "Velocity",
+          "stage": "Initialize",
+          "type": "InitialVelocity",
+          "enabled": true,
+          "editorPosition": [660.0, 0.0],
+          "params": {
+            "velocity": [0.0, 1.0, 0.0],
+            "random": [1.0, 0.8, 1.0],
+            "speed": 3.2,
+            "speedRandom": 1.0
+          }
+        },
+        {
+          "id": 5,
+          "name": "Cyan Color",
+          "stage": "Initialize",
+          "type": "InitialColor",
+          "enabled": true,
+          "editorPosition": [880.0, 0.0],
+          "params": {
+            "start": [0.2, 0.95, 1.0, 1.0],
+            "end": [0.0, 0.2, 1.0, 0.0],
+            "alphaFade": true
+          }
+        },
+        {
+          "id": 6,
+          "name": "Size",
+          "stage": "Initialize",
+          "type": "InitialSize",
+          "enabled": true,
+          "editorPosition": [1100.0, 0.0],
+          "params": {
+            "start": [0.08, 0.08],
+            "end": [0.025, 0.025],
+            "random": 0.25
+          }
+        },
+        {
+          "id": 7,
+          "name": "Gravity",
+          "stage": "Update",
+          "type": "Gravity",
+          "enabled": true,
+          "editorPosition": [1320.0, 0.0],
+          "params": {
+            "acceleration": [0.0, -0.8, 0.0]
+          }
+        },
+        {
+          "id": 8,
+          "name": "Drag",
+          "stage": "Update",
+          "type": "Drag",
+          "enabled": true,
+          "editorPosition": [1540.0, 0.0],
+          "params": {
+            "damping": 0.6
+          }
+        },
+        {
+          "id": 9,
+          "name": "Sprite Renderer",
+          "stage": "Render",
+          "type": "SpriteRenderer",
+          "enabled": true,
+          "editorPosition": [1760.0, 0.0],
+          "params": {
+            "texturePath": "Effects/white.dds",
+            "blendMode": "Additive",
+            "billboard": true
+          }
+        }
+      ],
+      "edges": [
+        { "from": 1, "to": 2 },
+        { "from": 2, "to": 3 },
+        { "from": 3, "to": 4 },
+        { "from": 4, "to": 5 },
+        { "from": 5, "to": 6 },
+        { "from": 6, "to": 7 },
+        { "from": 7, "to": 8 },
+        { "from": 8, "to": 9 }
+      ]
+    }
+  ]
+}

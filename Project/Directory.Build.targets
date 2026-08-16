@@ -55,4 +55,20 @@
     <None Include="$(MSBuildThisFileDirectory)Resources\Gameplay\Abilities\Phase19Pulse.ability.json" />
     <None Include="$(MSBuildThisFileDirectory)Resources\ActorPrefabs\Phase19AbilityActor.json" />
   </ItemGroup>
+
+  <!-- Phase20はNiagara-like GraphをAuthoring/Compile層として追加し、GPU backendはPhase13 Runtimeを再利用する。 -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Ken4lowEngine'">
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Data\VfxGraphTypes.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Asset\VfxGraphSerializer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphCompiler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphRuntime.cpp" />
+
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Data\VfxGraphTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Asset\VfxGraphSerializer.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphProgram.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphCompiler.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphRuntime.h" />
+
+    <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Phase20\EnergyBurst.vfxgraph.json" />
+  </ItemGroup>
 </Project>
