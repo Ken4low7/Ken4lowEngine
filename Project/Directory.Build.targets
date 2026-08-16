@@ -56,11 +56,12 @@
     <None Include="$(MSBuildThisFileDirectory)Resources\ActorPrefabs\Phase19AbilityActor.json" />
   </ItemGroup>
 
-  <!-- Phase20-25はNiagara-like GraphをAuthoring/Compile/Editor層として追加し、GPU backendはPhase13 Runtimeを再利用する。 -->
+  <!-- Phase20-26はNiagara-like GraphをAuthoring/Compile/Editor/Subsystem統合層として追加し、既存backend/runtimeを再利用する。 -->
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Ken4lowEngine'">
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Data\VfxGraphTypes.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Asset\VfxGraphSerializer.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphCompiler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphIntegrationCompiler.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphRuntime.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Editor\VfxGraphEditor.cpp" />
 
@@ -68,10 +69,12 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Asset\VfxGraphSerializer.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphProgram.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphCompiler.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphIntegrationCompiler.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphRuntime.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Editor\VfxGraphEditor.h" />
 
     <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Phase20\EnergyBurst.vfxgraph.json" />
     <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Phase25\EditorPreviewShowcase.vfxgraph.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Phase26\IntegratedExplosion.vfxgraph.json" />
   </ItemGroup>
 </Project>
