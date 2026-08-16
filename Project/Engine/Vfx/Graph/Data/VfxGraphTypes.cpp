@@ -1,7 +1,74 @@
 #include "VfxGraphTypes.h"
 
+#include <algorithm>
+
 namespace Ken4lowEngine
 {
+namespace
+{
+	float ApplyCurveInterpolation(VfxCurveInterpolation interpolation, float t)
+	{
+		const float clamped = std::clamp(t, 0.0f, 1.0f);
+		switch (interpolation)
+		{
+		case VfxCurveInterpolation::Step:
+			return clamped >= 1.0f ? 1.0f : 0.0f;
+		case VfxCurveInterpolation::SmoothStep:
+			return clamped * clamped * (3.0f - 2.0f * clamped);
+		case VfxCurveInterpolation::Linear:
+		default:
+			return clamped;
+		}
+	}
+
+	Vector4 LerpColor(const Vector4& a, const Vector4& b, float t)
+	{
+		return {
+			a.x + (b.x - a.x) * t,
+			a.y + (b.y - a.y) * t,
+			a.z + (b.z - a.z) * t,
+			a.w + (b.w - a.w) * t,
+		};
+	}
+}
+
+float VfxFloatCurve::Evaluate(float normalizedTime) const
+{
+	if (keys.empty()) return 1.0f;
+	if (keys.size() == 1u || normalizedTime <= keys.front().time) return keys.front().value;
+
+	for (size_t i = 1u; i < keys.size(); ++i)
+	{
+		const VfxFloatCurveKey& previous = keys[i - 1u];
+		const VfxFloatCurveKey& next = keys[i];
+		if (normalizedTime > next.time) continue;
+
+		const float span = next.time - previous.time;
+		if (span <= 1.0e-6f) return next.value;
+		const float localT = ApplyCurveInterpolation(interpolation, (normalizedTime - previous.time) / span);
+		return previous.value + (next.value - previous.value) * localT;
+	}
+	return keys.back().value;
+}
+
+Vector4 VfxColorGradient::Evaluate(float normalizedTime) const
+{
+	if (keys.empty()) return { 1.0f, 1.0f, 1.0f, 1.0f };
+	if (keys.size() == 1u || normalizedTime <= keys.front().time) return keys.front().color;
+
+	for (size_t i = 1u; i < keys.size(); ++i)
+	{
+		const VfxColorGradientKey& previous = keys[i - 1u];
+		const VfxColorGradientKey& next = keys[i];
+		if (normalizedTime > next.time) continue;
+
+		const float span = next.time - previous.time;
+		if (span <= 1.0e-6f) return next.color;
+		const float localT = ApplyCurveInterpolation(interpolation, (normalizedTime - previous.time) / span);
+		return LerpColor(previous.color, next.color, localT);
+	}
+	return keys.back().color;
+}
 
 VfxGraphNodeStage GetExpectedVfxGraphNodeStage(VfxGraphNodeType type)
 {
@@ -17,9 +84,13 @@ VfxGraphNodeStage GetExpectedVfxGraphNodeStage(VfxGraphNodeType type)
 	case VfxGraphNodeType::InitialVelocity:
 	case VfxGraphNodeType::InitialColor:
 	case VfxGraphNodeType::InitialSize:
+	case VfxGraphNodeType::InitialRotation:
 		return VfxGraphNodeStage::Initialize;
 	case VfxGraphNodeType::Gravity:
 	case VfxGraphNodeType::Drag:
+	case VfxGraphNodeType::RotationRate:
+	case VfxGraphNodeType::SizeOverLife:
+	case VfxGraphNodeType::ColorOverLife:
 		return VfxGraphNodeStage::Update;
 	case VfxGraphNodeType::SpriteRenderer:
 		return VfxGraphNodeStage::Render;
@@ -56,6 +127,10 @@ const char* ToString(VfxGraphNodeType type)
 	case VfxGraphNodeType::Gravity: return "Gravity";
 	case VfxGraphNodeType::Drag: return "Drag";
 	case VfxGraphNodeType::SpriteRenderer: return "SpriteRenderer";
+	case VfxGraphNodeType::InitialRotation: return "InitialRotation";
+	case VfxGraphNodeType::RotationRate: return "RotationRate";
+	case VfxGraphNodeType::SizeOverLife: return "SizeOverLife";
+	case VfxGraphNodeType::ColorOverLife: return "ColorOverLife";
 	default: return "SpawnRate";
 	}
 }
@@ -84,6 +159,10 @@ bool TryParseVfxGraphNodeType(const std::string& text, VfxGraphNodeType& outType
 	else if (text == "Gravity") outType = VfxGraphNodeType::Gravity;
 	else if (text == "Drag") outType = VfxGraphNodeType::Drag;
 	else if (text == "SpriteRenderer") outType = VfxGraphNodeType::SpriteRenderer;
+	else if (text == "InitialRotation") outType = VfxGraphNodeType::InitialRotation;
+	else if (text == "RotationRate") outType = VfxGraphNodeType::RotationRate;
+	else if (text == "SizeOverLife") outType = VfxGraphNodeType::SizeOverLife;
+	else if (text == "ColorOverLife") outType = VfxGraphNodeType::ColorOverLife;
 	else return false;
 	return true;
 }
