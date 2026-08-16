@@ -84,7 +84,18 @@ namespace Ken4lowEngine
 	void BladeTrailComponent::UpdateEditor(float deltaTime)
 	{
 		AgeHistory(deltaTime);
-		if (emitting_)
+		if (previewArcActive_)
+		{
+			previewArcElapsed_ += (std::max)(deltaTime, 0.0f);
+			const float safeDuration = (std::max)(previewArcDuration_, 0.05f);
+			const float normalizedTime = Saturate(previewArcElapsed_ / safeDuration);
+			SamplePreviewArc(normalizedTime); // 実ゲームと同じように1Frameずつ軌跡を伸ばす。
+			if (normalizedTime >= 1.0f)
+			{
+				previewArcActive_ = false;
+			}
+		}
+		else if (emitting_)
 		{
 			SampleCurrentBlade();
 		}
@@ -101,6 +112,7 @@ namespace Ken4lowEngine
 
 	void BladeTrailComponent::BeginTrail(bool clearHistory)
 	{
+		previewArcActive_ = false; // Gameplay記録開始時はEditor Previewを停止する。
 		if (clearHistory)
 		{
 			ClearTrail();
@@ -116,6 +128,8 @@ namespace Ken4lowEngine
 
 	void BladeTrailComponent::ClearTrail()
 	{
+		previewArcActive_ = false;
+		previewArcElapsed_ = 0.0f;
 		samples_.clear();
 		vertexScratch_.clear();
 	}
@@ -313,7 +327,14 @@ namespace Ken4lowEngine
 	void BladeTrailComponent::GeneratePreviewArc()
 	{
 		ClearTrail();
+		emitting_ = false;
+		previewArcElapsed_ = 0.0f;
+		previewArcActive_ = true;
+		SamplePreviewArc(0.0f); // 最初の1点だけ作り、以降はUpdateEditorで弧をなぞる。
+	}
 
+	void BladeTrailComponent::SamplePreviewArc(float normalizedTime)
+	{
 		Matrix4x4 ownerWorld = Matrix4x4::MakeIdentity();
 		if (Actor* owner = GetOwner())
 		{
@@ -326,21 +347,14 @@ namespace Ken4lowEngine
 			}
 		}
 
-		const uint32_t previewSamples = std::clamp(maxSamples_, 8u, 24u);
-		const float safeLifetime = (std::max)(historyLifetime_, 0.001f);
-		for (uint32_t i = 0; i < previewSamples; ++i)
-		{
-			const float t = static_cast<float>(i) / static_cast<float>(previewSamples - 1u);
-			const float angle = -1.15f + 2.30f * t;
-			const Matrix4x4 localRotation = Matrix4x4::MakeRotateY(angle);
-			const Vector3 rotatedRoot = Vector3::Transform(localRootOffset_, localRotation);
-			const Vector3 rotatedTip = Vector3::Transform(localTipOffset_, localRotation);
-			BladeTrailSample sample{};
-			sample.root = Vector3::Transform(rotatedRoot, ownerWorld);
-			sample.tip = Vector3::Transform(rotatedTip, ownerWorld);
-			sample.age = (1.0f - t) * safeLifetime * 0.85f;
-			samples_.push_back(sample);
-		}
+		const float t = Saturate(normalizedTime);
+		const float angle = -1.15f + 2.30f * t;
+		const Matrix4x4 localRotation = Matrix4x4::MakeRotateY(angle);
+		const Vector3 rotatedRoot = Vector3::Transform(localRootOffset_, localRotation);
+		const Vector3 rotatedTip = Vector3::Transform(localTipOffset_, localRotation);
+		AppendSample(
+			Vector3::Transform(rotatedRoot, ownerWorld),
+			Vector3::Transform(rotatedTip, ownerWorld));
 	}
 
 	void BladeTrailComponent::DrawImGui()
@@ -368,6 +382,7 @@ namespace Ken4lowEngine
 		ImGui::DragFloat3("Local Root", &localRootOffset_.x, 0.01f);
 		ImGui::DragFloat3("Local Tip", &localTipOffset_.x, 0.01f);
 		ImGui::TextDisabled("For skeletal weapons call SetBladeWorldEndpoints(root, tip) each frame.");
+		ImGui::TextDisabled("Slash tip: set Local Root near the outer blade (for example Z=0.8) to avoid a filled fan.");
 
 		ImGui::SeparatorText("History / Smoothing");
 		ImGui::DragFloat("Lifetime", &historyLifetime_, 0.005f, 0.03f, 2.0f);

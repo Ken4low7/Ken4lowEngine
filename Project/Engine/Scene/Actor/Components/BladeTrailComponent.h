@@ -65,6 +65,7 @@ namespace Ken4lowEngine
 		std::vector<BladeTrailSample> BuildSmoothedSamples() const;
 		void BuildVertices();
 		void GeneratePreviewArc();
+		void SamplePreviewArc(float normalizedTime);
 
 	private:
 		std::deque<BladeTrailSample> samples_;
@@ -90,5 +91,10 @@ namespace Ken4lowEngine
 		bool emitting_ = false;
 		bool visible_ = true;
 		bool rendererAcquired_ = false;
+
+		// Editor Previewも実ゲーム同様に時間経過で軌跡を伸ばす。
+		bool previewArcActive_ = false;
+		float previewArcElapsed_ = 0.0f;
+		float previewArcDuration_ = 0.28f;
 	};
 }
