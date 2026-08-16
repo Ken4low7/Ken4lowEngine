@@ -1,0 +1,32 @@
+name: Phase27CompatPatch
+
+on:
+  push:
+    branches:
+      - feature/phase27-lod-bounds-budget-culling
+    paths:
+      - '.github/workflows/Phase27CompatPatch.yml'
+      - '.github/scripts/phase27_compat_patch.py'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/phase27-lod-bounds-budget-culling
+          fetch-depth: 0
+      - name: Restore Phase13 API compatibility
+        run: python .github/scripts/phase27_compat_patch.py
+      - name: Commit project fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Project
+          git commit -m "Phase27: preserve Phase13 playback API compatibility"
+          git push origin HEAD:feature/phase27-lod-bounds-budget-culling
