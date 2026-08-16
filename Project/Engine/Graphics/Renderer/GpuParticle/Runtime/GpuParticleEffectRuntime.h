@@ -90,7 +90,12 @@ public:
 		return LoadEffect(pathIt->second);
 	}
 
-	bool Play(const std::string& effectName, const Vector3& worldPosition, float runtimeScale = 1.0f)
+	bool Play(const std::string& effectName, const Vector3& worldPosition)
+	{
+		return Play(effectName, worldPosition, 1.0f);
+	}
+
+	bool Play(const std::string& effectName, const Vector3& worldPosition, float runtimeScale)
 	{
 		runtimeScale = std::clamp(runtimeScale, 0.0f, 1.0f);
 		const GpuParticleCompiledEffect* effect = FindEffect(effectName);
@@ -121,7 +126,12 @@ public:
 		return emittedAny;
 	}
 
-	PlayHandle PlayLoop(const std::string& effectName, const Vector3& worldPosition, float runtimeScale = 1.0f)
+	PlayHandle PlayLoop(const std::string& effectName, const Vector3& worldPosition)
+	{
+		return PlayLoop(effectName, worldPosition, 1.0f);
+	}
+
+	PlayHandle PlayLoop(const std::string& effectName, const Vector3& worldPosition, float runtimeScale)
 	{
 		runtimeScale = std::clamp(runtimeScale, 0.0f, 1.0f);
 		const GpuParticleCompiledEffect* effect = FindEffect(effectName);
