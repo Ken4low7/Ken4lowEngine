@@ -10,6 +10,7 @@
 #include "GpuParticleEmitter.h"
 #include "GpuParticleEmitterData.h"
 #include "GpuParticleEmitterSerializer.h"
+#include "GpuParticleExecutionGraph.h"
 
 #include "AssimpLoader.h"
 #include "LogString.h"
@@ -144,28 +145,107 @@ namespace Ken4lowEngine
 	{
 		// DebugSceneのPreview Statusで、共通GPU Particle Runtimeの更新到達を追跡する。
 		++updateCallCount_;
-		// GPUパーティクルバッファの更新処理
 		gpuParticleBuffers_->Update(deltaTime);
 
-		// 更新用ディスパッチ処理
-		DispatchUpdate();
+		GpuParticleExecutionGraph executionGraph{};
+		executionGraph.Reset();
+
+		bool hadActiveParticles = false;
+		for (const auto& [name, emitter] : emitters_)
+		{
+			(void)name;
+			if (emitter && emitter->GetEstimatedActiveParticleCount() > 0u)
+			{
+				hadActiveParticles = true;
+				break;
+			}
+		}
+
+		// CPU推定で既存Particleが無いフレームは、空の全Particle Update dispatchを省略する。
+		executionGraph.SetUpdateRequired(hadActiveParticles);
 
 		uint32_t slot = 0;
-
 		for (auto& [name, emitter] : emitters_)
 		{
+			(void)name;
 			emitter->UpdateActivity(deltaTime);
 
-			// slotの場所に書く
 			auto* cb = gpuParticleBuffers_->GetEmitterCBData(slot);
-
 			if (emitter->BuildCB(*cb, deltaTime))
 			{
-				DispatchEmit(gpuParticleBuffers_->GetEmitterCBAddress(slot));
+				executionGraph.AddEmit(gpuParticleBuffers_->GetEmitterCBAddress(slot));
+			}
+			++slot;
+		}
+
+		if (!executionGraph.HasWork())
+		{
+			return;
+		}
+
+		auto* dxCommon = DirectXCommon::GetInstance();
+		auto* commandList = dxCommon->GetCommandManager()->GetCommandList();
+
+		// Phase24 batches every compute pass into one Particle UAV state interval.
+		dxCommon->ResourceTransition(
+			gpuParticleBuffers_->GetParticleBuffer(),
+			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		UAVManager::GetInstance()->PreDispatch();
+		commandList->SetComputeRootSignature(computePipeline_->GetCsRootSignature());
+		commandList->SetComputeRootDescriptorTable(
+			1,
+			UAVManager::GetInstance()->GetGPUDescriptorHandle(gpuParticleBuffers_->GetParticleUavIndex()));
+		commandList->SetComputeRootConstantBufferView(
+			3,
+			gpuParticleBuffers_->GetPerFrameBuffer()->GetGPUVirtualAddress());
+
+		const auto& passes = executionGraph.GetPasses();
+		bool updatePipelineBound = false;
+		bool emitPipelineBound = false;
+		for (std::size_t passIndex = 0; passIndex < passes.size(); ++passIndex)
+		{
+			const GpuParticleExecutionPass& pass = passes[passIndex];
+			if (pass.type == GpuParticleExecutionPassType::Update)
+			{
+				if (!updatePipelineBound)
+				{
+					commandList->SetPipelineState(computePipeline_->GetCsUpdatePSO());
+					updatePipelineBound = true;
+				}
+
+				const UINT maxParticles = GpuParticleBuffers::GetMaxParticles();
+				const UINT threadCount = 1024;
+				const UINT groupCountX = (maxParticles + threadCount - 1) / threadCount;
+				commandList->Dispatch(groupCountX, 1, 1);
+			}
+			else
+			{
+				if (!emitPipelineBound)
+				{
+					commandList->SetPipelineState(computePipeline_->GetCsEmitPSO());
+					emitPipelineBound = true;
+				}
+
+				++emitDispatchCount_;
+				commandList->SetComputeRootConstantBufferView(2, pass.emitterCbAddress);
+				commandList->Dispatch(1, 1, 1);
 			}
 
-			slot++;
+			if (passIndex + 1u < passes.size())
+			{
+				D3D12_RESOURCE_BARRIER uavBarrier{};
+				uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+				uavBarrier.UAV.pResource = nullptr;
+				commandList->ResourceBarrier(1, &uavBarrier);
+			}
 		}
+
+		dxCommon->ResourceTransition(
+			gpuParticleBuffers_->GetParticleBuffer(),
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	}
 
 	/// -------------------------------------------------------------
