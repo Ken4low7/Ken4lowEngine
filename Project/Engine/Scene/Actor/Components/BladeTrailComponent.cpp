@@ -378,6 +378,11 @@ namespace Ken4lowEngine
 		ImGui::Checkbox("Emit On Start", &emitOnStart_);
 		ImGui::Text("Samples: %d / %u", static_cast<int>(samples_.size()), maxSamples_);
 
+		ImGui::SeparatorText("Preview");
+		ImGui::DragFloat("Preview Duration", &previewArcDuration_, 0.01f, 0.05f, 1.0f, "%.2f s"); // 小さいほど高速、大きいほど低速でPreview Arcを再生する。
+		previewArcDuration_ = std::clamp(previewArcDuration_, 0.05f, 1.0f);
+		ImGui::TextDisabled("0.10s = fast slash / 0.28s = default / 0.60s = heavy slash");
+
 		ImGui::SeparatorText("Blade Endpoints");
 		ImGui::DragFloat3("Local Root", &localRootOffset_.x, 0.01f);
 		ImGui::DragFloat3("Local Tip", &localTipOffset_.x, 0.01f);
@@ -416,6 +421,7 @@ namespace Ken4lowEngine
 		outJson["WidthScale"] = widthScale_;
 		outJson["MaxSamples"] = maxSamples_;
 		outJson["SmoothingSubdivisions"] = smoothingSubdivisions_;
+		outJson["PreviewArcDuration"] = previewArcDuration_;
 		outJson["HeadColor"] = { headColor_.x, headColor_.y, headColor_.z, headColor_.w };
 		outJson["TailColor"] = { tailColor_.x, tailColor_.y, tailColor_.z, tailColor_.w };
 		outJson["TexturePath"] = texturePath_;
@@ -437,6 +443,7 @@ namespace Ken4lowEngine
 		if (inJson.contains("WidthScale") && inJson["WidthScale"].is_number()) widthScale_ = (std::max)(inJson["WidthScale"].get<float>(), 0.0f);
 		if (inJson.contains("MaxSamples") && inJson["MaxSamples"].is_number_unsigned()) maxSamples_ = std::clamp(inJson["MaxSamples"].get<uint32_t>(), 2u, 128u);
 		if (inJson.contains("SmoothingSubdivisions") && inJson["SmoothingSubdivisions"].is_number_unsigned()) smoothingSubdivisions_ = std::clamp(inJson["SmoothingSubdivisions"].get<uint32_t>(), 1u, 4u);
+		if (inJson.contains("PreviewArcDuration") && inJson["PreviewArcDuration"].is_number()) previewArcDuration_ = std::clamp(inJson["PreviewArcDuration"].get<float>(), 0.05f, 1.0f);
 		if (inJson.contains("TexturePath") && inJson["TexturePath"].is_string()) texturePath_ = inJson["TexturePath"].get<std::string>();
 		if (inJson.contains("BlendMode") && inJson["BlendMode"].is_number_integer())
 		{

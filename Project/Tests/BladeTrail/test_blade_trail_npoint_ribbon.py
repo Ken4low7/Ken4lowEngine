@@ -90,6 +90,8 @@ class BladeTrailNPointRibbonContracts(unittest.TestCase):
     def test_inspector_and_serialization_keep_authoring_contract(self):
         source = text(COMPONENT_CPP)
         self.assertIn('ImGui::Button("Preview Arc")', source)
+        self.assertIn('ImGui::DragFloat("Preview Duration"', source)
+        self.assertIn('previewArcDuration_ = std::clamp(previewArcDuration_, 0.05f, 1.0f)', source)
         self.assertIn("ImGuiColorEditFlags_Uint8", source)
         for field in (
             '"LocalRootOffset"',
@@ -97,6 +99,7 @@ class BladeTrailNPointRibbonContracts(unittest.TestCase):
             '"HistoryLifetime"',
             '"MaxSamples"',
             '"SmoothingSubdivisions"',
+            '"PreviewArcDuration"',
             '"HeadColor"',
             '"TailColor"',
             '"TexturePath"',

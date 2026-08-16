@@ -132,3 +132,12 @@ Use:
 - GPU Particle Trail for projectiles, sparks, magic bullets, and short moving particles.
 - Blade Trail for a weapon surface swept through multiple frames.
 - VFX Graph particles / Light / PostEffect alongside Blade Trail for sparks, impact flashes, elemental glows, and slash-hit effects.
+
+## Preview speed
+
+`Preview Arc` follows the same incremental sampling model as gameplay. `Preview Duration` controls only the editor preview swing duration and is saved as `PreviewArcDuration`. Smaller values produce faster preview swings; larger values produce slower, heavier swings. It does not alter gameplay weapon or animation speed.
+
+Suggested values:
+- `0.10 s`: fast slash / iai-style preview
+- `0.28 s`: default slash preview
+- `0.60 s`: heavy weapon preview
