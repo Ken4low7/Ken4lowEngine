@@ -29,6 +29,25 @@ enum class VfxCurveInterpolation : uint32_t
 	SmoothStep,
 };
 
+enum class VfxParticleEventType : uint32_t
+{
+	Collision = 0,
+	Death,
+};
+
+enum class VfxCollisionShape : uint32_t
+{
+	Plane = 0,
+	Sphere,
+};
+
+enum class VfxCollisionResponse : uint32_t
+{
+	Bounce = 0,
+	Slide,
+	Kill,
+};
+
 struct VfxFloatCurveKey
 {
 	float time = 0.0f;
@@ -81,6 +100,9 @@ enum class VfxGraphNodeType : uint32_t
 	RotationRate,
 	SizeOverLife,
 	ColorOverLife,
+	Collision,
+	DeathEvent,
+	SubEmitter,
 };
 
 struct VfxGraphSpawnRateNode
@@ -166,6 +188,39 @@ struct VfxGraphColorOverLifeNode
 	VfxColorGradient gradient{};
 };
 
+struct VfxGraphCollisionNode
+{
+	VfxCollisionShape shape = VfxCollisionShape::Plane;
+	VfxCollisionResponse response = VfxCollisionResponse::Bounce;
+	Vector3 planeNormal{ 0.0f, 1.0f, 0.0f };
+	float planeDistance = 0.0f;
+	Vector3 sphereCenter{ 0.0f, 0.0f, 0.0f };
+	float sphereRadius = 1.0f;
+	float particleRadius = 0.02f;
+	float restitution = 0.5f;
+	float friction = 0.1f;
+	bool generateEvent = true;
+};
+
+struct VfxGraphDeathEventNode
+{
+};
+
+struct VfxGraphSubEmitterNode
+{
+	VfxParticleEventType sourceEvent = VfxParticleEventType::Collision;
+	uint32_t count = 6u;
+	float lifeTime = 0.2f;
+	float speed = 1.5f;
+	float spread = 1.0f;
+	float inheritVelocity = 0.2f;
+	Vector2 startSize{ 0.04f, 0.04f };
+	Vector2 endSize{ 0.12f, 0.12f };
+	Vector4 startColor{ 1.0f, 0.8f, 0.2f, 1.0f };
+	Vector4 endColor{ 1.0f, 0.1f, 0.0f, 0.0f };
+	bool alphaFade = true;
+};
+
 struct VfxGraphSpriteRendererNode
 {
 	std::string texturePath = "Effects/white.dds";
@@ -189,7 +244,10 @@ using VfxGraphNodePayload = std::variant<
 	VfxGraphInitialRotationNode,
 	VfxGraphRotationRateNode,
 	VfxGraphSizeOverLifeNode,
-	VfxGraphColorOverLifeNode>;
+	VfxGraphColorOverLifeNode,
+	VfxGraphCollisionNode,
+	VfxGraphDeathEventNode,
+	VfxGraphSubEmitterNode>;
 
 struct VfxGraphNodeDesc
 {
@@ -227,6 +285,7 @@ struct VfxGraphDesc
 	static constexpr uint32_t kMaxEdgesPerEmitter = 256u;
 	static constexpr uint32_t kMaxCurveKeys = 32u;
 	static constexpr uint32_t kMaxGradientKeys = 32u;
+	static constexpr uint32_t kMaxSubEmitterSpawnCount = 64u;
 
 	uint32_t schemaVersion = kSchemaVersion;
 	std::string graphName = "NewVfxGraph";
@@ -237,7 +296,13 @@ struct VfxGraphDesc
 VfxGraphNodeStage GetExpectedVfxGraphNodeStage(VfxGraphNodeType type);
 const char* ToString(VfxGraphNodeStage stage);
 const char* ToString(VfxGraphNodeType type);
+const char* ToString(VfxParticleEventType eventType);
+const char* ToString(VfxCollisionShape shape);
+const char* ToString(VfxCollisionResponse response);
 bool TryParseVfxGraphNodeStage(const std::string& text, VfxGraphNodeStage& outStage);
 bool TryParseVfxGraphNodeType(const std::string& text, VfxGraphNodeType& outType);
+bool TryParseVfxParticleEventType(const std::string& text, VfxParticleEventType& outEventType);
+bool TryParseVfxCollisionShape(const std::string& text, VfxCollisionShape& outShape);
+bool TryParseVfxCollisionResponse(const std::string& text, VfxCollisionResponse& outResponse);
 
 } // namespace Ken4lowEngine
