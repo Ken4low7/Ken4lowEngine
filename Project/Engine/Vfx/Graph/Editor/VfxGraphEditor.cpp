@@ -255,7 +255,7 @@ uint32_t VfxGraphEditor::AllocateNodeId(const VfxGraphEmitterDesc& emitter) cons
 	uint32_t result = 1u;
 	for (const auto& node : emitter.nodes)
 	{
-		result = std::max(result, node.id + 1u);
+		result = (std::max)(result, node.id + 1u);
 	}
 	return result;
 }
@@ -505,7 +505,7 @@ void VfxGraphEditor::DrawEmitterList()
 	int maxParticles = static_cast<int>(emitter->maxParticles);
 	if (ImGui::DragInt("Max", &maxParticles, 16.0f, 1, 131072))
 	{
-		emitter->maxParticles = static_cast<uint32_t>(std::max(maxParticles, 1));
+		emitter->maxParticles = static_cast<uint32_t>((std::max)(maxParticles, 1));
 		MarkGraphDirty();
 	}
 	if (ImGui::Checkbox("Loop", &emitter->loop))
@@ -608,7 +608,7 @@ void VfxGraphEditor::DrawGraphCanvas()
 		}
 		const ImVec2 from(fromIt->second.x + kNodeWidth * canvasZoom_, fromIt->second.y + kNodeHeight * 0.5f * canvasZoom_);
 		const ImVec2 to(toIt->second.x, toIt->second.y + kNodeHeight * 0.5f * canvasZoom_);
-		const float tangent = std::max(45.0f, std::abs(to.x - from.x) * 0.4f);
+		const float tangent = (std::max)(45.0f, std::abs(to.x - from.x) * 0.4f);
 		drawList->AddBezierCubic(from, ImVec2(from.x + tangent, from.y), ImVec2(to.x - tangent, to.y), to, ImGui::GetColorU32(ImGuiCol_PlotLines), 2.0f);
 	}
 
@@ -760,7 +760,7 @@ bool VfxGraphEditor::DrawNodePayloadEditor(VfxGraphNodeDesc& node)
 	else if (auto* p = std::get_if<VfxGraphBurstNode>(&node.payload))
 	{
 		int value = static_cast<int>(p->count);
-		if (ImGui::DragInt("Count", &value, 1.0f, 0, 131072)) { p->count = static_cast<uint32_t>(std::max(value, 0)); changed = true; }
+		if (ImGui::DragInt("Count", &value, 1.0f, 0, 131072)) { p->count = static_cast<uint32_t>((std::max)(value, 0)); changed = true; }
 	}
 	else if (std::holds_alternative<VfxGraphSpawnPointNode>(node.payload))
 	{
