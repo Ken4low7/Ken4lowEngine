@@ -10,7 +10,7 @@
 #include "GpuParticleEmitter.h"
 #include "GpuParticleEmitterData.h"
 #include "GpuParticleEmitterSerializer.h"
-#include "Engine/Graphics/Renderer/GpuParticle/Runtime/GpuParticleExecutionGraph.h"
+#include "GpuParticleExecutionGraph.h"
 
 #include "AssimpLoader.h"
 #include "LogString.h"
