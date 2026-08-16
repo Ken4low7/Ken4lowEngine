@@ -1,0 +1,62 @@
+name: Phase24ApplyExecutionGraphPatch
+
+on:
+  push:
+    branches:
+      - feature/phase24-gpu-execution-graph-optimization
+    paths:
+      - .github/workflows/Phase24ApplyExecutionGraphPatch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/phase24-gpu-execution-graph-optimization
+          fetch-depth: 0
+
+      - name: Apply exact Phase24 manager patch
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("Project/Engine/Graphics/Renderer/GpuParticle/Manager/GpuParticleManager.cpp")
+          text = path.read_text(encoding="utf-8")
+
+          include_anchor = '#include "GpuParticleEmitterSerializer.h"\n'
+          include_replacement = include_anchor + '#include "GpuParticleExecutionGraph.h"\n'
+          if text.count(include_anchor) != 1:
+              raise SystemExit("GpuParticleManager include anchor changed")
+          if '#include "GpuParticleExecutionGraph.h"' not in text:
+              text = text.replace(include_anchor, include_replacement, 1)
+
+          old_update = '''\tvoid GpuParticleManager::Update(float deltaTime)\n\t{\n\t\t// DebugSceneのPreview Statusで、共通GPU Particle Runtimeの更新到達を追跡する。\n\t\t++updateCallCount_;\n\t\t// GPUパーティクルバッファの更新処理\n\t\tgpuParticleBuffers_->Update(deltaTime);\n\n\t\t// 更新用ディスパッチ処理\n\t\tDispatchUpdate();\n\n\t\tuint32_t slot = 0;\n\n\t\tfor (auto& [name, emitter] : emitters_)\n\t\t{\n\t\t\temitter->UpdateActivity(deltaTime);\n\n\t\t\t// slotの場所に書く\n\t\t\tauto* cb = gpuParticleBuffers_->GetEmitterCBData(slot);\n\n\t\t\tif (emitter->BuildCB(*cb, deltaTime))\n\t\t\t{\n\t\t\t\tDispatchEmit(gpuParticleBuffers_->GetEmitterCBAddress(slot));\n\t\t\t}\n\n\t\t\tslot++;\n\t\t}\n\t}\n'''
+
+          new_update = '''\tvoid GpuParticleManager::Update(float deltaTime)\n\t{\n\t\t// DebugSceneのPreview Statusで、共通GPU Particle Runtimeの更新到達を追跡する。\n\t\t++updateCallCount_;\n\t\tgpuParticleBuffers_->Update(deltaTime);\n\n\t\tGpuParticleExecutionGraph executionGraph{};\n\t\texecutionGraph.Reset();\n\n\t\tbool hadActiveParticles = false;\n\t\tfor (const auto& [name, emitter] : emitters_)\n\t\t{\n\t\t\t(void)name;\n\t\t\tif (emitter && emitter->GetEstimatedActiveParticleCount() > 0u)\n\t\t\t{\n\t\t\t\thadActiveParticles = true;\n\t\t\t\tbreak;\n\t\t\t}\n\t\t}\n\n\t\t// CPU推定で既存Particleが無いフレームは、空の全Particle Update dispatchを省略する。\n\t\texecutionGraph.SetUpdateRequired(hadActiveParticles);\n\n\t\tuint32_t slot = 0;\n\t\tfor (auto& [name, emitter] : emitters_)\n\t\t{\n\t\t\t(void)name;\n\t\t\temitter->UpdateActivity(deltaTime);\n\n\t\t\tauto* cb = gpuParticleBuffers_->GetEmitterCBData(slot);\n\t\t\tif (emitter->BuildCB(*cb, deltaTime))\n\t\t\t{\n\t\t\t\texecutionGraph.AddEmit(gpuParticleBuffers_->GetEmitterCBAddress(slot));\n\t\t\t}\n\t\t\t++slot;\n\t\t}\n\n\t\tif (!executionGraph.HasWork())\n\t\t{\n\t\t\treturn;\n\t\t}\n\n\t\tauto* dxCommon = DirectXCommon::GetInstance();\n\t\tauto* commandList = dxCommon->GetCommandManager()->GetCommandList();\n\n\t\t// Phase24 batches every compute pass into one Particle UAV state interval.\n\t\tdxCommon->ResourceTransition(\n\t\t\tgpuParticleBuffers_->GetParticleBuffer(),\n\t\t\tD3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,\n\t\t\tD3D12_RESOURCE_STATE_UNORDERED_ACCESS);\n\n\t\tUAVManager::GetInstance()->PreDispatch();\n\t\tcommandList->SetComputeRootSignature(computePipeline_->GetCsRootSignature());\n\t\tcommandList->SetComputeRootDescriptorTable(\n\t\t\t1,\n\t\t\tUAVManager::GetInstance()->GetGPUDescriptorHandle(gpuParticleBuffers_->GetParticleUavIndex()));\n\t\tcommandList->SetComputeRootConstantBufferView(\n\t\t\t3,\n\t\t\tgpuParticleBuffers_->GetPerFrameBuffer()->GetGPUVirtualAddress());\n\n\t\tconst auto& passes = executionGraph.GetPasses();\n\t\tbool updatePipelineBound = false;\n\t\tbool emitPipelineBound = false;\n\t\tfor (std::size_t passIndex = 0; passIndex < passes.size(); ++passIndex)\n\t\t{\n\t\t\tconst GpuParticleExecutionPass& pass = passes[passIndex];\n\t\t\tif (pass.type == GpuParticleExecutionPassType::Update)\n\t\t\t{\n\t\t\t\tif (!updatePipelineBound)\n\t\t\t\t{\n\t\t\t\t\tcommandList->SetPipelineState(computePipeline_->GetCsUpdatePSO());\n\t\t\t\t\tupdatePipelineBound = true;\n\t\t\t\t}\n\n\t\t\t\tconst UINT maxParticles = GpuParticleBuffers::GetMaxParticles();\n\t\t\t\tconst UINT threadCount = 1024;\n\t\t\t\tconst UINT groupCountX = (maxParticles + threadCount - 1) / threadCount;\n\t\t\t\tcommandList->Dispatch(groupCountX, 1, 1);\n\t\t\t}\n\t\t\telse\n\t\t\t{\n\t\t\t\tif (!emitPipelineBound)\n\t\t\t\t{\n\t\t\t\t\tcommandList->SetPipelineState(computePipeline_->GetCsEmitPSO());\n\t\t\t\t\temitPipelineBound = true;\n\t\t\t\t}\n\n\t\t\t\t++emitDispatchCount_;\n\t\t\t\tcommandList->SetComputeRootConstantBufferView(2, pass.emitterCbAddress);\n\t\t\t\tcommandList->Dispatch(1, 1, 1);\n\t\t\t}\n\n\t\t\tif (passIndex + 1u < passes.size())\n\t\t\t{\n\t\t\t\tD3D12_RESOURCE_BARRIER uavBarrier{};\n\t\t\t\tuavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;\n\t\t\t\tuavBarrier.UAV.pResource = nullptr;\n\t\t\t\tcommandList->ResourceBarrier(1, &uavBarrier);\n\t\t\t}\n\t\t}\n\n\t\tdxCommon->ResourceTransition(\n\t\t\tgpuParticleBuffers_->GetParticleBuffer(),\n\t\t\tD3D12_RESOURCE_STATE_UNORDERED_ACCESS,\n\t\t\tD3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);\n\t}\n'''
+
+          if text.count(old_update) != 1:
+              raise SystemExit("GpuParticleManager::Update exact Phase23 body changed")
+
+          text = text.replace(old_update, new_update, 1)
+          path.write_text(text, encoding="utf-8")
+
+      - name: Verify patch shape
+        shell: bash
+        run: |
+          git diff --check
+          grep -q 'GpuParticleExecutionGraph executionGraph' Project/Engine/Graphics/Renderer/GpuParticle/Manager/GpuParticleManager.cpp
+          grep -q 'D3D12_RESOURCE_BARRIER_TYPE_UAV' Project/Engine/Graphics/Renderer/GpuParticle/Manager/GpuParticleManager.cpp
+
+      - name: Commit manager patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Project/Engine/Graphics/Renderer/GpuParticle/Manager/GpuParticleManager.cpp
+          git commit -m "Phase24: batch GPU particle execution passes"
+          git push origin HEAD:feature/phase24-gpu-execution-graph-optimization
