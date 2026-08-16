@@ -2,6 +2,7 @@
 
 #include "ActorComponent.h"
 #include "BlendModeType.h"
+#include "Engine/Graphics/Renderer/BladeTrail/BladeTrailRenderer.h"
 #include "Vector3.h"
 #include "Vector4.h"
 
@@ -12,8 +13,6 @@
 
 namespace Ken4lowEngine
 {
-	struct BladeTrailVertex;
-
 	/// <summary>
 	/// 剣のRoot/Tipを複数Frame保持し、刀身が通過した面そのものをN-point Ribbonとして描画するComponent。
 	/// GPU Particleの1 previous-sample Trailとは独立し、武器軌跡専用の履歴を持つ。
