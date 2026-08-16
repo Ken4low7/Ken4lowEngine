@@ -222,6 +222,26 @@ bool ReadNodePayload(VfxGraphNodeDesc& node, const json& params)
 		VfxGraphSpriteRendererNode p{}; p.texturePath = params.value("texturePath", p.texturePath); p.billboard = params.value("billboard", p.billboard);
 		if (!TryParseBlendMode(params.value("blendMode", std::string("Additive")), p.blendMode)) return false; node.payload = p; return true;
 	}
+	case VfxGraphNodeType::RibbonRenderer:
+	{
+		VfxGraphRibbonRendererNode p{}; p.texturePath = params.value("texturePath", p.texturePath); p.width = params.value("width", p.width); p.length = params.value("length", p.length);
+		if (!TryParseBlendMode(params.value("blendMode", std::string("Additive")), p.blendMode)) return false; node.payload = p; return true;
+	}
+	case VfxGraphNodeType::TrailRenderer:
+	{
+		VfxGraphTrailRendererNode p{}; p.texturePath = params.value("texturePath", p.texturePath); p.width = params.value("width", p.width); p.length = params.value("length", p.length);
+		if (!TryParseBlendMode(params.value("blendMode", std::string("Additive")), p.blendMode)) return false; node.payload = p; return true;
+	}
+	case VfxGraphNodeType::MeshRenderer:
+	{
+		VfxGraphMeshRendererNode p{}; p.meshPath = params.value("meshPath", p.meshPath); p.subMeshIndex = params.value("subMeshIndex", p.subMeshIndex);
+		if (!TryParseBlendMode(params.value("blendMode", std::string("Alpha")), p.blendMode)) return false;
+		if (params.contains("startScale") && !ReadVector3(params["startScale"], p.startScale)) return false;
+		if (params.contains("endScale") && !ReadVector3(params["endScale"], p.endScale)) return false;
+		if (params.contains("startRotation") && !ReadVector3(params["startRotation"], p.startRotation)) return false;
+		if (params.contains("angularVelocity") && !ReadVector3(params["angularVelocity"], p.angularVelocity)) return false;
+		node.payload = p; return true;
+	}
 	default: return false;
 	}
 }
@@ -259,6 +279,13 @@ json WriteNodePayload(const VfxGraphNodeDesc& node)
 			params["startColor"] = WriteVector4(payload.startColor); params["endColor"] = WriteVector4(payload.endColor); params["alphaFade"] = payload.alphaFade;
 		}
 		else if constexpr (std::is_same_v<T, VfxGraphSpriteRendererNode>) { params["texturePath"] = payload.texturePath; params["blendMode"] = BlendModeToString(payload.blendMode); params["billboard"] = payload.billboard; }
+		else if constexpr (std::is_same_v<T, VfxGraphRibbonRendererNode>) { params["texturePath"] = payload.texturePath; params["blendMode"] = BlendModeToString(payload.blendMode); params["width"] = payload.width; params["length"] = payload.length; }
+		else if constexpr (std::is_same_v<T, VfxGraphTrailRendererNode>) { params["texturePath"] = payload.texturePath; params["blendMode"] = BlendModeToString(payload.blendMode); params["width"] = payload.width; params["length"] = payload.length; }
+		else if constexpr (std::is_same_v<T, VfxGraphMeshRendererNode>)
+		{
+			params["meshPath"] = payload.meshPath; params["subMeshIndex"] = payload.subMeshIndex; params["blendMode"] = BlendModeToString(payload.blendMode);
+			params["startScale"] = WriteVector3(payload.startScale); params["endScale"] = WriteVector3(payload.endScale); params["startRotation"] = WriteVector3(payload.startRotation); params["angularVelocity"] = WriteVector3(payload.angularVelocity);
+		}
 	}, node.payload);
 	return params;
 }
