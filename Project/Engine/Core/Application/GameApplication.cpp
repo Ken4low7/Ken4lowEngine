@@ -181,7 +181,6 @@ namespace Ken4lowEngine
 		}
 		VfxGraphRuntime::GetInstance()->UpdateScalability();
 		VfxCueRuntime::GetInstance()->Update(GameTimer::GetInstance()->GetDeltaTime(), actorWorld);
-		VfxGraphDiagnostics::GetInstance()->CaptureFrame(); // Phase28 samples existing runtime counters without a GPU fence wait.
 
 		PostEffectManager::GetInstance()->Update();
 		JsonEditorWindow::GetInstance()->Update(GameTimer::GetInstance()->GetDeltaTime());
@@ -291,6 +290,7 @@ namespace Ken4lowEngine
 		dxCommon_->EndDraw();
 		GameTimer::GetInstance()->EndPresent();
 		GameTimer::GetInstance()->EndFrame();
+		VfxGraphDiagnostics::GetInstance()->CaptureFrame(); // Phase28 records counters after the same frame's timing is finalized, without a GPU fence wait.
 	}
 
 	/// -------------------------------------------------------------
