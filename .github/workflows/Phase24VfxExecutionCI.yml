@@ -1,0 +1,55 @@
+name: Phase24VfxExecutionCI
+
+on:
+  push:
+    branches:
+      - master
+      - "feature/**"
+  pull_request:
+    branches:
+      - master
+      - "feature/phase23-ribbon-trail-mesh-particles"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  phase24-static-contracts:
+    name: Phase24 VFX Execution Static Contracts
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Project
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          show-progress: false
+
+      - name: Validate Engine Module Ownership
+        run: python Tools/Scripts/ValidateEngineModules.py
+
+      - name: Validate Project Assets
+        run: python Tools/Scripts/ValidateProjectAssets.py
+
+      - name: Check Broken References
+        run: python Tools/Scripts/CheckBrokenReferences.py
+
+      - name: Run Phase13 GPU Particle Regression Contracts
+        run: python -m unittest discover -s Tests/Phase13 -p "test_*.py" -v
+
+      - name: Run Phase20 Foundation Contracts
+        run: python Tests/Phase20/run_phase20_static_tests.py
+
+      - name: Run Phase21 Curve Module Contracts
+        run: python Tests/Phase21/run_phase21_static_tests.py
+
+      - name: Run Phase22 Event Contracts
+        run: python Tests/Phase22/run_phase22_static_tests.py
+
+      - name: Run Phase23 Renderer Contracts
+        run: python Tests/Phase23/run_phase23_static_tests.py
+
+      - name: Run Phase24 Execution Contracts
+        run: python Tests/Phase24/run_phase24_static_tests.py
