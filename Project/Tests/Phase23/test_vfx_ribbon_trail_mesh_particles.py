@@ -56,9 +56,10 @@ def test_ribbon_and_trail_use_previous_position_history_on_existing_sprite_path(
     assert "info.billboardFlags = BillboardMode::Ribbon" in runtime
     assert "float3 previousTranslate" in particle_data
     assert "p.previousTranslate = p.translate" in update_shader
-    assert "float3 segment = particle.translate - particle.previousTranslate" in vertex_shader
+    assert "particle.currentTime <= 1e-6f ? particle.translate : particle.previousTranslate" in vertex_shader
+    assert "float3 segment = particle.translate - historyPosition" in vertex_shader
     assert "float3 side = cross(camForward, tangent)" in vertex_shader
-    assert "particle.translate = (particle.previousTranslate + particle.translate) * 0.5f" in vertex_shader
+    assert "particle.translate = (historyPosition + particle.translate) * 0.5f" in vertex_shader
     assert "particle.scale.y = max(segmentLength * max(particle.scale.y" in vertex_shader
 
 
