@@ -43,6 +43,17 @@ GpuParticleEmitter::GpuParticleEmitter(const std::string& name, const EmitterInf
 uint32_t GpuParticleEmitter::RequestEmit(uint32_t count)
 {
 	if (count == 0 || info_.maxParticles == 0) return 0;
+
+	// Loop開始時にEmissionRate相当の粒子が一括発生しないよう、最初の要求だけ1粒へ正規化する。
+	if (initialLoopRequestPending_)
+	{
+		initialLoopRequestPending_ = false;
+		if (info_.loopFrequency > 0.0f && info_.loopCount > 0u && count == info_.loopCount)
+		{
+			count = 1u;
+		}
+	}
+
 	const uint64_t reserved = static_cast<uint64_t>(estimatedActiveParticleCount_) + pendingBurstCount_;
 	const uint64_t available = reserved < info_.maxParticles ? info_.maxParticles - reserved : 0;
 	const uint32_t accepted = static_cast<uint32_t>((std::min)(static_cast<uint64_t>(count), available));
@@ -92,11 +103,15 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 			scheduleDelta = (std::min)(scheduleDelta, remaining);
 			emissionElapsed_ += scheduleDelta;
 		}
+
 		loopTimer_ += scheduleDelta;
-		while (loopTimer_ >= info_.loopFrequency && scheduleDelta > 0.0f)
+
+		// loopCount個をloopFrequency秒の中へ均等配置し、1秒ごとの塊ではなく連続発生にする。
+		const float emitInterval = info_.loopFrequency / static_cast<float>(info_.loopCount);
+		while (loopTimer_ >= emitInterval && scheduleDelta > 0.0f)
 		{
-			RequestEmit(info_.loopCount);
-			loopTimer_ -= info_.loopFrequency;
+			RequestEmit(1u);
+			loopTimer_ -= emitInterval;
 		}
 	}
 
@@ -138,7 +153,23 @@ bool GpuParticleEmitter::BuildCB(GpuEmitterCBData& out, float deltaTime)
 	out.startRotation = info_.startRotation;
 	out.rotationSpeed = info_.rotationSpeed;
 	out.rotationRandom = (std::max)(info_.rotationRandom, 0.0f);
-	out.spawnRadius = (std::max)(info_.spawnRadius, 0.0f);
+
+	// Sphere/Cone/HemisphereではComponent側のSpawnRadius(info.radius)を優先する。
+	// Circleは既存Shockwaveとの互換性を保つため、明示されたSpawnRadiusが0なら従来値へフォールバックする。
+	const float authoredSpawnRadius = (std::max)(info_.radius, 0.0f);
+	if (info_.spawnShape == 1u || info_.spawnShape == 3u || info_.spawnShape == 6u)
+	{
+		out.spawnRadius = authoredSpawnRadius;
+	}
+	else if (info_.spawnShape == 4u)
+	{
+		out.spawnRadius = authoredSpawnRadius > 0.0f ? authoredSpawnRadius : (std::max)(info_.spawnRadius, 0.0f);
+	}
+	else
+	{
+		out.spawnRadius = (std::max)(info_.spawnRadius, 0.0f);
+	}
+
 	out.spawnShape = info_.spawnShape;
 	out.alphaFade = info_.alphaFade ? 1u : 0u;
 	out.spawnBoxSize = info_.spawnBoxSize;
