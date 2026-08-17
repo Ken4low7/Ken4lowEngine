@@ -191,6 +191,7 @@ private:
 	float loopTimer_ = 0.0f;
 	float emissionElapsed_ = 0.0f;
 	uint32_t pendingBurstCount_ = 0;
+	bool initialLoopRequestPending_ = true;
 
 	struct ActiveBatch
 	{
