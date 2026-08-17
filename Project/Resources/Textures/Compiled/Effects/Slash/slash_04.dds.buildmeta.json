@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "2c2f5768bd8aa6e01b8ae2c34be38cae262af9eb3d6f1c63a1a8a03d4c8f4efe",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Slash/slash_04.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Slash/slash_04.dds",
+    "SourceSizeBytes":  17889,
+    "SourceSha256":  "1beed6d30b8b3fc0874cca12f57de073360f0b11fc6f4cd99a24b7e033784c47",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

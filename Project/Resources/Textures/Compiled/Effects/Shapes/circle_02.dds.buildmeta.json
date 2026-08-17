@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "f731a64f59d4ffe13e37bf110f4c56d6a463988493d2aae8d7f94140e509962b",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Shapes/circle_02.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Shapes/circle_02.dds",
+    "SourceSizeBytes":  43380,
+    "SourceSha256":  "8a2112a6a5610c7cdcbfe8af0a5162b42dfb3431c63f494743945337b7981e51",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

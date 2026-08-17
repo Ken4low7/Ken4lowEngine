@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "52ada0a6ec68566bdbd3d4cc45fc10d64a313efd32042529fa88bc6848d5b80f",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Shapes/star_08.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Shapes/star_08.dds",
+    "SourceSizeBytes":  26479,
+    "SourceSha256":  "05f24d1ee76c1464074cbca58155e4be517fefd34a7001bb012561647cc3dec3",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

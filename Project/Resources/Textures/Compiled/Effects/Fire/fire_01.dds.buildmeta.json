@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "f777d88a4031728a0fb4f2c085f40640cf66b767ffd3a17961658237c4bf26a1",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Fire/fire_01.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Fire/fire_01.dds",
+    "SourceSizeBytes":  99891,
+    "SourceSha256":  "9727a9743ac6ab8dd4dd79f5fc5b0266290efae45f4d4452279eb5e4bcf3a978",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

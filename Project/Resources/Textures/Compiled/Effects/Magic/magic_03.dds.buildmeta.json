@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "be5388f1a9ec68989930e71c427dbb5235e9c947877effeda40372a461f76105",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Magic/magic_03.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Magic/magic_03.dds",
+    "SourceSizeBytes":  58093,
+    "SourceSha256":  "c2ef5fe86cd2fd08e5b9768389ab6580b346c391db3c7c09fc9b0a63e00ec4ce",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

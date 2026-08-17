@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "130b9fbc9afa9f04e223682464bc0625268b02d8d6d030ad89894a2338265aad",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Rotated/muzzle_04_rotated.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Rotated/muzzle_04_rotated.dds",
+    "SourceSizeBytes":  51171,
+    "SourceSha256":  "76a51de75e489e5007d4e0140824120c7eda19877127d78e6531cfb0166df279",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

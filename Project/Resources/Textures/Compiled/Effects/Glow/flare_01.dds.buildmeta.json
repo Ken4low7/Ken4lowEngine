@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "cecaf1c7062eced7120e52922ba2bf77984d4bb0cbfd744705b4be0c2805d6fd",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Glow/flare_01.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Glow/flare_01.dds",
+    "SourceSizeBytes":  42886,
+    "SourceSha256":  "254f5bd4f0548612bf29305d27899efdee8cb8d8306292761ebbddebd3e57935",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

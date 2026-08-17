@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "ecd4534f4aad9f359714ee215b38d9934134c00fb5a7772a08aa3a24c221a9f5",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Rotated/trace_01_rotated.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Rotated/trace_01_rotated.dds",
+    "SourceSizeBytes":  28417,
+    "SourceSha256":  "6832399b81f21dfb9379159e25ea2efab85258f24a03a2eb7a3f9285829f98d4",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

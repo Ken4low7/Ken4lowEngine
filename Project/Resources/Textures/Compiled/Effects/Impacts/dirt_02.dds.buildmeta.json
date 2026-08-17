@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "2a523ca793ab8c7df26ed84d22c0efa0c8c1bbdcbdb777345806991c9ff39251",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Impacts/dirt_02.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Impacts/dirt_02.dds",
+    "SourceSizeBytes":  54060,
+    "SourceSha256":  "fcecc70b561f80568b3391c3dc1180126d86ce4fbd4d1b01518e6045203e10a3",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

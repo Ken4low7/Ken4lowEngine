@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "eadef86b29aac8c702534cc4531ddd9508e67f6aa3a7abd8da7b0b04e8a35d20",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Impacts/scorch_03.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Impacts/scorch_03.dds",
+    "SourceSizeBytes":  91921,
+    "SourceSha256":  "531956355c8adcf6fbe0111788e68630c4b16209f9d7a6136978361a308202ec",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

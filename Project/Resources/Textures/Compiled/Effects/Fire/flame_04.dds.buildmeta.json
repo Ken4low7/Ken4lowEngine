@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "ff8417c58e9ee48e5a544ef5935dceb334b5c64c954e2da15cacc21c16b8c1ea",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Fire/flame_04.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Fire/flame_04.dds",
+    "SourceSizeBytes":  70731,
+    "SourceSha256":  "71deb274feea6ae5e6bb82c802a6e4d22f168397aa36b7a9e89de863948f3cf5",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

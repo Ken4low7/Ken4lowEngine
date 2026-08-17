@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "45d3f59212f675b4b8d4f7579b457189210985c761fc4323183a301239886a1b",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Rotated/spark_06_rotated.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Rotated/spark_06_rotated.dds",
+    "SourceSizeBytes":  41431,
+    "SourceSha256":  "1c47a5d892ac1816c8eb18ebddb1ecf7769a35bbdd5a6671677b565006623936",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

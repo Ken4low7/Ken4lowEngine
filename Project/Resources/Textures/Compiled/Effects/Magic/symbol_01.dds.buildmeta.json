@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "5053a94a73496273ca80dfd3bf2d7c7850e7be9e66f9bcdfeafbab238e44ec50",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Magic/symbol_01.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Magic/symbol_01.dds",
+    "SourceSizeBytes":  9088,
+    "SourceSha256":  "3eb3988f3e80acf3fda9df07733f49c3585eafa7d6a7ce5b31765fe180dd6d9c",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

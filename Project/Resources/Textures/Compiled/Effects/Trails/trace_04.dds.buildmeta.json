@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "582895efec09315fdd3392181df05ab223fed86cbeea1858bec79ce0196d0009",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Trails/trace_04.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Trails/trace_04.dds",
+    "SourceSizeBytes":  47104,
+    "SourceSha256":  "ca69d82709295663ef1d9fcd90d346319fef5389a15dd63e3b71b4527e620cd8",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

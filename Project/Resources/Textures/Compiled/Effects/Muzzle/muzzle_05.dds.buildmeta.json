@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "ce1609d3e2644e2c185e63698b023073a5199c1109b1ca11a4209ceaf750e8c7",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Muzzle/muzzle_05.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Muzzle/muzzle_05.dds",
+    "SourceSizeBytes":  54088,
+    "SourceSha256":  "bc2d012c3bee75e668cc7800f965692b47af6edd6d3584081089a70abbe30a47",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

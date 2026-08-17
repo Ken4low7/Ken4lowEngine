@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "0f4077a59f589eb2959d23fdb9c879bb90a65a49262060ce6489ecec6eb11b69",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Impacts/scratch_01.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Impacts/scratch_01.dds",
+    "SourceSizeBytes":  65462,
+    "SourceSha256":  "7dc0b16a5240738273684bfdf423eefd8a135356af1fee759217cdd560a4a935",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

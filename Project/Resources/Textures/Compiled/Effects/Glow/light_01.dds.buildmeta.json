@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "27b907dda194f247978a1278fb1f1d13a095c0f1773b362035eb7202810192aa",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Glow/light_01.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Glow/light_01.dds",
+    "SourceSizeBytes":  93470,
+    "SourceSha256":  "caedcc5df5bcac4470244d2520d6a64b45b20c1ccf4d918da516c55e3fa365a6",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

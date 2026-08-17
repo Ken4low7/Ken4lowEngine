@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "731a31859a76c942f3b2f620df7fc6e9cfc11883aa9d65a03ddec99e4361d202",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Rotated/flame_06_rotated.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Rotated/flame_06_rotated.dds",
+    "SourceSizeBytes":  14979,
+    "SourceSha256":  "c72289cfe6e25d2763eef9db9b55a38f04d027ba0ca7fe6d4830b2ebd9b63dce",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

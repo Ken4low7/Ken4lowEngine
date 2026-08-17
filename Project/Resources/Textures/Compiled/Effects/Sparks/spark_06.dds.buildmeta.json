@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "8f5147cc5b54c99f8d24cc4aa2002b18350a58e9514eec01217c3d0535023b5d",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Sparks/spark_06.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Sparks/spark_06.dds",
+    "SourceSizeBytes":  46347,
+    "SourceSha256":  "fe6d473393d3b9350c7a654b7cb5fbd343766b5b5b11d3e4aba476832d4a6d3f",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

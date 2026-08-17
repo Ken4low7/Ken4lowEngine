@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "094805410ca08c9503a6b7c6298a737aa8c60cf29852eb3593ce9e028e520565",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Magic/twirl_01.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Magic/twirl_01.dds",
+    "SourceSizeBytes":  51060,
+    "SourceSha256":  "ba3f4996a5a91ea3cba6817a9b4770a385a82ef0b9350cbda5c0f140d182af7e",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

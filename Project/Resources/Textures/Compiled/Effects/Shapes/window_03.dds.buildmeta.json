@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "4e14dcc84930c0b2371747ee6e66e58e16c3865471fd072ae6e3d9f5ac633b5c",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Shapes/window_03.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Shapes/window_03.dds",
+    "SourceSizeBytes":  16860,
+    "SourceSha256":  "452680cff9e62da90a4b3bff96dd7634d05624ee2d58fd5db7d89f48a60cdf8c",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}

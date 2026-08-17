@@ -1,0 +1,12 @@
+﻿{
+    "BuildVersion":  3,
+    "AssetType":  "Texture",
+    "BuildKey":  "8e1928766e8f2ce5e932972a706a59dee393ed1404a5985f036fa8a2cea1a6ac",
+    "Operation":  "Convert",
+    "SourcePath":  "Resources/Textures/Sources/Effects/Smoke/smoke_04.png",
+    "OutputPath":  "Resources/Textures/Compiled/Effects/Smoke/smoke_04.dds",
+    "SourceSizeBytes":  97568,
+    "SourceSha256":  "2db2f69874cdb1e5203f2f86803d5debde30402590cf50a810afaba882184616",
+    "MipLevel":  0,
+    "DisableMipMap":  false
+}
