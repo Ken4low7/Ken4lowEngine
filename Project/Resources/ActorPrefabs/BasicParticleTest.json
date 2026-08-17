@@ -1,0 +1,409 @@
+{
+    "Active": true,
+    "Class": "BasicParticle",
+    "Components": [
+        {
+            "Active": true,
+            "Class": "SceneComponent",
+            "DrawOrder": 0,
+            "LocalPosition": [
+                0.0,
+                2.0,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Name": "VFX Root",
+            "Parent": "",
+            "Type": "SceneComponent",
+            "UpdateOrder": 0
+        },
+        {
+            "Acceleration": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "Active": true,
+            "AlphaFade": true,
+            "BaseVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "BillboardMode": "Camera",
+            "BlendMode": "Additive",
+            "BurstCount": 1,
+            "BurstEnabled": true,
+            "BurstInterval": 0.0,
+            "BurstRandom": 0,
+            "BurstRepeat": 1,
+            "Class": "GpuParticleComponent",
+            "ConeAngle": 30.0,
+            "ConeLength": 1.0,
+            "Damping": 0.0,
+            "Direction": [
+                0.0,
+                1.0,
+                0.0
+            ],
+            "DrawOrder": 0,
+            "EffectName": "Default",
+            "EmissionRate": 10.0,
+            "EmitterName": "",
+            "EmitterShape": "Point",
+            "EndColor": [
+                0.3137255012989044,
+                0.5882353186607361,
+                1.0,
+                0.0
+            ],
+            "EndSize": 0.5,
+            "EndSize2D": [
+                0.5,
+                0.5
+            ],
+            "FollowActor": true,
+            "FollowOwner": true,
+            "Gravity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "InheritActorVelocity": 0.0,
+            "LifeTime": 5.0,
+            "LifeTimeRandom": 0.0,
+            "LocalOffset": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalPosition": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Loop": false,
+            "MeshAlignMode": "None",
+            "MeshAngularVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "MeshAngularVelocityRandom": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "MeshEndScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "MeshId": 1000,
+            "MeshPath": "",
+            "MeshScaleRandom": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "MeshStartScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "MeshTint": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "MidColor": [
+                0.7058823704719543,
+                0.9019607901573181,
+                1.0,
+                1.0
+            ],
+            "MidSize2D": [
+                0.5,
+                0.5
+            ],
+            "MidTime": 0.5,
+            "Name": "Orb Core",
+            "OutwardVelocity": 0.0,
+            "Parent": "VFX Root",
+            "ParticleType": "Sprite",
+            "PlayOnStart": true,
+            "PresetName": "Default",
+            "RandomAngle": 0.0,
+            "RingRadius": 1.0,
+            "RingThickness": 0.10000000149011612,
+            "RotationRandom": 0.0,
+            "RotationSpeed": 0.0,
+            "Scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "SortMode": "None",
+            "SpawnBoxSize": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "SpawnRadius": 0.0,
+            "SpawnRate": 10.0,
+            "Speed": 0.0,
+            "SpeedRandom": 0.0,
+            "SpriteSheetColumns": 1,
+            "SpriteSheetFrameRate": 0.0,
+            "SpriteSheetRows": 1,
+            "StartColor": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "StartRotation": 0.0,
+            "StartSize": 0.5,
+            "StartSize2D": [
+                0.5,
+                0.5
+            ],
+            "TangentialVelocity": 0.0,
+            "TexturePath": "Effects/Shapes/circle_01.dds",
+            "TrailColor": [
+                1.0,
+                1.0,
+                1.0,
+                0.6000000238418579
+            ],
+            "TrailEnabled": false,
+            "TrailFadeTime": 0.25,
+            "TrailLength": 1.0,
+            "TrailLifeTime": 0.25,
+            "TrailSegments": 8,
+            "TrailTexturePath": "",
+            "TrailWidth": 0.10000000149011612,
+            "Type": "SceneComponent",
+            "UpdateOrder": 0,
+            "UseSpriteSheet": false,
+            "VelocityRandom": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "VelocityScale": 1.0,
+            "Visible": true
+        },
+        {
+            "Acceleration": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "Active": true,
+            "AlphaFade": true,
+            "BaseVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "BillboardMode": "Camera",
+            "BlendMode": "Additive",
+            "BurstCount": 1,
+            "BurstEnabled": true,
+            "BurstInterval": 0.0,
+            "BurstRandom": 0,
+            "BurstRepeat": 1,
+            "Class": "GpuParticleComponent",
+            "ConeAngle": 30.0,
+            "ConeLength": 1.0,
+            "Damping": 0.0,
+            "Direction": [
+                0.0,
+                1.0,
+                0.0
+            ],
+            "DrawOrder": 0,
+            "EffectName": "Default",
+            "EmissionRate": 10.0,
+            "EmitterName": "",
+            "EmitterShape": "Point",
+            "EndColor": [
+                0.0784313753247261,
+                0.3137255012989044,
+                1.0,
+                0.0
+            ],
+            "EndSize": 1.399999976158142,
+            "EndSize2D": [
+                1.399999976158142,
+                1.399999976158142
+            ],
+            "FollowActor": true,
+            "FollowOwner": true,
+            "Gravity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "InheritActorVelocity": 0.0,
+            "LifeTime": 5.0,
+            "LifeTimeRandom": 0.0,
+            "LocalOffset": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalPosition": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Loop": false,
+            "MeshAlignMode": "None",
+            "MeshAngularVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "MeshAngularVelocityRandom": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "MeshEndScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "MeshId": 1000,
+            "MeshPath": "",
+            "MeshScaleRandom": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "MeshStartScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "MeshTint": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "MidColor": [
+                0.1568627506494522,
+                0.47058823704719543,
+                1.0,
+                0.27450981736183167
+            ],
+            "MidSize2D": [
+                1.2999999523162842,
+                1.2999999523162842
+            ],
+            "MidTime": 0.5,
+            "Name": "Orb Glow",
+            "OutwardVelocity": 0.0,
+            "Parent": "VFX Root",
+            "ParticleType": "Sprite",
+            "PlayOnStart": true,
+            "PresetName": "Default",
+            "RandomAngle": 0.0,
+            "RingRadius": 1.0,
+            "RingThickness": 0.10000000149011612,
+            "RotationRandom": 0.0,
+            "RotationSpeed": 0.0,
+            "Scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "SortMode": "None",
+            "SpawnBoxSize": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "SpawnRadius": 0.0,
+            "SpawnRate": 10.0,
+            "Speed": 0.0,
+            "SpeedRandom": 0.0,
+            "SpriteSheetColumns": 1,
+            "SpriteSheetFrameRate": 0.0,
+            "SpriteSheetRows": 1,
+            "StartColor": [
+                0.19607843458652496,
+                0.5882353186607361,
+                1.0,
+                0.3921568691730499
+            ],
+            "StartRotation": 0.0,
+            "StartSize": 1.2000000476837158,
+            "StartSize2D": [
+                1.2000000476837158,
+                1.2000000476837158
+            ],
+            "TangentialVelocity": 0.0,
+            "TexturePath": "Effects/Glow/light_01.dds",
+            "TrailColor": [
+                1.0,
+                1.0,
+                1.0,
+                0.6000000238418579
+            ],
+            "TrailEnabled": false,
+            "TrailFadeTime": 0.25,
+            "TrailLength": 1.0,
+            "TrailLifeTime": 0.25,
+            "TrailSegments": 8,
+            "TrailTexturePath": "",
+            "TrailWidth": 0.10000000149011612,
+            "Type": "SceneComponent",
+            "UpdateOrder": 0,
+            "UseSpriteSheet": false,
+            "VelocityRandom": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "VelocityScale": 1.0,
+            "Visible": true
+        }
+    ],
+    "Layer": "Default",
+    "Name": "BasicParticleTest",
+    "Tags": []
+}
