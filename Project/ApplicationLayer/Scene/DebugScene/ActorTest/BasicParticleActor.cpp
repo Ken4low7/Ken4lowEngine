@@ -10,14 +10,50 @@ void BasicParticleActor::Initialize()
 	root.SetLocalPosition({ 0.0f, 2.0f, 0.0f });
 
 	// GPUパーティクルを生成する
-	auto& particle = AddComponent<Ken4lowEngine::GpuParticleComponent>();
-	particle.SetName("Basic Particle"); // GpuParticleComponentの型名をデフォルト名として設定する
-	particle.AttachTo(&root);			// RootComponentを親として設定する
-	particle.SetEffectName("Smoke");	// 使用するGPUパーティクルエフェクト名を設定する
-	particle.SetPlayOnStart(true);		// ゲーム開始時に自動再生する
-	particle.SetLoop(false);			// ループ再生しない
-	particle.SetFollowOwner(true);		// Actorの移動に追従する
+	auto& core = AddComponent<Ken4lowEngine::GpuParticleComponent>();
+	core.SetName("Orb Core"); // GpuParticleComponentの型名をデフォルト名として設定する
+	core.AttachTo(&root);			// RootComponentを親として設定する
+	core.SetEffectName("Default");	// 使用するGPUパーティクルエフェクト名を設定する
+	core.SetPlayOnStart(true);		// ゲーム開始時に自動再生する
+	core.SetLoop(false);			// ループ再生しない
+	core.SetFollowOwner(true);		// Actorの移動に追従する
+
+	auto& glow = AddComponent<Ken4lowEngine::GpuParticleComponent>();
+	glow.SetName("Orb Glow"); // GpuParticleComponentの型名をデフォルト名として設定する
+	glow.AttachTo(&root);			// RootComponentを親として設定する
+	glow.SetEffectName("Default");	// 使用するGPUパーティクルエフェクト名を設定する
+	glow.SetPlayOnStart(true);		// ゲーム開始時に自動再生する
+	glow.SetLoop(false);			// ループ再生しない
+	glow.SetFollowOwner(true);		// Actorの移動に追従する
 
 	// ActorのComponent初期化を実行する
 	Actor::Initialize();
+}
+
+void BasicParticleActor::DrawImGui()
+{
+	Actor::DrawImGui();
+
+	ImGui::SeparatorText("VFX");
+
+	// Editor上でActorのパラメータを調整するUIを描画する
+	if (ImGui::Button("Play VFX"))
+	{
+		PlayVFX();
+	}
+}
+
+void BasicParticleActor::PlayVFX()
+{
+	// ActorについているGPUパーティクルを全て取得する
+	const auto particles = GetComponents<Ken4lowEngine::GpuParticleComponent>();
+
+	// 同じ呼び出し内ですべてのパーティクルを再生する
+	for (auto* particle : particles)
+	{
+		if (particle)
+		{
+			particle->Play();
+		}
+	}
 }

@@ -314,6 +314,7 @@ void DebugScene::DrawImGui()
 	levelImportValidation_.DrawImGui(); // BlenderSceneDataからActor/Component用Levelへの変換結果を確認する。
 	performancePhaseValidation_.DrawImGui(); // 実フレームとDebugScene各PhaseのCPU時間を比較する。
 
+	actorWorld_.DrawImGui();
 	actorPhysicsDebugDraw_.DrawImGui(actorPhysicsWorld_); // Debug描画はユーザー設定を尊重し、毎フレーム強制ONしない。
 #endif // USE_IMGUI
 }

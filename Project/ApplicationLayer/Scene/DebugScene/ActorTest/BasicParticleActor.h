@@ -12,5 +12,11 @@ public:
 		// JSONやEditor上で使用するActor名を返す
 		return "BasicParticle";
 	}
+
+	void DrawImGui() override;
+
+private:
+
+	void PlayVFX();
 };
 
