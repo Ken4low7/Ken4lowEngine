@@ -62,6 +62,12 @@ namespace Ken4lowEngine
 		bool IsLoop() const { return loop_; }
 		void SetLoop(bool loop) { loop_ = loop; }
 
+		bool IsLoopForever() const { return loopForever_; }
+		void SetLoopForever(bool loopForever) { loopForever_ = loopForever; }
+
+		float GetEmissionDuration() const { return emissionDuration_; }
+		void SetEmissionDuration(float emissionDuration) { emissionDuration_ = emissionDuration < 0.0f ? 0.0f : emissionDuration; }
+
 		bool IsVisible() const { return visible_; }
 		void SetVisible(bool visible);
 
@@ -90,6 +96,8 @@ namespace Ken4lowEngine
 		std::string particleType_ = "Sprite";
 		bool playOnStart_ = false;
 		bool loop_ = false;
+		bool loopForever_ = true;
+		float emissionDuration_ = 0.0f;
 		bool visible_ = true;
 		bool followOwner_ = true;
 		Vector3 localOffset_{ 0.0f, 0.0f, 0.0f };
