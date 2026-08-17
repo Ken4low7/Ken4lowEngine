@@ -211,7 +211,8 @@ namespace Ken4lowEngine
 			}
 		}
 
-		if (!loop_ && !IsPlaying())
+		// 有限Loopは発生終了後も既存Particleが寿命を迎えるまで保持し、すべて消えたら再生完了にする。
+		if (!IsPlaying())
 		{
 			playing_ = false;
 			activeEmitterName_.clear();
@@ -263,6 +264,14 @@ namespace Ken4lowEngine
 			"PlayOnStart", "Loop", "Visible", "FollowOwner",
 			"LocalOffset", "Scale", "EmissionRate", "LifeTime"
 		});
+		if (loop_)
+		{
+			DrawNamedProperties(properties, { "LoopForever" });
+			if (!loopForever_)
+			{
+				DrawNamedProperties(properties, { "EmissionDuration" });
+			}
+		}
 
 		if (isSprite)
 		{
@@ -488,7 +497,8 @@ namespace Ken4lowEngine
 			return false;
 		}
 
-		return loop_ || emitter->HasActiveParticles() || burstRepeatRemaining_ > 0;
+		// Emitterの発生スケジュールまたは生存Particleが残っている間だけ再生中とみなす。
+		return emitter->HasActiveParticles() || burstRepeatRemaining_ > 0;
 	}
 
 	void GpuParticleComponent::SetVisible(bool visible)
@@ -597,11 +607,15 @@ namespace Ken4lowEngine
 		{
 			info.loopCount = std::max(1u, static_cast<uint32_t>(std::max(emissionRate_, 1.0f)));
 			info.loopFrequency = emissionRate_ > 0.0f ? 1.0f : 0.0f;
+			info.loopForever = loopForever_;
+			info.emissionDuration = loopForever_ ? 0.0f : std::max(emissionDuration_, 0.0f);
 		}
 		else
 		{
 			info.loopCount = 0;
 			info.loopFrequency = 0.0f;
+			info.loopForever = false;
+			info.emissionDuration = 0.0f;
 		}
 
 		activeEmitterName_ = ResolveEmitterName();
@@ -631,6 +645,8 @@ namespace Ken4lowEngine
 		blendMode_ = "Alpha";
 		sortMode_ = "None";
 		emitterShape_ = "Point";
+		loopForever_ = true;
+		emissionDuration_ = 0.0f;
 		burstEnabled_ = true;
 		burstRepeat_ = 1;
 		burstInterval_ = 0.0f;
@@ -714,6 +730,8 @@ namespace Ken4lowEngine
 			{ "ParticleType", "ParticleType", ComponentPropertyType::String, [this]() -> ComponentPropertyValue { return particleType_; }, [this](const ComponentPropertyValue& value) { if (const auto* v = std::get_if<std::string>(&value)) particleType_ = *v; }, 0.0f, 0.0f, 0.1f, false, MakeChoices({ "Sprite", "Mesh" }) },
 			{ "PlayOnStart", "開始時に再生", ComponentPropertyType::Bool, [this]() -> ComponentPropertyValue { return playOnStart_; }, [this](const ComponentPropertyValue& value) { if (const auto* v = std::get_if<bool>(&value)) playOnStart_ = *v; } },
 			{ "Loop", "ループ", ComponentPropertyType::Bool, [this]() -> ComponentPropertyValue { return loop_; }, [this](const ComponentPropertyValue& value) { if (const auto* v = std::get_if<bool>(&value)) loop_ = *v; } },
+			{ "LoopForever", "LoopForever", ComponentPropertyType::Bool, [this]() -> ComponentPropertyValue { return loopForever_; }, [this](const ComponentPropertyValue& value) { if (const auto* v = std::get_if<bool>(&value)) loopForever_ = *v; } },
+			{ "EmissionDuration", "EmissionDuration", ComponentPropertyType::Float, [this]() -> ComponentPropertyValue { return emissionDuration_; }, [this](const ComponentPropertyValue& value) { if (const auto* v = std::get_if<float>(&value)) emissionDuration_ = std::max(*v, 0.0f); }, 0.0f, 3600.0f, 0.1f, true },
 			{ "Visible", "表示", ComponentPropertyType::Bool, [this]() -> ComponentPropertyValue { return visible_; }, [this](const ComponentPropertyValue& value) { if (const auto* v = std::get_if<bool>(&value)) SetVisible(*v); } },
 			{ "FollowOwner", "Actorに追従", ComponentPropertyType::Bool, [this]() -> ComponentPropertyValue { return followOwner_; }, [this](const ComponentPropertyValue& value) { if (const auto* v = std::get_if<bool>(&value)) followOwner_ = *v; } },
 			{ "LocalOffset", "ローカルオフセット", ComponentPropertyType::Vector3, [this]() -> ComponentPropertyValue { return localOffset_; }, [this](const ComponentPropertyValue& value) { if (const auto* v = std::get_if<Vector3>(&value)) localOffset_ = *v; }, 0.0f, 0.0f, 0.01f },
@@ -792,6 +810,8 @@ namespace Ken4lowEngine
 			else if (property.name == "EmitterName") property.displayName = "エミッター名";
 			else if (property.name == "PresetName") property.displayName = "プリセット名";
 			else if (property.name == "ParticleType") property.displayName = "パーティクルタイプ";
+			else if (property.name == "LoopForever") property.displayName = "永久ループ";
+			else if (property.name == "EmissionDuration") property.displayName = "発生時間";
 			else if (property.name == "EmissionRate") property.displayName = "発生レート";
 			else if (property.name == "LifeTime") property.displayName = "寿命";
 			else if (property.name == "BillboardMode") property.displayName = "ビルボード方式";
