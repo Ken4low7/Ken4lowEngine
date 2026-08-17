@@ -975,6 +975,26 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Manager\GpuVolumetricFluidManager.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\GpuVolumetricFluidColliderObstacleAdapter.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Editor\GpuVolumetricFluidDiagnosticsPanel.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Asset\VfxCueSerializer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueCompiler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueRuntime.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\Adapters\VfxTrackAdapters.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Editor\VfxTimelineEditor.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Core\ActorComponentHandle.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Tags\GameplayTag.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Events\GameplayEventRouter.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Attributes\GameplayAttributeSet.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilitySerializer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilityCompiler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilityComponent.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Diagnostics\GameplayAbilityDiagnostics.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Data\VfxGraphTypes.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Asset\VfxGraphSerializer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphCompiler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphIntegrationCompiler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphRuntime.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Editor\VfxGraphEditor.cpp" />
+    <ClCompile Include="ApplicationLayer\Scene\DebugScene\ActorTest\BasicParticleActor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ApplicationLayer\SceneManagement\SceneFactory\SceneFactory.h">
@@ -2016,6 +2036,30 @@
     <ClInclude Include="Engine\Graphics\Renderer\GpuParticle\Runtime\GpuParticleExecutionGraph.h" />
     <ClInclude Include="Engine\Graphics\Renderer\GpuParticle\Runtime\GpuParticleEffectRuntime.h" />
     <ClInclude Include="Engine\Graphics\Renderer\GpuParticle\Runtime\GpuParticleEffectModules.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Asset\VfxCueSerializer.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Data\VfxCueTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueCompiler.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueProgram.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxRuntimeTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\Adapters\VfxTrackAdapters.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueRuntime.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Editor\VfxTimelineEditor.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Tags\GameplayTag.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Events\GameplayEventRouter.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Attributes\GameplayAttributeSet.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilityTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilitySerializer.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilityCompiler.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilityComponent.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Diagnostics\GameplayAbilityDiagnostics.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Data\VfxGraphTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Asset\VfxGraphSerializer.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphProgram.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphCompiler.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphIntegrationCompiler.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphRuntime.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Editor\VfxGraphEditor.h" />
+    <ClInclude Include="ApplicationLayer\Scene\DebugScene\ActorTest\BasicParticleActor.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shader">
@@ -2391,6 +2435,12 @@
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidObstacleRaster.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidRaymarch.VS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Volumetric\GpuVolumetricFluidRaymarch.PS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Vfx\Phase18\Explosion.vfx.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Gameplay\Abilities\Phase19Pulse.ability.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\ActorPrefabs\Phase19AbilityActor.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Phase20\EnergyBurst.vfxgraph.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Phase25\EditorPreviewShowcase.vfxgraph.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Phase26\IntegratedExplosion.vfxgraph.json" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Engine\Scene\Actor\Serialization\PrefabInstanceRegistry.cpp">

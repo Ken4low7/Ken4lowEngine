@@ -35,6 +35,15 @@ namespace Ken4lowEngine
 			return choices;
 		}
 
+		BlendMode ParseParticleBlendMode(const std::string& name)
+		{
+			// Editor上のBlendMode名をRenderer用のBlendMode列挙型に変換する
+			if (name == "Additive") return BlendMode::kBlendModeAdd;
+			if (name == "Multiply") return BlendMode::kBlendModeMultiply;
+
+			return BlendMode::kBlendModeNormal; // デフォルトは通常αブレンド
+		}
+
 		GpuParticleType ParseGpuParticleType(const std::string& name)
 		{
 			for (uint32_t index = 0; index < GpuParticleEmitterPresetTable::GetSpritePresetCount(); ++index)
@@ -519,6 +528,13 @@ namespace Ken4lowEngine
 		info.spriteType = type;
 		info.textureFilePath = texturePath_.empty() ? "Effects/white.dds" : texturePath_;
 		info.billboardFlags = isMesh ? BillboardMode::None : ParseBillboardMode(billboardMode_);
+
+		// BlendModeをGPUパーティクル描画用に変換する
+		const BlendMode particleBlendMode = ParseParticleBlendMode(blendMode_);
+
+		// Emit側と描画側で同一のRenderGroupを生成できるようBlend情報を含める
+		info.drawType = PackGpuParticleDrawType(static_cast<uint32_t>(type), particleBlendMode);
+
 		info.radius = std::max(spawnRadius_, 0.0f) * std::max(scaleAverage, 1.0f);
 		info.speedScale = std::max(velocityScale_, 0.0f);
 		info.useDescSpawnOverride = true;
@@ -569,7 +585,8 @@ namespace Ken4lowEngine
 				try
 				{
 					GpuParticleManager::GetInstance()->LoadMeshAssetsFromAssimp(static_cast<uint32_t>(std::max(meshId_, 0)), meshPath_, true);
-				} catch (...)
+				}
+				catch (...)
 				{
 				}
 			}

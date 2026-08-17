@@ -9,6 +9,9 @@
 #include "DebugActorRegistration.h"
 #include "TestGroundActor.h"
 
+// テスト用
+#include "ActorTest/BasicParticleActor.h"
+
 #include <ActorJsonSerializer.h>
 #include <ColliderComponent.h>
 #include <RigidbodyComponent.h>
@@ -52,9 +55,16 @@ void DebugScene::Initialize()
 	actorWorld_.SetPhysicsWorld(&actorPhysicsWorld_);
 	actorPhysicsWorld_.SetUseFixedStep(false);
 
-	TestGroundActor& validationGround = actorWorld_.SpawnActor<TestGroundActor>();
+	/*TestGroundActor& validationGround = actorWorld_.SpawnActor<TestGroundActor>();
 	validationGround.SetName("ValidationGround");
-	validationGround.SetLayer("DebugValidation");
+	validationGround.SetLayer("DebugValidation");*/
+
+	// テスト用にBasicParticleActorを生成する
+	auto& particleTest = actorWorld_.SpawnActor<BasicParticleActor>();
+
+	// 基礎VFX確認用Actorとして識別しやすい名前を設定する
+	particleTest.SetName("BasicParticleTest");
+
 
 	actorWorld_.Initialize();
 	SetupWorldSystemSchedule();

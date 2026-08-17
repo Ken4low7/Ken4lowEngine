@@ -124,6 +124,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="ApplicationLayer\Scene\DebugScene\ActorTest\TestGroundActor.cpp" />
     <ClCompile Include="ApplicationLayer\Scene\DebugScene\DebugActorRegistration.cpp" />
     <ClCompile Include="ApplicationLayer\Scene\DebugScene\Validation\CharacterValidation.cpp" />
+    <ClCompile Include="ApplicationLayer\Scene\DebugScene\ActorTest\BasicParticleActor.cpp" />
     <ClCompile Include="Engine\Editor\ActorWorldEditorBridge.cpp" />
     <ClCompile Include="Engine\Editor\EditorContentBrowserPanel.cpp" />
     <ClCompile Include="Engine\Editor\EditorGpuPickingManager.cpp" />
@@ -679,6 +680,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\LevelImportValidation.h" />
     <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\PerformancePhaseValidation.h" />
     <ClInclude Include="ApplicationLayer\Scene\DebugScene\Validation\PlayerMigrationValidationComponent.h" />
+    <ClInclude Include="ApplicationLayer\Scene\DebugScene\ActorTest\BasicParticleActor.h" />
     <ClInclude Include="Engine\Editor\ActorWorldEditorBridge.h" />
     <ClInclude Include="Engine\Editor\EditorActorStateRegistry.h" />
     <ClInclude Include="Engine\Editor\EditorAssetDragDrop.h" />
