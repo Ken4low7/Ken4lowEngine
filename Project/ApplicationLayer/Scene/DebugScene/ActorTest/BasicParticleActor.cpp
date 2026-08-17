@@ -26,6 +26,14 @@ void BasicParticleActor::Initialize()
 	glow.SetLoop(false);			// ループ再生しない
 	glow.SetFollowOwner(true);		// Actorの移動に追従する
 
+	auto& spark = AddComponent<Ken4lowEngine::GpuParticleComponent>();
+	spark.SetName("Orb Spark");		 // GpuParticleComponentの型名をデフォルト名として設定する
+	spark.AttachTo(&root);			 // RootComponentを親として設定する
+	spark.SetEffectName("HitSpark"); // 使用するGPUパーティクルエフェクト名を設定する
+	spark.SetPlayOnStart(true);		 // ゲーム開始時に自動再生する
+	spark.SetLoop(false);			 // ループ再生しない
+	spark.SetFollowOwner(true);		 // Actorの移動に追従する
+
 	// ActorのComponent初期化を実行する
 	Actor::Initialize();
 }
