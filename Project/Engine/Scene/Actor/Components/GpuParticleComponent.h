@@ -50,6 +50,9 @@ namespace Ken4lowEngine
 		const std::string& GetEffectName() const { return effectName_; }
 		void SetEffectName(const std::string& effectName) { effectName_ = effectName; }
 
+		const std::string& GetPresetName() const { return presetName_; }
+		void ApplyPreset(const std::string& presetName);
+
 		const std::string& GetEmitterName() const { return emitterName_; }
 		void SetEmitterName(const std::string& emitterName) { emitterName_ = emitterName; }
 
@@ -77,14 +80,13 @@ namespace Ken4lowEngine
 		Vector3 CalculateEmitterPosition() const;
 		GpuParticleEmitter* EnsureEmitter();
 		void SyncEmitterPosition();
-		void ApplyPreset(const std::string& presetName);
 		uint32_t CalculateBurstCount() const;
 
 	private: /// ---------- メンバ変数 ---------- ///
 
 		std::string effectName_ = "Smoke";
 		std::string emitterName_;
-		std::string presetName_ = "Smoke";
+		std::string presetName_;
 		std::string particleType_ = "Sprite";
 		bool playOnStart_ = false;
 		bool loop_ = false;
