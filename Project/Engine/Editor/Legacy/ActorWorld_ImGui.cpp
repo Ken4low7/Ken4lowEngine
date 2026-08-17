@@ -229,7 +229,7 @@ namespace Ken4lowEngine
 			const std::string actorName = selectedActor_->GetName().empty() ? "名前なしアクタ" : selectedActor_->GetName();
 			ImGui::Text("選択中のアクタ: %s", actorName.c_str());
 			ImGui::Separator();
-			selectedActor_->DrawInspectorImGui();
+			selectedActor_->DrawImGui(); // 派生Actor固有のDetails UIもvirtual dispatchで描画する。
 		}
 		else
 		{
