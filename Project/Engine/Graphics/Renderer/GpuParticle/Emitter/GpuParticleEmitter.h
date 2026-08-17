@@ -151,6 +151,11 @@ public:
 		return info_.loopForever || emissionElapsed_ < info_.emissionDuration;
 	}
 
+	bool HasRuntimeActivity() const
+	{
+		return estimatedActiveParticleCount_ > 0 || pendingBurstCount_ > 0 || HasEmissionSchedule();
+	}
+
 	bool MatchesForwardDrawPass() const
 	{
 		const BlendMode blendMode = UnpackGpuParticleBlendMode(GetDrawType());
@@ -166,7 +171,7 @@ public:
 	bool HasActiveParticles() const
 	{
 		if (!MatchesForwardDrawPass()) return false;
-		return estimatedActiveParticleCount_ > 0 || pendingBurstCount_ > 0 || HasEmissionSchedule();
+		return HasRuntimeActivity();
 	}
 
 private:
