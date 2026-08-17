@@ -13,7 +13,7 @@ void BasicParticleActor::Initialize()
 	auto& core = AddComponent<Ken4lowEngine::GpuParticleComponent>();
 	core.SetName("Orb Core"); // GpuParticleComponentの型名をデフォルト名として設定する
 	core.AttachTo(&root);			// RootComponentを親として設定する
-	core.SetEffectName("Default");	// 使用するGPUパーティクルエフェクト名を設定する
+	core.ApplyPreset("Default");	// DefaultプリセットをComponent全体へ適用する
 	core.SetPlayOnStart(true);		// ゲーム開始時に自動再生する
 	core.SetLoop(false);			// ループ再生しない
 	core.SetFollowOwner(true);		// Actorの移動に追従する
@@ -21,18 +21,18 @@ void BasicParticleActor::Initialize()
 	auto& glow = AddComponent<Ken4lowEngine::GpuParticleComponent>();
 	glow.SetName("Orb Glow"); // GpuParticleComponentの型名をデフォルト名として設定する
 	glow.AttachTo(&root);			// RootComponentを親として設定する
-	glow.SetEffectName("Default");	// 使用するGPUパーティクルエフェクト名を設定する
+	glow.ApplyPreset("Default");	// DefaultプリセットをComponent全体へ適用する
 	glow.SetPlayOnStart(true);		// ゲーム開始時に自動再生する
 	glow.SetLoop(false);			// ループ再生しない
 	glow.SetFollowOwner(true);		// Actorの移動に追従する
 
 	auto& spark = AddComponent<Ken4lowEngine::GpuParticleComponent>();
-	spark.SetName("Orb Spark");		 // GpuParticleComponentの型名をデフォルト名として設定する
-	spark.AttachTo(&root);			 // RootComponentを親として設定する
-	spark.SetEffectName("HitSpark"); // 使用するGPUパーティクルエフェクト名を設定する
-	spark.SetPlayOnStart(true);		 // ゲーム開始時に自動再生する
-	spark.SetLoop(false);			 // ループ再生しない
-	spark.SetFollowOwner(true);		 // Actorの移動に追従する
+	spark.SetName("Orb Spark");		// GpuParticleComponentの型名をデフォルト名として設定する
+	spark.AttachTo(&root);			// RootComponentを親として設定する
+	spark.ApplyPreset("HitSpark");	// HitSparkプリセットをComponent全体へ適用する
+	spark.SetPlayOnStart(true);		// ゲーム開始時に自動再生する
+	spark.SetLoop(false);			// ループ再生しない
+	spark.SetFollowOwner(true);		// Actorの移動に追従する
 
 	// ActorのComponent初期化を実行する
 	Actor::Initialize();
