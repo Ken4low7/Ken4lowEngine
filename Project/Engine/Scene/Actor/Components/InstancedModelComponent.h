@@ -28,6 +28,13 @@ namespace Ken4lowEngine
 		void UpdateEditor(float deltaTime) override;
 		void PostPhysicsUpdate(float deltaTime) override;
 		void Draw() override;
+		void DrawReflectionCapture()
+		{
+			if (!visible_ || !IsActiveInHierarchy() || !renderer_ || !isInitializedRenderer_) return;
+			const MaterialBlendMode blendMode = renderer_->GetBlendMode();
+			if (blendMode == MaterialBlendMode::Transparent || blendMode == MaterialBlendMode::Additive) return;
+			renderer_->Draw(); // Reflection Cameraの現在Viewを使い、Instanced床や配置物も鏡Captureへ描画する。
+		}
 		void DrawShadow() override
 		{
 			if (visible_ && IsCastShadowEnabled() && renderer_) renderer_->DrawShadow();
