@@ -126,7 +126,7 @@ namespace Ken4lowEngine
 		std::unique_ptr<Rigidbody> rigidbody_; // 実際の物理挙動を管理するRigidbody
 		BodyType bodyType_ = BodyType::Dynamic; // ImGui編集用に保持するBodyType
 		float mass_ = 1.0f;                    // ImGui編集用に保持する質量
-		bool useGravity_ = false;              // ImGui編集用に保持する重力フラグ
+		bool useGravity_ = true;               // 新規Dynamic Rigidbodyは追加直後から重力へ反応する。
 		Vector3 velocity_{};                   // ImGui表示・編集用に保持する速度
 		bool sleepEnabled_ = false;             // ImGui編集用に保持するSleep機能の有効状態
 		float restitution_ = 0.0f;              // 反発係数
