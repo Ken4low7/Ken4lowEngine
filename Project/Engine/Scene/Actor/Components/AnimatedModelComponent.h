@@ -4,6 +4,7 @@
 #include "AnimationModelObjectIdRenderer.h"
 #include "ComponentProperty.h"
 #include "MaterialBinding.h"
+#include "Engine/Graphics/Renderer/Reflection/ReflectionCaptureDrawable.h"
 
 #include <cstdint>
 #include <memory>
@@ -18,14 +19,14 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	/// ボーンを使わないNode Transform Animation付きモデルを再生するComponentクラス。
 	/// -------------------------------------------------------------
-	class AnimatedModelComponent : public SceneComponent
+	class AnimatedModelComponent : public SceneComponent, public ReflectionCaptureDrawable
 	{
 	public:
 		void Initialize() override;
 		void Update(float deltaTime) override;
 		void PostPhysicsUpdate(float deltaTime) override;
 		void Draw() override;
-		void DrawReflectionCapture();
+		void DrawReflectionCapture() override;
 		void DrawShadow() override
 		{
 			if (!visible_ || !IsCastShadowEnabled() || !animatedModel_ || !hasMesh_)
