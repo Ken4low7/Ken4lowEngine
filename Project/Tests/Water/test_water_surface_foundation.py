@@ -9,7 +9,10 @@ FACTORY = PROJECT_ROOT / "Engine" / "Scene" / "Actor" / "Serialization" / "Compo
 MATERIAL_H = PROJECT_ROOT / "Engine" / "Graphics" / "Material" / "Material.h"
 MATERIAL_CPP = PROJECT_ROOT / "Engine" / "Graphics" / "Material" / "Material.cpp"
 OBJECT3D = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "Object3D" / "Object3D.h"
+WORLD_TRANSFORM = PROJECT_ROOT / "Engine" / "Core" / "Transform" / "WorldTransform.h"
+OBJECT3D_VS = PROJECT_ROOT / "Resources" / "Shaders" / "Object3D" / "Object3d.VS.hlsl"
 OBJECT3D_PS = PROJECT_ROOT / "Resources" / "Shaders" / "Object3D" / "Object3d.PS.hlsl"
+WATER_GRID = PROJECT_ROOT / "Resources" / "Models" / "Sources" / "Water" / "water_grid.obj"
 
 
 class WaterSurfaceFoundationTests(unittest.TestCase):
@@ -21,15 +24,20 @@ class WaterSurfaceFoundationTests(unittest.TestCase):
         cls.material_h = MATERIAL_H.read_text(encoding="utf-8")
         cls.material_cpp = MATERIAL_CPP.read_text(encoding="utf-8")
         cls.object3d = OBJECT3D.read_text(encoding="utf-8")
+        cls.world_transform = WORLD_TRANSFORM.read_text(encoding="utf-8")
+        cls.object3d_vs = OBJECT3D_VS.read_text(encoding="utf-8")
         cls.object3d_ps = OBJECT3D_PS.read_text(encoding="utf-8")
+        cls.water_grid = WATER_GRID.read_text(encoding="utf-8")
 
     def test_water_surface_reuses_model_render_path(self) -> None:
         self.assertIn("class WaterSurfaceComponent final : public ModelComponent", self.component)
         self.assertIn("Object3D* GetObject3D()", self.model_component)
         self.assertIn("ModelComponent::UpdateEditor(deltaTime);", self.component)
 
-    def test_new_water_uses_existing_plane_asset_and_transparent_forward(self) -> None:
-        self.assertIn('SetModelPath("Sample/plane.gltf")', self.component)
+    def test_new_water_uses_subdivided_grid_and_transparent_forward(self) -> None:
+        self.assertIn('SetModelPath("Water/water_grid.obj")', self.component)
+        self.assertGreaterEqual(sum(1 for line in self.water_grid.splitlines() if line.startswith("v ")), 289)
+        self.assertGreaterEqual(sum(1 for line in self.water_grid.splitlines() if line.startswith("f ")), 256)
         self.assertIn("SetAlphaBlendEnabled(true)", self.component)
         self.assertIn("SetCullMode(MaterialCullMode::None)", self.component)
         self.assertIn("SetReflectivity", self.component)
@@ -56,6 +64,12 @@ class WaterSurfaceFoundationTests(unittest.TestCase):
             "FresnelF0",
             "ReflectionDistortion",
             "SecondaryWaveScale",
+            "GerstnerEnabled",
+            "GerstnerAmplitude",
+            "GerstnerWavelength",
+            "GerstnerSpeed",
+            "GerstnerSteepness",
+            "GerstnerDirectionDegrees",
         ):
             self.assertIn(f'outJson["{key}"]', self.component)
             self.assertIn(f'"{key}"', self.component)
@@ -75,13 +89,24 @@ class WaterSurfaceFoundationTests(unittest.TestCase):
             self.assertIn(field, self.object3d_ps)
         self.assertIn("sizeof(Material::MaterialCBData) == 272", self.material_cpp)
 
-    def test_water_shader_perturbs_normal_without_moving_geometry(self) -> None:
+    def test_water_shader_combines_detail_normal_with_geometry_waves(self) -> None:
         self.assertIn("float3 geometricNormal = normalize(input.normal);", self.object3d_ps)
         self.assertIn("waterReflectionOffset", self.object3d_ps)
         self.assertIn("slopeTangent", self.object3d_ps)
         self.assertIn("slopeBitangent", self.object3d_ps)
-        self.assertIn("abs(dot(geometricNormal, planarNormal))", self.object3d_ps)
         self.assertIn("worldPosition + waterReflectionOffset", self.object3d_ps)
+        self.assertIn("AccumulateGerstnerWave", self.object3d_vs)
+        self.assertIn("localPosition.xy += horizontalOffset", self.object3d_vs)
+        self.assertIn("localPosition.z += height", self.object3d_vs)
+        self.assertIn("localNormal = normalize", self.object3d_vs)
+
+    def test_gerstner_constants_match_cpu_and_vertex_shader(self) -> None:
+        self.assertIn("Vector4 waterGerstner0", self.world_transform)
+        self.assertIn("Vector4 waterGerstner1", self.world_transform)
+        self.assertIn("SetWaterDeformationState", self.world_transform)
+        self.assertIn("float4 waterGerstner0", self.object3d_vs)
+        self.assertIn("float4 waterGerstner1", self.object3d_vs)
+        self.assertIn("worldTransform_.SetWaterDeformationState", self.object3d)
 
     def test_water_uses_fresnel_for_planar_reflection(self) -> None:
         self.assertIn("waterFresnelF0", self.object3d_ps)
@@ -91,6 +116,7 @@ class WaterSurfaceFoundationTests(unittest.TestCase):
     def test_water_component_drives_object3d_water_state(self) -> None:
         self.assertIn("SetWaterSurfaceState", self.component)
         self.assertIn("SetWaterSurfaceState", self.object3d)
+        self.assertIn("gerstnerDirectionDegrees_", self.component)
         self.assertIn("waterTime_ +=", self.component)
 
 
