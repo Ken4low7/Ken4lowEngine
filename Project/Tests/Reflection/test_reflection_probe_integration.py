@@ -98,7 +98,8 @@ class ReflectionProbeIntegrationTests(unittest.TestCase):
         self.assertIn("ReflectionProbeManager::GetInstance()->ResolveReflectionHandle(GetWorldPosition())", self.model)
         self.assertIn("EnvironmentMapManager::ScopedDrawOverride", self.model)
         self.assertIn("PrepareForCurrentRenderView", self.model)
-        self.assertIn("object3D_->Update(); // Probe", self.model)
+        self.assertIn("object3D_->Update();", self.model)  # Probe/Planar/Mainの全ViewでDraw直前のWVP更新が残る契約を固定する。
+        self.assertIn("Reflection Capture/Main View", self.model)
         self.assertIn("this,", self.model)
         self.assertIn("static_cast<ModelComponent*>(payload)->DrawWithReflectionBinding()", self.model)
 
