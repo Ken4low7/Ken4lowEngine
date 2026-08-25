@@ -14,9 +14,8 @@ namespace Ken4lowEngine
 	{
 		if (!visible_ || !IsActiveInHierarchy() || !animationModel_ || !hasMesh_) return;
 		const MaterialBlendMode blendMode = ResolveForwardBlendMode();
-		if (blendMode == MaterialBlendMode::Transparent || blendMode == MaterialBlendMode::Additive) return;
 		const AnimationForwardSurface::ScopedBlendMode blendScope(blendMode);
-		Draw(); // Reflection Cameraの現在ViewでCompute Skinning済み姿勢を鏡Captureへ再描画する。
+		Draw(); // Reflection Capture Queueの順序で透明・加算を含むCompute Skinning済み姿勢を再描画する。
 	}
 
 	inline bool SkeletalMeshComponent::SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode)
