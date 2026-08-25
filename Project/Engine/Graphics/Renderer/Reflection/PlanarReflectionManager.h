@@ -25,6 +25,27 @@ namespace Ken4lowEngine
 		EveryFrame,
 	};
 
+	enum class PlanarReflectionQuality : uint8_t
+	{
+		Low = 0,
+		Medium,
+		High,
+		Ultra,
+	};
+
+	constexpr float GetPlanarReflectionResolutionScale(PlanarReflectionQuality quality)
+	{
+		switch (quality)
+		{
+		case PlanarReflectionQuality::Low: return 0.25f;
+		case PlanarReflectionQuality::Medium: return 0.50f;
+		case PlanarReflectionQuality::High: return 0.75f;
+		case PlanarReflectionQuality::Ultra:
+		default:
+			return 1.00f; // Ultraは従来と同じViewport等倍にして既存Sceneの見た目を変えない。
+		}
+	}
+
 	struct PlanarReflectionDesc
 	{
 		Vector3 position{};
@@ -33,6 +54,7 @@ namespace Ken4lowEngine
 		float surfaceTolerance = 0.025f;
 		float clipPlaneBias = 0.01f;
 		PlanarReflectionUpdateMode updateMode = PlanarReflectionUpdateMode::EveryFrame;
+		PlanarReflectionQuality quality = PlanarReflectionQuality::Ultra;
 		bool enabled = true;
 	};
 
@@ -83,12 +105,15 @@ namespace Ken4lowEngine
 		bool captured = false;
 		bool dirty = false;
 		bool obliqueClipApplied = false;
+		uint32_t captureWidth = 0;
+		uint32_t captureHeight = 0;
+		PlanarReflectionQuality quality = PlanarReflectionQuality::Ultra;
 		uint64_t captureRevision = 0;
 	};
 
 	/// <summary>
 	/// 鏡面ごとの反射RenderTargetと反射Camera Captureを管理します。
-	/// Main Viewportと同じ解像度で1フレーム最大1面だけ更新します。
+	/// 鏡ごとの品質設定に応じた解像度で1フレーム最大1面だけ更新します。
 	/// </summary>
 	class PlanarReflectionManager
 	{
@@ -146,6 +171,8 @@ namespace Ken4lowEngine
 			uint32_t rtvIndex = UINT32_MAX;
 			uint32_t dsvIndex = UINT32_MAX;
 			uint32_t srvIndex = UINT32_MAX;
+			uint32_t width = 0;
+			uint32_t height = 0;
 			D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 			D3D12_VIEWPORT viewport{};
 			D3D12_RECT scissor{};
@@ -174,7 +201,7 @@ namespace Ken4lowEngine
 		const SurfaceRuntime* FindSurface(const void* owner) const;
 		SurfaceRuntime* FindCaptureCandidate();
 		bool EnsureTarget(SurfaceRuntime& surface);
-		std::unique_ptr<SurfaceTarget> CreateTarget();
+		std::unique_ptr<SurfaceTarget> CreateTarget(PlanarReflectionQuality quality);
 		void ReleaseTarget(SurfaceTarget& target);
 		void TransitionTarget(SurfaceTarget& target, D3D12_RESOURCE_STATES nextState);
 		void BeginTarget(SurfaceTarget& target);
