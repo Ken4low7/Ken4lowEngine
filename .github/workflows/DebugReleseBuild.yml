@@ -50,6 +50,7 @@ jobs:
           python -m unittest discover -s Tests/Phase13 -p "test_*.py" -v # GPU Particle Effect AuthoringのModule/Runtime/Asset契約をCIで検証する。
           python -m unittest discover -s Tests/Phase14 -p "test_*.py" -v # GPU Driven Compaction/Indirect Draw/Alpha Sort/Profiler契約をCIで固定する。
           python Tests/Phase18/run_phase18_static_tests.py # Unified VFXのSchema/Runtime/Adapter/Editor/Budget契約を外部test frameworkなしで実行する。
+          python -m unittest discover -s Tests/Reflection -p "test_*.py" -v # Planar ReflectionのCapture対象と鏡面契約をCIで固定する。
 
   compile:
     name: Compile ${{ matrix.configuration }}
