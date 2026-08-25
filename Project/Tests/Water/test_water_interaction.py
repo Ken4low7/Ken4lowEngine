@@ -40,6 +40,50 @@ class WaterInteractionRegressionTests(unittest.TestCase):
         self.assertIn("SetOnWaterStay", self.interaction)
         self.assertIn("SetOnWaterExit", self.interaction)
         self.assertIn("GetActorSubmersionDepth", self.interaction)
+        self.assertIn("GetActorSubmergedFraction", self.interaction)
+
+    def test_w4_applies_buoyancy_and_water_drag_to_dynamic_rigidbody(self) -> None:
+        self.assertIn('#include "RigidbodyComponent.h"', self.interaction)
+        self.assertIn("ApplyWaterDynamics", self.interaction)
+        self.assertIn("GetBodyType() != BodyType::Dynamic", self.interaction)
+        self.assertIn("rigidbody->GetMass() * gravityMagnitude", self.interaction)
+        self.assertIn("rigidbody->AddForce", self.interaction)
+        self.assertIn("std::exp", self.interaction)
+        self.assertIn("rigidbody->SetVelocity", self.interaction)
+
+    def test_w4_uses_multi_point_surface_sampling_and_wave_normal_alignment(self) -> None:
+        self.assertIn("struct ProbeSet", self.interaction)
+        self.assertIn("std::array<Vector3, 8>", self.interaction)
+        self.assertIn("BuildProbeSet", self.interaction)
+        self.assertIn("submergedFraction", self.interaction)
+        self.assertIn("submergedProbeCount", self.interaction)
+        self.assertIn("AlignActorToSurface", self.interaction)
+        self.assertIn("targetPitch", self.interaction)
+        self.assertIn("targetRoll", self.interaction)
+
+    def test_w4_exposes_splash_event_hook(self) -> None:
+        self.assertIn("struct WaterSplashEvent", self.interaction)
+        self.assertIn("WaterSplashCallback", self.interaction)
+        self.assertIn("SetOnWaterSplash", self.interaction)
+        self.assertIn("TryEmitSplash", self.interaction)
+        self.assertIn("impactSpeed", self.interaction)
+        self.assertIn("splashIntensityScale_", self.interaction)
+
+    def test_w4_settings_are_serialized(self) -> None:
+        for key in (
+            "BuoyancyEnabled",
+            "BuoyancyScale",
+            "WaterLinearDrag",
+            "MultiPointSampling",
+            "SurfaceAlignEnabled",
+            "SurfaceAlignSpeed",
+            "MaxTiltDegrees",
+            "SplashEnabled",
+            "MinSplashSpeed",
+            "SplashIntensityScale",
+        ):
+            self.assertIn(f'outJson["{key}"]', self.interaction)
+            self.assertIn(f'inJson.value("{key}"', self.interaction)
 
     def test_factory_registers_single_water_interaction_component(self) -> None:
         self.assertIn('#include "WaterInteractionComponent.h"', self.factory)
