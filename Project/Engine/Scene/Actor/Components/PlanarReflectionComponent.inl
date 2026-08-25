@@ -1,5 +1,6 @@
 #include "Actor.h"
 #include "DirectXCommon.h"
+#include "Engine/Graphics/Renderer/Reflection/PlanarReflectionCaptureDiagnostics.h"
 #include "Matrix4x4.h"
 #include "ModelComponent.h"
 #include "Plane.h"
@@ -146,13 +147,37 @@ namespace Ken4lowEngine
 			RequestCapture();
 		}
 
-		const PlanarReflectionDiagnostics diagnostics = PlanarReflectionManager::GetInstance()->GetDiagnostics(this);
+		PlanarReflectionManager* planarManager = PlanarReflectionManager::GetInstance();
+		const PlanarReflectionDiagnostics diagnostics = planarManager->GetDiagnostics(this);
+		const PlanarReflectionCaptureStats captureStats = PlanarReflectionCaptureDiagnostics::GetInstance()->Get(GetOwner());
+		const PlanarReflectionBinding previewBinding = planarManager->ResolveBinding(this);
 		const Vector3 planePosition = GetPlanePosition();
 		ImGui::Text("状態: %s", diagnostics.captured ? (diagnostics.dirty ? "再Capture待ち" : "Captured") : "未Capture");
 		ImGui::Text("Capture Revision: %llu", static_cast<unsigned long long>(diagnostics.captureRevision));
 		ImGui::Text("Capture Resolution: %u x %u", diagnostics.captureWidth, diagnostics.captureHeight);
+		ImGui::Text("Capture候補: %u (Opaque %u / Masked %u / Transparent %u / Additive %u)",
+			captureStats.drawableCount,
+			captureStats.opaqueCount,
+			captureStats.maskedCount,
+			captureStats.transparentCount,
+			captureStats.additiveCount);
 		ImGui::Text("Oblique Clip: %s", diagnostics.obliqueClipApplied ? "ON" : "OFF");
 		ImGui::Text("鏡面位置: %.3f, %.3f, %.3f", planePosition.x, planePosition.y, planePosition.z);
+
+		ImGui::SeparatorText("Capture RT Preview");
+		if (previewBinding.valid && previewBinding.texture.ptr != 0 && diagnostics.captureWidth > 0 && diagnostics.captureHeight > 0)
+		{
+			const float availableWidth = (std::max)(ImGui::GetContentRegionAvail().x, 120.0f);
+			const float previewWidth = (std::min)(availableWidth, 360.0f);
+			const float aspect = static_cast<float>(diagnostics.captureWidth) / static_cast<float>(diagnostics.captureHeight);
+			const float previewHeight = previewWidth / (std::max)(aspect, 0.001f);
+			ImGui::Image(static_cast<ImTextureID>(previewBinding.texture.ptr), ImVec2(previewWidth, previewHeight)); // 鏡へ渡している実RTを表示し、CaptureとSurface Sampleのどちらが壊れているか直接確認する。
+		}
+		else
+		{
+			ImGui::TextDisabled("Capture済みReflection Textureはまだありません。");
+		}
+
 		ImGui::TextDisabled("Auto Fit ONでは同じActorのModel頂点から法線方向の最外面を鏡面にします。");
 		ImGui::TextDisabled("同じActorへ最大6面分追加でき、各Componentが1枚の独立した鏡面になります。");
 		ImGui::TextDisabled("Captureは全Component合計で1フレーム最大1面なので、複数面でも描画負荷を急増させません。");
