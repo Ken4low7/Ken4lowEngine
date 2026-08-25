@@ -87,6 +87,12 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         self.assertNotIn("BoundingSphere", self.bridge)
         self.assertIn("Oblique Near Plane", self.bridge)
 
+    def test_planar_capture_temporarily_disables_main_frustum_culling(self) -> None:
+        self.assertIn("previousFrustumCullingEnabled", self.bridge)
+        self.assertIn("SetFrustumCullingEnabled(false)", self.bridge)
+        self.assertGreaterEqual(self.bridge.count("SetFrustumCullingEnabled(previousFrustumCullingEnabled)"), 2)
+        self.assertIn("catch (...)", self.bridge)
+
     def test_component_auto_fits_to_real_receiver_surface_and_serializes_controls(self) -> None:
         self.assertIn("autoFitToReceiverSurface_ = true", self.component_h)
         self.assertIn("clipPlaneBias_ = 0.01f", self.component_h)
