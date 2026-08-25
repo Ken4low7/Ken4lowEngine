@@ -28,6 +28,12 @@ namespace Ken4lowEngine
 			return std::fabs(lhs - rhs) <= 0.0001f;
 		}
 
+		inline uint32_t ResolveCaptureDimension(uint32_t dimension, PlanarReflectionQuality quality)
+		{
+			const float scaled = static_cast<float>(dimension) * GetPlanarReflectionResolutionScale(quality);
+			return (std::max)(1u, static_cast<uint32_t>(std::lround(scaled))); // 品質変更時も0pxにならない有効なRT寸法へ丸める。
+		}
+
 		inline bool SameVector(const Vector3& lhs, const Vector3& rhs)
 		{
 			return NearlyEqual(lhs.x, rhs.x) &&
@@ -219,6 +225,17 @@ namespace Ken4lowEngine
 		sanitized.strength = std::clamp(desc.strength, 0.0f, 1.0f);
 		sanitized.surfaceTolerance = std::clamp(desc.surfaceTolerance, 0.001f, 1.0f);
 		sanitized.clipPlaneBias = std::clamp(desc.clipPlaneBias, 0.0f, 1.0f);
+		switch (sanitized.quality)
+		{
+		case PlanarReflectionQuality::Low:
+		case PlanarReflectionQuality::Medium:
+		case PlanarReflectionQuality::High:
+		case PlanarReflectionQuality::Ultra:
+			break;
+		default:
+			sanitized.quality = PlanarReflectionQuality::Ultra;
+			break;
+		}
 		return sanitized;
 	}
 
@@ -247,6 +264,7 @@ namespace Ken4lowEngine
 			!PlanarReflectionDetail::SameVector(surface->desc.normal, sanitized.normal) ||
 			!PlanarReflectionDetail::NearlyEqual(surface->desc.surfaceTolerance, sanitized.surfaceTolerance) ||
 			!PlanarReflectionDetail::NearlyEqual(surface->desc.clipPlaneBias, sanitized.clipPlaneBias) ||
+			surface->desc.quality != sanitized.quality ||
 			surface->desc.enabled != sanitized.enabled ||
 			surface->receiverActor != receiverActor;
 		surface->receiverActor = receiverActor;
@@ -318,23 +336,33 @@ namespace Ken4lowEngine
 
 	inline bool PlanarReflectionManager::EnsureTarget(SurfaceRuntime& surface)
 	{
-		if (surface.target && surface.target->color && surface.target->depth)
+		const uint32_t requiredWidth = PlanarReflectionDetail::ResolveCaptureDimension(GameViewportConstants::Width, surface.desc.quality);
+		const uint32_t requiredHeight = PlanarReflectionDetail::ResolveCaptureDimension(GameViewportConstants::Height, surface.desc.quality);
+		if (surface.target && surface.target->color && surface.target->depth &&
+			surface.target->width == requiredWidth && surface.target->height == requiredHeight)
 		{
 			return true;
 		}
-		surface.target = CreateTarget();
+		if (surface.target)
+		{
+			ReleaseTarget(*surface.target);
+			surface.target.reset(); // 品質変更時だけ古いRT/DSV/SRVを破棄し、指定解像度で作り直す。
+		}
+		surface.target = CreateTarget(surface.desc.quality);
 		return surface.target != nullptr;
 	}
 
-	inline std::unique_ptr<PlanarReflectionManager::SurfaceTarget> PlanarReflectionManager::CreateTarget()
+	inline std::unique_ptr<PlanarReflectionManager::SurfaceTarget> PlanarReflectionManager::CreateTarget(PlanarReflectionQuality quality)
 	{
 		if (!dxCommon_ || !dxCommon_->GetDevice()) return nullptr;
 		auto target = std::make_unique<SurfaceTarget>();
+		const uint32_t captureWidth = PlanarReflectionDetail::ResolveCaptureDimension(GameViewportConstants::Width, quality);
+		const uint32_t captureHeight = PlanarReflectionDetail::ResolveCaptureDimension(GameViewportConstants::Height, quality);
 
 		D3D12_RESOURCE_DESC colorDesc{};
 		colorDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		colorDesc.Width = GameViewportConstants::Width;
-		colorDesc.Height = GameViewportConstants::Height;
+		colorDesc.Width = captureWidth;
+		colorDesc.Height = captureHeight;
 		colorDesc.DepthOrArraySize = 1;
 		colorDesc.MipLevels = 1;
 		colorDesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
@@ -370,8 +398,8 @@ namespace Ken4lowEngine
 
 		D3D12_CLEAR_VALUE depthClear{};
 		target->depth = DSVManager::GetInstance()->CreateDepthStencilBuffer(
-			GameViewportConstants::Width,
-			GameViewportConstants::Height,
+			captureWidth,
+			captureHeight,
 			DXGI_FORMAT_D24_UNORM_S8_UINT,
 			depthClear);
 		if (!target->depth)
@@ -390,19 +418,21 @@ namespace Ken4lowEngine
 			DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
 			1);
 
+		target->width = captureWidth;
+		target->height = captureHeight;
 		target->state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 		target->viewport = D3D12_VIEWPORT(
 			0.0f,
 			0.0f,
-			static_cast<float>(GameViewportConstants::Width),
-			static_cast<float>(GameViewportConstants::Height),
+			static_cast<float>(captureWidth),
+			static_cast<float>(captureHeight),
 			0.0f,
 			1.0f);
 		target->scissor = {
 			0,
 			0,
-			static_cast<LONG>(GameViewportConstants::Width),
-			static_cast<LONG>(GameViewportConstants::Height)
+			static_cast<LONG>(captureWidth),
+			static_cast<LONG>(captureHeight)
 		};
 		return target;
 	}
@@ -424,6 +454,8 @@ namespace Ken4lowEngine
 			SRVManager::GetInstance()->Free(target.srvIndex);
 			target.srvIndex = UINT32_MAX;
 		}
+		target.width = 0;
+		target.height = 0;
 		target.color.Reset();
 		target.depth.Reset();
 	}
@@ -665,6 +697,12 @@ namespace Ken4lowEngine
 		diagnostics.captured = surface->captured;
 		diagnostics.dirty = surface->dirty;
 		diagnostics.obliqueClipApplied = surface->obliqueClipApplied;
+		diagnostics.quality = surface->desc.quality;
+		if (surface->target)
+		{
+			diagnostics.captureWidth = surface->target->width;
+			diagnostics.captureHeight = surface->target->height;
+		}
 		diagnostics.captureRevision = surface->captureRevision;
 		return diagnostics;
 	}
