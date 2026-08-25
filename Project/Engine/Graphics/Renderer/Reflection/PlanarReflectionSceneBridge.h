@@ -2,8 +2,11 @@
 
 #include "PlanarReflectionManager.h"
 #include "ActorWorld.h"
+#include "AnimatedModelComponent.h"
+#include "InstancedModelComponent.h"
 #include "ModelComponent.h"
 #include "PlanarReflectionComponent.h"
+#include "SkeletalMeshComponent.h"
 
 #ifdef USE_IMGUI
 #include <Editor/EditorActorStateRegistry.h>
@@ -58,6 +61,24 @@ namespace Ken4lowEngine
 				{
 					if (!model) continue;
 					model->DrawReflectionCapture(); // 鏡裏側はReflection CameraのOblique Near Planeで三角形単位にClipする。
+				}
+
+				for (InstancedModelComponent* instanced : sceneActor->GetComponents<InstancedModelComponent>())
+				{
+					if (!instanced) continue;
+					instanced->DrawReflectionCapture(); // Instanced床や大量配置物も通常Sceneと同じReflection Cameraへ描画する。
+				}
+
+				for (AnimatedModelComponent* animated : sceneActor->GetComponents<AnimatedModelComponent>())
+				{
+					if (!animated) continue;
+					animated->DrawReflectionCapture();
+				}
+
+				for (SkeletalMeshComponent* skeletal : sceneActor->GetComponents<SkeletalMeshComponent>())
+				{
+					if (!skeletal) continue;
+					skeletal->DrawReflectionCapture();
 				}
 			}
 		}
