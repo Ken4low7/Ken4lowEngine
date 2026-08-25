@@ -27,6 +27,14 @@ struct Material
     float4x4 planarReflectionViewProjection;
     float4 planarReflectionPlane;
     float4 planarReflectionSurfaceParams;
+    float waterSurfaceEnabled;
+    float waterTime;
+    float waterWaveScale;
+    float waterWaveSpeed;
+    float waterNormalStrength;
+    float waterFresnelF0;
+    float waterReflectionDistortion;
+    float waterSecondaryWaveScale;
 };
 
 struct Camera
@@ -121,7 +129,37 @@ PixelShaderOutput main(VertexShaderOutput input)
         : gTexture.Sample(gLinearSampler, transformedUV.xy);
 
     float3 worldPosition = input.worldPosition;
-    float3 normal = normalize(input.normal);
+    float3 geometricNormal = normalize(input.normal);
+    float3 normal = geometricNormal;
+    float3 waterReflectionOffset = float3(0.0f, 0.0f, 0.0f);
+
+    if (gMaterial.waterSurfaceEnabled > 0.5f)
+    {
+        const float3 referenceAxis = abs(geometricNormal.y) < 0.95f
+            ? float3(0.0f, 1.0f, 0.0f)
+            : float3(1.0f, 0.0f, 0.0f);
+        const float3 waterTangent = normalize(cross(referenceAxis, geometricNormal));
+        const float3 waterBitangent = normalize(cross(geometricNormal, waterTangent));
+        const float waveScale = max(gMaterial.waterWaveScale, 0.001f);
+        const float secondaryScale = max(gMaterial.waterSecondaryWaveScale, 0.001f);
+        const float waterPhase = gMaterial.waterTime * gMaterial.waterWaveSpeed;
+        const float primaryCoord = dot(worldPosition, waterTangent) * waveScale;
+        const float secondaryCoord = dot(worldPosition, waterBitangent) * waveScale * secondaryScale;
+        const float normalStrength = saturate(gMaterial.waterNormalStrength);
+
+        const float slopeTangent = (
+            cos(primaryCoord + waterPhase) +
+            0.55f * cos(primaryCoord * 0.73f + secondaryCoord * 0.91f - waterPhase * 1.37f)) * normalStrength;
+        const float slopeBitangent = (
+            cos(secondaryCoord - waterPhase * 0.83f) +
+            0.45f * cos(primaryCoord * 1.17f - secondaryCoord * 0.61f + waterPhase * 1.11f)) * normalStrength;
+
+        normal = normalize(geometricNormal - waterTangent * slopeTangent - waterBitangent * slopeBitangent);
+        waterReflectionOffset =
+            (waterTangent * slopeTangent + waterBitangent * slopeBitangent) *
+            max(gMaterial.waterReflectionDistortion, 0.0f); // 波はGeometryを動かさず、法線とReflection投影だけを揺らしてW2を軽量に保つ。
+    }
+
     float3 viewDir = normalize(gCamera.worldPosition - worldPosition);
 
     float spotShadowFactor = 1.0f;
@@ -284,9 +322,12 @@ PixelShaderOutput main(VertexShaderOutput input)
             float maxMipLevel = (environmentMipLevels > 0) ? float(environmentMipLevels - 1) : 0.0f;
             float reflectionMipLevel = saturate(gMaterial.roughness) * maxMipLevel;
             float3 environmentColor = gEnvironmentTexture.SampleLevel(gLinearSampler, reflectionDir, reflectionMipLevel).rgb;
-            float fresnel = ComputeFresnelSchlick(saturate(dot(normal, viewDir)), 0.02f);
-            float envBlend = saturate(reflectionRate + fresnel * reflectionRate * (1.0f - reflectionRate));
-            shadedColor = lerp(shadedColor, environmentColor, envBlend); // 反射率1.0は環境反射確認に使える強さまで反映する。
+            const float fresnelF0 = gMaterial.waterSurfaceEnabled > 0.5f ? max(gMaterial.waterFresnelF0, 0.001f) : 0.02f;
+            float fresnel = ComputeFresnelSchlick(saturate(abs(dot(normal, viewDir))), fresnelF0);
+            float envBlend = gMaterial.waterSurfaceEnabled > 0.5f
+                ? saturate(reflectionRate * lerp(0.25f, 1.0f, fresnel))
+                : saturate(reflectionRate + fresnel * reflectionRate * (1.0f - reflectionRate));
+            shadedColor = lerp(shadedColor, environmentColor, envBlend); // Waterは斜め視線ほど環境反射を強め、通常Materialは従来の反射式を維持する。
         }
         shadedColor += gMaterial.emissiveFactor.rgb;
     }
@@ -312,7 +353,7 @@ PixelShaderOutput main(VertexShaderOutput input)
             }
 
             const float3 planarNormal = normalize(gPlanarReflection.plane[surfaceIndex].xyz);
-            const float surfaceAlignment = abs(dot(normal, planarNormal));
+            const float surfaceAlignment = abs(dot(geometricNormal, planarNormal));
             const float planeDistance = abs(dot(float4(worldPosition, 1.0f), gPlanarReflection.plane[surfaceIndex]));
             const float planeTolerance = max(gPlanarReflection.surfaceParams[surfaceIndex].x, 0.001f);
             if (surfaceAlignment < kPlanarNormalAlignmentThreshold ||
@@ -322,7 +363,8 @@ PixelShaderOutput main(VertexShaderOutput input)
                 continue;
             }
 
-            float4 reflectedClip = mul(float4(worldPosition, 1.0f), gPlanarReflection.reflectedViewProjection[surfaceIndex]);
+            const float3 reflectedSamplePosition = worldPosition + waterReflectionOffset;
+            float4 reflectedClip = mul(float4(reflectedSamplePosition, 1.0f), gPlanarReflection.reflectedViewProjection[surfaceIndex]);
             if (reflectedClip.w <= 1e-5f)
             {
                 continue;
@@ -348,8 +390,15 @@ PixelShaderOutput main(VertexShaderOutput input)
         {
             const uint selectedIndex = (uint)selectedSurface;
             const float3 planarColor = SamplePlanarReflectionTexture(selectedIndex, selectedUv);
-            const float strength = saturate(gPlanarReflection.surfaceParams[selectedIndex].y);
-            shadedColor = lerp(shadedColor, planarColor, strength); // Pixelが属する面だけ、その面専用Reflection CameraのTextureを合成する。
+            float strength = saturate(gPlanarReflection.surfaceParams[selectedIndex].y);
+            if (gMaterial.waterSurfaceEnabled > 0.5f)
+            {
+                const float waterFresnel = ComputeFresnelSchlick(
+                    saturate(abs(dot(normal, viewDir))),
+                    max(gMaterial.waterFresnelF0, 0.001f));
+                strength *= lerp(0.20f, 1.0f, waterFresnel); // 正面は水色を残し、視線が水面へ平行になるほど鏡面反射を強くする。
+            }
+            shadedColor = lerp(shadedColor, planarColor, saturate(strength));
         }
     }
 
