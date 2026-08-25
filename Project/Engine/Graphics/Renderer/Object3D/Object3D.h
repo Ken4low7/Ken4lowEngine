@@ -99,6 +99,18 @@ namespace Ken4lowEngine
 		MaterialBlendMode GetBlendMode() const { return material_.GetBlendMode(); } // Forward QueueはGPU定数ではなくMaterial分類だけを参照する。
 		void SetCamera(Camera* camera) { camera_ = camera; }
 		void SetReflectivity(float reflectivity) { material_.SetReflection(reflectivity); }
+		void SetWaterSurfaceState(
+			bool enabled,
+			float time,
+			float waveScale,
+			float waveSpeed,
+			float normalStrength,
+			float fresnelF0,
+			float reflectionDistortion,
+			float secondaryWaveScale)
+		{
+			material_.SetWaterSurfaceState(enabled, time, waveScale, waveSpeed, normalStrength, fresnelF0, reflectionDistortion, secondaryWaveScale); // Water Componentから描画内部Materialへ専用状態だけを転送する。
+		}
 		void ApplyMaterialDesc(const MaterialDesc& desc);
 		void ResetMaterialBinding();
 		void SetTextureForAll(const std::string& texturePath);
