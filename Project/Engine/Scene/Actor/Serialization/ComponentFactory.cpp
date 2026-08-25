@@ -26,6 +26,7 @@
 #include "SkeletalMeshComponent.h"
 #include "SpriteComponent.h"
 #include "TextComponent.h"
+#include "WaterInteractionComponent.h"
 #include "WaterSurfaceComponent.h"
 #include "WorldGaugeComponent.h"
 #include "WorldAudioComponent.h"
@@ -124,6 +125,8 @@ namespace Ken4lowEngine
 			MakeComponentTypeInfo<CameraComponent>("CameraComponent", false, "カメラコンポーネント", "カメラ", "Actorを視点として使うためのカメラ機能を追加します。"),
 
 			MakeComponentTypeInfo<ColliderComponent>("ColliderComponent", true, "コライダーコンポーネント", "物理", "Actorに衝突判定用の形状と当たり判定設定を追加します。"),
+
+			MakeComponentTypeInfo<WaterInteractionComponent>("WaterInteractionComponent", false, "ウォーターインタラクション", "物理", "Trigger Volumeで候補を絞り、Gerstner波面との距離から入水・水中・離水状態を判定します。"),
 
 			// Blender Level由来の用途名とTypeIdを失わず、通常ColliderComponentの物理経路を再利用する。
 			MakeComponentTypeInfo<StageColliderComponent>("StageColliderComponent", true, "ステージコライダー", "物理", "Blender LevelのFloorやObstacleなどの識別情報を保持するステージ用Colliderです。"),
