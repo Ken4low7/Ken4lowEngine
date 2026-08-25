@@ -110,7 +110,7 @@ namespace Ken4lowEngine
 
 			for (const CaptureItem& item : captureItems)
 			{
-				if (item.drawable) item.drawable->DrawReflectionCapture(); // Opaque→Masked→Transparent→Additive順で描き、透明系は反射Camera基準Back-to-Frontにする。
+				if (item.drawable) item.drawable->DrawReflectionCapture(); // Generic contractは従来のdrawable->DrawReflectionCapture()をQueue実行へ昇格し、透明系も正しい順序で描く。
 			}
 		}
 
