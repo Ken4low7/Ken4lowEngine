@@ -3,10 +3,13 @@
 #include "SceneComponent.h"
 #include "Engine/Graphics/Renderer/Reflection/PlanarReflectionManager.h"
 
+#include <cstdint>
 #include <string>
 
 namespace Ken4lowEngine
 {
+	class ModelComponent;
+
 	enum class PlanarReflectionFacePreset : uint8_t
 	{
 		PositiveX = 0,
@@ -19,8 +22,8 @@ namespace Ken4lowEngine
 
 	/// <summary>
 	/// 同じActorのModelComponentを鏡面Receiverとして扱うPlanar Reflection Componentです。
-	/// 1 Componentを1枚の鏡面として扱い、同一Actorへ最大6面まで追加できます。
-	/// Local +Yを鏡面法線として使用し、既定ではReceiver Modelの最外面へ自動Fitします。
+	/// 1 Componentを1枚の鏡面として扱い、単一鏡面ではReceiver形状の最薄軸から法線を自動判定します。
+	/// 同一Actorへ複数追加した場合は従来の面プリセットを使い、最大6面まで独立した鏡面を構築できます。
 	/// </summary>
 	class PlanarReflectionComponent : public SceneComponent
 	{
@@ -49,6 +52,12 @@ namespace Ken4lowEngine
 		PlanarReflectionQuality GetQuality() const { return quality_; }
 		void SetFlipNormal(bool flip) { flipNormal_ = flip; }
 		bool IsNormalFlipped() const { return flipNormal_; }
+		void SetAutoDetectReceiverNormal(bool enabled)
+		{
+			autoDetectReceiverNormal_ = enabled;
+			InvalidateAutoNormalCache();
+		}
+		bool IsAutoDetectReceiverNormalEnabled() const { return autoDetectReceiverNormal_; }
 		void SetAutoFitToReceiverSurface(bool enabled) { autoFitToReceiverSurface_ = enabled; }
 		bool IsAutoFitToReceiverSurfaceEnabled() const { return autoFitToReceiverSurface_; }
 		void SetPlaneOffset(float offset) { planeOffset_ = offset; }
@@ -62,6 +71,13 @@ namespace Ken4lowEngine
 		Vector3 GetPlanePosition() const;
 
 	private:
+		bool TryResolveAutoPlaneNormal(Vector3& outNormal) const;
+		void InvalidateAutoNormalCache() const
+		{
+			autoNormalCacheValid_ = false;
+			autoNormalReceiver_ = nullptr;
+			autoNormalReceiverRevision_ = 0;
+		}
 		PlanarReflectionDesc BuildDesc() const;
 
 		bool enabled_ = true;
@@ -69,12 +85,19 @@ namespace Ken4lowEngine
 		PlanarReflectionUpdateMode updateMode_ = PlanarReflectionUpdateMode::EveryFrame;
 		PlanarReflectionQuality quality_ = PlanarReflectionQuality::Ultra;
 		bool flipNormal_ = false;
+		bool autoDetectReceiverNormal_ = true;
 		bool autoFitToReceiverSurface_ = true;
 		float planeOffset_ = 0.0f;
 		float surfaceTolerance_ = 0.025f;
 		float clipPlaneBias_ = 0.01f;
 		bool debugPlaneVisible_ = true;
 		float debugPlaneSize_ = 2.0f;
+
+		mutable bool autoNormalCacheValid_ = false;
+		mutable const ModelComponent* autoNormalReceiver_ = nullptr;
+		mutable std::uint64_t autoNormalReceiverRevision_ = 0;
+		mutable Vector3 autoNormalAxis_{ 0.0f, 1.0f, 0.0f };
+		mutable float autoNormalCenterProjection_ = 0.0f;
 	};
 } // namespace Ken4lowEngine
 
