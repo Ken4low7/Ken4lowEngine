@@ -10,6 +10,15 @@ namespace Ken4lowEngine
 		return AnimationForwardSurface::ResolveBlendMode(materialBinding_);
 	}
 
+	inline void SkeletalMeshComponent::DrawReflectionCapture()
+	{
+		if (!visible_ || !IsActiveInHierarchy() || !animationModel_ || !hasMesh_) return;
+		const MaterialBlendMode blendMode = ResolveForwardBlendMode();
+		if (blendMode == MaterialBlendMode::Transparent || blendMode == MaterialBlendMode::Additive) return;
+		const AnimationForwardSurface::ScopedBlendMode blendScope(blendMode);
+		Draw(); // Reflection Cameraの現在ViewでCompute Skinning済み姿勢を鏡Captureへ再描画する。
+	}
+
 	inline bool SkeletalMeshComponent::SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode)
 	{
 		if (!visible_ || !IsActiveInHierarchy() || !animationModel_ || !hasMesh_ || ResolveForwardBlendMode() != expectedBlendMode)
