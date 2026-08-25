@@ -26,6 +26,8 @@ namespace Ken4lowEngine
 		void Update(float deltaTime) override;
 		void PostPhysicsUpdate(float deltaTime) override;
 		void Draw() override;
+		MaterialBlendMode GetReflectionCaptureBlendMode() const override { return ResolveForwardBlendMode(); }
+		Vector3 GetReflectionCaptureSortPosition() const override { return GetWorldPosition(); }
 		void DrawReflectionCapture() override;
 		void DrawShadow() override
 		{
