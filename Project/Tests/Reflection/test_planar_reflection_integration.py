@@ -76,7 +76,8 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
     def test_capture_excludes_mirror_actors_and_avoids_recursion(self) -> None:
         self.assertIn("sceneActor == excludedReceiver", self.bridge)
         self.assertIn("HasActivePlanarSurface(sceneActor)", self.bridge)
-        self.assertIn("model->DrawReflectionCapture()", self.bridge)
+        self.assertIn("dynamic_cast<ReflectionCaptureDrawable*>", self.bridge)
+        self.assertIn("drawable->DrawReflectionCapture()", self.bridge)  # Capture対応Componentを個別列挙せず描画する契約を固定する。
         self.assertNotIn("GpuParticle", self.bridge)
         self.assertIn("isCapturing_ = true", self.manager)
         self.assertIn("if (isCapturing_) return binding", self.manager)
