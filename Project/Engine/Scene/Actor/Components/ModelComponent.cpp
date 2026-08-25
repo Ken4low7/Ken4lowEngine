@@ -394,7 +394,7 @@ namespace Ken4lowEngine
 		if (includeModelPath)
 		{
 			properties.insert(properties.begin(),
-				{ "ModelPath", "モデルパス", ComponentPropertyType::String, [this]() -> ComponentPropertyValue { return modelPath_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<std::string>(&value)) { SetModelPath(*typedValue); } });
+				{ "ModelPath", "モデルパス", ComponentPropertyType::String, [this]() -> ComponentPropertyValue { return modelPath_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<std::string>(&value)) { SetModelPath(*typedValue); } } }); // ModelPathのProperty初期化子を正しく閉じる。
 		}
 		return properties;
 	}
