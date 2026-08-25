@@ -77,6 +77,11 @@ namespace Ken4lowEngine
 		bool SubmitForwardTransparent(ForwardRenderQueue& queue);
 		bool SubmitForwardAdditive(ForwardRenderQueue& queue);
 
+	protected:
+		Object3D* GetObject3D() { return object3D_.get(); }
+		const Object3D* GetObject3D() const { return object3D_.get(); }
+		const std::string& GetModelPath() const { return modelPath_; } // 派生描画ComponentはModelComponentの所有権を壊さず描画状態だけ拡張する。
+
 	private:
 		bool SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode);
 		void PrepareForCurrentRenderView();
