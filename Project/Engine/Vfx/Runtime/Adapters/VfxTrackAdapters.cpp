@@ -140,6 +140,16 @@ bool VfxFluidTrackAdapter::Start(ActorWorld* world, const VfxTrackStartContext& 
 		return false;
 	}
 
+	outToken.value = context.runtimeTrackId;
+	if (const auto existing = entries_.find(outToken.value); existing != entries_.end())
+	{
+		if (existing->second.world != nullptr)
+		{
+			if (Actor* oldActor = existing->second.world->ResolveActor(existing->second.actor)) existing->second.world->DestroyActor(oldActor);
+		}
+		entries_.erase(existing); // 同じRuntime Trackを再Startしても旧ActorをSceneへ残さない。
+	}
+
 	if (context.type == VfxCueTrackType::VolumetricFluid)
 	{
 		// VFX Cueから3D Sourceを再生した時だけPhase17 Runtimeを遅延有効化し、既存2D Sceneの起動負荷は変えない。
@@ -167,7 +177,6 @@ bool VfxFluidTrackAdapter::Start(ActorWorld* world, const VfxTrackStartContext& 
 	emitter.SetTemperatureRate(payload->temperatureRate * context.parameters.intensityScale);
 	emitter.SetFalloffExponent(payload->falloffExponent);
 
-	outToken.value = context.runtimeTrackId;
 	entries_[outToken.value] = { world, world->MakeActorHandle(&actor) };
 	return true;
 }
@@ -246,6 +255,16 @@ bool VfxLightTrackAdapter::Start(ActorWorld* world, const VfxTrackStartContext& 
 		return false;
 	}
 
+	outToken.value = context.runtimeTrackId;
+	if (const auto existing = entries_.find(outToken.value); existing != entries_.end())
+	{
+		if (existing->second.world != nullptr)
+		{
+			if (Actor* oldActor = existing->second.world->ResolveActor(existing->second.actor)) existing->second.world->DestroyActor(oldActor);
+		}
+		entries_.erase(existing); // Preview再Start時に同じTrack IDのLight ActorがSceneへ増殖し続けるのを防ぐ。
+	}
+
 	Actor& actor = world->SpawnActor<Actor>();
 	actor.SetName(RuntimeActorName("Light", context.runtimeTrackId));
 	actor.AddTag("__VFX_RUNTIME");
@@ -258,7 +277,6 @@ bool VfxLightTrackAdapter::Start(ActorWorld* world, const VfxTrackStartContext& 
 	light.SetEnabled(true);
 	light.RefreshWorldTransform();
 
-	outToken.value = context.runtimeTrackId;
 	entries_[outToken.value] = { world, world->MakeActorHandle(&actor) };
 	return true;
 }
