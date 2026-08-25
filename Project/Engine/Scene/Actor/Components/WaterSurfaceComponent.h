@@ -1,5 +1,6 @@
 #pragma once
 #include "ModelComponent.h"
+#include "Matrix4x4.h"
 
 #include <algorithm>
 #include <cmath>
@@ -12,6 +13,15 @@
 
 namespace Ken4lowEngine
 {
+	struct WaterSurfaceSample
+	{
+		Vector3 worldPosition{};
+		Vector3 worldNormal{ 0.0f, 1.0f, 0.0f };
+		float signedDistance = 0.0f;
+		float submersionDepth = 0.0f;
+		bool isBelowSurface = false;
+	};
+
 	class WaterSurfaceComponent final : public ModelComponent
 	{
 	public:
@@ -62,6 +72,59 @@ namespace Ken4lowEngine
 		bool SupportsShadowCasting() const override { return false; }
 
 		std::string GetClassTypeName() const override { return "WaterSurfaceComponent"; }
+
+		WaterSurfaceSample SampleSurfaceAtWorldPosition(const Vector3& worldPosition) const
+		{
+			WaterSurfaceSample sample{};
+			const Matrix4x4 worldMatrix = Matrix4x4::MakeAffineMatrix(GetWorldScale(), GetWorldRotation(), GetWorldPosition());
+			Matrix4x4 inverseWorld{};
+			if (!Matrix4x4::TryInverse(worldMatrix, inverseWorld))
+			{
+				sample.worldPosition = GetWorldPosition();
+				sample.signedDistance = worldPosition.y - sample.worldPosition.y;
+				sample.submersionDepth = (std::max)(-sample.signedDistance, 0.0f);
+				sample.isBelowSurface = sample.signedDistance < 0.0f;
+				return sample;
+			}
+
+			const Vector3 localQuery = Vector3::Transform(worldPosition, inverseWorld);
+			float baseX = localQuery.x;
+			float baseY = localQuery.y;
+			GerstnerEvaluation evaluation{};
+
+			if (gerstnerEnabled_)
+			{
+				for (int iteration = 0; iteration < 3; ++iteration)
+				{
+					evaluation = EvaluateGerstner(baseX, baseY);
+					baseX = localQuery.x - evaluation.offsetX;
+					baseY = localQuery.y - evaluation.offsetY;
+				}
+				evaluation = EvaluateGerstner(baseX, baseY);
+			}
+
+			const Vector3 localSurfacePosition{
+				baseX + evaluation.offsetX,
+				baseY + evaluation.offsetY,
+				evaluation.height
+			};
+			const Vector3 localSurfaceNormal = Vector3::NormalizeSafe(
+				{ -evaluation.gradientX, -evaluation.gradientY, 1.0f },
+				{ 0.0f, 0.0f, 1.0f });
+
+			const Matrix4x4 normalMatrix = Matrix4x4::Transpose(inverseWorld);
+			sample.worldPosition = Vector3::Transform(localSurfacePosition, worldMatrix);
+			sample.worldNormal = Vector3::NormalizeSafe(TransformDirection(localSurfaceNormal, normalMatrix), { 0.0f, 1.0f, 0.0f });
+			sample.signedDistance = Vector3::Dot(worldPosition - sample.worldPosition, sample.worldNormal);
+			sample.submersionDepth = (std::max)(-sample.signedDistance, 0.0f);
+			sample.isBelowSurface = sample.signedDistance < 0.0f;
+			return sample; // CPU判定もGPUと同じGerstner位相を参照し、見た目の波面と入水判定を一致させる。
+		}
+
+		float GetSurfaceHeightAtWorldPosition(const Vector3& worldPosition) const
+		{
+			return SampleSurfaceAtWorldPosition(worldPosition).worldPosition.y;
+		}
 
 		void ToJson(nlohmann::json& outJson) const override
 		{
@@ -148,6 +211,95 @@ namespace Ken4lowEngine
 		}
 
 	private:
+		struct GerstnerEvaluation
+		{
+			float offsetX = 0.0f;
+			float offsetY = 0.0f;
+			float height = 0.0f;
+			float gradientX = 0.0f;
+			float gradientY = 0.0f;
+		};
+
+		static Vector3 TransformDirection(const Vector3& direction, const Matrix4x4& matrix)
+		{
+			return {
+				direction.x * matrix.m[0][0] + direction.y * matrix.m[1][0] + direction.z * matrix.m[2][0],
+				direction.x * matrix.m[0][1] + direction.y * matrix.m[1][1] + direction.z * matrix.m[2][1],
+				direction.x * matrix.m[0][2] + direction.y * matrix.m[1][2] + direction.z * matrix.m[2][2]
+			};
+		}
+
+		static void AccumulateGerstner(
+			float baseX,
+			float baseY,
+			float directionX,
+			float directionY,
+			float amplitude,
+			float wavelength,
+			float speed,
+			float steepness,
+			float time,
+			float phaseOffset,
+			GerstnerEvaluation& evaluation)
+		{
+			constexpr float twoPi = 2.0f * std::numbers::pi_v<float>;
+			const float safeWavelength = (std::max)(wavelength, 0.001f);
+			const float directionLength = std::sqrt(directionX * directionX + directionY * directionY);
+			if (directionLength <= 0.0001f) return;
+
+			directionX /= directionLength;
+			directionY /= directionLength;
+			const float waveNumber = twoPi / safeWavelength;
+			const float phase = waveNumber * (directionX * baseX + directionY * baseY) - time * speed + phaseOffset;
+			const float sinePhase = std::sin(phase);
+			const float cosinePhase = std::cos(phase);
+			const float clampedSteepness = std::clamp(steepness, 0.0f, 1.0f);
+
+			evaluation.offsetX += directionX * (clampedSteepness * amplitude * cosinePhase);
+			evaluation.offsetY += directionY * (clampedSteepness * amplitude * cosinePhase);
+			evaluation.height += amplitude * sinePhase;
+			evaluation.gradientX += directionX * (amplitude * waveNumber * cosinePhase);
+			evaluation.gradientY += directionY * (amplitude * waveNumber * cosinePhase);
+		}
+
+		GerstnerEvaluation EvaluateGerstner(float baseX, float baseY) const
+		{
+			GerstnerEvaluation evaluation{};
+			if (!gerstnerEnabled_) return evaluation;
+
+			const float amplitude = std::clamp(gerstnerAmplitude_, 0.0f, 0.25f);
+			const float wavelength = (std::max)(gerstnerWavelength_, 0.1f);
+			const float speed = (std::max)(gerstnerSpeed_, 0.0f);
+			const float steepness = std::clamp(gerstnerSteepness_, 0.0f, 1.0f);
+			const float directionRadians = gerstnerDirectionDegrees_ * std::numbers::pi_v<float> / 180.0f;
+			const float primaryX = std::cos(directionRadians);
+			const float primaryY = std::sin(directionRadians);
+
+			AccumulateGerstner(baseX, baseY, primaryX, primaryY, amplitude, wavelength, speed, steepness, waterTime_, 0.0f, evaluation);
+
+			float secondaryX = -primaryY + primaryX * 0.35f;
+			float secondaryY = primaryX + primaryY * 0.35f;
+			const float secondaryLength = std::sqrt(secondaryX * secondaryX + secondaryY * secondaryY);
+			if (secondaryLength > 0.0001f)
+			{
+				secondaryX /= secondaryLength;
+				secondaryY /= secondaryLength;
+			}
+			AccumulateGerstner(
+				baseX,
+				baseY,
+				secondaryX,
+				secondaryY,
+				amplitude * 0.45f,
+				wavelength * 0.58f,
+				speed * 1.35f,
+				steepness * 0.7f,
+				waterTime_,
+				1.7f,
+				evaluation);
+			return evaluation;
+		}
+
 		void ApplyWaterMaterial()
 		{
 			Object3D* object3D = GetObject3D();
