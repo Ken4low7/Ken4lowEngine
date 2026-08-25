@@ -26,6 +26,7 @@
 #include "SkeletalMeshComponent.h"
 #include "SpriteComponent.h"
 #include "TextComponent.h"
+#include "WaterSurfaceComponent.h"
 #include "WorldGaugeComponent.h"
 #include "WorldAudioComponent.h"
 #include "WorldSpriteComponent.h"
@@ -103,6 +104,8 @@ namespace Ken4lowEngine
 			MakeComponentTypeInfo<HumanoidVisualComponent>("HumanoidVisualComponent", false, "人型表示", "キャラクター", "人型部位の生成、親子Transform、表示、Material、JSONを共通管理します。"),
 
 			MakeComponentTypeInfo<ModelComponent>("ModelComponent", true, "モデルコンポーネント", "描画", "Actorに3Dモデルの描画機能を追加します。"),
+
+			MakeComponentTypeInfo<WaterSurfaceComponent>("WaterSurfaceComponent", true, "ウォーターサーフェス", "描画", "透明な水面を描画し、同ActorのPlanar Reflectionを水面反射として利用します。"),
 
 			MakeComponentTypeInfo<AnimatedModelComponent>("AnimatedModelComponent", true, "アニメーションモデルコンポーネント", "描画", "ボーンを使わない3Dモデルアニメーションを再生するComponentです。"),
 
