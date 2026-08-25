@@ -2,6 +2,7 @@
 #include "SceneComponent.h"
 #include "ComponentProperty.h"
 #include "MaterialBinding.h"
+#include "Engine/Graphics/Renderer/Reflection/ReflectionCaptureDrawable.h"
 #include <InstancedObject3DRenderer.h>
 
 #include <cstddef>
@@ -18,7 +19,7 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	///   Actorにインスタンシング描画機能を追加するComponentクラス
 	/// -------------------------------------------------------------
-	class InstancedModelComponent : public SceneComponent
+	class InstancedModelComponent : public SceneComponent, public ReflectionCaptureDrawable
 	{
 	public:
 		using InstanceTransform = InstancedObject3DRenderer::InstanceTransform;
@@ -28,7 +29,7 @@ namespace Ken4lowEngine
 		void UpdateEditor(float deltaTime) override;
 		void PostPhysicsUpdate(float deltaTime) override;
 		void Draw() override;
-		void DrawReflectionCapture()
+		void DrawReflectionCapture() override
 		{
 			if (!visible_ || !IsActiveInHierarchy() || !renderer_ || !isInitializedRenderer_) return;
 			const MaterialBlendMode blendMode = renderer_->GetBlendMode();
@@ -109,7 +110,7 @@ namespace Ken4lowEngine
 		std::vector<InstanceTransform> instanceTransforms_{}; // Component基準のLocal TransformをInstanceごとに保持する。
 
 		bool isRebuildRequested_ = true;
-		bool isLayoutRebuildRequested_ = true;
+		bool isLayoutRebuildRequested_ = false;
 		bool isInitializedRenderer_ = false;
 		bool hasInitialized_ = false;
 		Vector3 lastWorldPosition_{};
