@@ -24,7 +24,17 @@ namespace Ken4lowEngine
 	public:
 		void Initialize() override;
 		void Update(float deltaTime) override;
-		void UpdateEditor(float deltaTime) override;
+		void UpdateEditor(float deltaTime) override
+		{
+			SceneComponent::UpdateEditor(deltaTime);
+			ProcessReloadRequest();
+			RefreshSharedMaterialBinding();
+			if (!animationModel_) return;
+			SyncTransformToAnimationModel();
+			ApplyPlaybackSettings();
+			animationModel_->Update(); // Editorで選択したSkeletal AssetをReloadし、Skinning姿勢まで描画前に更新する。
+			isPlaying_ = IsPlaying();
+		}
 		void PostPhysicsUpdate(float deltaTime) override;
 		void Draw() override;
 		MaterialBlendMode GetReflectionCaptureBlendMode() const override { return ResolveForwardBlendMode(); }
