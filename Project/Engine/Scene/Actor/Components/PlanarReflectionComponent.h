@@ -75,6 +75,7 @@ namespace Ken4lowEngine
 		void InvalidateAutoNormalCache() const
 		{
 			autoNormalCacheValid_ = false;
+			autoNormalHasResolvedAxis_ = false;
 			autoNormalReceiver_ = nullptr;
 			autoNormalReceiverRevision_ = 0;
 		}
@@ -94,6 +95,7 @@ namespace Ken4lowEngine
 		float debugPlaneSize_ = 2.0f;
 
 		mutable bool autoNormalCacheValid_ = false;
+		mutable bool autoNormalHasResolvedAxis_ = false;
 		mutable const ModelComponent* autoNormalReceiver_ = nullptr;
 		mutable std::uint64_t autoNormalReceiverRevision_ = 0;
 		mutable Vector3 autoNormalAxis_{ 0.0f, 1.0f, 0.0f };
