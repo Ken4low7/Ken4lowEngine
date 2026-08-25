@@ -18,7 +18,7 @@
 
 namespace Ken4lowEngine
 {
-	 namespace
+	namespace
 	{
 		std::string MakeEditorUndoActorPath(const char* prefix, const Actor* actor)
 		{
