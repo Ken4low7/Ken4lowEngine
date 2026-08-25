@@ -178,6 +178,12 @@ namespace Ken4lowEngine
 			D3D12_RECT scissor{};
 		};
 
+		struct RetiredTarget
+		{
+			std::unique_ptr<SurfaceTarget> target;
+			uint64_t fenceValue = 0;
+		};
+
 		struct SurfaceRuntime
 		{
 			const void* owner = nullptr;
@@ -202,6 +208,8 @@ namespace Ken4lowEngine
 		SurfaceRuntime* FindCaptureCandidate();
 		bool EnsureTarget(SurfaceRuntime& surface);
 		std::unique_ptr<SurfaceTarget> CreateTarget(PlanarReflectionQuality quality);
+		void RetireTarget(std::unique_ptr<SurfaceTarget> target);
+		void CollectRetiredTargets();
 		void ReleaseTarget(SurfaceTarget& target);
 		void TransitionTarget(SurfaceTarget& target, D3D12_RESOURCE_STATES nextState);
 		void BeginTarget(SurfaceTarget& target);
@@ -212,6 +220,7 @@ namespace Ken4lowEngine
 
 		DirectXCommon* dxCommon_ = nullptr;
 		std::vector<SurfaceRuntime> surfaces_{};
+		std::vector<RetiredTarget> retiredTargets_{};
 		std::vector<PlanarReflectionDrawSet> drawBindings_{};
 		std::size_t captureCursor_ = 0;
 		uint64_t captureSerial_ = 0;
