@@ -25,6 +25,7 @@ namespace Ken4lowEngine
 		void Update(float deltaTime) override;
 		void PostPhysicsUpdate(float deltaTime) override;
 		void Draw() override;
+		void DrawReflectionCapture();
 		void DrawShadow() override
 		{
 			if (!visible_ || !IsCastShadowEnabled() || !animatedModel_ || !hasMesh_)
