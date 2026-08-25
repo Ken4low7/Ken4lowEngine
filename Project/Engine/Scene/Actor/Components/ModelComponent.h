@@ -28,6 +28,14 @@ namespace Ken4lowEngine
 		void PostPhysicsUpdate(float deltaTime) override;
 		void Draw() override;
 		void DrawShadow() override;
+		MaterialBlendMode GetReflectionCaptureBlendMode() const override
+		{
+			return object3D_ ? object3D_->GetBlendMode() : MaterialBlendMode::Opaque;
+		}
+		Vector3 GetReflectionCaptureSortPosition() const override
+		{
+			return object3D_ && object3D_->HasWorldBoundsForCulling() ? object3D_->GetWorldBoundsForCulling().center : GetWorldPosition();
+		}
 		void DrawReflectionCapture() override;
 		BoundingSphere GetReflectionCaptureBounds() const
 		{
