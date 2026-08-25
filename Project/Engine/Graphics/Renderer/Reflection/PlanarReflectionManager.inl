@@ -52,6 +52,26 @@ namespace Ken4lowEngine
 			return point - planeNormal * (2.0f * signedDistance);
 		}
 
+		inline Matrix4x4 BuildPlaneReflectionMatrix(const Vector3& planePoint, const Vector3& planeNormal)
+		{
+			const Vector3 normal = Vector3::NormalizeSafe(planeNormal, { 0.0f, 1.0f, 0.0f });
+			const float planeD = -Vector3::Dot(normal, planePoint);
+			Matrix4x4 reflection = Matrix4x4::MakeIdentity();
+			reflection.m[0][0] = 1.0f - 2.0f * normal.x * normal.x;
+			reflection.m[0][1] = -2.0f * normal.x * normal.y;
+			reflection.m[0][2] = -2.0f * normal.x * normal.z;
+			reflection.m[1][0] = -2.0f * normal.y * normal.x;
+			reflection.m[1][1] = 1.0f - 2.0f * normal.y * normal.y;
+			reflection.m[1][2] = -2.0f * normal.y * normal.z;
+			reflection.m[2][0] = -2.0f * normal.z * normal.x;
+			reflection.m[2][1] = -2.0f * normal.z * normal.y;
+			reflection.m[2][2] = 1.0f - 2.0f * normal.z * normal.z;
+			reflection.m[3][0] = -2.0f * planeD * normal.x;
+			reflection.m[3][1] = -2.0f * planeD * normal.y;
+			reflection.m[3][2] = -2.0f * planeD * normal.z;
+			return reflection; // Row-vectorの平面鏡映をそのままViewへ合成し、位置と向きの面対称性を保持する。
+		}
+
 		inline Vector3 TransformDirection(const Vector3& direction, const Matrix4x4& matrix)
 		{
 			return {
@@ -503,27 +523,14 @@ namespace Ken4lowEngine
 		const Vector3 planeNormal = Vector3::NormalizeSafe(surface.desc.normal, { 0.0f, 1.0f, 0.0f });
 		const Vector3 cameraPosition = cameraManager->GetActiveCameraPosition();
 		const Vector3 cameraForward = Vector3::NormalizeSafe(cameraManager->GetActiveCameraForward(), { 0.0f, 0.0f, 1.0f });
-
-		Vector3 referenceUp{ 0.0f, 1.0f, 0.0f };
-		if (std::fabs(Vector3::Dot(referenceUp, cameraForward)) > 0.98f)
-		{
-			referenceUp = { 0.0f, 0.0f, 1.0f };
-		}
-		const Vector3 cameraRight = Vector3::NormalizeSafe(Vector3::Cross(referenceUp, cameraForward), { 1.0f, 0.0f, 0.0f });
-		const Vector3 cameraUp = Vector3::NormalizeSafe(Vector3::Cross(cameraForward, cameraRight), { 0.0f, 1.0f, 0.0f });
 		const Vector3 reflectedPosition = PlanarReflectionDetail::ReflectPoint(cameraPosition, surface.desc.position, planeNormal);
 		const Vector3 reflectedForward = Vector3::NormalizeSafe(
 			PlanarReflectionDetail::ReflectVector(cameraForward, planeNormal),
 			{ 0.0f, 0.0f, 1.0f });
-		const Vector3 reflectedUp = Vector3::NormalizeSafe(
-			PlanarReflectionDetail::ReflectVector(cameraUp, planeNormal),
-			{ 0.0f, 1.0f, 0.0f });
+		const Matrix4x4 reflectionMatrix = PlanarReflectionDetail::BuildPlaneReflectionMatrix(surface.desc.position, planeNormal);
 
 		CameraManager::RenderViewOverride reflectedView{};
-		reflectedView.view = Matrix4x4::LookAt(
-			reflectedPosition,
-			reflectedPosition + reflectedForward,
-			reflectedUp);
+		reflectedView.view = Matrix4x4::Multiply(reflectionMatrix, cameraManager->GetActiveViewMatrix());
 
 		Vector3 keepSideNormal = planeNormal;
 		if (Vector3::Dot(cameraPosition - surface.desc.position, keepSideNormal) < 0.0f)
