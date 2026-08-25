@@ -114,6 +114,11 @@ namespace Ken4lowEngine
 			ImGui::Text("Water Surface: %s", waterSurface_ ? "Found" : "Missing");
 			ImGui::Text("Candidates: %d", static_cast<int>(trackedColliders_.size()));
 			ImGui::Text("In Water: %d", static_cast<int>(GetInWaterCount()));
+			if (trackedColliders_.empty())
+			{
+				ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.35f, 1.0f), "候補0: 対象ActorにColliderComponentが必要です。");
+			}
+			ImGui::TextDisabled("Candidates / In Water はPlay中のPhysics Stepで更新されます。"); // Editor停止中の0表示を故障と誤認しないよう更新条件を明示する。
 			ImGui::TextDisabled("Triggerは候補抽出専用です。実際の入水判定はGerstner波面で行います。");
 #endif
 			SyncVolumeToSurface();
