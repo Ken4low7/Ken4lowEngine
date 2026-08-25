@@ -3,9 +3,12 @@
 #include "ReflectionProbeManager.h"
 #include "PlanarReflectionSceneBridge.h"
 #include "ActorWorld.h"
+#include "AnimatedModelComponent.h"
+#include "InstancedModelComponent.h"
 #include "ModelComponent.h"
 #include "PlanarReflectionComponent.h"
 #include "ReflectionProbeComponent.h"
+#include "SkeletalMeshComponent.h"
 
 #ifdef USE_IMGUI
 #include <Editor/EditorActorStateRegistry.h>
@@ -56,8 +59,20 @@ namespace Ken4lowEngine
 				{
 					if (model)
 					{
-						model->DrawReflectionCapture(); // v1は静的Opaque/MaskedだけをCaptureし、透明/Particle/鏡面は再帰させない。
+						model->DrawReflectionCapture(); // Opaque/Maskedの静的ModelをProbe Captureへ描画する。
 					}
+				}
+				for (InstancedModelComponent* instanced : actor->GetComponents<InstancedModelComponent>())
+				{
+					if (instanced) instanced->DrawReflectionCapture(); // ProbeとPlanarでCapture対象Componentの差を作らない。
+				}
+				for (AnimatedModelComponent* animated : actor->GetComponents<AnimatedModelComponent>())
+				{
+					if (animated) animated->DrawReflectionCapture();
+				}
+				for (SkeletalMeshComponent* skeletal : actor->GetComponents<SkeletalMeshComponent>())
+				{
+					if (skeletal) skeletal->DrawReflectionCapture();
 				}
 			}
 		}
