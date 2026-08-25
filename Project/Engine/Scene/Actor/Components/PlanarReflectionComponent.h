@@ -45,6 +45,8 @@ namespace Ken4lowEngine
 		float GetStrength() const { return strength_; }
 		void SetUpdateMode(PlanarReflectionUpdateMode updateMode) { updateMode_ = updateMode; }
 		PlanarReflectionUpdateMode GetUpdateMode() const { return updateMode_; }
+		void SetQuality(PlanarReflectionQuality quality) { quality_ = quality; }
+		PlanarReflectionQuality GetQuality() const { return quality_; }
 		void SetFlipNormal(bool flip) { flipNormal_ = flip; }
 		bool IsNormalFlipped() const { return flipNormal_; }
 		void SetAutoFitToReceiverSurface(bool enabled) { autoFitToReceiverSurface_ = enabled; }
@@ -65,6 +67,7 @@ namespace Ken4lowEngine
 		bool enabled_ = true;
 		float strength_ = 1.0f;
 		PlanarReflectionUpdateMode updateMode_ = PlanarReflectionUpdateMode::EveryFrame;
+		PlanarReflectionQuality quality_ = PlanarReflectionQuality::Ultra;
 		bool flipNormal_ = false;
 		bool autoFitToReceiverSurface_ = true;
 		float planeOffset_ = 0.0f;
