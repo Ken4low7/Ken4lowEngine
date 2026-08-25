@@ -542,6 +542,11 @@ namespace Ken4lowEngine
 			return;
 		}
 
+		if (cameraData)
+		{
+			cameraData->worldPosition = CameraManager::GetInstance()->GetActiveCameraPosition(); // Update時も現在ViewのCamera定数へ同期する。
+		}
+
 		const Animation* currentAnimation = GetCurrentAnimation();
 
 		// アニメーション時間の更新
@@ -613,6 +618,19 @@ namespace Ken4lowEngine
 		if (!dxCommon_ || !wvpData_)
 		{
 			return;
+		}
+
+		const float distSq = CalcDistanceSqToCamera();
+		const int previousLod = lodController_.GetLODIndex();
+		const bool lodChanged = lodController_.UpdateByDistanceSq(distSq, static_cast<int>(lods_.size()));
+		const int lodIndex = lodController_.GetLODIndex();
+		if (lodChanged && lodIndex != previousLod && 0 <= lodIndex && lodIndex < static_cast<int>(lods_.size()))
+		{
+			skinningCS_.SetVertexCount(lods_[lodIndex].vertexCount);
+		}
+		if (cameraData)
+		{
+			cameraData->worldPosition = CameraManager::GetInstance()->GetActiveCameraPosition(); // Reflection/Mainの各Draw直前にActive Viewへ同期する。
 		}
 
 		UpdateAnimation();
@@ -1190,7 +1208,7 @@ namespace Ken4lowEngine
 	void AnimationModel::DrawSkinned(MaterialCullMode cullMode)
 	{
 		if (lodController_.IsCulled()) { return; }
-		if (!dxCommon_ || lods_.empty()) { return; }
+		if (!dxCommon_ || lods_.empty() || !wvpData_ || !cameraData || !shadowParameterData_) { return; }
 
 		auto* commandList = dxCommon_->GetCommandManager()->GetCommandList();
 		const int lodIndex = lodController_.GetLODIndex();
@@ -1198,15 +1216,21 @@ namespace Ken4lowEngine
 		auto& L = lods_[lodIndex];
 		const Matrix4x4 cullWorld = GetCullWorldMatrix();
 
+		FrameUploadArena& frameUploadArena = dxCommon_->GetFrameUploadArena();
+		const FrameUploadArena::Allocation transformAllocation = frameUploadArena.AllocateConstant(*wvpData_);
+		const FrameUploadArena::Allocation cameraAllocation = frameUploadArena.AllocateConstant(*cameraData);
+		const FrameUploadArena::Allocation shadowParameterAllocation = frameUploadArena.AllocateConstant(*shadowParameterData_);
+		if (!transformAllocation.IsValid() || !cameraAllocation.IsValid() || !shadowParameterAllocation.IsValid()) { return; }
+
 		TextureManager::GetInstance()->SetGraphicsRootDescriptorTable(
 			commandList, 4,
 			EnvironmentMapManager::GetInstance()->GetEnvironmentMapHandle()); // t1: Scene共通Environmentを描画時に解決する。
-		commandList->SetGraphicsRootConstantBufferView(7, shadowParameterResource_->GetGPUVirtualAddress());
+		commandList->SetGraphicsRootConstantBufferView(7, shadowParameterAllocation.gpuAddress);
 		commandList->SetGraphicsRootDescriptorTable(8, shadowMapHandle_);
 		materialTextureSlots_.BindAdditionalSlots(commandList, 10, 11, 12, 13); // t6:MR t7:Normal t8:AO t9:Emissive
 		material_.SetPipeline();
-		commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
-		commandList->SetGraphicsRootConstantBufferView(3, cameraResource->GetGPUVirtualAddress());
+		commandList->SetGraphicsRootConstantBufferView(1, transformAllocation.gpuAddress);
+		commandList->SetGraphicsRootConstantBufferView(3, cameraAllocation.gpuAddress); // Reflection/Mainで同じMapped CBVを上書きせずDrawごとの値を固定する。
 
 		if (skinningCS_.IsSkinningModel())
 		{
