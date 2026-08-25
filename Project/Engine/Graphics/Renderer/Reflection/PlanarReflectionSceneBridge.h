@@ -59,7 +59,7 @@ namespace Ken4lowEngine
 					if (!component || !component->IsActiveInHierarchy()) continue;
 					auto* drawable = dynamic_cast<ReflectionCaptureDrawable*>(component.get());
 					if (!drawable) continue;
-					drawable->DrawReflectionCapture(); // Reflection対応Componentを型追加なしでCaptureへ参加させ、水面などの将来拡張もBridge変更不要にする。
+					drawable->DrawReflectionCapture(); // 対応Componentを型追加なしで描き、鏡裏側の除去はReflection CameraのOblique Near Planeへ委ねる。
 				}
 			}
 		}
