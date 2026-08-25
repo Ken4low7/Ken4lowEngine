@@ -12,7 +12,7 @@
 
 namespace Ken4lowEngine
 {
-	static_assert(sizeof(Material::MaterialCBData) == 240, "MaterialCBData must match the HLSL b0 layout.");
+	static_assert(sizeof(Material::MaterialCBData) == 272, "MaterialCBData must match the HLSL b0 layout.");
 
 	namespace
 	{
@@ -122,6 +122,14 @@ namespace Ken4lowEngine
 		materialData_->planarReflectionViewProjection = Matrix4x4::MakeIdentity();
 		materialData_->planarReflectionPlane = { 0.0f, 1.0f, 0.0f, 0.0f };
 		materialData_->planarReflectionSurfaceParams = { 0.025f, 0.0f, 0.0f, 0.0f }; // Planar反射はDraw Scopeだけで有効にし、通常Materialへ状態を持ち越さない。
+		materialData_->waterSurfaceEnabled = 0.0f;
+		materialData_->waterTime = 0.0f;
+		materialData_->waterWaveScale = 0.35f;
+		materialData_->waterWaveSpeed = 1.0f;
+		materialData_->waterNormalStrength = 0.12f;
+		materialData_->waterFresnelF0 = 0.02f;
+		materialData_->waterReflectionDistortion = 0.08f;
+		materialData_->waterSecondaryWaveScale = 0.67f;
 		cullMode_ = MaterialCullMode::Back; // 通常Materialは表面だけを描画し、両面は明示Opt-inにする。
 		blendMode_ = MaterialBlendMode::Opaque; // 旧MaterialはForward Opaqueへ安全にフォールバックする。
 	}
@@ -151,6 +159,14 @@ namespace Ken4lowEngine
 		materialData_->planarReflectionViewProjection = Matrix4x4::MakeIdentity();
 		materialData_->planarReflectionPlane = { 0.0f, 1.0f, 0.0f, 0.0f };
 		materialData_->planarReflectionSurfaceParams = { 0.025f, 0.0f, 0.0f, 0.0f }; // MaterialAsset適用時も前Drawの一時Planar状態を永続値へ混ぜない。
+		materialData_->waterSurfaceEnabled = 0.0f;
+		materialData_->waterTime = 0.0f;
+		materialData_->waterWaveScale = 0.35f;
+		materialData_->waterWaveSpeed = 1.0f;
+		materialData_->waterNormalStrength = 0.12f;
+		materialData_->waterFresnelF0 = 0.02f;
+		materialData_->waterReflectionDistortion = 0.08f;
+		materialData_->waterSecondaryWaveScale = 0.67f; // MaterialAsset適用時はWaterを明示OFFへ戻し、専用Componentだけが再度Opt-inする。
 		cullMode_ = desc.cullMode;
 		blendMode_ = desc.blendMode;
 	}
