@@ -2,6 +2,7 @@
 #include "DX12Include.h"
 #include "Matrix4x4.h"
 #include "Vector4.h"
+#include "CameraManager.h"
 #include <Engine/Graphics/Device/Buffer/PerFrameUploadBuffer.h>
 #include <cstdint>
 #include <string>
@@ -24,12 +25,19 @@ enum class MaterialBlendMode : uint8_t
 	Additive,
 };
 
-inline float CalculateWorldHandednessDeterminant(const Matrix4x4& world)
+inline float CalculateMatrixHandednessDeterminant(const Matrix4x4& matrix)
 {
 	return
-		world.m[0][0] * (world.m[1][1] * world.m[2][2] - world.m[1][2] * world.m[2][1]) -
-		world.m[0][1] * (world.m[1][0] * world.m[2][2] - world.m[1][2] * world.m[2][0]) +
-		world.m[0][2] * (world.m[1][0] * world.m[2][1] - world.m[1][1] * world.m[2][0]);
+		matrix.m[0][0] * (matrix.m[1][1] * matrix.m[2][2] - matrix.m[1][2] * matrix.m[2][1]) -
+		matrix.m[0][1] * (matrix.m[1][0] * matrix.m[2][2] - matrix.m[1][2] * matrix.m[2][0]) +
+		matrix.m[0][2] * (matrix.m[1][0] * matrix.m[2][1] - matrix.m[1][1] * matrix.m[2][0]);
+}
+
+inline float CalculateWorldHandednessDeterminant(const Matrix4x4& world)
+{
+	const float worldHandedness = CalculateMatrixHandednessDeterminant(world);
+	const float viewHandedness = CalculateMatrixHandednessDeterminant(CameraManager::GetInstance()->GetActiveViewMatrix());
+	return worldHandedness * viewHandedness; // 負Scaleと鏡映Viewを合成したRasterizer上の最終巻き順を返す。
 }
 
 inline MaterialCullMode ResolveMaterialCullModeForWorld(MaterialCullMode cullMode, const Matrix4x4& world)
@@ -38,7 +46,7 @@ inline MaterialCullMode ResolveMaterialCullModeForWorld(MaterialCullMode cullMod
 	{
 		return cullMode;
 	}
-	// 負Scaleなどの鏡映Transformでは巻き順が反転するため、Front/Backを入れ替えて表面契約を維持する。
+	// 負Scaleまたは鏡映Viewでは巻き順が反転するため、Front/Backを入れ替えて表面契約を維持する。
 	return cullMode == MaterialCullMode::Back ? MaterialCullMode::Front : MaterialCullMode::Back;
 }
 
