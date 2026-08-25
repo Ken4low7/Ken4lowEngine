@@ -107,9 +107,25 @@ namespace Ken4lowEngine
 			float normalStrength,
 			float fresnelF0,
 			float reflectionDistortion,
-			float secondaryWaveScale)
+			float secondaryWaveScale,
+			bool gerstnerEnabled,
+			float gerstnerAmplitude,
+			float gerstnerWavelength,
+			float gerstnerSpeed,
+			float gerstnerSteepness,
+			float gerstnerDirectionX,
+			float gerstnerDirectionY)
 		{
-			material_.SetWaterSurfaceState(enabled, time, waveScale, waveSpeed, normalStrength, fresnelF0, reflectionDistortion, secondaryWaveScale); // Water Componentから描画内部Materialへ専用状態だけを転送する。
+			material_.SetWaterSurfaceState(enabled, time, waveScale, waveSpeed, normalStrength, fresnelF0, reflectionDistortion, secondaryWaveScale);
+			worldTransform_.SetWaterDeformationState(
+				gerstnerEnabled,
+				time,
+				gerstnerAmplitude,
+				gerstnerWavelength,
+				gerstnerSpeed,
+				gerstnerSteepness,
+				gerstnerDirectionX,
+				gerstnerDirectionY); // Reflection CaptureとMain Viewの両方が同じGerstner変形を使う。
 		}
 		void ApplyMaterialDesc(const MaterialDesc& desc);
 		void ResetMaterialBinding();
