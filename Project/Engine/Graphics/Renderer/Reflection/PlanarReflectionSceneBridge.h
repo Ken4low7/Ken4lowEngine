@@ -3,7 +3,12 @@
 #include "PlanarReflectionManager.h"
 #include "ReflectionCaptureDrawable.h"
 #include "ActorWorld.h"
+#include "CameraManager.h"
 #include "PlanarReflectionComponent.h"
+
+#include <algorithm>
+#include <cstdint>
+#include <vector>
 
 #ifdef USE_IMGUI
 #include <Editor/EditorActorStateRegistry.h>
@@ -45,6 +50,20 @@ namespace Ken4lowEngine
 
 		static void DrawScene(ActorWorld& actorWorld, const Actor* excludedReceiver)
 		{
+			struct CaptureItem
+			{
+				ReflectionCaptureDrawable* drawable = nullptr;
+				MaterialBlendMode blendMode = MaterialBlendMode::Opaque;
+				float sortDepth = 0.0f;
+				uint64_t submissionOrder = 0;
+			};
+
+			CameraManager* cameraManager = CameraManager::GetInstance();
+			const Vector3 cameraPosition = cameraManager->GetActiveCameraPosition();
+			const Vector3 cameraForward = Vector3::NormalizeSafe(cameraManager->GetActiveCameraForward(), { 0.0f, 0.0f, 1.0f });
+			std::vector<CaptureItem> captureItems;
+			uint64_t submissionOrder = 0;
+
 			for (const auto& actor : actorWorld.GetActors())
 			{
 				Actor* sceneActor = actor.get();
@@ -59,12 +78,55 @@ namespace Ken4lowEngine
 					if (!component || !component->IsActiveInHierarchy()) continue;
 					auto* drawable = dynamic_cast<ReflectionCaptureDrawable*>(component.get());
 					if (!drawable) continue;
-					drawable->DrawReflectionCapture(); // 対応Componentを型追加なしで描き、鏡裏側の除去はReflection CameraのOblique Near Planeへ委ねる。
+
+					const Vector3 sortPosition = drawable->GetReflectionCaptureSortPosition();
+					const Vector3 toDrawable = sortPosition - cameraPosition;
+					CaptureItem item{};
+					item.drawable = drawable;
+					item.blendMode = drawable->GetReflectionCaptureBlendMode();
+					item.sortDepth = Vector3::Dot(toDrawable, cameraForward);
+					item.submissionOrder = submissionOrder++;
+					captureItems.push_back(item);
 				}
+			}
+
+			std::stable_sort(
+				captureItems.begin(),
+				captureItems.end(),
+				[](const CaptureItem& lhs, const CaptureItem& rhs)
+				{
+					const int lhsPass = GetCapturePassOrder(lhs.blendMode);
+					const int rhsPass = GetCapturePassOrder(rhs.blendMode);
+					if (lhsPass != rhsPass) return lhsPass < rhsPass;
+
+					const bool transparentPass =
+						lhs.blendMode == MaterialBlendMode::Transparent || lhs.blendMode == MaterialBlendMode::Additive;
+					if (lhs.sortDepth != rhs.sortDepth)
+					{
+						return transparentPass ? lhs.sortDepth > rhs.sortDepth : lhs.sortDepth < rhs.sortDepth;
+					}
+					return lhs.submissionOrder < rhs.submissionOrder;
+				});
+
+			for (const CaptureItem& item : captureItems)
+			{
+				if (item.drawable) item.drawable->DrawReflectionCapture(); // Opaque→Masked→Transparent→Additive順で描き、透明系は反射Camera基準Back-to-Frontにする。
 			}
 		}
 
 	private:
+		static int GetCapturePassOrder(MaterialBlendMode blendMode)
+		{
+			switch (blendMode)
+			{
+			case MaterialBlendMode::Opaque: return 0;
+			case MaterialBlendMode::Masked: return 1;
+			case MaterialBlendMode::Transparent: return 2;
+			case MaterialBlendMode::Additive: return 3;
+			default: return 0;
+			}
+		}
+
 		static bool HasActivePlanarSurface(Actor* actor)
 		{
 			if (!actor) return false;
