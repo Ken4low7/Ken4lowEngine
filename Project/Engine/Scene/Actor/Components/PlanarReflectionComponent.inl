@@ -128,13 +128,13 @@ namespace Ken4lowEngine
 			changed = true;
 		}
 
-		if (ImGui::Checkbox("Receiver最薄軸から面方向を自動判定##PlanarReflectionAutoNormal", &autoDetectReceiverNormal_))
+		if (ImGui::Checkbox("Receiver形状から面方向を自動判定##PlanarReflectionAutoNormal", &autoDetectReceiverNormal_))
 		{
 			InvalidateAutoNormalCache();
 			changed = true;
 		}
 		ImGui::TextDisabled(autoDetectReceiverNormal_
-			? "単一鏡面ではReceiver Modelの最薄軸を法線にし、Camera側の面を自動選択します。"
+			? "平たいReceiverは最薄軸、Cube等は初回Camera視線に最も正対する軸を法線にします。"
 			: "手動面ではReceiver Local軸を指定し、親Transformを含めてWorld法線へ変換します。");
 
 		ImGui::TextDisabled("手動面プリセット（押すと自動判定をOFFにします）");
@@ -187,7 +187,7 @@ namespace Ken4lowEngine
 			captureStats.transparentCount,
 			captureStats.additiveCount);
 		ImGui::Text("Oblique Clip: %s", diagnostics.obliqueClipApplied ? "ON" : "OFF");
-		ImGui::Text("面方向: %s", autoDetectReceiverNormal_ ? "Auto / Receiver最薄軸" : "Manual / Receiver Local軸");
+		ImGui::Text("面方向: %s", autoDetectReceiverNormal_ ? "Auto / Receiver形状" : "Manual / Receiver Local軸");
 		ImGui::Text("鏡面法線: %.3f, %.3f, %.3f", planeNormal.x, planeNormal.y, planeNormal.z);
 		ImGui::Text("鏡面位置: %.3f, %.3f, %.3f", planePosition.x, planePosition.y, planePosition.z);
 
@@ -205,7 +205,7 @@ namespace Ken4lowEngine
 			ImGui::TextDisabled("Capture済みReflection Textureはまだありません。");
 		}
 
-		ImGui::TextDisabled("Auto Normalは平たいReceiverだけを自動判定し、Cube等で軸差が小さい場合は手動面へフォールバックします。");
+		ImGui::TextDisabled("Auto Normalは平たいReceiverの最薄軸を優先し、Cube等では初回Camera視線に最も正対する軸へフォールバックします。");
 		ImGui::TextDisabled("Auto Fit ONでは同じActorのModel頂点から法線方向の最外面を鏡面にします。");
 		ImGui::TextDisabled("同じActorへ最大6面分追加でき、各Componentが1枚の独立した鏡面になります。");
 		ImGui::TextDisabled("Captureは全Component合計で1フレーム最大1面なので、複数面でも描画負荷を急増させません。");
@@ -363,10 +363,17 @@ namespace Ken4lowEngine
 			}
 		}
 
+		const Vector3 cameraForward = Vector3::NormalizeSafe(
+			CameraManager::GetInstance()->GetActiveCameraForward(),
+			{ 0.0f, 0.0f, 1.0f });
 		float bestFlatness = 0.0f;
 		const ModelComponent* bestReceiver = nullptr;
 		Vector3 bestAxis{ 0.0f, 1.0f, 0.0f };
 		float bestCenterProjection = 0.0f;
+		float bestViewAlignment = -1.0f;
+		const ModelComponent* viewFacingReceiver = nullptr;
+		Vector3 viewFacingAxis{ 0.0f, 0.0f, 1.0f };
+		float viewFacingCenterProjection = 0.0f;
 
 		for (const ModelComponent* model : models)
 		{
@@ -402,6 +409,25 @@ namespace Ken4lowEngine
 			}
 			if (!validModel) continue;
 
+			std::size_t viewFacingIndex = 0;
+			float viewAlignment = std::fabs(Vector3::Dot(axes[0], cameraForward));
+			for (std::size_t axisIndex = 1; axisIndex < axes.size(); ++axisIndex)
+			{
+				const float candidateAlignment = std::fabs(Vector3::Dot(axes[axisIndex], cameraForward));
+				if (candidateAlignment > viewAlignment)
+				{
+					viewAlignment = candidateAlignment;
+					viewFacingIndex = axisIndex;
+				}
+			}
+			if (viewAlignment > bestViewAlignment)
+			{
+				bestViewAlignment = viewAlignment;
+				viewFacingReceiver = model;
+				viewFacingAxis = axes[viewFacingIndex];
+				viewFacingCenterProjection = centerProjection[viewFacingIndex];
+			}
+
 			std::size_t thinnestIndex = 0;
 			for (std::size_t axisIndex = 1; axisIndex < thickness.size(); ++axisIndex)
 			{
@@ -416,14 +442,21 @@ namespace Ken4lowEngine
 			}
 
 			const float flatness = secondSmallest / (std::max)(thickness[thinnestIndex], 0.0001f);
-			if (flatness < PlanarReflectionComponentDetail::kAutoNormalFlatnessThreshold || flatness <= bestFlatness) continue;
-
-			bestFlatness = flatness;
-			bestReceiver = model;
-			bestAxis = axes[thinnestIndex];
-			bestCenterProjection = centerProjection[thinnestIndex];
+			if (flatness >= PlanarReflectionComponentDetail::kAutoNormalFlatnessThreshold && flatness > bestFlatness)
+			{
+				bestFlatness = flatness;
+				bestReceiver = model;
+				bestAxis = axes[thinnestIndex];
+				bestCenterProjection = centerProjection[thinnestIndex];
+			}
 		}
 
+		if (!bestReceiver && viewFacingReceiver)
+		{
+			bestReceiver = viewFacingReceiver;
+			bestAxis = viewFacingAxis;
+			bestCenterProjection = viewFacingCenterProjection; // Cube等で最薄軸を決められない場合は初回Camera視線に最も正対するReceiver軸を奥行きとして固定する。
+		}
 		if (!bestReceiver)
 		{
 			InvalidateAutoNormalCache();
