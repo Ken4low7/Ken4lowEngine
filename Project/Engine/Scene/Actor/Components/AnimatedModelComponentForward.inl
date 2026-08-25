@@ -14,9 +14,8 @@ namespace Ken4lowEngine
 	{
 		if (!visible_ || !IsActiveInHierarchy() || !animatedModel_ || !hasMesh_) return;
 		const MaterialBlendMode blendMode = ResolveForwardBlendMode();
-		if (blendMode == MaterialBlendMode::Transparent || blendMode == MaterialBlendMode::Additive) return;
 		const AnimationForwardSurface::ScopedBlendMode blendScope(blendMode);
-		Draw(); // Reflection Cameraへ切り替わった現在ViewでNode Animation姿勢を再描画する。
+		Draw(); // Reflection Capture Queueの順序で透明・加算を含むNode Animation姿勢を再描画する。
 	}
 
 	inline bool AnimatedModelComponent::SubmitForwardBucket(ForwardRenderQueue& queue, MaterialBlendMode expectedBlendMode)
