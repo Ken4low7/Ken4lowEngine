@@ -1,4 +1,5 @@
 #include "Actor.h"
+#include "CameraManager.h"
 #include "DirectXCommon.h"
 #include "Engine/Graphics/Renderer/Reflection/PlanarReflectionCaptureDiagnostics.h"
 #include "Matrix4x4.h"
@@ -7,6 +8,8 @@
 #include "Wireframe.h"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <limits>
 
 #ifdef USE_IMGUI
@@ -19,6 +22,7 @@ namespace Ken4lowEngine
 	{
 		inline constexpr float kPi = 3.14159265358979323846f;
 		inline constexpr float kHalfPi = kPi * 0.5f;
+		inline constexpr float kAutoNormalFlatnessThreshold = 1.25f;
 
 		inline const char* UpdateModeToString(PlanarReflectionUpdateMode updateMode)
 		{
@@ -50,12 +54,23 @@ namespace Ken4lowEngine
 			if (value == "High") return PlanarReflectionQuality::High;
 			return PlanarReflectionQuality::Ultra; // 旧Sceneや未知値は従来等倍品質へフォールバックする。
 		}
+
+		inline Matrix4x4 BuildExactHierarchyRotation(const SceneComponent* component)
+		{
+			Matrix4x4 rotation = Matrix4x4::MakeIdentity();
+			for (const SceneComponent* current = component; current; current = current->GetParent())
+			{
+				rotation = Matrix4x4::Multiply(rotation, Matrix4x4::MakeRotateMatrix(current->GetLocalRotation()));
+			}
+			return rotation; // Euler角の単純加算ではなく子→親の行列積で面法線をWorldへ変換する。
+		}
 	}
 
 	inline void PlanarReflectionComponent::Initialize()
 	{
 		SceneComponent::Initialize();
 		PlanarReflectionManager::GetInstance()->Initialize(DirectXCommon::GetInstance());
+		InvalidateAutoNormalCache();
 		SyncToManager(true); // 配置直後の最初のMirror Captureを必ず予約する。
 	}
 
@@ -113,7 +128,16 @@ namespace Ken4lowEngine
 			changed = true;
 		}
 
-		ImGui::TextDisabled("面方向プリセット（Local +Yを指定方向へ向けます）");
+		if (ImGui::Checkbox("Receiver最薄軸から面方向を自動判定##PlanarReflectionAutoNormal", &autoDetectReceiverNormal_))
+		{
+			InvalidateAutoNormalCache();
+			changed = true;
+		}
+		ImGui::TextDisabled(autoDetectReceiverNormal_
+			? "単一鏡面ではReceiver Modelの最薄軸を法線にし、Camera側の面を自動選択します。"
+			: "手動面ではReceiver Local軸を指定し、親Transformを含めてWorld法線へ変換します。");
+
+		ImGui::TextDisabled("手動面プリセット（押すと自動判定をOFFにします）");
 		if (ImGui::Button("+X##PlanarReflectionFace")) SetFacePreset(PlanarReflectionFacePreset::PositiveX);
 		ImGui::SameLine();
 		if (ImGui::Button("-X##PlanarReflectionFace")) SetFacePreset(PlanarReflectionFacePreset::NegativeX);
@@ -152,6 +176,7 @@ namespace Ken4lowEngine
 		const PlanarReflectionCaptureStats captureStats = PlanarReflectionCaptureDiagnostics::GetInstance()->Get(GetOwner());
 		const PlanarReflectionBinding previewBinding = planarManager->ResolveBinding(this);
 		const Vector3 planePosition = GetPlanePosition();
+		const Vector3 planeNormal = GetPlaneNormal();
 		ImGui::Text("状態: %s", diagnostics.captured ? (diagnostics.dirty ? "再Capture待ち" : "Captured") : "未Capture");
 		ImGui::Text("Capture Revision: %llu", static_cast<unsigned long long>(diagnostics.captureRevision));
 		ImGui::Text("Capture Resolution: %u x %u", diagnostics.captureWidth, diagnostics.captureHeight);
@@ -162,6 +187,8 @@ namespace Ken4lowEngine
 			captureStats.transparentCount,
 			captureStats.additiveCount);
 		ImGui::Text("Oblique Clip: %s", diagnostics.obliqueClipApplied ? "ON" : "OFF");
+		ImGui::Text("面方向: %s", autoDetectReceiverNormal_ ? "Auto / Receiver最薄軸" : "Manual / Receiver Local軸");
+		ImGui::Text("鏡面法線: %.3f, %.3f, %.3f", planeNormal.x, planeNormal.y, planeNormal.z);
 		ImGui::Text("鏡面位置: %.3f, %.3f, %.3f", planePosition.x, planePosition.y, planePosition.z);
 
 		ImGui::SeparatorText("Capture RT Preview");
@@ -178,11 +205,11 @@ namespace Ken4lowEngine
 			ImGui::TextDisabled("Capture済みReflection Textureはまだありません。");
 		}
 
+		ImGui::TextDisabled("Auto Normalは平たいReceiverだけを自動判定し、Cube等で軸差が小さい場合は手動面へフォールバックします。");
 		ImGui::TextDisabled("Auto Fit ONでは同じActorのModel頂点から法線方向の最外面を鏡面にします。");
 		ImGui::TextDisabled("同じActorへ最大6面分追加でき、各Componentが1枚の独立した鏡面になります。");
 		ImGui::TextDisabled("Captureは全Component合計で1フレーム最大1面なので、複数面でも描画負荷を急増させません。");
 		ImGui::TextDisabled("クリップバイアスは鏡面より裏側や接触面の映り込みをOblique Near Planeで除去します。");
-		ImGui::TextDisabled("Local +Yが鏡面法線です。面判定許容幅の外側には鏡像を貼りません。");
 		if (updateMode_ == PlanarReflectionUpdateMode::OnDemand)
 		{
 			ImGui::TextDisabled("On DemandはCamera移動後に再キャプチャが必要です。");
@@ -196,6 +223,7 @@ namespace Ken4lowEngine
 
 	inline void PlanarReflectionComponent::Finalize()
 	{
+		InvalidateAutoNormalCache();
 		PlanarReflectionManager::GetInstance()->UnregisterSurface(this);
 	}
 
@@ -208,6 +236,7 @@ namespace Ken4lowEngine
 		outJson["UpdateMode"] = PlanarReflectionComponentDetail::UpdateModeToString(updateMode_);
 		outJson["Quality"] = PlanarReflectionComponentDetail::QualityToString(quality_);
 		outJson["FlipNormal"] = flipNormal_;
+		outJson["AutoDetectReceiverNormal"] = autoDetectReceiverNormal_;
 		outJson["AutoFitToReceiverSurface"] = autoFitToReceiverSurface_;
 		outJson["PlaneOffset"] = planeOffset_;
 		outJson["SurfaceTolerance"] = surfaceTolerance_;
@@ -224,6 +253,7 @@ namespace Ken4lowEngine
 		if (const auto it = inJson.find("UpdateMode"); it != inJson.end() && it->is_string()) updateMode_ = PlanarReflectionComponentDetail::UpdateModeFromString(it->get<std::string>());
 		if (const auto it = inJson.find("Quality"); it != inJson.end() && it->is_string()) quality_ = PlanarReflectionComponentDetail::QualityFromString(it->get<std::string>());
 		if (const auto it = inJson.find("FlipNormal"); it != inJson.end() && it->is_boolean()) flipNormal_ = it->get<bool>();
+		if (const auto it = inJson.find("AutoDetectReceiverNormal"); it != inJson.end() && it->is_boolean()) autoDetectReceiverNormal_ = it->get<bool>();
 		if (const auto it = inJson.find("AutoFitToReceiverSurface"); it != inJson.end() && it->is_boolean()) autoFitToReceiverSurface_ = it->get<bool>();
 		if (const auto it = inJson.find("PlaneOffset"); it != inJson.end() && it->is_number()) planeOffset_ = it->get<float>();
 		if (const auto it = inJson.find("SurfaceTolerance"); it != inJson.end() && it->is_number()) surfaceTolerance_ = it->get<float>();
@@ -234,6 +264,7 @@ namespace Ken4lowEngine
 		surfaceTolerance_ = std::clamp(surfaceTolerance_, 0.001f, 1.0f);
 		clipPlaneBias_ = std::clamp(clipPlaneBias_, 0.0f, 1.0f);
 		debugPlaneSize_ = (std::max)(debugPlaneSize_, 0.1f);
+		InvalidateAutoNormalCache();
 	}
 
 	inline void PlanarReflectionComponent::SyncToManager(bool forceDirty)
@@ -293,18 +324,137 @@ namespace Ken4lowEngine
 			localRotation = { 0.0f, 0.0f, 0.0f };
 			break;
 		}
+		autoDetectReceiverNormal_ = false;
+		InvalidateAutoNormalCache();
 		flipNormal_ = false;
 		SetLocalRotation(localRotation);
 		RefreshWorldTransform();
-		SyncToManager(true); // 面プリセット変更時は対応するReflection Cameraを即座に再Capture対象へ戻す。
+		SyncToManager(true); // 手動面はAuto Normalを解除し、指定したReceiver Local面を即Capture対象へ戻す。
+	}
+
+	inline bool PlanarReflectionComponent::TryResolveAutoPlaneNormal(Vector3& outNormal) const
+	{
+		if (!autoDetectReceiverNormal_) return false;
+		const Actor* owner = GetOwner();
+		if (!owner) return false;
+
+		const std::vector<const PlanarReflectionComponent*> planarComponents = owner->GetComponents<PlanarReflectionComponent>();
+		std::size_t activePlanarCount = 0;
+		for (const PlanarReflectionComponent* planar : planarComponents)
+		{
+			if (planar && planar->IsActiveInHierarchy() && planar->IsEnabled()) ++activePlanarCount;
+		}
+		if (activePlanarCount > 1) return false; // 6面鏡など複数面Actorは各Componentの手動面を保持する。
+
+		const std::vector<const ModelComponent*> models = owner->GetComponents<ModelComponent>();
+		if (autoNormalCacheValid_ && autoNormalReceiver_)
+		{
+			const auto cachedIt = std::find(models.begin(), models.end(), autoNormalReceiver_);
+			if (cachedIt != models.end() && autoNormalReceiver_->IsActiveInHierarchy() &&
+				autoNormalReceiver_->GetWorldTransformRevision() == autoNormalReceiverRevision_)
+			{
+				Vector3 resolvedAxis = autoNormalAxis_;
+				if (Vector3::Dot(CameraManager::GetInstance()->GetActiveCameraPosition(), resolvedAxis) < autoNormalCenterProjection_)
+				{
+					resolvedAxis = -resolvedAxis;
+				}
+				outNormal = Vector3::NormalizeSafe(resolvedAxis, { 0.0f, 1.0f, 0.0f });
+				return true;
+			}
+		}
+
+		float bestFlatness = 0.0f;
+		const ModelComponent* bestReceiver = nullptr;
+		Vector3 bestAxis{ 0.0f, 1.0f, 0.0f };
+		float bestCenterProjection = 0.0f;
+
+		for (const ModelComponent* model : models)
+		{
+			if (!model || !model->IsActiveInHierarchy()) continue;
+
+			const Matrix4x4 receiverRotation = Matrix4x4::MakeRotateMatrix(model->GetWorldRotation());
+			const std::array<Vector3, 3> axes = {
+				Vector3::NormalizeSafe(Vector3::Transform({ 1.0f, 0.0f, 0.0f }, receiverRotation), { 1.0f, 0.0f, 0.0f }),
+				Vector3::NormalizeSafe(Vector3::Transform({ 0.0f, 1.0f, 0.0f }, receiverRotation), { 0.0f, 1.0f, 0.0f }),
+				Vector3::NormalizeSafe(Vector3::Transform({ 0.0f, 0.0f, 1.0f }, receiverRotation), { 0.0f, 0.0f, 1.0f })
+			};
+
+			std::array<float, 3> thickness{};
+			std::array<float, 3> centerProjection{};
+			bool validModel = true;
+			for (std::size_t axisIndex = 0; axisIndex < axes.size(); ++axisIndex)
+			{
+				Vector3 positiveSupport{};
+				Vector3 negativeSupport{};
+				if (!model->TryGetReflectionReceiverSurfacePoint(axes[axisIndex], positiveSupport) ||
+					!model->TryGetReflectionReceiverSurfacePoint(-axes[axisIndex], negativeSupport))
+				{
+					validModel = false;
+					break;
+				}
+
+				const float positiveProjection = Vector3::Dot(positiveSupport, axes[axisIndex]);
+				const float negativeProjection = Vector3::Dot(negativeSupport, axes[axisIndex]);
+				const float minimumProjection = (std::min)(positiveProjection, negativeProjection);
+				const float maximumProjection = (std::max)(positiveProjection, negativeProjection);
+				thickness[axisIndex] = maximumProjection - minimumProjection;
+				centerProjection[axisIndex] = (minimumProjection + maximumProjection) * 0.5f;
+			}
+			if (!validModel) continue;
+
+			std::size_t thinnestIndex = 0;
+			for (std::size_t axisIndex = 1; axisIndex < thickness.size(); ++axisIndex)
+			{
+				if (thickness[axisIndex] < thickness[thinnestIndex]) thinnestIndex = axisIndex;
+			}
+
+			float secondSmallest = std::numeric_limits<float>::max();
+			for (std::size_t axisIndex = 0; axisIndex < thickness.size(); ++axisIndex)
+			{
+				if (axisIndex == thinnestIndex) continue;
+				secondSmallest = (std::min)(secondSmallest, thickness[axisIndex]);
+			}
+
+			const float flatness = secondSmallest / (std::max)(thickness[thinnestIndex], 0.0001f);
+			if (flatness < PlanarReflectionComponentDetail::kAutoNormalFlatnessThreshold || flatness <= bestFlatness) continue;
+
+			bestFlatness = flatness;
+			bestReceiver = model;
+			bestAxis = axes[thinnestIndex];
+			bestCenterProjection = centerProjection[thinnestIndex];
+		}
+
+		if (!bestReceiver)
+		{
+			InvalidateAutoNormalCache();
+			return false;
+		}
+
+		autoNormalCacheValid_ = true;
+		autoNormalReceiver_ = bestReceiver;
+		autoNormalReceiverRevision_ = bestReceiver->GetWorldTransformRevision();
+		autoNormalAxis_ = Vector3::NormalizeSafe(bestAxis, { 0.0f, 1.0f, 0.0f });
+		autoNormalCenterProjection_ = bestCenterProjection;
+
+		Vector3 resolvedAxis = autoNormalAxis_;
+		if (Vector3::Dot(CameraManager::GetInstance()->GetActiveCameraPosition(), resolvedAxis) < autoNormalCenterProjection_)
+		{
+			resolvedAxis = -resolvedAxis;
+		}
+		outNormal = resolvedAxis;
+		return true;
 	}
 
 	inline Vector3 PlanarReflectionComponent::GetPlaneNormal() const
 	{
-		const Matrix4x4 rotation = Matrix4x4::MakeRotateMatrix(GetWorldRotation());
-		Vector3 normal = Vector3::NormalizeSafe(
-			Vector3::Transform({ 0.0f, 1.0f, 0.0f }, rotation),
-			{ 0.0f, 1.0f, 0.0f });
+		Vector3 normal{};
+		if (!TryResolveAutoPlaneNormal(normal))
+		{
+			const Matrix4x4 rotation = PlanarReflectionComponentDetail::BuildExactHierarchyRotation(this);
+			normal = Vector3::NormalizeSafe(
+				Vector3::Transform({ 0.0f, 1.0f, 0.0f }, rotation),
+				{ 0.0f, 1.0f, 0.0f });
+		}
 		if (flipNormal_)
 		{
 			normal = -normal;
