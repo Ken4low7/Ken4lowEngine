@@ -3,6 +3,7 @@
 #include "Object3D.h"
 #include "ComponentProperty.h"
 #include "MaterialBinding.h"
+#include "Engine/Graphics/Renderer/Reflection/ReflectionCaptureDrawable.h"
 
 #include <cstdint>
 #include <memory>
@@ -18,7 +19,7 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	/// Actorに3Dモデル描画機能を追加するComponentクラス。
 	/// -------------------------------------------------------------
-	class ModelComponent : public SceneComponent
+	class ModelComponent : public SceneComponent, public ReflectionCaptureDrawable
 	{
 	public:
 		void Initialize() override;
@@ -27,7 +28,7 @@ namespace Ken4lowEngine
 		void PostPhysicsUpdate(float deltaTime) override;
 		void Draw() override;
 		void DrawShadow() override;
-		void DrawReflectionCapture();
+		void DrawReflectionCapture() override;
 		BoundingSphere GetReflectionCaptureBounds() const
 		{
 			return object3D_ ? object3D_->GetWorldBoundsForCulling() : BoundingSphere{};
