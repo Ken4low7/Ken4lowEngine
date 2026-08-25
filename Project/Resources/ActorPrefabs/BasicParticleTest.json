@@ -57,6 +57,7 @@
             ],
             "DrawOrder": 0,
             "EffectName": "Default",
+            "EmissionDuration": 0.0,
             "EmissionRate": 10.0,
             "EmitterName": "",
             "EmitterShape": "Point",
@@ -102,6 +103,7 @@
                 1.0
             ],
             "Loop": false,
+            "LoopForever": true,
             "MeshAlignMode": "None",
             "MeshAngularVelocity": [
                 0.0,
@@ -245,6 +247,7 @@
             ],
             "DrawOrder": 0,
             "EffectName": "Default",
+            "EmissionDuration": 0.0,
             "EmissionRate": 10.0,
             "EmitterName": "",
             "EmitterShape": "Point",
@@ -290,6 +293,7 @@
                 1.0
             ],
             "Loop": false,
+            "LoopForever": true,
             "MeshAlignMode": "None",
             "MeshAngularVelocity": [
                 0.0,
@@ -398,6 +402,196 @@
                 0.0,
                 0.0,
                 0.0
+            ],
+            "VelocityScale": 1.0,
+            "Visible": true
+        },
+        {
+            "Acceleration": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "Active": true,
+            "AlphaFade": true,
+            "BaseVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "BillboardMode": "Camera",
+            "BlendMode": "Additive",
+            "BurstCount": 1,
+            "BurstEnabled": true,
+            "BurstInterval": 0.15000000596046448,
+            "BurstRandom": 1,
+            "BurstRepeat": 100,
+            "Class": "GpuParticleComponent",
+            "ConeAngle": 30.0,
+            "ConeLength": 1.0,
+            "Damping": 1.0,
+            "Direction": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "DrawOrder": 0,
+            "EffectName": "Spark",
+            "EmissionDuration": 6.5,
+            "EmissionRate": 15.0,
+            "EmitterName": "",
+            "EmitterShape": "Sphere",
+            "EndColor": [
+                0.11764705926179886,
+                0.3921568691730499,
+                1.0,
+                0.0
+            ],
+            "EndSize": 0.009999999776482582,
+            "EndSize2D": [
+                0.009999999776482582,
+                0.009999999776482582
+            ],
+            "FollowActor": true,
+            "FollowOwner": true,
+            "Gravity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "InheritActorVelocity": 0.0,
+            "LifeTime": 0.5,
+            "LifeTimeRandom": 0.20000000298023224,
+            "LocalOffset": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalPosition": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalRotation": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "LocalScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "Loop": true,
+            "LoopForever": false,
+            "MeshAlignMode": "None",
+            "MeshAngularVelocity": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "MeshAngularVelocityRandom": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "MeshEndScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "MeshId": 1000,
+            "MeshPath": "",
+            "MeshScaleRandom": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "MeshStartScale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "MeshTint": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "MidColor": [
+                0.3921568691730499,
+                0.7843137383460999,
+                1.0,
+                1.0
+            ],
+            "MidSize2D": [
+                0.03999999910593033,
+                0.03999999910593033
+            ],
+            "MidTime": 0.5,
+            "Name": "Orb Spark",
+            "OutwardVelocity": 1.0,
+            "Parent": "VFX Root",
+            "ParticleType": "Sprite",
+            "PlayOnStart": true,
+            "PresetName": "HitSpark",
+            "RandomAngle": 60.0,
+            "RingRadius": 1.0,
+            "RingThickness": 0.10000000149011612,
+            "RotationRandom": 0.0,
+            "RotationSpeed": 0.0,
+            "Scale": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "SortMode": "None",
+            "SpawnBoxSize": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "SpawnRadius": 0.30000001192092896,
+            "SpawnRate": 15.0,
+            "Speed": 0.0,
+            "SpeedRandom": 4.0,
+            "SpriteSheetColumns": 1,
+            "SpriteSheetFrameRate": 0.0,
+            "SpriteSheetRows": 1,
+            "StartColor": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "StartRotation": 0.0,
+            "StartSize": 0.07999999821186066,
+            "StartSize2D": [
+                0.07999999821186066,
+                0.07999999821186066
+            ],
+            "TangentialVelocity": 0.0,
+            "TexturePath": "Effects/Sparks/spark_01.dds",
+            "TrailColor": [
+                1.0,
+                1.0,
+                1.0,
+                0.6000000238418579
+            ],
+            "TrailEnabled": false,
+            "TrailFadeTime": 0.25,
+            "TrailLength": 1.0,
+            "TrailLifeTime": 0.25,
+            "TrailSegments": 8,
+            "TrailTexturePath": "",
+            "TrailWidth": 0.10000000149011612,
+            "Type": "SceneComponent",
+            "UpdateOrder": 0,
+            "UseSpriteSheet": false,
+            "VelocityRandom": [
+                0.30000001192092896,
+                0.30000001192092896,
+                0.30000001192092896
             ],
             "VelocityScale": 1.0,
             "Visible": true
