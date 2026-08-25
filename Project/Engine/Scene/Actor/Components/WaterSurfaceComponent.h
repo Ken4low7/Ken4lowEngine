@@ -2,6 +2,7 @@
 #include "ModelComponent.h"
 
 #include <algorithm>
+#include <cmath>
 #include <numbers>
 #include <string>
 
@@ -16,9 +17,9 @@ namespace Ken4lowEngine
 	public:
 		void Initialize() override
 		{
-			if (GetModelPath().empty())
+			if (GetModelPath().empty() || GetModelPath() == "Sample/plane.gltf")
 			{
-				SetModelPath("Sample/plane.gltf");
+				SetModelPath("Water/water_grid.obj");
 			}
 
 			if (!loadedFromJson_)
@@ -34,7 +35,7 @@ namespace Ken4lowEngine
 			}
 
 			ModelComponent::Initialize();
-			ApplyWaterMaterial(); // Waterは通常Model描画を再利用し、専用Material状態だけを追加する。
+			ApplyWaterMaterial(); // Waterは細分化Gridを通常Model描画へ載せ、専用Materialと頂点変形だけを追加する。
 		}
 
 		void Update(float deltaTime) override
@@ -76,6 +77,12 @@ namespace Ken4lowEngine
 			outJson["FresnelF0"] = fresnelF0_;
 			outJson["ReflectionDistortion"] = reflectionDistortion_;
 			outJson["SecondaryWaveScale"] = secondaryWaveScale_;
+			outJson["GerstnerEnabled"] = gerstnerEnabled_;
+			outJson["GerstnerAmplitude"] = gerstnerAmplitude_;
+			outJson["GerstnerWavelength"] = gerstnerWavelength_;
+			outJson["GerstnerSpeed"] = gerstnerSpeed_;
+			outJson["GerstnerSteepness"] = gerstnerSteepness_;
+			outJson["GerstnerDirectionDegrees"] = gerstnerDirectionDegrees_;
 		}
 
 		void FromJson(const nlohmann::json& inJson) override
@@ -102,6 +109,12 @@ namespace Ken4lowEngine
 			fresnelF0_ = inJson.value("FresnelF0", fresnelF0_);
 			reflectionDistortion_ = inJson.value("ReflectionDistortion", reflectionDistortion_);
 			secondaryWaveScale_ = inJson.value("SecondaryWaveScale", secondaryWaveScale_);
+			gerstnerEnabled_ = inJson.value("GerstnerEnabled", gerstnerEnabled_);
+			gerstnerAmplitude_ = inJson.value("GerstnerAmplitude", gerstnerAmplitude_);
+			gerstnerWavelength_ = inJson.value("GerstnerWavelength", gerstnerWavelength_);
+			gerstnerSpeed_ = inJson.value("GerstnerSpeed", gerstnerSpeed_);
+			gerstnerSteepness_ = inJson.value("GerstnerSteepness", gerstnerSteepness_);
+			gerstnerDirectionDegrees_ = inJson.value("GerstnerDirectionDegrees", gerstnerDirectionDegrees_);
 			ApplyWaterMaterial();
 		}
 
@@ -114,15 +127,22 @@ namespace Ken4lowEngine
 			ImGui::DragFloat("透明度##WaterSurface", &opacity_, 0.01f, 0.05f, 1.0f);
 			ImGui::DragFloat("反射率##WaterSurface", &reflectivity_, 0.01f, 0.0f, 1.0f);
 			ImGui::DragFloat("粗さ##WaterSurface", &roughness_, 0.01f, 0.0f, 1.0f);
-			ImGui::SeparatorText("Water Waves");
+			ImGui::SeparatorText("Water Detail Waves");
 			ImGui::DragFloat("波の密度##WaterSurface", &waveScale_, 0.01f, 0.01f, 4.0f);
 			ImGui::DragFloat("波の速度##WaterSurface", &waveSpeed_, 0.01f, 0.0f, 8.0f);
 			ImGui::DragFloat("法線の強さ##WaterSurface", &normalStrength_, 0.005f, 0.0f, 1.0f);
 			ImGui::DragFloat("副波スケール##WaterSurface", &secondaryWaveScale_, 0.01f, 0.05f, 4.0f);
 			ImGui::DragFloat("Fresnel F0##WaterSurface", &fresnelF0_, 0.001f, 0.0f, 0.15f);
 			ImGui::DragFloat("反射ゆらぎ##WaterSurface", &reflectionDistortion_, 0.005f, 0.0f, 1.0f);
+			ImGui::SeparatorText("Gerstner Wave");
+			ImGui::Checkbox("立体波を有効化##WaterSurface", &gerstnerEnabled_);
+			ImGui::DragFloat("波高##WaterSurface", &gerstnerAmplitude_, 0.002f, 0.0f, 0.25f);
+			ImGui::DragFloat("波長##WaterSurface", &gerstnerWavelength_, 0.01f, 0.1f, 4.0f);
+			ImGui::DragFloat("進行速度##WaterSurface", &gerstnerSpeed_, 0.01f, 0.0f, 8.0f);
+			ImGui::DragFloat("尖り具合##WaterSurface", &gerstnerSteepness_, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat("進行方向(度)##WaterSurface", &gerstnerDirectionDegrees_, 1.0f, -180.0f, 180.0f);
+			ImGui::TextDisabled("Gerstner WaveはGrid頂点そのものを変形し、法線波は表面の細かい揺らぎを担当します。");
 			ImGui::TextDisabled("同じActorへPlanarReflectionComponentを追加すると水面へ局所反射を適用します。");
-			ImGui::TextDisabled("次段階でSceneColor/Depthによる屈折と深度吸収を追加します。");
 #endif
 			ApplyWaterMaterial();
 		}
@@ -134,6 +154,7 @@ namespace Ken4lowEngine
 			if (!object3D) return;
 
 			const float opacity = std::clamp(opacity_, 0.05f, 1.0f);
+			const float directionRadians = gerstnerDirectionDegrees_ * std::numbers::pi_v<float> / 180.0f;
 			object3D->SetColor({ waterColor_.x, waterColor_.y, waterColor_.z, opacity });
 			object3D->SetPbrEnabled(false);
 			object3D->SetReflectivity(std::clamp(reflectivity_, 0.0f, 1.0f));
@@ -148,7 +169,14 @@ namespace Ken4lowEngine
 				std::clamp(normalStrength_, 0.0f, 1.0f),
 				std::clamp(fresnelF0_, 0.0f, 0.15f),
 				std::clamp(reflectionDistortion_, 0.0f, 1.0f),
-				(std::max)(secondaryWaveScale_, 0.05f));
+				(std::max)(secondaryWaveScale_, 0.05f),
+				gerstnerEnabled_,
+				std::clamp(gerstnerAmplitude_, 0.0f, 0.25f),
+				(std::max)(gerstnerWavelength_, 0.1f),
+				(std::max)(gerstnerSpeed_, 0.0f),
+				std::clamp(gerstnerSteepness_, 0.0f, 1.0f),
+				std::cos(directionRadians),
+				std::sin(directionRadians));
 		}
 
 		Vector4 waterColor_{ 0.035f, 0.24f, 0.34f, 1.0f };
@@ -161,7 +189,13 @@ namespace Ken4lowEngine
 		float fresnelF0_ = 0.02f;
 		float reflectionDistortion_ = 0.08f;
 		float secondaryWaveScale_ = 0.67f;
+		float gerstnerAmplitude_ = 0.035f;
+		float gerstnerWavelength_ = 0.8f;
+		float gerstnerSpeed_ = 1.25f;
+		float gerstnerSteepness_ = 0.35f;
+		float gerstnerDirectionDegrees_ = 28.0f;
 		float waterTime_ = 0.0f;
+		bool gerstnerEnabled_ = true;
 		bool loadedFromJson_ = false;
 	};
 } // namespace Ken4lowEngine
