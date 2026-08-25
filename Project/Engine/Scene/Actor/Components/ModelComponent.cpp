@@ -164,12 +164,7 @@ namespace Ken4lowEngine
 	void ModelComponent::DrawReflectionCapture()
 	{
 		if (!visible_ || !IsActiveInHierarchy() || !object3D_) return;
-		const MaterialBlendMode blendMode = object3D_->GetBlendMode();
-		if (blendMode == MaterialBlendMode::Transparent || blendMode == MaterialBlendMode::Additive)
-		{
-			return; // 初期Reflection CaptureはDepthが安定するOpaque/Maskedだけを対象にし、透明物は後続拡張へ分離する。
-		}
-		DrawWithReflectionBinding();
+		DrawWithReflectionBinding(); // Capture Queue側のBlend順序に従い、透明・加算MaterialもReflection Cameraへ描画する。
 	}
 
 	void ModelComponent::DrawShadow()
@@ -399,7 +394,7 @@ namespace Ken4lowEngine
 		if (includeModelPath)
 		{
 			properties.insert(properties.begin(),
-				{ "ModelPath", "モデルパス", ComponentPropertyType::String, [this]() -> ComponentPropertyValue { return modelPath_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<std::string>(&value)) { SetModelPath(*typedValue); } } });
+				{ "ModelPath", "モデルパス", ComponentPropertyType::String, [this]() -> ComponentPropertyValue { return modelPath_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<std::string>(&value)) { SetModelPath(*typedValue); } });
 		}
 		return properties;
 	}
