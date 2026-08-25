@@ -35,6 +35,7 @@ namespace Ken4lowEngine
 					{
 						planar->SyncToManager(); // Editor Gizmoで鏡面を移動/回転した直後のPlaneをCaptureへ反映する。
 					}
+				}
 			}
 		}
 
