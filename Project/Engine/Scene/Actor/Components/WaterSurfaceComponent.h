@@ -39,14 +39,14 @@ namespace Ken4lowEngine
 
 		void Update(float deltaTime) override
 		{
-			waterTime_ += std::max(deltaTime, 0.0f);
+			waterTime_ += (std::max)(deltaTime, 0.0f);
 			ModelComponent::Update(deltaTime);
 			ApplyWaterMaterial();
 		}
 
 		void UpdateEditor(float deltaTime) override
 		{
-			waterTime_ += std::max(deltaTime, 0.0f);
+			waterTime_ += (std::max)(deltaTime, 0.0f);
 			ModelComponent::UpdateEditor(deltaTime);
 			ApplyWaterMaterial();
 		}
@@ -143,12 +143,12 @@ namespace Ken4lowEngine
 			object3D->SetWaterSurfaceState(
 				true,
 				waterTime_,
-				std::max(waveScale_, 0.01f),
-				std::max(waveSpeed_, 0.0f),
+				(std::max)(waveScale_, 0.01f),
+				(std::max)(waveSpeed_, 0.0f),
 				std::clamp(normalStrength_, 0.0f, 1.0f),
 				std::clamp(fresnelF0_, 0.0f, 0.15f),
 				std::clamp(reflectionDistortion_, 0.0f, 1.0f),
-				std::max(secondaryWaveScale_, 0.05f));
+				(std::max)(secondaryWaveScale_, 0.05f));
 		}
 
 		Vector4 waterColor_{ 0.035f, 0.24f, 0.34f, 1.0f };
