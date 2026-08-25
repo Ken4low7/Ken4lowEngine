@@ -18,7 +18,7 @@
 
 namespace Ken4lowEngine
 {
-	namespace
+	 namespace
 	{
 		std::string MakeEditorUndoActorPath(const char* prefix, const Actor* actor)
 		{
@@ -260,8 +260,8 @@ namespace Ken4lowEngine
 		}
 
 		if (selectedAddComponentTypeIndex_ < 0 || selectedAddComponentTypeIndex_ >= static_cast<int>(componentTypes.size())) selectedAddComponentTypeIndex_ = 0;
-		const ComponentFactory::ComponentTypeInfo& selectedType = componentTypes[selectedAddComponentTypeIndex_];
-		if (ImGui::BeginCombo("種類", selectedType.displayName.c_str()))
+		const ComponentFactory::ComponentTypeInfo& previewType = componentTypes[selectedAddComponentTypeIndex_];
+		if (ImGui::BeginCombo("種類", previewType.displayName.c_str()))
 		{
 			std::string currentCategory;
 			for (int index = 0; index < static_cast<int>(componentTypes.size()); ++index)
@@ -285,6 +285,7 @@ namespace Ken4lowEngine
 			ImGui::EndCombo();
 		}
 
+		const ComponentFactory::ComponentTypeInfo& selectedType = componentTypes[selectedAddComponentTypeIndex_]; // Combo変更後の最新選択を追加対象として使う。
 		const bool alreadyExists = targetActor->HasComponentClass(selectedType.className);
 		const bool canAdd = selectedType.allowMultiple || !alreadyExists;
 		ImGui::Text("カテゴリ: %s", selectedType.category.c_str());
@@ -294,7 +295,11 @@ namespace Ken4lowEngine
 			ImGui::TextDisabled("このコンポーネントは1つだけ追加できます。");
 			ImGui::BeginDisabled();
 		}
-		if (ImGui::Button("追加##AddComponent")) AddComponentToSelectedActor(selectedType.className);
+		if (ImGui::Button("追加##AddComponent"))
+		{
+			const std::string classNameToAdd = selectedType.className;
+			AddComponentToSelectedActor(classNameToAdd);
+		}
 		if (!canAdd) ImGui::EndDisabled();
 #endif
 	}
