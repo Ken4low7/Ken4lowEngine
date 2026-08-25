@@ -11,13 +11,12 @@ class PlanarReflectionCubeAutoNormalTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.component = PLANAR_COMPONENT.read_text(encoding="utf-8")
 
-    def test_cube_falls_back_to_camera_facing_receiver_axis(self) -> None:
-        self.assertIn("GetActiveCameraForward()", self.component)
-        self.assertIn("bestViewAlignment", self.component)
-        self.assertIn("viewFacingReceiver", self.component)
-        self.assertIn("std::fabs(Vector3::Dot(axes[axisIndex], cameraForward))", self.component)
-        self.assertIn("if (!bestReceiver && viewFacingReceiver)", self.component)
-        self.assertIn("bestAxis = viewFacingAxis", self.component)
+    def test_cube_falls_back_to_receiver_local_z_axis(self) -> None:
+        self.assertNotIn("GetActiveCameraForward()", self.component)
+        self.assertIn("fallbackAxis = axes[2]", self.component)
+        self.assertIn("fallbackCenterProjection = centerProjection[2]", self.component)
+        self.assertIn("if (!bestReceiver && fallbackReceiver)", self.component)
+        self.assertIn("bestAxis = fallbackAxis", self.component)
 
     def test_flat_receiver_still_prefers_thinnest_axis(self) -> None:
         self.assertIn("kAutoNormalFlatnessThreshold", self.component)
