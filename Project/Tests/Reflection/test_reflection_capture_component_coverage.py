@@ -9,6 +9,7 @@ ANIMATED_COMPONENT = PROJECT_ROOT / "Engine" / "Scene" / "Actor" / "Components" 
 ANIMATED_FORWARD = PROJECT_ROOT / "Engine" / "Scene" / "Actor" / "Components" / "AnimatedModelComponentForward.inl"
 SKELETAL_COMPONENT = PROJECT_ROOT / "Engine" / "Scene" / "Actor" / "Components" / "SkeletalMeshComponent.h"
 SKELETAL_FORWARD = PROJECT_ROOT / "Engine" / "Scene" / "Actor" / "Components" / "SkeletalMeshComponentForward.inl"
+TEST_GROUND_PREFAB = PROJECT_ROOT / "Resources" / "ActorPrefabs" / "TestGroundActor.json"
 
 
 class ReflectionCaptureComponentCoverageTests(unittest.TestCase):
@@ -20,6 +21,7 @@ class ReflectionCaptureComponentCoverageTests(unittest.TestCase):
         cls.animated_forward = ANIMATED_FORWARD.read_text(encoding="utf-8")
         cls.skeletal_h = SKELETAL_COMPONENT.read_text(encoding="utf-8")
         cls.skeletal_forward = SKELETAL_FORWARD.read_text(encoding="utf-8")
+        cls.test_ground_prefab = TEST_GROUND_PREFAB.read_text(encoding="utf-8")
 
     def test_planar_capture_draws_primary_3d_component_types(self) -> None:
         for component_type in (
@@ -32,6 +34,11 @@ class ReflectionCaptureComponentCoverageTests(unittest.TestCase):
         self.assertIn("instanced->DrawReflectionCapture()", self.planar_bridge)
         self.assertIn("animated->DrawReflectionCapture()", self.planar_bridge)
         self.assertIn("skeletal->DrawReflectionCapture()", self.planar_bridge)
+
+    def test_instanced_ground_prefab_is_covered_by_planar_capture(self) -> None:
+        self.assertIn('"Class": "InstancedModelComponent"', self.test_ground_prefab)
+        self.assertIn("GetComponents<InstancedModelComponent>()", self.planar_bridge)
+        self.assertIn("instanced->DrawReflectionCapture()", self.planar_bridge)  # 床Prefabが鏡Capture対象から外れないことを固定する。
 
     def test_instanced_capture_uses_current_reflection_view_and_skips_transparency(self) -> None:
         self.assertIn("void DrawReflectionCapture()", self.instanced)
