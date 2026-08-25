@@ -2,6 +2,7 @@
 #include <DX12Include.h>
 #include <Engine/Graphics/Device/Buffer/PerFrameUploadBuffer.h>
 #include "Vector3.h"
+#include "Vector4.h"
 #include "Matrix4x4.h"
 
 namespace Ken4lowEngine
@@ -25,6 +26,8 @@ namespace Ken4lowEngine
 			Matrix4x4 WVP;
 			Matrix4x4 World;
 			Matrix4x4 WorldInversedTranspose;
+			Vector4 waterGerstner0{};
+			Vector4 waterGerstner1{};
 		};
 
 	public: /// ---------- メンバ変数 ---------- ///
@@ -42,6 +45,20 @@ namespace Ken4lowEngine
 		void UpdateWithWorldMatrix(const Matrix4x4& worldMatrix);
 		void SetPipeline(UINT rootParameterIndex = 1);
 		const Matrix4x4& GetWorldMatrix() const { return matWorld_; }
+
+		void SetWaterDeformationState(
+			bool enabled,
+			float time,
+			float amplitude,
+			float wavelength,
+			float speed,
+			float steepness,
+			float directionX,
+			float directionY)
+		{
+			transformationData_.waterGerstner0 = { enabled ? 1.0f : 0.0f, time, amplitude, wavelength };
+			transformationData_.waterGerstner1 = { directionX, directionY, speed, steepness }; // Waterだけが同じTransform CBへ頂点変形パラメータを追加する。
+		}
 
 	private:
 		TransformationMatrix transformationData_{};
