@@ -110,7 +110,7 @@ namespace Ken4lowEngine
 		std::vector<InstanceTransform> instanceTransforms_{}; // Component基準のLocal TransformをInstanceごとに保持する。
 
 		bool isRebuildRequested_ = true;
-		bool isLayoutRebuildRequested_ = false;
+		bool isLayoutRebuildRequested_ = true;
 		bool isInitializedRenderer_ = false;
 		bool hasInitialized_ = false;
 		Vector3 lastWorldPosition_{};
