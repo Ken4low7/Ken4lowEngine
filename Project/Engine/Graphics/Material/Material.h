@@ -126,6 +126,14 @@ public:
 		Matrix4x4 planarReflectionViewProjection;
 		Vector4 planarReflectionPlane;
 		Vector4 planarReflectionSurfaceParams;
+		float waterSurfaceEnabled;
+		float waterTime;
+		float waterWaveScale;
+		float waterWaveSpeed;
+		float waterNormalStrength;
+		float waterFresnelF0;
+		float waterReflectionDistortion;
+		float waterSecondaryWaveScale;
 	};
 
 public:
@@ -160,6 +168,25 @@ public:
 	{
 		materialData_->planarReflectionEnabled = enabled ? 1.0f : 0.0f;
 		materialData_->planarReflectionStrength = strength;
+	}
+	void SetWaterSurfaceState(
+		bool enabled,
+		float time,
+		float waveScale,
+		float waveSpeed,
+		float normalStrength,
+		float fresnelF0,
+		float reflectionDistortion,
+		float secondaryWaveScale)
+	{
+		materialData_->waterSurfaceEnabled = enabled ? 1.0f : 0.0f;
+		materialData_->waterTime = time;
+		materialData_->waterWaveScale = waveScale;
+		materialData_->waterWaveSpeed = waveSpeed;
+		materialData_->waterNormalStrength = normalStrength;
+		materialData_->waterFresnelF0 = fresnelF0;
+		materialData_->waterReflectionDistortion = reflectionDistortion;
+		materialData_->waterSecondaryWaveScale = secondaryWaveScale; // Water専用値は通常Materialを変えず明示Opt-in時だけShaderへ渡す。
 	}
 	void SetCullMode(MaterialCullMode cullMode) { cullMode_ = cullMode; }
 	MaterialCullMode GetCullMode() const { return cullMode_; }
