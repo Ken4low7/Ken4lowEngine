@@ -60,6 +60,25 @@ namespace Ken4lowEngine
 			model.SetName("Model Component");
 			model.SetModelPath(modelPath);
 			model.AttachTo(&root);
+
+			if (modelPath == "Sample/cube.gltf")
+			{
+				ColliderComponent& collider = AddComponent<ColliderComponent>();
+				collider.SetName("Collider Component");
+				collider.SetShapeType(ECollisionShapeType::OBB);
+				collider.SetHalfSize({ 1.0f, 1.0f, 1.0f });
+				collider.SetCollisionLayer(PhysicsCollisionLayer::Default);
+				collider.AttachTo(&root); // Place ActorsのCubeはWater/Physics検証へそのまま使えるCollider付きPrimitiveにする。
+			}
+			else if (modelPath == "Sample/sphere.gltf")
+			{
+				ColliderComponent& collider = AddComponent<ColliderComponent>();
+				collider.SetName("Collider Component");
+				collider.SetShapeType(ECollisionShapeType::Sphere);
+				collider.SetRadius(1.0f);
+				collider.SetCollisionLayer(PhysicsCollisionLayer::Default);
+				collider.AttachTo(&root);
+			}
 		}
 
 		std::string GetClassTypeName() const override { return "Actor"; }
