@@ -6,6 +6,7 @@
 #include "ActorWorld.h"
 #include "CameraManager.h"
 #include "PlanarReflectionComponent.h"
+#include "Engine/Graphics/Renderer/Object3D/Object3DCommon.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -34,7 +35,6 @@ namespace Ken4lowEngine
 					{
 						planar->SyncToManager(); // Editor Gizmoで鏡面を移動/回転した直後のPlaneをCaptureへ反映する。
 					}
-				}
 			}
 		}
 
@@ -42,11 +42,28 @@ namespace Ken4lowEngine
 		{
 			SyncSurfaces(actorWorld);
 			actorWorld.PrepareRenderState();
-			return PlanarReflectionManager::GetInstance()->CapturePending(
-				[&actorWorld](const Actor* excludedReceiver)
-				{
-					DrawScene(actorWorld, excludedReceiver);
-				});
+
+			Object3DCommon* objectCommon = Object3DCommon::GetInstance();
+			const bool previousFrustumCullingEnabled = objectCommon->IsFrustumCullingEnabled();
+			objectCommon->SetFrustumCullingEnabled(false); // Oblique ProjectionのCaptureでは通常Frustumによる角度依存の誤Cullを避ける。
+
+			bool captured = false;
+			try
+			{
+				captured = PlanarReflectionManager::GetInstance()->CapturePending(
+					[&actorWorld](const Actor* excludedReceiver)
+					{
+						DrawScene(actorWorld, excludedReceiver);
+					});
+			}
+			catch (...)
+			{
+				objectCommon->SetFrustumCullingEnabled(previousFrustumCullingEnabled);
+				throw;
+			}
+
+			objectCommon->SetFrustumCullingEnabled(previousFrustumCullingEnabled);
+			return captured;
 		}
 
 		static void DrawScene(ActorWorld& actorWorld, const Actor* excludedReceiver)
