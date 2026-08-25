@@ -28,6 +28,27 @@ namespace Ken4lowEngine
 		{
 			return value == "OnDemand" ? PlanarReflectionUpdateMode::OnDemand : PlanarReflectionUpdateMode::EveryFrame;
 		}
+
+		inline const char* QualityToString(PlanarReflectionQuality quality)
+		{
+			switch (quality)
+			{
+			case PlanarReflectionQuality::Low: return "Low";
+			case PlanarReflectionQuality::Medium: return "Medium";
+			case PlanarReflectionQuality::High: return "High";
+			case PlanarReflectionQuality::Ultra:
+			default:
+				return "Ultra";
+			}
+		}
+
+		inline PlanarReflectionQuality QualityFromString(const std::string& value)
+		{
+			if (value == "Low") return PlanarReflectionQuality::Low;
+			if (value == "Medium") return PlanarReflectionQuality::Medium;
+			if (value == "High") return PlanarReflectionQuality::High;
+			return PlanarReflectionQuality::Ultra; // 旧Sceneや未知値は従来等倍品質へフォールバックする。
+		}
 	}
 
 	inline void PlanarReflectionComponent::Initialize()
@@ -83,6 +104,14 @@ namespace Ken4lowEngine
 			changed = true;
 		}
 
+		const char* qualityNames[] = { "Low (25%)", "Medium (50%)", "High (75%)", "Ultra (100%)" };
+		int qualityIndex = static_cast<int>(quality_);
+		if (ImGui::Combo("反射品質##PlanarReflectionQuality", &qualityIndex, qualityNames, IM_ARRAYSIZE(qualityNames)))
+		{
+			quality_ = static_cast<PlanarReflectionQuality>(qualityIndex);
+			changed = true;
+		}
+
 		ImGui::TextDisabled("面方向プリセット（Local +Yを指定方向へ向けます）");
 		if (ImGui::Button("+X##PlanarReflectionFace")) SetFacePreset(PlanarReflectionFacePreset::PositiveX);
 		ImGui::SameLine();
@@ -121,6 +150,7 @@ namespace Ken4lowEngine
 		const Vector3 planePosition = GetPlanePosition();
 		ImGui::Text("状態: %s", diagnostics.captured ? (diagnostics.dirty ? "再Capture待ち" : "Captured") : "未Capture");
 		ImGui::Text("Capture Revision: %llu", static_cast<unsigned long long>(diagnostics.captureRevision));
+		ImGui::Text("Capture Resolution: %u x %u", diagnostics.captureWidth, diagnostics.captureHeight);
 		ImGui::Text("Oblique Clip: %s", diagnostics.obliqueClipApplied ? "ON" : "OFF");
 		ImGui::Text("鏡面位置: %.3f, %.3f, %.3f", planePosition.x, planePosition.y, planePosition.z);
 		ImGui::TextDisabled("Auto Fit ONでは同じActorのModel頂点から法線方向の最外面を鏡面にします。");
@@ -151,6 +181,7 @@ namespace Ken4lowEngine
 		outJson["Enabled"] = enabled_;
 		outJson["Strength"] = strength_;
 		outJson["UpdateMode"] = PlanarReflectionComponentDetail::UpdateModeToString(updateMode_);
+		outJson["Quality"] = PlanarReflectionComponentDetail::QualityToString(quality_);
 		outJson["FlipNormal"] = flipNormal_;
 		outJson["AutoFitToReceiverSurface"] = autoFitToReceiverSurface_;
 		outJson["PlaneOffset"] = planeOffset_;
@@ -166,6 +197,7 @@ namespace Ken4lowEngine
 		if (const auto it = inJson.find("Enabled"); it != inJson.end() && it->is_boolean()) enabled_ = it->get<bool>();
 		if (const auto it = inJson.find("Strength"); it != inJson.end() && it->is_number()) strength_ = it->get<float>();
 		if (const auto it = inJson.find("UpdateMode"); it != inJson.end() && it->is_string()) updateMode_ = PlanarReflectionComponentDetail::UpdateModeFromString(it->get<std::string>());
+		if (const auto it = inJson.find("Quality"); it != inJson.end() && it->is_string()) quality_ = PlanarReflectionComponentDetail::QualityFromString(it->get<std::string>());
 		if (const auto it = inJson.find("FlipNormal"); it != inJson.end() && it->is_boolean()) flipNormal_ = it->get<bool>();
 		if (const auto it = inJson.find("AutoFitToReceiverSurface"); it != inJson.end() && it->is_boolean()) autoFitToReceiverSurface_ = it->get<bool>();
 		if (const auto it = inJson.find("PlaneOffset"); it != inJson.end() && it->is_number()) planeOffset_ = it->get<float>();
@@ -293,6 +325,7 @@ namespace Ken4lowEngine
 		desc.surfaceTolerance = surfaceTolerance_;
 		desc.clipPlaneBias = clipPlaneBias_;
 		desc.updateMode = updateMode_;
+		desc.quality = quality_;
 		desc.enabled = enabled_ && IsActiveInHierarchy();
 		return desc;
 	}
