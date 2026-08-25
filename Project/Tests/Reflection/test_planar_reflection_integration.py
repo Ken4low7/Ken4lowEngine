@@ -37,14 +37,23 @@ class PlanarReflectionIntegrationTests(unittest.TestCase):
         cls.pipeline = OBJECT_PIPELINE.read_text(encoding="utf-8")
         cls.shader = OBJECT_PS.read_text(encoding="utf-8")
 
-    def test_manager_builds_reflected_camera_from_plane(self) -> None:
+    def test_manager_builds_exact_reflected_view_from_plane(self) -> None:
         self.assertIn("ReflectPoint", self.manager)
         self.assertIn("ReflectVector", self.manager)
+        self.assertIn("BuildPlaneReflectionMatrix", self.manager)
         self.assertIn("reflectedPosition", self.manager)
         self.assertIn("reflectedForward", self.manager)
-        self.assertIn("Matrix4x4::LookAt", self.manager)
+        self.assertIn("GetActiveViewMatrix", self.manager)
+        self.assertIn("Matrix4x4::Multiply(reflectionMatrix, cameraManager->GetActiveViewMatrix())", self.manager)
+        self.assertNotIn("Matrix4x4::LookAt(", self.manager)
         self.assertIn("GetActiveProjectionMatrix", self.manager)
         self.assertIn("PushRenderViewOverride", self.manager)
+
+    def test_mirrored_view_participates_in_surface_winding_resolution(self) -> None:
+        self.assertIn("CalculateMatrixHandednessDeterminant", self.material_h)
+        self.assertIn("CameraManager::GetInstance()->GetActiveViewMatrix()", self.material_h)
+        self.assertIn("worldHandedness * viewHandedness", self.material_h)
+        self.assertIn("MaterialCullMode::Front", self.material_h)
 
     def test_manager_uses_directx_row_vector_oblique_near_plane(self) -> None:
         self.assertIn("BuildObliqueProjection", self.manager)
