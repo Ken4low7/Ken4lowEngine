@@ -59,7 +59,7 @@ namespace Ken4lowEngine
 			};
 
 			CameraManager* cameraManager = CameraManager::GetInstance();
-			const Vector3 cameraPosition = cameraManager->GetActiveCameraPosition();
+			const Vector3 cameraPosition = CameraManager::GetInstance()->GetActiveCameraPosition();
 			const Vector3 cameraForward = Vector3::NormalizeSafe(cameraManager->GetActiveCameraForward(), { 0.0f, 0.0f, 1.0f });
 			std::vector<CaptureItem> captureItems;
 			uint64_t submissionOrder = 0;
@@ -86,7 +86,7 @@ namespace Ken4lowEngine
 					item.blendMode = drawable->GetReflectionCaptureBlendMode();
 					item.sortDepth = Vector3::Dot(toDrawable, cameraForward);
 					item.submissionOrder = submissionOrder++;
-					captureItems.push_back(item);
+					captureItems.push_back(item); // 鏡裏側の三角形除去はReflection CameraのOblique Near Planeへ委ねる。
 				}
 			}
 
