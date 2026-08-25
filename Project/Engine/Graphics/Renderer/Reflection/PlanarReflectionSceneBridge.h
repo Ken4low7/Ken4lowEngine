@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PlanarReflectionManager.h"
+#include "PlanarReflectionCaptureDiagnostics.h"
 #include "ReflectionCaptureDrawable.h"
 #include "ActorWorld.h"
 #include "CameraManager.h"
@@ -62,6 +63,7 @@ namespace Ken4lowEngine
 			const Vector3 cameraPosition = CameraManager::GetInstance()->GetActiveCameraPosition();
 			const Vector3 cameraForward = Vector3::NormalizeSafe(cameraManager->GetActiveCameraForward(), { 0.0f, 0.0f, 1.0f });
 			std::vector<CaptureItem> captureItems;
+			PlanarReflectionCaptureStats captureStats{};
 			uint64_t submissionOrder = 0;
 
 			for (const auto& actor : actorWorld.GetActors())
@@ -87,8 +89,22 @@ namespace Ken4lowEngine
 					item.sortDepth = Vector3::Dot(toDrawable, cameraForward);
 					item.submissionOrder = submissionOrder++;
 					captureItems.push_back(item); // 鏡裏側の三角形除去はReflection CameraのOblique Near Planeへ委ねる。
+
+					++captureStats.drawableCount;
+					switch (item.blendMode)
+					{
+					case MaterialBlendMode::Masked: ++captureStats.maskedCount; break;
+					case MaterialBlendMode::Transparent: ++captureStats.transparentCount; break;
+					case MaterialBlendMode::Additive: ++captureStats.additiveCount; break;
+					case MaterialBlendMode::Opaque:
+					default:
+						++captureStats.opaqueCount;
+						break;
+					}
 				}
 			}
+
+			PlanarReflectionCaptureDiagnostics::GetInstance()->Record(excludedReceiver, captureStats); // InspectorからCapture対象漏れとRT描画失敗を切り分けられるよう候補数を保存する。
 
 			std::stable_sort(
 				captureItems.begin(),
