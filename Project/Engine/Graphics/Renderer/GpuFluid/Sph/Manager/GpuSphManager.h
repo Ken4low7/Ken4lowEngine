@@ -34,6 +34,22 @@ struct GpuSphSimulationSettings
     uint32_t spawnDimX = 16;
     uint32_t spawnDimY = 16;
     uint32_t spawnDimZ = 16;
+
+    // W9.5: WCSPHをFallbackとして残しながらDFSPH projectionを有効化する。
+    bool dfsphEnabled = true;
+    uint32_t dfsphDensityIterations = 5;
+    uint32_t dfsphDivergenceIterations = 3;
+    bool adaptiveCflEnabled = true;
+    float dfsphDensityRelaxation = 0.45f;
+    float dfsphDivergenceRelaxation = 0.35f;
+    float dfsphDensityErrorTolerance = 0.01f;
+    float dfsphDivergenceErrorTolerance = 0.01f;
+    float cflNumber = 0.35f;
+    float minimumDeltaTime = 1.0f / 480.0f;
+    float surfaceTensionStrength = 0.0728f;
+    float xsphStrength = 0.025f;
+    float boundaryFriction = 0.08f;
+    float maxDfsphVelocityCorrection = 2.0f;
 };
 
 struct GpuSphRuntimeStats
@@ -50,22 +66,30 @@ struct GpuSphRuntimeStats
     uint64_t spatialHashBuildCount = 0;
     uint64_t spatialHashSortDispatchCount = 0;
     uint64_t cellRangeDispatchCount = 0;
+    uint64_t dfsphFactorDispatchCount = 0;
+    uint64_t dfsphDensityDispatchCount = 0;
+    uint64_t dfsphDivergenceDispatchCount = 0;
+    uint64_t cflStabilizationCount = 0;
     uint32_t lastFrameSubsteps = 0;
     uint32_t sortedParticleCount = 0;
     uint32_t spatialGridDimX = 0;
     uint32_t spatialGridDimY = 0;
     uint32_t spatialGridDimZ = 0;
     uint32_t spatialCellCount = 0;
+    uint32_t lastDensityIterations = 0;
+    uint32_t lastDivergenceIterations = 0;
     uint64_t approximateGpuMemoryBytes = 0;
     float spatialCellSize = 0.0f;
     float accumulatorSeconds = 0.0f;
+    float effectiveDeltaTime = 0.0f;
     bool initialized = false;
     bool paused = false;
     bool lastStepSucceeded = true;
     bool spatialHashReady = false;
+    bool dfsphActive = false;
 };
 
-/// W5 SPH計算とW6 Spatial Hash / GPU Sortを所有するRuntime。
+/// W5-W9.5のGPU SPH / Spatial Hash / DFSPH projectionを所有するRuntime。
 class GpuSphManager
 {
 public:
@@ -84,6 +108,7 @@ public:
     void SetPaused(bool paused) { paused_ = paused; }
     [[nodiscard]] bool IsPaused() const { return paused_; }
     void SetActiveParticleCount(uint32_t activeCount);
+    void ApplyWaterProductionPreset();
 
     [[nodiscard]] bool IsInitialized() const { return initialized_; }
     [[nodiscard]] GpuSphParticleBuffer& GetParticleBuffer() { return particleBuffer_; }
@@ -126,8 +151,28 @@ private:
         uint32_t spatialGridDimY = 0;
         uint32_t spatialGridDimZ = 0;
         uint32_t spatialCellCount = 0;
+
+        uint32_t dfsphEnabled = 0;
+        uint32_t dfsphDensityIterations = 0;
+        uint32_t dfsphDivergenceIterations = 0;
+        uint32_t adaptiveCflEnabled = 0;
+
+        float dfsphDensityRelaxation = 0.0f;
+        float dfsphDivergenceRelaxation = 0.0f;
+        float dfsphDensityErrorTolerance = 0.0f;
+        float dfsphDivergenceErrorTolerance = 0.0f;
+
+        float cflNumber = 0.0f;
+        float minimumDeltaTime = 0.0f;
+        float surfaceTensionStrength = 0.0f;
+        float xsphStrength = 0.0f;
+
+        float boundaryFriction = 0.0f;
+        float maxDfsphVelocityCorrection = 0.0f;
+        float padding4 = 0.0f;
+        float padding5 = 0.0f;
     };
-    static_assert(sizeof(GpuSphSimulationConstants) == 144);
+    static_assert(sizeof(GpuSphSimulationConstants) == 208);
 
     struct GpuSphDispatchConstants
     {
@@ -139,7 +184,7 @@ private:
     static_assert(sizeof(GpuSphDispatchConstants) == 16);
 
     static constexpr uint32_t kThreadGroupSize = 128;
-    static constexpr std::size_t kPipelineStateCount = 15;
+    static constexpr std::size_t kPipelineStateCount = 20;
 
     GpuSphManager() = default;
     ~GpuSphManager() = default;
@@ -155,6 +200,7 @@ private:
     void ReleaseSpatialHashBuffers();
     bool ExecuteReset();
     bool ExecuteSimulationStep(float deltaTime);
+    bool ExecuteDfSphProjection(D3D12_GPU_VIRTUAL_ADDRESS constantBufferAddress, uint32_t activeCount);
     bool ExecuteSpatialHashBuild(D3D12_GPU_VIRTUAL_ADDRESS constantBufferAddress);
     bool DispatchStage(
         GpuSphComputeShaderId shaderId,
@@ -168,6 +214,7 @@ private:
     [[nodiscard]] GpuSphSimulationConstants BuildConstants(float deltaTime) const;
     [[nodiscard]] uint32_t GetValidatedActiveParticleCount() const;
     [[nodiscard]] uint32_t GetSortCount(uint32_t activeCount) const;
+    [[nodiscard]] float CalculateEffectiveDeltaTime(float requestedDeltaTime) const;
     void UpdateSpawnLayoutForActiveCount(uint32_t activeCount);
     void InsertUavBarrier(ID3D12Resource* resource) const;
     void RefreshStats(uint32_t substeps, bool lastStepSucceeded);
@@ -188,6 +235,7 @@ private:
     GpuSphSimulationSettings settings_{};
     GpuSphRuntimeStats stats_{};
     float accumulatorSeconds_ = 0.0f;
+    float effectiveDeltaTime_ = 1.0f / 120.0f;
     bool initialized_ = false;
     bool paused_ = false;
     bool resetRequested_ = false;
