@@ -53,6 +53,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\GpuFluidColliderObstacleAdapter.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Editor\GpuFluidDiagnosticsPanel.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Shader\Manifest\GpuFluidShaderManifest.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Shader\Manifest\GpuSphShaderManifest.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Data\GpuVolumetricFluidTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Data\GpuVolumetricFluidEmitterTypes.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Volumetric\Data\GpuVolumetricFluidObstacleTypes.h" />
@@ -73,6 +74,14 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Shader\Manifest\GpuVolumetricFluidShaderManifest.h" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidCommon.hlsli" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphCommon.hlsli" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphKernel.hlsli" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphReset.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphGravity.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphPredictedPosition.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphBoundary.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphDensity.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphPressure.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphViscosity.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVelocityAdvection.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidDivergence.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidPressureJacobi.CS.hlsl" />
