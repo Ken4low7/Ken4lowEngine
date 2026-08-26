@@ -3,8 +3,59 @@
 #include "ColliderComponent.h"
 #include "RigidbodyComponent.h"
 
+#include <algorithm>
+
 namespace Ken4lowEngine
 {
+	namespace
+	{
+		Vector3 CalculateInertiaScale(const Collider* collider)
+		{
+			if (!collider)
+			{
+				return { 1.0f, 1.0f, 1.0f };
+			}
+
+			switch (collider->GetShapeType())
+			{
+			case ECollisionShapeType::AABB:
+				{
+					const AABB aabb = collider->GetAABB();
+					const Vector3 half = (aabb.max - aabb.min) * 0.5f;
+					return {
+						std::max((half.y * half.y + half.z * half.z) / 3.0f, 0.0001f),
+						std::max((half.x * half.x + half.z * half.z) / 3.0f, 0.0001f),
+						std::max((half.x * half.x + half.y * half.y) / 3.0f, 0.0001f)
+					};
+				}
+			case ECollisionShapeType::OBB:
+				{
+					const Vector3 half = collider->GetOBB().size;
+					return {
+						std::max((half.y * half.y + half.z * half.z) / 3.0f, 0.0001f),
+						std::max((half.x * half.x + half.z * half.z) / 3.0f, 0.0001f),
+						std::max((half.x * half.x + half.y * half.y) / 3.0f, 0.0001f)
+					};
+				}
+			case ECollisionShapeType::Sphere:
+				{
+					const float radius = std::max(collider->GetSphere().radius, 0.001f);
+					const float scale = std::max(0.4f * radius * radius, 0.0001f);
+					return { scale, scale, scale };
+				}
+			case ECollisionShapeType::Capsule:
+				{
+					const Capsule capsule = collider->GetCapsule();
+					const float effectiveRadius = std::max(capsule.radius + Vector3::Length(capsule.segment.diff) * 0.5f, 0.001f);
+					const float scale = std::max(0.4f * effectiveRadius * effectiveRadius, 0.0001f);
+					return { scale, scale, scale }; // W4ではCapsuleを包絡球近似し、極端な角加速度だけを避ける。
+				}
+			default:
+				return { 1.0f, 1.0f, 1.0f };
+			}
+		}
+	}
+
 	void ActorWorld::SetPhysicsWorld(PhysicsWorld* physicsWorld)
 	{
 		if (physicsWorld_ == physicsWorld) return;
@@ -70,6 +121,17 @@ namespace Ken4lowEngine
 
 		if (physicsRigidbody)
 		{
+			for (ColliderComponent* collider : colliders)
+			{
+				if (!collider || !collider->IsActiveInHierarchy() || !collider->GetCollider())
+				{
+					continue;
+				}
+
+				physicsRigidbody->SetInertiaScale(CalculateInertiaScale(collider->GetCollider()));
+				break; // 1 Actorにつき主Collider 1個から慣性を決め、複数Colliderで上書きしない。
+			}
+
 			physicsWorld_->RegisterRigidbody(physicsRigidbody);
 			hasRegisteredPhysics = true;
 		}
