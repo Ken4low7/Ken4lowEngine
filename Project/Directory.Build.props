@@ -13,6 +13,8 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Pass\GpuFluidResetPass.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Manager\GpuFluidManager.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Renderer\GpuFluidForwardRenderer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Sph\Resource\GpuSphParticleBuffer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Sph\Manager\GpuSphManager.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\FluidEmitterComponent.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\GpuFluidColliderObstacleAdapter.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Editor\GpuFluidDiagnosticsPanel.cpp" />
@@ -44,6 +46,9 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Manager\GpuFluidManager.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Renderer\GpuFluidForwardRenderer.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Renderer\GpuFluidForwardRenderBridge.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Sph\Data\GpuSphParticleTypes.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Sph\Resource\GpuSphParticleBuffer.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Renderer\GpuFluid\Sph\Manager\GpuSphManager.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\FluidEmitterComponent.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Components\GpuFluidColliderObstacleAdapter.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Editor\GpuFluidDiagnosticsPanel.h" />
@@ -67,6 +72,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Editor\GpuVolumetricFluidDiagnosticsPanel.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Graphics\Shader\Manifest\GpuVolumetricFluidShaderManifest.h" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidCommon.hlsli" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphCommon.hlsli" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVelocityAdvection.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidDivergence.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidPressureJacobi.CS.hlsl" />
