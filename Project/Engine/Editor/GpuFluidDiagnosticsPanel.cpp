@@ -44,9 +44,9 @@ namespace
 void GpuFluidDiagnosticsPanel::Draw()
 {
 #ifdef USE_IMGUI
-	if (ImGui::IsKeyPressed(ImGuiKey_F12, false))
+	if (ImGui::IsKeyPressed(ImGuiKey_F7, false))
 	{
-		visible_ = !visible_; // F9/F10/F11の既存診断Shortcutと競合させず、Fluid専用PanelをF12へ割り当てる。
+		visible_ = !visible_; // F8以降の既存診断Shortcutと競合させず、Fluid専用PanelをF7へ割り当てる。
 	}
 	if (!visible_)
 	{
@@ -60,7 +60,7 @@ void GpuFluidDiagnosticsPanel::Draw()
 		return;
 	}
 
-	ImGui::TextDisabled("F12: toggle panel");
+	ImGui::TextDisabled("F7: toggle panel");
 	if (!manager->IsInitialized())
 	{
 		ImGui::TextDisabled("GPU Fluid runtime is not initialized.");
