@@ -34,9 +34,9 @@ class W95AdvancedDfSphTests(unittest.TestCase):
         cls.overlay = OVERLAY.read_text(encoding="utf-8")
         cls.particle_types = PARTICLE_TYPES.read_text(encoding="utf-8")
 
-    def test_particle_contract_stays_48_bytes_while_constants_extend_to_208(self) -> None:
+    def test_particle_contract_stays_48_bytes_while_constants_extend_for_w10(self) -> None:
         self.assertIn("static_assert(sizeof(GpuSphParticle) == 48)", self.particle_types)
-        self.assertIn("static_assert(sizeof(GpuSphSimulationConstants) == 208)", self.manager_h)
+        self.assertIn("static_assert(sizeof(GpuSphSimulationConstants) == 272)", self.manager_h)
         self.assertIn("dfsphWarmStartEnabled", self.common)
         self.assertIn("dfsphWarmStartStrength", self.common)
 
