@@ -19,6 +19,12 @@ class IGpuProductionLiquidOceanProvider
 public:
     virtual ~IGpuProductionLiquidOceanProvider() = default;
     [[nodiscard]] virtual GpuProductionLiquidOceanSample SampleOcean(const Vector3& worldPosition) const = 0;
+    virtual void SubmitLiquidFeedback(const Vector3& worldPosition, const Vector3& impulse, float radius)
+    {
+        (void)worldPosition;
+        (void)impulse;
+        (void)radius;
+    }
 };
 
 struct GpuProductionLiquidOceanBridgeSettings
@@ -28,6 +34,10 @@ struct GpuProductionLiquidOceanBridgeSettings
     float blendBand = 3.0f;
     float particleSpawnThreshold = 0.35f;
     float feedbackStrength = 0.20f;
+    float velocityCoupling = 3.0f;
+    float surfaceAttraction = 6.0f;
+    float maxVelocityCorrection = 4.0f;
+    float feedbackRadius = 2.0f;
 };
 
 } // namespace Ken4lowEngine
