@@ -30,6 +30,8 @@ enum class GpuSphComputeShaderId : uint32_t
     DfSphDensityApply,
     DfSphDivergencePrepare,
     DfSphDivergenceApply,
+    CflMetricClear,
+    CflMetricMeasure,
     Count,
 };
 
@@ -138,6 +140,16 @@ public:
         case GpuSphComputeShaderId::DfSphDivergenceApply:
         {
             static const ShaderDescriptor desc{ L"GpuSphDfSphDivergenceApplyCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphDfSph.CS.hlsl", L"ApplyDivergence", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+            return desc;
+        }
+        case GpuSphComputeShaderId::CflMetricClear:
+        {
+            static const ShaderDescriptor desc{ L"GpuSphCflMetricClearCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphCflMetric.CS.hlsl", L"ClearMetric", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+            return desc;
+        }
+        case GpuSphComputeShaderId::CflMetricMeasure:
+        {
+            static const ShaderDescriptor desc{ L"GpuSphCflMetricMeasureCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphCflMetric.CS.hlsl", L"MeasureMaxSpeed", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
             return desc;
         }
         default:
