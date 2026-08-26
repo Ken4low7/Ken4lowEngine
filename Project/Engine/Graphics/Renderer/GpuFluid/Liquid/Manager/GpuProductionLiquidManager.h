@@ -1,0 +1,342 @@
+#pragma once
+
+#include "GpuProductionLiquidOceanBridge.h"
+#include "Engine/Graphics/Renderer/GpuFluid/Sph/Manager/GpuSphManager.h"
+#include "Engine/Graphics/Renderer/GpuFluid/Sph/Renderer/GpuSphScreenSpaceFluidRenderer.h"
+#include "Engine/Graphics/Renderer/GpuFluid/Volumetric/Manager/GpuVolumetricFluidManager.h"
+
+#include <algorithm>
+#include <cstdint>
+
+namespace Ken4lowEngine
+{
+
+enum class GpuProductionLiquidQualityPreset : uint32_t
+{
+    Development = 0,
+    Interactive,
+    High,
+    Cinematic,
+    Stress,
+};
+
+struct GpuProductionLiquidAdaptiveSolverSettings
+{
+    bool enabled = true;
+    uint32_t minDensityIterations = 2;
+    uint32_t maxDensityIterations = 8;
+    uint32_t minDivergenceIterations = 1;
+    uint32_t maxDivergenceIterations = 5;
+    uint32_t calmFramesBeforeDownshift = 12;
+};
+
+struct GpuProductionLiquidSecondarySettings
+{
+    bool enabled = true;
+    float spraySpeedThreshold = 3.5f;
+    float foamSpeedThreshold = 1.5f;
+    float freeSurfaceDensityRatio = 0.88f;
+    float bubbleDensityRatio = 1.08f;
+    uint32_t classificationIntervalFrames = 2;
+};
+
+struct GpuProductionLiquidFlipApicSettings
+{
+    bool enabled = false;
+    float flipPicBlend = 0.95f;
+    float apicAffineStrength = 1.0f;
+    bool reuseVolumetricPressureProjection = true;
+};
+
+struct GpuProductionLiquidLodSettings
+{
+    bool enabled = true;
+    float highQualityRadius = 10.0f;
+    float simulationRadius = 24.0f;
+    uint32_t developmentParticleCount = 1000;
+    uint32_t interactiveParticleCount = 4096;
+    uint32_t highParticleCount = 16384;
+    uint32_t cinematicParticleCount = 32768;
+    uint32_t stressParticleCount = 65536;
+};
+
+struct GpuProductionLiquidRuntimeStats
+{
+    uint64_t frameCount = 0;
+    uint64_t estimatedProjectionDispatches = 0;
+    uint64_t estimatedProjectionDispatchesSaved = 0;
+    uint32_t selectedDensityIterations = 5;
+    uint32_t selectedDivergenceIterations = 3;
+    uint32_t calmFrameCount = 0;
+    uint32_t activeParticleCount = 0;
+    uint32_t surfaceSmoothingIterations = 2;
+    float densityErrorRatio = 0.0f;
+    float divergenceErrorRatio = 0.0f;
+    bool initialized = false;
+    bool adaptiveSolverActive = false;
+    bool flipApicFoundationAvailable = false;
+    bool oceanProviderConnected = false;
+};
+
+/// W10: DFSPH品質制御、Surface予算、Hybrid Grid/Ocean Bridgeを束ねるProduction Liquid Controller。
+class GpuProductionLiquidManager final
+{
+public:
+    static GpuProductionLiquidManager* GetInstance()
+    {
+        static GpuProductionLiquidManager instance;
+        return &instance;
+    }
+
+    bool Initialize()
+    {
+        settings_ = {};
+        secondarySettings_ = {};
+        flipApicSettings_ = {};
+        oceanSettings_ = {};
+        lodSettings_ = {};
+        stats_ = {};
+        preset_ = GpuProductionLiquidQualityPreset::High;
+        initialized_ = true;
+        ApplyQualityPreset(preset_, false);
+        stats_.initialized = true;
+        return true;
+    }
+
+    void Finalize()
+    {
+        oceanProvider_ = nullptr;
+        settings_ = {};
+        secondarySettings_ = {};
+        flipApicSettings_ = {};
+        oceanSettings_ = {};
+        lodSettings_ = {};
+        stats_ = {};
+        initialized_ = false;
+    }
+
+    void PreSphUpdate(float deltaTime)
+    {
+        (void)deltaTime;
+        if (!initialized_)
+        {
+            return;
+        }
+
+        GpuSphManager* sph = GpuSphManager::GetInstance();
+        if (!sph || !sph->IsInitialized())
+        {
+            return;
+        }
+
+        GpuSphSimulationSettings& sphSettings = sph->GetEditableSimulationSettings();
+        const GpuSphRuntimeStats& sphStats = sph->GetRuntimeStats();
+        stats_.activeParticleCount = sphSettings.activeParticleCount;
+        stats_.adaptiveSolverActive = settings_.enabled && sphSettings.dfsphEnabled;
+
+        if (!stats_.adaptiveSolverActive)
+        {
+            stats_.selectedDensityIterations = sphSettings.dfsphDensityIterations;
+            stats_.selectedDivergenceIterations = sphSettings.dfsphDivergenceIterations;
+            return;
+        }
+
+        const float densityTolerance = (std::max)(sphSettings.dfsphDensityErrorTolerance, 1.0e-5f);
+        const float divergenceTolerance = (std::max)(sphSettings.dfsphDivergenceErrorTolerance, 1.0e-5f);
+        stats_.densityErrorRatio = sphStats.lastMaxDensityError / densityTolerance;
+        stats_.divergenceErrorRatio = sphStats.lastMaxDivergenceError / divergenceTolerance;
+
+        if (sphStats.cflReadbackCount == 0)
+        {
+            stats_.selectedDensityIterations = sphSettings.dfsphDensityIterations;
+            stats_.selectedDivergenceIterations = sphSettings.dfsphDivergenceIterations;
+            return;
+        }
+
+        const uint32_t targetDensity = SelectIterationBudget(
+            stats_.densityErrorRatio,
+            settings_.minDensityIterations,
+            settings_.maxDensityIterations);
+        const uint32_t targetDivergence = SelectIterationBudget(
+            stats_.divergenceErrorRatio,
+            settings_.minDivergenceIterations,
+            settings_.maxDivergenceIterations);
+
+        const bool wantsDownshift =
+            targetDensity < sphSettings.dfsphDensityIterations ||
+            targetDivergence < sphSettings.dfsphDivergenceIterations;
+        if (wantsDownshift)
+        {
+            ++stats_.calmFrameCount;
+        }
+        else
+        {
+            stats_.calmFrameCount = 0;
+        }
+
+        const bool allowDownshift = stats_.calmFrameCount >= (std::max)(settings_.calmFramesBeforeDownshift, 1u);
+        if (targetDensity > sphSettings.dfsphDensityIterations || allowDownshift)
+        {
+            sphSettings.dfsphDensityIterations = targetDensity;
+        }
+        if (targetDivergence > sphSettings.dfsphDivergenceIterations || allowDownshift)
+        {
+            sphSettings.dfsphDivergenceIterations = targetDivergence;
+        }
+        if (allowDownshift)
+        {
+            stats_.calmFrameCount = 0;
+        }
+
+        stats_.selectedDensityIterations = sphSettings.dfsphDensityIterations;
+        stats_.selectedDivergenceIterations = sphSettings.dfsphDivergenceIterations;
+    }
+
+    void PostSphUpdate()
+    {
+        if (!initialized_)
+        {
+            return;
+        }
+
+        const GpuSphRuntimeStats& sphStats = GpuSphManager::GetInstance()->GetRuntimeStats();
+        const uint64_t substeps = sphStats.lastFrameSubsteps;
+        const uint64_t baselinePerStep = 2ull *
+            (static_cast<uint64_t>(settings_.maxDensityIterations) + static_cast<uint64_t>(settings_.maxDivergenceIterations));
+        const uint64_t selectedPerStep = 2ull *
+            (static_cast<uint64_t>(stats_.selectedDensityIterations) + static_cast<uint64_t>(stats_.selectedDivergenceIterations));
+        stats_.estimatedProjectionDispatches += selectedPerStep * substeps;
+        if (baselinePerStep > selectedPerStep)
+        {
+            stats_.estimatedProjectionDispatchesSaved += (baselinePerStep - selectedPerStep) * substeps;
+        }
+
+        stats_.flipApicFoundationAvailable = GpuVolumetricFluidManager::GetInstance()->IsInitialized();
+        stats_.oceanProviderConnected = oceanProvider_ != nullptr;
+        ++stats_.frameCount;
+    }
+
+    void ApplyQualityPreset(GpuProductionLiquidQualityPreset preset, bool applyParticleCount)
+    {
+        preset_ = preset;
+        GpuSphManager* sph = GpuSphManager::GetInstance();
+        GpuSphScreenSpaceFluidRenderer* renderer = GpuSphScreenSpaceFluidRenderer::GetInstance();
+        uint32_t particleCount = 0;
+        uint32_t smoothingIterations = 2;
+
+        switch (preset)
+        {
+        case GpuProductionLiquidQualityPreset::Development:
+            settings_.minDensityIterations = 1;
+            settings_.maxDensityIterations = 4;
+            settings_.minDivergenceIterations = 0;
+            settings_.maxDivergenceIterations = 2;
+            secondarySettings_.classificationIntervalFrames = 4;
+            particleCount = lodSettings_.developmentParticleCount;
+            smoothingIterations = 1;
+            break;
+        case GpuProductionLiquidQualityPreset::Interactive:
+            settings_.minDensityIterations = 2;
+            settings_.maxDensityIterations = 5;
+            settings_.minDivergenceIterations = 1;
+            settings_.maxDivergenceIterations = 3;
+            secondarySettings_.classificationIntervalFrames = 2;
+            particleCount = lodSettings_.interactiveParticleCount;
+            smoothingIterations = 2;
+            break;
+        case GpuProductionLiquidQualityPreset::High:
+            settings_.minDensityIterations = 2;
+            settings_.maxDensityIterations = 8;
+            settings_.minDivergenceIterations = 1;
+            settings_.maxDivergenceIterations = 5;
+            secondarySettings_.classificationIntervalFrames = 2;
+            particleCount = lodSettings_.highParticleCount;
+            smoothingIterations = 3;
+            break;
+        case GpuProductionLiquidQualityPreset::Cinematic:
+            settings_.minDensityIterations = 3;
+            settings_.maxDensityIterations = 10;
+            settings_.minDivergenceIterations = 2;
+            settings_.maxDivergenceIterations = 7;
+            secondarySettings_.classificationIntervalFrames = 1;
+            particleCount = lodSettings_.cinematicParticleCount;
+            smoothingIterations = 4;
+            break;
+        case GpuProductionLiquidQualityPreset::Stress:
+        default:
+            settings_.minDensityIterations = 2;
+            settings_.maxDensityIterations = 6;
+            settings_.minDivergenceIterations = 1;
+            settings_.maxDivergenceIterations = 4;
+            secondarySettings_.classificationIntervalFrames = 4;
+            particleCount = lodSettings_.stressParticleCount;
+            smoothingIterations = 1;
+            break;
+        }
+
+        renderer->GetEditableSettings().smoothingIterations = smoothingIterations;
+        stats_.surfaceSmoothingIterations = smoothingIterations;
+        if (applyParticleCount && sph && sph->IsInitialized())
+        {
+            // 粒子数変更は明示Preset操作時だけ行い、毎FrameのLODでは勝手に減らさない。
+            sph->SetActiveParticleCount(particleCount);
+        }
+    }
+
+    void SetOceanProvider(const IGpuProductionLiquidOceanProvider* provider)
+    {
+        oceanProvider_ = provider;
+        stats_.oceanProviderConnected = provider != nullptr;
+    }
+
+    [[nodiscard]] GpuProductionLiquidOceanSample SampleOcean(const Vector3& worldPosition) const
+    {
+        if (!oceanSettings_.enabled || oceanProvider_ == nullptr)
+        {
+            return {};
+        }
+        return oceanProvider_->SampleOcean(worldPosition);
+    }
+
+    [[nodiscard]] bool IsInitialized() const { return initialized_; }
+    [[nodiscard]] GpuProductionLiquidAdaptiveSolverSettings& GetEditableAdaptiveSolverSettings() { return settings_; }
+    [[nodiscard]] GpuProductionLiquidSecondarySettings& GetEditableSecondarySettings() { return secondarySettings_; }
+    [[nodiscard]] GpuProductionLiquidFlipApicSettings& GetEditableFlipApicSettings() { return flipApicSettings_; }
+    [[nodiscard]] GpuProductionLiquidOceanBridgeSettings& GetEditableOceanSettings() { return oceanSettings_; }
+    [[nodiscard]] GpuProductionLiquidLodSettings& GetEditableLodSettings() { return lodSettings_; }
+    [[nodiscard]] const GpuProductionLiquidRuntimeStats& GetRuntimeStats() const { return stats_; }
+    [[nodiscard]] GpuProductionLiquidQualityPreset GetQualityPreset() const { return preset_; }
+
+private:
+    static uint32_t SelectIterationBudget(float ratio, uint32_t minimum, uint32_t maximum)
+    {
+        minimum = (std::min)(minimum, maximum);
+        if (ratio <= 0.75f)
+        {
+            return minimum;
+        }
+        if (ratio <= 1.5f)
+        {
+            return (std::min)(minimum + 1u, maximum);
+        }
+        if (ratio <= 3.0f)
+        {
+            return minimum + (maximum - minimum) / 2u;
+        }
+        return maximum;
+    }
+
+    GpuProductionLiquidManager() = default;
+
+    GpuProductionLiquidAdaptiveSolverSettings settings_{};
+    GpuProductionLiquidSecondarySettings secondarySettings_{};
+    GpuProductionLiquidFlipApicSettings flipApicSettings_{};
+    GpuProductionLiquidOceanBridgeSettings oceanSettings_{};
+    GpuProductionLiquidLodSettings lodSettings_{};
+    GpuProductionLiquidRuntimeStats stats_{};
+    GpuProductionLiquidQualityPreset preset_ = GpuProductionLiquidQualityPreset::High;
+    const IGpuProductionLiquidOceanProvider* oceanProvider_ = nullptr;
+    bool initialized_ = false;
+};
+
+} // namespace Ken4lowEngine
