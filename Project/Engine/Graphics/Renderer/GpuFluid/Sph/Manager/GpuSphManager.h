@@ -6,6 +6,7 @@
 #include <Vector3.h>
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 namespace Ken4lowEngine
@@ -112,7 +113,7 @@ private:
     static_assert(sizeof(GpuSphSimulationConstants) == 112);
 
     static constexpr uint32_t kThreadGroupSize = 128;
-    static constexpr size_t kPipelineStateCount = 11;
+    static constexpr std::size_t kPipelineStateCount = 11;
 
     GpuSphManager() = default;
     ~GpuSphManager() = default;
