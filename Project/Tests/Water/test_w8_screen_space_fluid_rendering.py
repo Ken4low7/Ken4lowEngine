@@ -82,6 +82,14 @@ class W8ScreenSpaceFluidRenderingTests(unittest.TestCase):
         self.assertIn("D3D12_COMPARISON_FUNC_LESS_EQUAL", self.renderer)
         self.assertIn("D3D12_DEPTH_WRITE_MASK_ZERO", self.renderer)
 
+    def test_w8_render_targets_define_matching_optimized_clear_values(self) -> None:
+        self.assertIn("kDepthClearValue = 1000000.0f", self.renderer)
+        self.assertIn("kThicknessClearValue = 0.0f", self.renderer)
+        self.assertIn("D3D12_CLEAR_VALUE optimizedClear", self.renderer)
+        self.assertIn("&optimizedClear", self.renderer)
+        self.assertIn("const float clearValue[4] = { kDepthClearValue", self.renderer)
+        self.assertIn("const float clearValue[4] = { kThicknessClearValue", self.renderer)
+
 
 if __name__ == "__main__":
     unittest.main()
