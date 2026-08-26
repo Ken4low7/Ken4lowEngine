@@ -109,7 +109,7 @@ void GpuFluidDiagnosticsPanel::Draw()
 		ImGui::Text("Simulation time: %.2f sec", stats.elapsedSimulationSeconds);
 	}
 
-	if (ImGui::CollapsingHeader("SPH Foundation (W5)", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("SPH Simulation (W5/W6)", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		GpuSphManager* sphManager = GpuSphManager::GetInstance();
 		GpuSphSimulationSettings& sphSettings = sphManager->GetEditableSimulationSettings();
@@ -134,7 +134,8 @@ void GpuFluidDiagnosticsPanel::Draw()
 		}
 
 		int activeParticles = static_cast<int>(sphBufferStats.activeCount);
-		if (ImGui::SliderInt("SPH Active Particles", &activeParticles, 1, static_cast<int>(GpuSphManager::kMaxNaiveNeighborParticles)))
+		const int maxActiveParticles = static_cast<int>((std::max)(1u, sphBufferStats.capacity));
+		if (ImGui::SliderInt("SPH Active Particles", &activeParticles, 1, maxActiveParticles))
 		{
 			sphManager->SetActiveParticleCount(static_cast<uint32_t>((std::max)(1, activeParticles)));
 		}
@@ -155,11 +156,11 @@ void GpuFluidDiagnosticsPanel::Draw()
 		ImGui::DragFloat3("SPH Boundary Min", &sphSettings.boundaryMin.x, 0.05f);
 		ImGui::DragFloat3("SPH Boundary Max", &sphSettings.boundaryMax.x, 0.05f);
 
-		ImGui::SeparatorText("W5 Runtime Status");
+		ImGui::SeparatorText("W5/W6 Runtime Status");
 		ImGui::Text("Particle Buffer: %s", sphBufferStats.initialized ? "Ready" : "FAILED");
 		ImGui::Text("Active / Capacity: %u / %u", sphBufferStats.activeCount, sphBufferStats.capacity);
 		ImGui::Text("Particle Stride: %u bytes", sphBufferStats.strideBytes);
-		ImGui::Text("Particle + Scratch GPU Storage: %.2f MiB", sphMemoryMiB);
+		ImGui::Text("SPH GPU Storage: %.2f MiB", sphMemoryMiB);
 		ImGui::Text("Last Step: %s | Substeps: %u", sphStats.lastStepSucceeded ? "OK" : "FAILED", sphStats.lastFrameSubsteps);
 		ImGui::Text("Total Simulation Steps: %llu", static_cast<unsigned long long>(sphStats.totalSimulationSteps));
 		ImGui::Text("Reset Count: %llu | Total Dispatches: %llu",
@@ -174,6 +175,27 @@ void GpuFluidDiagnosticsPanel::Draw()
 			static_cast<unsigned long long>(sphStats.viscosityDispatchCount),
 			static_cast<unsigned long long>(sphStats.predictionDispatchCount));
 
+		ImGui::SeparatorText("W6 Spatial Hash / GPU Sort");
+		ImGui::Text("Spatial Hash: %s", sphStats.spatialHashReady ? "Ready" : "Waiting / Invalid");
+		ImGui::Text("Grid: %u x %u x %u | Cells: %u",
+			sphStats.spatialGridDimX,
+			sphStats.spatialGridDimY,
+			sphStats.spatialGridDimZ,
+			sphStats.spatialCellCount);
+		ImGui::Text("Cell Size: %.4f | Bitonic Sort Count: %u", sphStats.spatialCellSize, sphStats.sortedParticleCount);
+		ImGui::Text("Hash Builds: %llu | Sort Dispatches: %llu | Cell Range Dispatches: %llu",
+			static_cast<unsigned long long>(sphStats.spatialHashBuildCount),
+			static_cast<unsigned long long>(sphStats.spatialHashSortDispatchCount),
+			static_cast<unsigned long long>(sphStats.cellRangeDispatchCount));
+		if (sphStats.spatialCellCount == 0)
+		{
+			ImGui::TextDisabled("Spatial grid is invalid. Increase Smoothing Radius or reduce the Boundary volume.");
+		}
+		else
+		{
+			ImGui::TextDisabled("W6 searches the current 3D cell plus its 26 neighbors instead of scanning every particle.");
+		}
+
 		if (sphBufferStats.initialized)
 		{
 			const GpuSphParticleBuffer& particleBuffer = sphManager->GetParticleBuffer();
@@ -183,9 +205,6 @@ void GpuFluidDiagnosticsPanel::Draw()
 				particleBuffer.GetUavIndex());
 			ImGui::Text("Resource State: %u", static_cast<uint32_t>(particleBuffer.GetCurrentState()));
 		}
-
-		// W6でSpatial Hashを導入するまで近傍探索はO(N^2)なので4096粒子を上限にする。
-		ImGui::TextDisabled("W5 neighbor search is O(N^2). Active particles are capped at 4096 until W6 Spatial Hash.");
 	}
 
 	if (ImGui::CollapsingHeader("Visualization", ImGuiTreeNodeFlags_DefaultOpen))
