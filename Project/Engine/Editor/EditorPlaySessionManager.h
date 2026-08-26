@@ -444,8 +444,10 @@ namespace Ken4lowEngine
 				return false;
 			}
 
-			std::unordered_map<std::string, Actor*> loadedActors;
-			loadedActors.reserve(committedActors.size());
+			EditorContext::GetInstance()->ResetTransientState();
+			EditorCommandHistory::GetInstance()->Clear();
+			actorWorld->SetSelectedEditorObject(nullptr, nullptr);
+
 			for (std::size_t index = 0; index < committedActors.size(); ++index)
 			{
 				Actor* actor = committedActors[index];
@@ -458,12 +460,7 @@ namespace Ken4lowEngine
 
 				RestoreCameraRegistration(*actor, actorSnapshot.actorJson);
 				EditorActorStateRegistry::GetInstance()->SetState(actor, actorSnapshot.editorState);
-				loadedActors[actorSnapshot.id] = actor;
 			}
-
-			EditorContext::GetInstance()->ResetTransientState();
-			EditorCommandHistory::GetInstance()->Clear();
-			actorWorld->SetSelectedEditorObject(nullptr, nullptr);
 
 			LightManager* lightManager = LightManager::GetInstance();
 			lightManager->GetMutableLightingSettingsForEditor() = snapshot.lighting;
