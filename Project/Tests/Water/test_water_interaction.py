@@ -51,6 +51,35 @@ class WaterInteractionRegressionTests(unittest.TestCase):
         self.assertIn("std::exp", self.interaction)
         self.assertIn("rigidbody->SetVelocity", self.interaction)
 
+    def test_w4_buoyancy_uses_displaced_volume_and_water_density(self) -> None:
+        self.assertIn("CalculateColliderVolume", self.interaction)
+        self.assertIn("const float submergedVolume = objectVolume * submerged", self.interaction)
+        self.assertIn("waterDensity_", self.interaction)
+        self.assertIn("gravityMagnitude * submergedVolume", self.interaction)
+        self.assertIn("float waterDensity_ = 1000.0f", self.interaction)
+        self.assertIn("float buoyancyScale_ = 1.0f", self.interaction)
+
+    def test_w4_volume_supports_box_sphere_and_capsule_shapes(self) -> None:
+        self.assertIn("case ECollisionShapeType::AABB", self.interaction)
+        self.assertIn("case ECollisionShapeType::OBB", self.interaction)
+        self.assertIn("case ECollisionShapeType::Sphere", self.interaction)
+        self.assertIn("case ECollisionShapeType::Capsule", self.interaction)
+        self.assertIn("8.0f", self.interaction)
+        self.assertIn("fourThirds * pi", self.interaction)
+        self.assertIn("pi * radius * radius * cylinderLength", self.interaction)
+
+    def test_w4_one_cubic_meter_mass_matrix(self) -> None:
+        water_density = 1000.0
+        expected_fraction = {
+            100.0: 0.1,
+            500.0: 0.5,
+            900.0: 0.9,
+            1000.0: 1.0,
+        }
+        for mass, expected in expected_fraction.items():
+            self.assertAlmostEqual(mass / water_density, expected)
+        self.assertGreater(1500.0 / water_density, 1.0)
+
     def test_w4_uses_multi_point_surface_sampling_and_wave_normal_alignment(self) -> None:
         self.assertIn("struct ProbeSet", self.interaction)
         self.assertIn("std::array<Vector3, 8>", self.interaction)
@@ -60,6 +89,7 @@ class WaterInteractionRegressionTests(unittest.TestCase):
         self.assertIn("AlignActorToSurface", self.interaction)
         self.assertIn("targetPitch", self.interaction)
         self.assertIn("targetRoll", self.interaction)
+        self.assertIn("waterAngularDrag_", self.interaction)
 
     def test_w4_exposes_splash_event_hook(self) -> None:
         self.assertIn("struct WaterSplashEvent", self.interaction)
@@ -69,11 +99,23 @@ class WaterInteractionRegressionTests(unittest.TestCase):
         self.assertIn("impactSpeed", self.interaction)
         self.assertIn("splashIntensityScale_", self.interaction)
 
+    def test_w4_diagnostics_expose_physical_values(self) -> None:
+        self.assertIn("struct WaterInteractionDiagnostics", self.interaction)
+        self.assertIn("waterHeight", self.interaction)
+        self.assertIn("objectVolume", self.interaction)
+        self.assertIn("submergedVolume", self.interaction)
+        self.assertIn("gravityForce", self.interaction)
+        self.assertIn("buoyancyForce", self.interaction)
+        self.assertIn("dragForce", self.interaction)
+        self.assertIn("GetLastDiagnostics", self.interaction)
+
     def test_w4_settings_are_serialized(self) -> None:
         for key in (
             "BuoyancyEnabled",
             "BuoyancyScale",
+            "WaterDensity",
             "WaterLinearDrag",
+            "WaterAngularDrag",
             "MultiPointSampling",
             "SurfaceAlignEnabled",
             "SurfaceAlignSpeed",
