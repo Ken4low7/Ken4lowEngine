@@ -29,7 +29,7 @@ namespace Ken4lowEngine
 		void Update(float deltaTime) override;
 
 		/// <summary>
-		/// PhysicsWorld更新後にRigidbodyの速度をTransformへ反映する
+		/// PhysicsWorld更新後にRigidbodyの速度と角速度をTransformへ反映する
 		/// </summary>
 		void PostPhysicsUpdate(float deltaTime) override;
 
@@ -96,9 +96,19 @@ namespace Ken4lowEngine
 		void SetVelocity(const Vector3& velocity);
 
 		/// <summary>
+		/// Rigidbodyの角速度を設定する
+		/// </summary>
+		void SetAngularVelocity(const Vector3& angularVelocity);
+
+		/// <summary>
 		/// Rigidbodyへ力を加える
 		/// </summary>
 		void AddForce(const Vector3& force);
+
+		/// <summary>
+		/// RigidbodyへTorqueを加える
+		/// </summary>
+		void AddTorque(const Vector3& torque);
 
 		/// <summary>
 		/// RigidbodyのSleep上から復帰させる
@@ -128,6 +138,7 @@ namespace Ken4lowEngine
 		float mass_ = 1.0f;                    // ImGui編集用に保持する質量
 		bool useGravity_ = true;               // 新規Dynamic Rigidbodyは追加直後から重力へ反応する。
 		Vector3 velocity_{};                   // ImGui表示・編集用に保持する速度
+		Vector3 angularVelocity_{};            // 水面Torqueなどで生じる角速度を保持する。
 		bool sleepEnabled_ = false;             // ImGui編集用に保持するSleep機能の有効状態
 		float restitution_ = 0.0f;              // 反発係数
 		float staticFriction_ = 0.5f;           // 静止摩擦係数
