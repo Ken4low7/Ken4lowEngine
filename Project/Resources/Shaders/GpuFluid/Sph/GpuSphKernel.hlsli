@@ -61,7 +61,7 @@ float GpuSphViscosityLaplacian(float distanceValue, float smoothingRadius)
 float GpuSphTaitPressure(float densityValue, float targetDensity, float stiffness)
 {
     const float safeTargetDensity = max(targetDensity, 1.0e-5f);
-    const float densityRatio = max(densityValue / safeTargetDensity, 0.01f);
+    const float densityRatio = clamp(densityValue / safeTargetDensity, 0.01f, 2.0f);
     const float bulkModulus = max(stiffness, 0.0f) * safeTargetDensity / kGpuSphTaitExponent;
     const float pressureValue = bulkModulus * (pow(densityRatio, kGpuSphTaitExponent) - 1.0f);
     const float minimumPressure = -bulkModulus * kGpuSphNegativePressureRatio;
