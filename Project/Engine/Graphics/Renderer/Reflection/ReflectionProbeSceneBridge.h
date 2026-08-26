@@ -37,8 +37,17 @@ namespace Ken4lowEngine
 
 		static bool CapturePending(ActorWorld& actorWorld)
 		{
-			// W9はMain Scene描画直前の最新Physics Transformを使い、SPH粒子とRigidbodyを双方向に接続する。
+#ifdef USE_IMGUI
+			const bool isEditorEditing = EditorModeController::GetInstance()->IsEditorModeEnabled() &&
+				EditorPlayController::GetInstance()->IsEditing();
+			if (!isEditorEditing)
+			{
+				// W9はPIE/Game Preview時だけ最新Physics Transformを使ってSPHとRigidbodyを双方向に接続する。
+				GpuSphRigidbodyInteraction::GetInstance()->Update(actorWorld);
+			}
+#else
 			GpuSphRigidbodyInteraction::GetInstance()->Update(actorWorld);
+#endif
 
 			SyncProbes(actorWorld);
 			actorWorld.PrepareRenderState(); // Probe内のDirect Lightingも現在SceneのLightComponent値を使う。
