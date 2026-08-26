@@ -63,7 +63,11 @@ namespace Ken4lowEngine
 		float submergedFraction = 0.0f;
 		float gravityForce = 0.0f;
 		float buoyancyForce = 0.0f;
+		float buoyancyTorque = 0.0f;
 		float dragForce = 0.0f;
+		float angularSpeed = 0.0f;
+		std::uint32_t probeCount = 0;
+		std::uint32_t submergedProbeCount = 0;
 	};
 
 	class WaterInteractionComponent final : public ColliderComponent
@@ -201,9 +205,13 @@ namespace Ken4lowEngine
 				ImGui::Text("Object Volume: %.4f m^3", lastDiagnostics_.objectVolume);
 				ImGui::Text("Submerged Volume: %.4f m^3", lastDiagnostics_.submergedVolume);
 				ImGui::Text("Submerged Ratio: %.3f", lastDiagnostics_.submergedFraction);
+				ImGui::Text("Probe Count: %u", lastDiagnostics_.probeCount);
+				ImGui::Text("Submerged Probes: %u", lastDiagnostics_.submergedProbeCount);
 				ImGui::Text("Gravity Force: %.3f N", lastDiagnostics_.gravityForce);
 				ImGui::Text("Buoyancy Force: %.3f N", lastDiagnostics_.buoyancyForce);
+				ImGui::Text("Buoyancy Torque: %.3f N*m", lastDiagnostics_.buoyancyTorque);
 				ImGui::Text("Drag Force: %.3f N", lastDiagnostics_.dragForce);
+				ImGui::Text("Angular Speed: %.3f rad/s", lastDiagnostics_.angularSpeed);
 				ImGui::Text("State: %s", ContactStateName(lastDiagnostics_.state));
 			}
 			if (trackedColliders_.empty())
@@ -211,7 +219,7 @@ namespace Ken4lowEngine
 				ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.35f, 1.0f), "候補0: 対象ActorにColliderComponentが必要です。");
 			}
 			ImGui::TextDisabled("1 Engine Unit = 1 m を前提にCollider体積から排水量を計算します。");
-			ImGui::TextDisabled("Dynamic Rigidbodyへ排水体積ベースの浮力と水中Dragを適用します。"); // W4の浮力は質量ではなく排水体積から算出する。
+			ImGui::TextDisabled("Multi-Point時は各Probeへ浮力を分配し、r x FでTorqueを生成します。"); // W4.5は重心1点ではなく偏った排水から回転力を作る。
 #endif
 			SyncVolumeToSurface();
 		}
@@ -561,11 +569,50 @@ namespace Ken4lowEngine
 			if (gravityMagnitude <= 0.001f) gravityMagnitude = 9.8f;
 
 			Vector3 buoyancyForce{};
+			Vector3 buoyancyTorque{};
 			if (buoyancyEnabled_ && submergedVolume > 0.0f)
 			{
 				const float buoyancyMagnitude = (std::max)(waterDensity_, 0.0f) * gravityMagnitude * submergedVolume * (std::max)(buoyancyScale_, 0.0f);
-				buoyancyForce = contact.surface.worldNormal * buoyancyMagnitude;
-				rigidbody->AddForce(buoyancyForce);
+				const ProbeSet probes = BuildProbeSet(contact.collider);
+				const Vector3 centerOfMass = contact.collider->GetCenterPosition();
+
+				if (multiPointSampling_ && probes.count > 1)
+				{
+					std::array<WaterSurfaceSample, 8> probeSamples{};
+					std::array<float, 8> probeWeights{};
+					float probeWeightSum = 0.0f;
+					const float probeBand = (std::max)(surfaceTolerance_, 0.05f);
+
+					for (std::size_t index = 0; index < probes.count; ++index)
+					{
+						probeSamples[index] = waterSurface_->SampleSurfaceAtWorldPosition(probes.points[index]);
+						probeWeights[index] = std::clamp(0.5f - probeSamples[index].signedDistance / (probeBand * 2.0f), 0.0f, 1.0f);
+						probeWeightSum += probeWeights[index];
+					}
+
+					if (probeWeightSum > 0.001f)
+					{
+						for (std::size_t index = 0; index < probes.count; ++index)
+						{
+							if (probeWeights[index] <= 0.0f) continue;
+							const float forceShare = probeWeights[index] / probeWeightSum;
+							const Vector3 probeForce = probeSamples[index].worldNormal * (buoyancyMagnitude * forceShare);
+							rigidbody->AddForceAtPosition(probeForce, probes.points[index], centerOfMass);
+							buoyancyForce += probeForce;
+							buoyancyTorque += Vector3::Cross(probes.points[index] - centerOfMass, probeForce);
+						}
+					}
+					else
+					{
+						buoyancyForce = contact.surface.worldNormal * buoyancyMagnitude;
+						rigidbody->AddForce(buoyancyForce);
+					}
+				}
+				else
+				{
+					buoyancyForce = contact.surface.worldNormal * buoyancyMagnitude;
+					rigidbody->AddForce(buoyancyForce);
+				}
 			}
 
 			Vector3 dragForce{};
@@ -578,9 +625,16 @@ namespace Ken4lowEngine
 				rigidbody->SetVelocity(velocityAfterDrag);
 			}
 
+			if (waterAngularDrag_ > 0.0f && safeDeltaTime > 0.0f)
+			{
+				const Vector3 angularVelocity = rigidbody->GetAngularVelocity();
+				const float angularDamping = std::exp(-(std::max)(waterAngularDrag_, 0.0f) * submerged * safeDeltaTime);
+				rigidbody->SetAngularVelocity(angularVelocity * angularDamping);
+			}
+
 			if (surfaceAlignEnabled_)
 			{
-				AlignActorToSurface(contact.actor, contact.surface.worldNormal, submerged, safeDeltaTime);
+				ApplySurfaceAlignmentTorque(contact.actor, rigidbody, contact.surface.worldNormal, submerged);
 			}
 
 			lastDiagnostics_.actor = contact.actor;
@@ -592,13 +646,17 @@ namespace Ken4lowEngine
 			lastDiagnostics_.submergedFraction = submerged;
 			lastDiagnostics_.gravityForce = rigidbody->GetMass() * gravityMagnitude;
 			lastDiagnostics_.buoyancyForce = Vector3::Length(buoyancyForce);
+			lastDiagnostics_.buoyancyTorque = Vector3::Length(buoyancyTorque);
 			lastDiagnostics_.dragForce = Vector3::Length(dragForce);
+			lastDiagnostics_.angularSpeed = Vector3::Length(rigidbody->GetAngularVelocity());
+			lastDiagnostics_.probeCount = contact.probeCount;
+			lastDiagnostics_.submergedProbeCount = contact.submergedProbeCount;
 			diagnosticsValid_ = true;
 		}
 
-		void AlignActorToSurface(Actor* actor, const Vector3& surfaceNormal, float submergedFraction, float deltaTime) const
+		void ApplySurfaceAlignmentTorque(Actor* actor, Rigidbody* rigidbody, const Vector3& surfaceNormal, float submergedFraction) const
 		{
-			if (!actor || deltaTime <= 0.0f) return;
+			if (!actor || !rigidbody || submergedFraction <= 0.0f) return;
 			SceneComponent* root = actor->GetRootComponent();
 			if (!root || root->GetParent()) return;
 
@@ -607,14 +665,21 @@ namespace Ken4lowEngine
 			const float safeY = (std::max)(normal.y, 0.001f);
 			const float targetPitch = std::clamp(std::atan2(normal.z, safeY), -maxTiltRadians, maxTiltRadians);
 			const float targetRoll = std::clamp(-std::atan2(normal.x, safeY), -maxTiltRadians, maxTiltRadians);
-			const float angularRate = (std::max)(surfaceAlignSpeed_, 0.0f) + (std::max)(waterAngularDrag_, 0.0f) * submergedFraction;
-			const float alpha = 1.0f - std::exp(-angularRate * submergedFraction * deltaTime);
-
-			Vector3 rotation = root->GetLocalRotation();
-			rotation.x = std::lerp(rotation.x, targetPitch, alpha);
-			rotation.z = std::lerp(rotation.z, targetRoll, alpha);
-			root->SetLocalRotation(rotation);
-			root->RefreshWorldTransform();
+			const Vector3 currentRotation = root->GetLocalRotation();
+			const Vector3 angularVelocity = rigidbody->GetAngularVelocity();
+			const float response = (std::max)(surfaceAlignSpeed_, 0.0f);
+			const float stiffness = response * response * submergedFraction;
+			const float damping = response * 2.0f * submergedFraction;
+			const Vector3 desiredAngularAcceleration{
+				(targetPitch - currentRotation.x) * stiffness - angularVelocity.x * damping,
+				0.0f,
+				(targetRoll - currentRotation.z) * stiffness - angularVelocity.z * damping
+			};
+			const Vector3 invInertia = rigidbody->GetInvInertia();
+			Vector3 alignmentTorque{};
+			if (invInertia.x > 0.000001f) alignmentTorque.x = desiredAngularAcceleration.x / invInertia.x;
+			if (invInertia.z > 0.000001f) alignmentTorque.z = desiredAngularAcceleration.z / invInertia.z;
+			rigidbody->AddTorque(alignmentTorque); // 波面追従もTransform直書きではなくTorqueとして物理系へ渡す。
 		}
 
 		void TryEmitSplash(const WaterContact& contact, bool entering)
