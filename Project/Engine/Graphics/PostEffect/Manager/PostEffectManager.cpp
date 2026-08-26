@@ -8,6 +8,8 @@
 #include "PostEffectExecutor.h"
 #include "PostEffectEditorPanel.h"
 #include "DirectXCommon.h"
+#include "Engine/Graphics/Renderer/GpuFluid/Sph/Manager/GpuSphManager.h"
+#include "Engine/Graphics/Renderer/GpuFluid/Sph/Renderer/GpuSphScreenSpaceFluidRenderer.h"
 
 namespace Ken4lowEngine
 {
@@ -55,7 +57,8 @@ namespace Ken4lowEngine
 			return;
 		}
 
-		dxCommon_->GetCommandManager()->ExecuteAndWait(); // GPU参照完了後にEffectとRTを破棄する既存順を維持する。
+		dxCommon_->GetCommandManager()->ExecuteAndWait();
+		GpuSphScreenSpaceFluidRenderer::GetInstance()->Finalize(); // Descriptor Manager破棄前にW8専用RT/SRV/RTVを返す。
 		if (executor_) { executor_->Finalize(); }
 		if (registry_) { registry_->Finalize(); }
 		if (pipelineBuilder_) { pipelineBuilder_->Finalize(); }
@@ -81,8 +84,22 @@ namespace Ken4lowEngine
 		}
 	}
 
-	void PostEffectManager::BeginDraw() { if (executor_) { executor_->BeginDraw(); } }
-	void PostEffectManager::EndDraw() { if (executor_) { executor_->EndDraw(); } }
+	void PostEffectManager::BeginDraw()
+	{
+		if (executor_) { executor_->BeginDraw(); }
+	}
+
+	void PostEffectManager::EndDraw()
+	{
+		// SceneのOpaque/Transparent/Additiveがすべて終わった後、PostEffectへ渡す直前にSPHをScreen Space合成する。
+		GpuSphManager* sphManager = GpuSphManager::GetInstance();
+		if (sphManager && sphManager->IsInitialized())
+		{
+			GpuSphScreenSpaceFluidRenderer::GetInstance()->Draw(sphManager->GetParticleBuffer());
+		}
+		if (executor_) { executor_->EndDraw(); }
+	}
+
 	void PostEffectManager::Resize(uint32_t width, uint32_t height) { if (renderTargetManager_) { renderTargetManager_->Resize(width, height); } }
 	void PostEffectManager::RenderPostEffect() { if (executor_) { executor_->RenderPostEffect(); } }
 	void PostEffectManager::RenderPostEffectToBackBuffer() { if (executor_) { executor_->RenderPostEffectToBackBuffer(); } }
@@ -135,6 +152,26 @@ namespace Ken4lowEngine
 
 	void PostEffectManager::RequestGameRenderTargetResize(uint32_t width, uint32_t height)
 	{
-		Resize(width, height); // RenderTargetManager側で固定内部解像度へ丸める既存仕様を維持する。
+		Resize(width, height);
+	}
+
+	ID3D12Resource* PostEffectManager::GetGameRenderTargetResource() const
+	{
+		return renderTargetManager_ ? renderTargetManager_->GetGameRenderTarget().resource.Get() : nullptr;
+	}
+
+	D3D12_RESOURCE_STATES PostEffectManager::GetGameRenderTargetState() const
+	{
+		return renderTargetManager_ ? renderTargetManager_->GetGameRenderTarget().currentState : D3D12_RESOURCE_STATE_COMMON;
+	}
+
+	void PostEffectManager::SetGameRenderTargetState(D3D12_RESOURCE_STATES state)
+	{
+		if (renderTargetManager_) { renderTargetManager_->GetGameRenderTarget().currentState = state; }
+	}
+
+	D3D12_CPU_DESCRIPTOR_HANDLE PostEffectManager::GetSceneDsvHandle() const
+	{
+		return renderTargetManager_ ? renderTargetManager_->GetDsvHandle() : D3D12_CPU_DESCRIPTOR_HANDLE{};
 	}
 }
