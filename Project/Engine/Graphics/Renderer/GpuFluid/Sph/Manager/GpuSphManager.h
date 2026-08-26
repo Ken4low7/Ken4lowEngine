@@ -8,6 +8,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 namespace Ken4lowEngine
 {
@@ -69,6 +70,8 @@ struct GpuSphRuntimeStats
     uint64_t dfsphFactorDispatchCount = 0;
     uint64_t dfsphDensityDispatchCount = 0;
     uint64_t dfsphDivergenceDispatchCount = 0;
+    uint64_t cflMetricDispatchCount = 0;
+    uint64_t cflReadbackCount = 0;
     uint64_t cflStabilizationCount = 0;
     uint32_t lastFrameSubsteps = 0;
     uint32_t sortedParticleCount = 0;
@@ -78,10 +81,12 @@ struct GpuSphRuntimeStats
     uint32_t spatialCellCount = 0;
     uint32_t lastDensityIterations = 0;
     uint32_t lastDivergenceIterations = 0;
+    uint32_t frameResourceCount = 0;
     uint64_t approximateGpuMemoryBytes = 0;
     float spatialCellSize = 0.0f;
     float accumulatorSeconds = 0.0f;
     float effectiveDeltaTime = 0.0f;
+    float lastMeasuredMaxSpeed = 0.0f;
     bool initialized = false;
     bool paused = false;
     bool lastStepSucceeded = true;
@@ -183,8 +188,15 @@ private:
     };
     static_assert(sizeof(GpuSphDispatchConstants) == 16);
 
+    struct CflReadbackSlot
+    {
+        ComPtr<ID3D12Resource> buffer{};
+        bool pending = false;
+    };
+
     static constexpr uint32_t kThreadGroupSize = 128;
-    static constexpr std::size_t kPipelineStateCount = 20;
+    static constexpr std::size_t kPipelineStateCount = 22;
+    static constexpr float kCflMetricScale = 1000.0f;
 
     GpuSphManager() = default;
     ~GpuSphManager() = default;
@@ -198,6 +210,10 @@ private:
     void ReleaseScratchBuffer();
     bool CreateSpatialHashBuffers(uint32_t particleCapacity);
     void ReleaseSpatialHashBuffers();
+    bool CreateCflReadbackBuffers();
+    void ReleaseCflReadbackBuffers();
+    void ConsumeCflReadback();
+    bool ScheduleCflReadback();
     bool ExecuteReset();
     bool ExecuteSimulationStep(float deltaTime);
     bool ExecuteDfSphProjection(D3D12_GPU_VIRTUAL_ADDRESS constantBufferAddress, uint32_t activeCount);
@@ -217,6 +233,10 @@ private:
     [[nodiscard]] float CalculateEffectiveDeltaTime(float requestedDeltaTime) const;
     void UpdateSpawnLayoutForActiveCount(uint32_t activeCount);
     void InsertUavBarrier(ID3D12Resource* resource) const;
+    void TransitionHashBuffer(
+        ID3D12GraphicsCommandList* commandList,
+        D3D12_RESOURCE_STATES beforeState,
+        D3D12_RESOURCE_STATES afterState) const;
     void RefreshStats(uint32_t substeps, bool lastStepSucceeded);
 
 private:
@@ -232,10 +252,12 @@ private:
     uint32_t cellRangeCapacity_ = 0;
     ComPtr<ID3D12RootSignature> rootSignature_{};
     std::array<ComPtr<ID3D12PipelineState>, kPipelineStateCount> pipelineStates_{};
+    std::vector<CflReadbackSlot> cflReadbackSlots_{};
     GpuSphSimulationSettings settings_{};
     GpuSphRuntimeStats stats_{};
     float accumulatorSeconds_ = 0.0f;
     float effectiveDeltaTime_ = 1.0f / 120.0f;
+    float lastMeasuredMaxSpeed_ = 0.0f;
     bool initialized_ = false;
     bool paused_ = false;
     bool resetRequested_ = false;
