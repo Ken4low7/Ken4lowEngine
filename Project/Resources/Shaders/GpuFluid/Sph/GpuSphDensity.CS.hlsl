@@ -16,11 +16,11 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     // W5.5はW6のSpatial Hash導入前なので全粒子を走査して密度を求める。
     for (uint neighborIndex = 0; neighborIndex < gSph.activeParticleCount; ++neighborIndex)
     {
-        const float distanceValue = length(samplePosition - gParticles[neighborIndex].predictedPosition);
+        const float3 neighborPosition = gParticles[neighborIndex].predictedPosition;
+        const float distanceValue = length(samplePosition - neighborPosition);
         density += gSph.particleMass * GpuSphPoly6Kernel(distanceValue, gSph.smoothingRadius);
     }
 
-    GpuSphParticle particle = gParticles[index];
-    particle.density = max(density, 1.0e-5f);
-    gParticles[index] = particle;
+    // 近傍が同時に参照するpredictedPositionへ触れず、densityだけを書き換える。
+    gParticles[index].density = max(density, 1.0e-5f);
 }
