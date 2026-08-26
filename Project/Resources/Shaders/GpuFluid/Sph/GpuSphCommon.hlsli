@@ -81,6 +81,20 @@ struct GpuSphSimulationConstants
     float maxDfsphVelocityCorrection;
     uint dfsphWarmStartEnabled;
     float dfsphWarmStartStrength;
+
+    uint oceanCouplingEnabled;
+    float oceanVelocityCoupling;
+    float oceanSurfaceAttraction;
+    float oceanBlendBand;
+
+    float3 oceanSurfacePoint;
+    float oceanMaxCorrection;
+
+    float3 oceanSurfaceNormal;
+    float oceanPadding0;
+
+    float3 oceanSurfaceVelocity;
+    float oceanPadding1;
 };
 
 cbuffer GpuSphSimulationCB : register(b0)
