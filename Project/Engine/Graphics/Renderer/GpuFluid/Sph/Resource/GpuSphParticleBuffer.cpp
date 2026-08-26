@@ -1,4 +1,5 @@
 #include "GpuSphParticleBuffer.h"
+#include "../Interaction/GpuSphRigidbodyInteraction.h"
 
 #include <DirectXCommon.h>
 #include <ResourceManager.h>
@@ -78,6 +79,9 @@ bool GpuSphParticleBuffer::Initialize(uint32_t capacity)
 
 void GpuSphParticleBuffer::Finalize()
 {
+	// W9のFrame Resource/ReadbackをParticle Bufferより先に解放し、DX12終了時のLive Resourceを残さない。
+	GpuSphRigidbodyInteraction::GetInstance()->Finalize();
+
 	if (srvIndex_ != UINT32_MAX)
 	{
 		SRVManager::GetInstance()->Free(srvIndex_);
