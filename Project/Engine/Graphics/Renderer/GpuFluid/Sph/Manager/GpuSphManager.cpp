@@ -80,6 +80,7 @@ bool GpuSphManager::Initialize(uint32_t particleCapacity)
 
     settings_ = {};
     settings_.activeParticleCount = (std::min)(kDefaultActiveParticleCount, particleCapacity);
+    effectiveDeltaTime_ = settings_.fixedDeltaTime;
 
     if (!particleBuffer_.Initialize(particleCapacity) ||
         !CreateScratchBuffer(particleCapacity) ||
@@ -113,6 +114,7 @@ void GpuSphManager::Finalize()
     settings_ = {};
     stats_ = {};
     accumulatorSeconds_ = 0.0f;
+    effectiveDeltaTime_ = 1.0f / 120.0f;
     dxCommon_ = nullptr;
     initialized_ = false;
     paused_ = false;
@@ -139,7 +141,9 @@ void GpuSphManager::Update(float deltaTime)
         }
     }
 
-    const float fixedDeltaTime = (std::max)(settings_.fixedDeltaTime, 1.0f / 1000.0f);
+    const float requestedFixedDeltaTime = (std::max)(settings_.fixedDeltaTime, 1.0f / 1000.0f);
+    effectiveDeltaTime_ = CalculateEffectiveDeltaTime(requestedFixedDeltaTime);
+    const float fixedDeltaTime = effectiveDeltaTime_;
     const uint32_t maxSubsteps = (std::clamp)(settings_.maxSubsteps, 1u, 16u);
     uint32_t substeps = 0;
 
@@ -179,6 +183,26 @@ void GpuSphManager::SetActiveParticleCount(uint32_t activeCount)
     particleBuffer_.SetActiveParticleCount(validatedCount);
     UpdateSpawnLayoutForActiveCount(validatedCount);
     resetRequested_ = true;
+}
+
+void GpuSphManager::ApplyWaterProductionPreset()
+{
+    settings_.dfsphEnabled = true;
+    settings_.dfsphDensityIterations = 5;
+    settings_.dfsphDivergenceIterations = 3;
+    settings_.dfsphDensityRelaxation = 0.45f;
+    settings_.dfsphDivergenceRelaxation = 0.35f;
+    settings_.dfsphDensityErrorTolerance = 0.01f;
+    settings_.dfsphDivergenceErrorTolerance = 0.01f;
+    settings_.adaptiveCflEnabled = true;
+    settings_.cflNumber = 0.35f;
+    settings_.minimumDeltaTime = 1.0f / 480.0f;
+    settings_.surfaceTensionStrength = 0.0728f;
+    settings_.xsphStrength = 0.025f;
+    settings_.boundaryDamping = 0.05f;
+    settings_.boundaryFriction = 0.08f;
+    settings_.maxDfsphVelocityCorrection = 2.0f;
+    settings_.viscosityStrength = 0.08f;
 }
 
 bool GpuSphManager::CreateRootSignature()
@@ -275,7 +299,7 @@ bool GpuSphManager::CreateRootSignature()
         return false;
     }
 
-    rootSignature_->SetName(L"GpuSph.W6.RootSignature");
+    rootSignature_->SetName(L"GpuSph.W9.5.RootSignature");
     return true;
 }
 
@@ -338,7 +362,7 @@ bool GpuSphManager::CreateScratchBuffer(uint32_t capacity)
         return false;
     }
 
-    scratchBuffer_->SetName(L"GpuSph.W6.VelocityDeltaScratch");
+    scratchBuffer_->SetName(L"GpuSph.W9.5.SharedSolverScratch");
     try
     {
         scratchUavIndex_ = UAVManager::GetInstance()->Allocate();
@@ -451,7 +475,7 @@ bool GpuSphManager::ExecuteReset()
         return true;
     }
 
-    const GpuSphSimulationConstants constants = BuildConstants(settings_.fixedDeltaTime);
+    const GpuSphSimulationConstants constants = BuildConstants(effectiveDeltaTime_);
     const FrameUploadArena::Allocation allocation = dxCommon_->GetFrameUploadArena().AllocateConstant(constants);
     if (!allocation.IsValid())
     {
@@ -528,9 +552,18 @@ bool GpuSphManager::ExecuteSimulationStep(float deltaTime)
     if (!DispatchStage(GpuSphComputeShaderId::Density, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
     ++stats_.densityDispatchCount;
 
-    if (!DispatchStage(GpuSphComputeShaderId::PressureProperty, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
-    if (!DispatchStage(GpuSphComputeShaderId::PressureForce, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
-    stats_.pressureDispatchCount += 2;
+    if (settings_.dfsphEnabled)
+    {
+        if (!ExecuteDfSphProjection(allocation.gpuAddress, activeCount)) return false;
+    }
+    else
+    {
+        stats_.lastDensityIterations = 0;
+        stats_.lastDivergenceIterations = 0;
+        if (!DispatchStage(GpuSphComputeShaderId::PressureProperty, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
+        if (!DispatchStage(GpuSphComputeShaderId::PressureForce, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
+        stats_.pressureDispatchCount += 2;
+    }
 
     if (!DispatchStage(GpuSphComputeShaderId::ViscosityDelta, allocation.gpuAddress, activeCount, defaults, false, true, false, false)) return false;
     if (!DispatchStage(GpuSphComputeShaderId::ViscosityApply, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
@@ -543,6 +576,47 @@ bool GpuSphManager::ExecuteSimulationStep(float deltaTime)
     ++stats_.boundaryDispatchCount;
 
     ++stats_.totalSimulationSteps;
+    return true;
+}
+
+bool GpuSphManager::ExecuteDfSphProjection(
+    D3D12_GPU_VIRTUAL_ADDRESS constantBufferAddress,
+    uint32_t activeCount)
+{
+    const GpuSphDispatchConstants defaults{};
+    if (!DispatchStage(
+        GpuSphComputeShaderId::DfSphFactor,
+        constantBufferAddress,
+        activeCount,
+        defaults,
+        false,
+        true,
+        false,
+        false))
+    {
+        return false;
+    }
+    ++stats_.dfsphFactorDispatchCount;
+
+    const uint32_t densityIterations = (std::clamp)(settings_.dfsphDensityIterations, 1u, 12u);
+    const uint32_t divergenceIterations = (std::clamp)(settings_.dfsphDivergenceIterations, 0u, 12u);
+
+    for (uint32_t iteration = 0; iteration < densityIterations; ++iteration)
+    {
+        if (!DispatchStage(GpuSphComputeShaderId::DfSphDensityPrepare, constantBufferAddress, activeCount, defaults, true, false, false, false)) return false;
+        if (!DispatchStage(GpuSphComputeShaderId::DfSphDensityApply, constantBufferAddress, activeCount, defaults, true, false, false, false)) return false;
+        stats_.dfsphDensityDispatchCount += 2;
+    }
+
+    for (uint32_t iteration = 0; iteration < divergenceIterations; ++iteration)
+    {
+        if (!DispatchStage(GpuSphComputeShaderId::DfSphDivergencePrepare, constantBufferAddress, activeCount, defaults, true, false, false, false)) return false;
+        if (!DispatchStage(GpuSphComputeShaderId::DfSphDivergenceApply, constantBufferAddress, activeCount, defaults, true, false, false, false)) return false;
+        stats_.dfsphDivergenceDispatchCount += 2;
+    }
+
+    stats_.lastDensityIterations = densityIterations;
+    stats_.lastDivergenceIterations = divergenceIterations;
     return true;
 }
 
@@ -741,6 +815,21 @@ GpuSphManager::GpuSphSimulationConstants GpuSphManager::BuildConstants(float del
         constants.spatialGridDimZ = grid.dimZ;
         constants.spatialCellCount = grid.cellCount;
     }
+
+    constants.dfsphEnabled = settings_.dfsphEnabled ? 1u : 0u;
+    constants.dfsphDensityIterations = (std::clamp)(settings_.dfsphDensityIterations, 1u, 12u);
+    constants.dfsphDivergenceIterations = (std::clamp)(settings_.dfsphDivergenceIterations, 0u, 12u);
+    constants.adaptiveCflEnabled = settings_.adaptiveCflEnabled ? 1u : 0u;
+    constants.dfsphDensityRelaxation = (std::clamp)(settings_.dfsphDensityRelaxation, 0.0f, 1.0f);
+    constants.dfsphDivergenceRelaxation = (std::clamp)(settings_.dfsphDivergenceRelaxation, 0.0f, 1.0f);
+    constants.dfsphDensityErrorTolerance = (std::max)(settings_.dfsphDensityErrorTolerance, 0.0f);
+    constants.dfsphDivergenceErrorTolerance = (std::max)(settings_.dfsphDivergenceErrorTolerance, 0.0f);
+    constants.cflNumber = (std::clamp)(settings_.cflNumber, 0.05f, 0.95f);
+    constants.minimumDeltaTime = (std::clamp)(settings_.minimumDeltaTime, 1.0f / 2000.0f, settings_.fixedDeltaTime);
+    constants.surfaceTensionStrength = (std::max)(settings_.surfaceTensionStrength, 0.0f);
+    constants.xsphStrength = (std::clamp)(settings_.xsphStrength, 0.0f, 1.0f);
+    constants.boundaryFriction = (std::clamp)(settings_.boundaryFriction, 0.0f, 1.0f);
+    constants.maxDfsphVelocityCorrection = (std::max)(settings_.maxDfsphVelocityCorrection, 0.01f);
     return constants;
 }
 
@@ -762,6 +851,26 @@ uint32_t GpuSphManager::GetSortCount(uint32_t activeCount) const
         result <<= 1u;
     }
     return result;
+}
+
+float GpuSphManager::CalculateEffectiveDeltaTime(float requestedDeltaTime) const
+{
+    const float safeRequested = (std::max)(requestedDeltaTime, 1.0f / 2000.0f);
+    if (!settings_.adaptiveCflEnabled)
+    {
+        return safeRequested;
+    }
+
+    // GPU側のVelocity CFL clampに加え、重力下の自由落下速度を予測して固定Stepを保守的に縮める。
+    const float domainHeight = (std::max)(settings_.boundaryMax.y - settings_.boundaryMin.y, settings_.smoothingRadius);
+    const float gravityMagnitude = Vector3::Length(settings_.gravity);
+    const float predictedPeakSpeed = std::sqrt((std::max)(2.0f * gravityMagnitude * domainHeight, 0.01f));
+    const float cflDeltaTime =
+        (std::clamp)(settings_.cflNumber, 0.05f, 0.95f) *
+        (std::max)(settings_.smoothingRadius, 0.001f) /
+        (std::max)(predictedPeakSpeed, 0.1f);
+    const float minimumDeltaTime = (std::clamp)(settings_.minimumDeltaTime, 1.0f / 2000.0f, safeRequested);
+    return (std::clamp)(cflDeltaTime, minimumDeltaTime, safeRequested);
 }
 
 void GpuSphManager::UpdateSpawnLayoutForActiveCount(uint32_t activeCount)
@@ -818,9 +927,15 @@ void GpuSphManager::RefreshStats(uint32_t substeps, bool lastStepSucceeded)
 {
     stats_.lastFrameSubsteps = substeps;
     stats_.accumulatorSeconds = accumulatorSeconds_;
+    stats_.effectiveDeltaTime = effectiveDeltaTime_;
     stats_.initialized = initialized_;
     stats_.paused = paused_;
     stats_.lastStepSucceeded = lastStepSucceeded;
+    stats_.dfsphActive = settings_.dfsphEnabled;
+    if (settings_.adaptiveCflEnabled && effectiveDeltaTime_ < settings_.fixedDeltaTime)
+    {
+        ++stats_.cflStabilizationCount;
+    }
     stats_.approximateGpuMemoryBytes =
         particleBuffer_.GetApproximateGpuMemoryBytes() +
         static_cast<uint64_t>(particleBuffer_.GetCapacity()) * sizeof(float) * 4ull +
