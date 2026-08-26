@@ -20,6 +20,11 @@ namespace Ken4lowEngine
 		float GetMass() const { return mass_; }
 		float GetInvMass() const { return invMass_; }
 
+		// 形状ごとの単位質量あたり慣性モーメントを設定する。
+		void SetInertiaScale(const Vector3& inertiaScale);
+		Vector3 GetInertiaScale() const { return inertiaScale_; }
+		Vector3 GetInvInertia() const { return invInertia_; }
+
 		// 重力適用フラグを設定する。
 		void SetUseGravity(bool useGravity) { useGravity_ = useGravity; }
 		bool IsUseGravity() const { return useGravity_; }
@@ -73,8 +78,15 @@ namespace Ken4lowEngine
 		// 力を蓄積し、次のIntegrateで速度へ反映する。
 		void AddForce(const Vector3& force);
 
-		// 蓄積された力をクリアする。
+		// ワールド座標上の点へ力を加え、並進力とr×FのTorqueへ分解する。
+		void AddForceAtPosition(const Vector3& force, const Vector3& worldPosition, const Vector3& centerOfMass);
+
+		// Torqueを蓄積し、次のIntegrateで角速度へ反映する。
+		void AddTorque(const Vector3& torque);
+
+		// 蓄積された力とTorqueをクリアする。
 		void ClearForces();
+		void ClearTorques();
 
 		// 速度を直接設定する。
 		void SetVelocity(const Vector3& velocity);
@@ -82,23 +94,40 @@ namespace Ken4lowEngine
 		// 現在の速度を取得する。
 		Vector3 GetVelocity() const;
 
-		// 蓄積された力を速度へ積分し、力をクリアする。
+		// 角速度を直接設定する。
+		void SetAngularVelocity(const Vector3& angularVelocity);
+
+		// 現在の角速度を取得する。
+		Vector3 GetAngularVelocity() const;
+
+		// 蓄積された力/Torqueを速度/角速度へ積分し、Accumulatorをクリアする。
 		void Integrate(float deltaTime);
+
+	private: /// ---------- 内部処理 ---------- ///
+
+		// BodyType・Mass・形状慣性から逆質量と逆慣性を更新する。
+		void UpdateMassProperties();
 
 	private: /// ---------- メンバ変数 ---------- ///
 
 		// 剛体の動作種別。
 		BodyType bodyType_ = BodyType::Dynamic;
 
-		// 現在速度。
+		// 現在の並進速度と角速度。
 		Vector3 velocity_{};
+		Vector3 angularVelocity_{};
 
-		// このステップで蓄積された力。
+		// このステップで蓄積された力とTorque。
 		Vector3 force_{};
+		Vector3 torque_{};
 
 		// 質量と逆質量。
 		float mass_ = 1.0f;
 		float invMass_ = 1.0f;
+
+		// 単位質量あたりの主軸慣性と、その逆慣性。
+		Vector3 inertiaScale_{ 1.0f, 1.0f, 1.0f };
+		Vector3 invInertia_{ 1.0f, 1.0f, 1.0f };
 
 		// 接触時の反発係数。
 		float restitution_ = 0.0f;
