@@ -47,21 +47,31 @@ struct GpuSphRuntimeStats
     uint64_t pressureDispatchCount = 0;
     uint64_t viscosityDispatchCount = 0;
     uint64_t predictionDispatchCount = 0;
+    uint64_t spatialHashBuildCount = 0;
+    uint64_t spatialHashSortDispatchCount = 0;
+    uint64_t cellRangeDispatchCount = 0;
     uint32_t lastFrameSubsteps = 0;
+    uint32_t sortedParticleCount = 0;
+    uint32_t spatialGridDimX = 0;
+    uint32_t spatialGridDimY = 0;
+    uint32_t spatialGridDimZ = 0;
+    uint32_t spatialCellCount = 0;
     uint64_t approximateGpuMemoryBytes = 0;
+    float spatialCellSize = 0.0f;
     float accumulatorSeconds = 0.0f;
     bool initialized = false;
     bool paused = false;
     bool lastStepSucceeded = true;
+    bool spatialHashReady = false;
 };
 
-/// W5 GPU SPH FoundationのParticle BufferとCompute simulationを所有するRuntime。
+/// W5 SPH計算とW6 Spatial Hash / GPU Sortを所有するRuntime。
 class GpuSphManager
 {
 public:
     static constexpr uint32_t kDefaultParticleCapacity = 65536;
     static constexpr uint32_t kDefaultActiveParticleCount = 1000;
-    static constexpr uint32_t kMaxNaiveNeighborParticles = 4096;
+    static constexpr uint32_t kMaxSpatialCellCapacity = 1u << 20;
 
     static GpuSphManager* GetInstance();
 
@@ -109,11 +119,27 @@ private:
         uint32_t spawnDimY = 0;
         uint32_t spawnDimZ = 0;
         uint32_t padding3 = 0;
+
+        Vector3 spatialGridMin{};
+        float spatialCellSize = 0.0f;
+        uint32_t spatialGridDimX = 0;
+        uint32_t spatialGridDimY = 0;
+        uint32_t spatialGridDimZ = 0;
+        uint32_t spatialCellCount = 0;
     };
-    static_assert(sizeof(GpuSphSimulationConstants) == 112);
+    static_assert(sizeof(GpuSphSimulationConstants) == 144);
+
+    struct GpuSphDispatchConstants
+    {
+        uint32_t sortLevel = 0;
+        uint32_t sortLevelMask = 0;
+        uint32_t sortCount = 0;
+        uint32_t cellCount = 0;
+    };
+    static_assert(sizeof(GpuSphDispatchConstants) == 16);
 
     static constexpr uint32_t kThreadGroupSize = 128;
-    static constexpr std::size_t kPipelineStateCount = 11;
+    static constexpr std::size_t kPipelineStateCount = 15;
 
     GpuSphManager() = default;
     ~GpuSphManager() = default;
@@ -125,22 +151,38 @@ private:
     bool CreatePipelineState(GpuSphComputeShaderId shaderId, ComPtr<ID3D12PipelineState>& pipelineState);
     bool CreateScratchBuffer(uint32_t capacity);
     void ReleaseScratchBuffer();
+    bool CreateSpatialHashBuffers(uint32_t particleCapacity);
+    void ReleaseSpatialHashBuffers();
     bool ExecuteReset();
     bool ExecuteSimulationStep(float deltaTime);
+    bool ExecuteSpatialHashBuild(D3D12_GPU_VIRTUAL_ADDRESS constantBufferAddress);
     bool DispatchStage(
         GpuSphComputeShaderId shaderId,
         D3D12_GPU_VIRTUAL_ADDRESS constantBufferAddress,
+        uint32_t dispatchItemCount,
+        const GpuSphDispatchConstants& dispatchConstants,
         bool particleBarrier,
-        bool scratchBarrier);
+        bool scratchBarrier,
+        bool hashBarrier,
+        bool cellRangeBarrier);
     [[nodiscard]] GpuSphSimulationConstants BuildConstants(float deltaTime) const;
     [[nodiscard]] uint32_t GetValidatedActiveParticleCount() const;
+    [[nodiscard]] uint32_t GetSortCount(uint32_t activeCount) const;
+    void UpdateSpawnLayoutForActiveCount(uint32_t activeCount);
+    void InsertUavBarrier(ID3D12Resource* resource) const;
     void RefreshStats(uint32_t substeps, bool lastStepSucceeded);
 
 private:
     DirectXCommon* dxCommon_ = nullptr;
     GpuSphParticleBuffer particleBuffer_{};
     ComPtr<ID3D12Resource> scratchBuffer_{};
+    ComPtr<ID3D12Resource> hashEntriesBuffer_{};
+    ComPtr<ID3D12Resource> cellRangesBuffer_{};
     uint32_t scratchUavIndex_ = UINT32_MAX;
+    uint32_t hashEntriesUavIndex_ = UINT32_MAX;
+    uint32_t cellRangesUavIndex_ = UINT32_MAX;
+    uint32_t hashEntryCapacity_ = 0;
+    uint32_t cellRangeCapacity_ = 0;
     ComPtr<ID3D12RootSignature> rootSignature_{};
     std::array<ComPtr<ID3D12PipelineState>, kPipelineStateCount> pipelineStates_{};
     GpuSphSimulationSettings settings_{};
