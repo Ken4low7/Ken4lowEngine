@@ -74,7 +74,7 @@ class W51SphParticleBufferTests(unittest.TestCase):
         )
 
     def test_diagnostics_still_exposes_w51_storage_contract(self) -> None:
-        self.assertIn('SPH Foundation (W5)', self.diagnostics)
+        self.assertIn('SPH Simulation (W5/W6)', self.diagnostics)
         self.assertIn('Particle Buffer: %s', self.diagnostics)
         self.assertIn('Active / Capacity: %u / %u', self.diagnostics)
         self.assertIn('Particle Stride: %u bytes', self.diagnostics)
