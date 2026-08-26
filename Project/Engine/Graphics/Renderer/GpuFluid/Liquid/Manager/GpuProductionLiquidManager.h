@@ -226,7 +226,7 @@ public:
         GpuSphSimulationSettings& sphSettings = sph->GetEditableSimulationSettings();
         GpuProductionLiquidSecondaryClassifier* classifier = GpuProductionLiquidSecondaryClassifier::GetInstance();
         stats_.secondaryClassificationSucceeded = classifier->Update(
-            sph->GetEditableParticleBuffer(),
+            sph->GetParticleBuffer(),
             secondarySettings_.enabled,
             secondarySettings_.classificationIntervalFrames,
             sphSettings.targetDensity,
