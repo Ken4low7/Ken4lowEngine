@@ -1,6 +1,7 @@
 #include "GpuFluidDiagnosticsPanel.h"
 
 #include "Engine/Graphics/Renderer/GpuFluid/Manager/GpuFluidManager.h"
+#include "Engine/Graphics/Renderer/GpuFluid/Sph/Manager/GpuSphManager.h"
 #include <DirectXCommon.h>
 
 #include <algorithm>
@@ -106,6 +107,28 @@ void GpuFluidDiagnosticsPanel::Draw()
 		ImGui::Text("Substeps this frame: %u", stats.lastFrameSubsteps);
 		ImGui::Text("Accumulator: %.4f sec", stats.accumulatorSeconds);
 		ImGui::Text("Simulation time: %.2f sec", stats.elapsedSimulationSeconds);
+	}
+
+	if (ImGui::CollapsingHeader("SPH Foundation (W5.1)", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		GpuSphManager* sphManager = GpuSphManager::GetInstance();
+		const GpuSphParticleBufferStats sphStats = sphManager->GetParticleBufferStats();
+		const double sphMemoryMiB = static_cast<double>(sphStats.approximateGpuMemoryBytes) / (1024.0 * 1024.0);
+
+		ImGui::Text("Particle Buffer: %s", sphStats.initialized ? "Ready" : "FAILED");
+		ImGui::Text("Active / Capacity: %u / %u", sphStats.activeCount, sphStats.capacity);
+		ImGui::Text("Particle Stride: %u bytes", sphStats.strideBytes);
+		ImGui::Text("Particle GPU Storage: %.2f MiB", sphMemoryMiB);
+		if (sphStats.initialized)
+		{
+			const GpuSphParticleBuffer& particleBuffer = sphManager->GetParticleBuffer();
+			ImGui::Text("SRV: %u | Compute SRV: %u | UAV: %u",
+				particleBuffer.GetSrvIndex(),
+				particleBuffer.GetComputeSrvIndex(),
+				particleBuffer.GetUavIndex());
+			ImGui::Text("Resource State: %u", static_cast<uint32_t>(particleBuffer.GetCurrentState()));
+		}
+		ImGui::TextDisabled("W5.1 allocates storage only. Gravity/Boundary/SPH forces are not dispatched yet."); // W5.2以降との責務境界をDiagnosticsにも明示する。
 	}
 
 	if (ImGui::CollapsingHeader("Visualization", ImGuiTreeNodeFlags_DefaultOpen))
