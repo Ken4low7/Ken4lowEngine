@@ -22,8 +22,9 @@ float main(PSInput input) : SV_Target0
     float weightedDepth = 0.0f;
     float weightSum = 0.0f;
 
+    // W8.5: 13tap Bilateralで粒子球の継ぎ目を消しつつ、別物体とのDepth境界は保持する。
     [unroll]
-    for (int offset = -4; offset <= 4; ++offset)
+    for (int offset = -6; offset <= 6; ++offset)
     {
         const float sampleDepth = gDepthTexture.SampleLevel(
             gLinearClamp,
@@ -34,12 +35,35 @@ float main(PSInput input) : SV_Target0
             continue;
         }
 
-        const float spatialWeight = exp(-0.5f * float(offset * offset) / 4.0f);
+        const float spatialWeight = exp(-0.5f * float(offset * offset) / 7.5f);
         const float rangeWeight = exp(-abs(sampleDepth - centerDepth) * depthFalloff);
         const float weight = spatialWeight * rangeWeight;
         weightedDepth += sampleDepth * weight;
         weightSum += weight;
     }
 
-    return weightSum > 1.0e-5f ? weightedDepth / weightSum : centerDepth;
+    const float bilateralDepth = weightSum > 1.0e-5f ? weightedDepth / weightSum : centerDepth;
+
+    const float neighborA = gDepthTexture.SampleLevel(gLinearClamp, input.uv - texel, 0.0f);
+    const float neighborB = gDepthTexture.SampleLevel(gLinearClamp, input.uv + texel, 0.0f);
+    float curvatureTarget = bilateralDepth;
+    float curvatureWeight = 1.0f;
+
+    if (GpuSphHasFluidDepth(neighborA))
+    {
+        const float edgeWeight = exp(-abs(neighborA - centerDepth) * depthFalloff);
+        curvatureTarget += neighborA * edgeWeight;
+        curvatureWeight += edgeWeight;
+    }
+    if (GpuSphHasFluidDepth(neighborB))
+    {
+        const float edgeWeight = exp(-abs(neighborB - centerDepth) * depthFalloff);
+        curvatureTarget += neighborB * edgeWeight;
+        curvatureWeight += edgeWeight;
+    }
+
+    curvatureTarget /= max(curvatureWeight, 1.0e-5f);
+    const float maxRelaxation = max(GpuSphParticleRadius() * 0.12f, 0.0001f);
+    const float curvatureDelta = clamp(curvatureTarget - bilateralDepth, -maxRelaxation, maxRelaxation);
+    return bilateralDepth + curvatureDelta * 0.32f;
 }
