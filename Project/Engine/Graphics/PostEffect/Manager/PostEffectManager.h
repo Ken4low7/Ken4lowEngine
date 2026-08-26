@@ -18,10 +18,7 @@ namespace Ken4lowEngine
 	class PostEffectExecutor;
 	class PostEffectEditorPanel;
 
-	/// <summary>
-	/// 既存PostEffect APIを維持するFacadeです。<br/>
-	/// 登録・順序・RenderTarget・Barrier/Apply・Editor UI・Runtime状態は各専用クラスへ委譲します。
-	/// </summary>
+	/// <summary>既存PostEffect APIを維持するFacadeです。</summary>
 	class PostEffectManager
 	{
 	public:
@@ -43,9 +40,7 @@ namespace Ken4lowEngine
 		/// <summary>既存EditorWindowManager互換のPostEffect設定UI入口です。</summary>
 		void ImGuiRender(bool* pOpen = nullptr);
 
-		/// <summary>Runtime側からEffectを強制的に有効化します。</summary>
 		void EnableEffect(const std::string& effectName);
-		/// <summary>Runtime側の強制有効状態を解除します。</summary>
 		void DisableEffect(const std::string& effectName);
 		IPostEffect* GetEffect(const std::string& effectName);
 
@@ -54,6 +49,12 @@ namespace Ken4lowEngine
 		uint32_t GetGameRenderTargetWidth() const;
 		uint32_t GetGameRenderTargetHeight() const;
 		void RequestGameRenderTargetResize(uint32_t width, uint32_t height);
+
+		// W8 Screen Space FluidはScene Colorを別TextureへCopyしてから同じScene RTへCompositeする。
+		ID3D12Resource* GetGameRenderTargetResource() const;
+		D3D12_RESOURCE_STATES GetGameRenderTargetState() const;
+		void SetGameRenderTargetState(D3D12_RESOURCE_STATES state);
+		D3D12_CPU_DESCRIPTOR_HANDLE GetSceneDsvHandle() const;
 
 	private:
 		PostEffectManager();
