@@ -5,6 +5,7 @@ struct PSInput
     float4 position : SV_POSITION;
     float2 localPosition : TEXCOORD0;
     float3 viewCenter : TEXCOORD1;
+    float2 viewOffset : TEXCOORD2;
 };
 
 struct PSOutput
@@ -23,8 +24,9 @@ PSOutput main(PSInput input)
 
     const float radius = GpuSphParticleRadius();
     const float sphereZ = sqrt(max(1.0f - radiusSquared, 0.0f));
+    // W8.5でも厚みは基準半径の前後距離を積算し、異方性による過剰な吸収を避ける。
     const float3 frontViewPosition = float3(
-        input.viewCenter.xy + input.localPosition * radius,
+        input.viewCenter.xy + input.viewOffset,
         input.viewCenter.z - sphereZ * radius);
     if (frontViewPosition.z <= gRender.cameraParams.x)
     {
