@@ -14,6 +14,7 @@
 #include <numbers>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 #ifdef USE_IMGUI
 #include <imgui.h>
@@ -49,6 +50,20 @@ namespace Ken4lowEngine
 		float impactSpeed = 0.0f;
 		float intensity = 0.0f;
 		bool entering = true;
+	};
+
+	struct WaterInteractionDiagnostics
+	{
+		Actor* actor = nullptr;
+		EWaterContactState state = EWaterContactState::AboveSurface;
+		float waterHeight = 0.0f;
+		float mass = 0.0f;
+		float objectVolume = 0.0f;
+		float submergedVolume = 0.0f;
+		float submergedFraction = 0.0f;
+		float gravityForce = 0.0f;
+		float buoyancyForce = 0.0f;
+		float dragForce = 0.0f;
 	};
 
 	class WaterInteractionComponent final : public ColliderComponent
@@ -89,6 +104,7 @@ namespace Ken4lowEngine
 		void Finalize() override
 		{
 			trackedColliders_.clear();
+			diagnosticsValid_ = false;
 			ClearCollisionCallbacks();
 			ColliderComponent::Finalize();
 		}
@@ -108,7 +124,9 @@ namespace Ken4lowEngine
 			outJson["SurfaceTolerance"] = surfaceTolerance_;
 			outJson["BuoyancyEnabled"] = buoyancyEnabled_;
 			outJson["BuoyancyScale"] = buoyancyScale_;
+			outJson["WaterDensity"] = waterDensity_;
 			outJson["WaterLinearDrag"] = waterLinearDrag_;
+			outJson["WaterAngularDrag"] = waterAngularDrag_;
 			outJson["MultiPointSampling"] = multiPointSampling_;
 			outJson["SurfaceAlignEnabled"] = surfaceAlignEnabled_;
 			outJson["SurfaceAlignSpeed"] = surfaceAlignSpeed_;
@@ -127,7 +145,9 @@ namespace Ken4lowEngine
 			surfaceTolerance_ = inJson.value("SurfaceTolerance", surfaceTolerance_);
 			buoyancyEnabled_ = inJson.value("BuoyancyEnabled", buoyancyEnabled_);
 			buoyancyScale_ = inJson.value("BuoyancyScale", buoyancyScale_);
+			waterDensity_ = inJson.value("WaterDensity", waterDensity_);
 			waterLinearDrag_ = inJson.value("WaterLinearDrag", waterLinearDrag_);
+			waterAngularDrag_ = inJson.value("WaterAngularDrag", waterAngularDrag_);
 			multiPointSampling_ = inJson.value("MultiPointSampling", multiPointSampling_);
 			surfaceAlignEnabled_ = inJson.value("SurfaceAlignEnabled", surfaceAlignEnabled_);
 			surfaceAlignSpeed_ = inJson.value("SurfaceAlignSpeed", surfaceAlignSpeed_);
@@ -153,7 +173,9 @@ namespace Ken4lowEngine
 			ImGui::SeparatorText("Buoyancy");
 			ImGui::Checkbox("浮力を有効化##WaterInteraction", &buoyancyEnabled_);
 			ImGui::DragFloat("浮力倍率##WaterInteraction", &buoyancyScale_, 0.01f, 0.0f, 5.0f);
-			ImGui::DragFloat("水中Drag##WaterInteraction", &waterLinearDrag_, 0.05f, 0.0f, 20.0f);
+			ImGui::DragFloat("水の密度 kg/m^3##WaterInteraction", &waterDensity_, 1.0f, 0.0f, 5000.0f);
+			ImGui::DragFloat("水中Linear Drag##WaterInteraction", &waterLinearDrag_, 0.05f, 0.0f, 20.0f);
+			ImGui::DragFloat("水中Angular Drag##WaterInteraction", &waterAngularDrag_, 0.05f, 0.0f, 20.0f);
 			ImGui::Checkbox("複数浮力点##WaterInteraction", &multiPointSampling_);
 			ImGui::Checkbox("波面へ傾きを追従##WaterInteraction", &surfaceAlignEnabled_);
 			ImGui::DragFloat("傾き追従速度##WaterInteraction", &surfaceAlignSpeed_, 0.05f, 0.0f, 20.0f);
@@ -171,12 +193,25 @@ namespace Ken4lowEngine
 			ImGui::Text("Buoyant Bodies: %d", static_cast<int>(GetBuoyantBodyCount()));
 			ImGui::Text("Average Submerged: %.2f", GetAverageSubmergedFraction());
 			ImGui::Text("Last Splash: %.2f", lastSplashIntensity_);
+			if (diagnosticsValid_)
+			{
+				ImGui::SeparatorText("Last Dynamic Body");
+				ImGui::Text("Water Height: %.3f", lastDiagnostics_.waterHeight);
+				ImGui::Text("Mass: %.3f kg", lastDiagnostics_.mass);
+				ImGui::Text("Object Volume: %.4f m^3", lastDiagnostics_.objectVolume);
+				ImGui::Text("Submerged Volume: %.4f m^3", lastDiagnostics_.submergedVolume);
+				ImGui::Text("Submerged Ratio: %.3f", lastDiagnostics_.submergedFraction);
+				ImGui::Text("Gravity Force: %.3f N", lastDiagnostics_.gravityForce);
+				ImGui::Text("Buoyancy Force: %.3f N", lastDiagnostics_.buoyancyForce);
+				ImGui::Text("Drag Force: %.3f N", lastDiagnostics_.dragForce);
+				ImGui::Text("State: %s", ContactStateName(lastDiagnostics_.state));
+			}
 			if (trackedColliders_.empty())
 			{
 				ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.35f, 1.0f), "候補0: 対象ActorにColliderComponentが必要です。");
 			}
-			ImGui::TextDisabled("Candidates / In Water はPlay中のPhysics Stepで更新されます。");
-			ImGui::TextDisabled("Dynamic Rigidbodyには水没率に応じた浮力とDragを自動適用します。"); // W4はTrigger候補とGerstner波面の両方を使って水作用を安定させる。
+			ImGui::TextDisabled("1 Engine Unit = 1 m を前提にCollider体積から排水量を計算します。");
+			ImGui::TextDisabled("Dynamic Rigidbodyへ排水体積ベースの浮力と水中Dragを適用します。"); // W4の浮力は質量ではなく排水体積から算出する。
 #endif
 			SyncVolumeToSurface();
 		}
@@ -228,6 +263,8 @@ namespace Ken4lowEngine
 		}
 
 		std::size_t GetCandidateCount() const { return trackedColliders_.size(); }
+		const WaterInteractionDiagnostics& GetLastDiagnostics() const { return lastDiagnostics_; }
+		bool HasDiagnostics() const { return diagnosticsValid_; }
 
 		std::size_t GetInWaterCount() const
 		{
@@ -321,6 +358,7 @@ namespace Ken4lowEngine
 
 		void EvaluateTrackedContacts(float deltaTime)
 		{
+			diagnosticsValid_ = false;
 			if (!waterSurface_) return;
 
 			for (auto& [id, tracked] : trackedColliders_)
@@ -484,6 +522,22 @@ namespace Ken4lowEngine
 					probes.points[probes.count++] = sphere.center + Vector3{ 0.0f, 0.0f, -radius };
 					break;
 				}
+			case ECollisionShapeType::Capsule:
+				{
+					const Capsule capsule = collider->GetCapsule();
+					const Vector3 capsuleEnd = capsule.segment.origin + capsule.segment.diff;
+					const Vector3 capsuleCenter = capsule.GetCenter();
+					const float radius = (std::max)(capsule.radius * 0.75f, 0.001f);
+					probes.points[probes.count++] = capsule.segment.origin;
+					probes.points[probes.count++] = capsuleEnd;
+					probes.points[probes.count++] = capsuleCenter + Vector3{ radius, 0.0f, 0.0f };
+					probes.points[probes.count++] = capsuleCenter + Vector3{ -radius, 0.0f, 0.0f };
+					probes.points[probes.count++] = capsuleCenter + Vector3{ 0.0f, radius, 0.0f };
+					probes.points[probes.count++] = capsuleCenter + Vector3{ 0.0f, -radius, 0.0f };
+					probes.points[probes.count++] = capsuleCenter + Vector3{ 0.0f, 0.0f, radius };
+					probes.points[probes.count++] = capsuleCenter + Vector3{ 0.0f, 0.0f, -radius };
+					break;
+				}
 			default:
 				probes.points[0] = center;
 				probes.count = 1;
@@ -494,31 +548,52 @@ namespace Ken4lowEngine
 
 		void ApplyWaterDynamics(const WaterContact& contact, float deltaTime)
 		{
-			if (!contact.actor || contact.submergedFraction <= 0.0f) return;
+			if (!contact.actor || !contact.collider || contact.submergedFraction <= 0.0f) return;
 			RigidbodyComponent* rigidbodyComponent = contact.actor->GetComponent<RigidbodyComponent>();
 			Rigidbody* rigidbody = rigidbodyComponent ? rigidbodyComponent->GetRigidbody() : nullptr;
 			if (!rigidbody || rigidbody->GetBodyType() != BodyType::Dynamic) return;
 
 			const float submerged = std::clamp(contact.submergedFraction, 0.0f, 1.0f);
 			const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 0.1f);
-			if (buoyancyEnabled_)
+			const float objectVolume = CalculateColliderVolume(contact.collider);
+			const float submergedVolume = objectVolume * submerged;
+			float gravityMagnitude = Vector3::Length(rigidbody->GetGravity());
+			if (gravityMagnitude <= 0.001f) gravityMagnitude = 9.8f;
+
+			Vector3 buoyancyForce{};
+			if (buoyancyEnabled_ && submergedVolume > 0.0f)
 			{
-				float gravityMagnitude = Vector3::Length(rigidbody->GetGravity());
-				if (gravityMagnitude <= 0.001f) gravityMagnitude = 9.8f;
-				const float buoyancyMagnitude = rigidbody->GetMass() * gravityMagnitude * (std::max)(buoyancyScale_, 0.0f) * submerged;
-				rigidbody->AddForce(contact.surface.worldNormal * buoyancyMagnitude);
+				const float buoyancyMagnitude = (std::max)(waterDensity_, 0.0f) * gravityMagnitude * submergedVolume * (std::max)(buoyancyScale_, 0.0f);
+				buoyancyForce = contact.surface.worldNormal * buoyancyMagnitude;
+				rigidbody->AddForce(buoyancyForce);
 			}
 
+			Vector3 dragForce{};
 			if (waterLinearDrag_ > 0.0f && safeDeltaTime > 0.0f)
 			{
+				const Vector3 velocityBeforeDrag = rigidbody->GetVelocity();
 				const float damping = std::exp(-(std::max)(waterLinearDrag_, 0.0f) * submerged * safeDeltaTime);
-				rigidbody->SetVelocity(rigidbody->GetVelocity() * damping);
+				const Vector3 velocityAfterDrag = velocityBeforeDrag * damping;
+				dragForce = (velocityAfterDrag - velocityBeforeDrag) * (rigidbody->GetMass() / safeDeltaTime);
+				rigidbody->SetVelocity(velocityAfterDrag);
 			}
 
 			if (surfaceAlignEnabled_)
 			{
 				AlignActorToSurface(contact.actor, contact.surface.worldNormal, submerged, safeDeltaTime);
 			}
+
+			lastDiagnostics_.actor = contact.actor;
+			lastDiagnostics_.state = contact.state;
+			lastDiagnostics_.waterHeight = contact.surface.worldPosition.y;
+			lastDiagnostics_.mass = rigidbody->GetMass();
+			lastDiagnostics_.objectVolume = objectVolume;
+			lastDiagnostics_.submergedVolume = submergedVolume;
+			lastDiagnostics_.submergedFraction = submerged;
+			lastDiagnostics_.gravityForce = rigidbody->GetMass() * gravityMagnitude;
+			lastDiagnostics_.buoyancyForce = Vector3::Length(buoyancyForce);
+			lastDiagnostics_.dragForce = Vector3::Length(dragForce);
+			diagnosticsValid_ = true;
 		}
 
 		void AlignActorToSurface(Actor* actor, const Vector3& surfaceNormal, float submergedFraction, float deltaTime) const
@@ -532,7 +607,8 @@ namespace Ken4lowEngine
 			const float safeY = (std::max)(normal.y, 0.001f);
 			const float targetPitch = std::clamp(std::atan2(normal.z, safeY), -maxTiltRadians, maxTiltRadians);
 			const float targetRoll = std::clamp(-std::atan2(normal.x, safeY), -maxTiltRadians, maxTiltRadians);
-			const float alpha = 1.0f - std::exp(-(std::max)(surfaceAlignSpeed_, 0.0f) * submergedFraction * deltaTime);
+			const float angularRate = (std::max)(surfaceAlignSpeed_, 0.0f) + (std::max)(waterAngularDrag_, 0.0f) * submergedFraction;
+			const float alpha = 1.0f - std::exp(-angularRate * submergedFraction * deltaTime);
 
 			Vector3 rotation = root->GetLocalRotation();
 			rotation.x = std::lerp(rotation.x, targetPitch, alpha);
@@ -606,6 +682,42 @@ namespace Ken4lowEngine
 			return count > 0 ? sum / static_cast<float>(count) : 0.0f;
 		}
 
+		static float CalculateColliderVolume(const Collider* collider)
+		{
+			if (!collider) return 0.0f;
+			constexpr float fourThirds = 4.0f / 3.0f;
+			constexpr float pi = std::numbers::pi_v<float>;
+
+			switch (collider->GetShapeType())
+			{
+			case ECollisionShapeType::AABB:
+				{
+					const AABB aabb = collider->GetAABB();
+					const Vector3 size = aabb.max - aabb.min;
+					return (std::max)(size.x, 0.0f) * (std::max)(size.y, 0.0f) * (std::max)(size.z, 0.0f);
+				}
+			case ECollisionShapeType::OBB:
+				{
+					const Vector3 halfSize = collider->GetOBB().size;
+					return 8.0f * (std::max)(halfSize.x, 0.0f) * (std::max)(halfSize.y, 0.0f) * (std::max)(halfSize.z, 0.0f);
+				}
+			case ECollisionShapeType::Sphere:
+				{
+					const float radius = (std::max)(collider->GetSphere().radius, 0.0f);
+					return fourThirds * pi * radius * radius * radius;
+				}
+			case ECollisionShapeType::Capsule:
+				{
+					const Capsule capsule = collider->GetCapsule();
+					const float radius = (std::max)(capsule.radius, 0.0f);
+					const float cylinderLength = (std::max)(Vector3::Length(capsule.segment.diff), 0.0f);
+					return pi * radius * radius * cylinderLength + fourThirds * pi * radius * radius * radius;
+				}
+			default:
+				return 0.0f;
+			}
+		}
+
 		static float CalculateProjectedExtent(const Collider* collider, const Vector3& normal)
 		{
 			if (!collider) return 0.0f;
@@ -627,8 +739,28 @@ namespace Ken4lowEngine
 						std::fabs(Vector3::Dot(normal, obb.orientations[1])) * obb.size.y +
 						std::fabs(Vector3::Dot(normal, obb.orientations[2])) * obb.size.z;
 				}
+			case ECollisionShapeType::Capsule:
+				{
+					const Capsule capsule = collider->GetCapsule();
+					return std::fabs(Vector3::Dot(normal, capsule.segment.diff)) * 0.5f + (std::max)(capsule.radius, 0.0f);
+				}
 			default:
 				return 0.0f;
+			}
+		}
+
+		static const char* ContactStateName(EWaterContactState state)
+		{
+			switch (state)
+			{
+			case EWaterContactState::AboveSurface:
+				return "Above Surface";
+			case EWaterContactState::TouchingSurface:
+				return "Touching Surface";
+			case EWaterContactState::Submerged:
+				return "Submerged";
+			default:
+				return "Unknown";
 			}
 		}
 
@@ -638,11 +770,14 @@ namespace Ken4lowEngine
 		WaterContactCallback onWaterStay_{};
 		WaterContactCallback onWaterExit_{};
 		WaterSplashCallback onWaterSplash_{};
+		WaterInteractionDiagnostics lastDiagnostics_{};
 		float volumeDepth_ = 5.0f;
 		float surfacePadding_ = 0.5f;
 		float surfaceTolerance_ = 0.02f;
-		float buoyancyScale_ = 1.15f;
+		float buoyancyScale_ = 1.0f;
+		float waterDensity_ = 1000.0f;
 		float waterLinearDrag_ = 2.5f;
+		float waterAngularDrag_ = 1.5f;
 		float surfaceAlignSpeed_ = 3.0f;
 		float maxTiltDegrees_ = 20.0f;
 		float minSplashSpeed_ = 1.0f;
@@ -653,5 +788,6 @@ namespace Ken4lowEngine
 		bool multiPointSampling_ = true;
 		bool surfaceAlignEnabled_ = true;
 		bool splashEnabled_ = true;
+		bool diagnosticsValid_ = false;
 	};
 } // namespace Ken4lowEngine
