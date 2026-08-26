@@ -49,6 +49,7 @@ public:
 
         GpuSphSimulationSettings& settings = manager->GetEditableSimulationSettings();
         const GpuSphRuntimeStats& stats = manager->GetRuntimeStats();
+        const GpuSphParticleBufferStats bufferStats = manager->GetParticleBufferStats();
 
         if (ImGui::Button("Water Production Preset"))
         {
@@ -77,6 +78,8 @@ public:
         ImGui::DragFloat("Density Error Tolerance", &settings.dfsphDensityErrorTolerance, 0.0005f, 0.0f, 0.1f, "%.4f");
         ImGui::DragFloat("Divergence Tolerance", &settings.dfsphDivergenceErrorTolerance, 0.0005f, 0.0f, 0.1f, "%.4f");
         ImGui::DragFloat("Max Velocity Correction", &settings.maxDfsphVelocityCorrection, 0.05f, 0.05f, 20.0f, "%.2f");
+        ImGui::Checkbox("Warm Start", &settings.dfsphWarmStartEnabled);
+        ImGui::SliderFloat("Warm Start Strength", &settings.dfsphWarmStartStrength, 0.0f, 1.0f, "%.3f");
 
         ImGui::SeparatorText("CFL / Surface / Boundary");
         ImGui::Checkbox("Adaptive CFL", &settings.adaptiveCflEnabled);
@@ -86,11 +89,28 @@ public:
         ImGui::DragFloat("XSPH Strength", &settings.xsphStrength, 0.001f, 0.0f, 0.5f, "%.3f");
         ImGui::SliderFloat("Boundary Friction", &settings.boundaryFriction, 0.0f, 1.0f, "%.3f");
 
+        ImGui::SeparatorText("Particle Stress Presets");
+        if (ImGui::Button("1K")) manager->SetActiveParticleCount(1000u);
+        ImGui::SameLine();
+        if (ImGui::Button("4K")) manager->SetActiveParticleCount(4096u);
+        ImGui::SameLine();
+        if (ImGui::Button("16K")) manager->SetActiveParticleCount(16384u);
+        ImGui::SameLine();
+        if (ImGui::Button("65K")) manager->SetActiveParticleCount(65536u);
+        ImGui::Text("Active / Capacity: %u / %u", bufferStats.activeCount, bufferStats.capacity);
+        ImGui::TextDisabled("Stress order: 1K -> 4K -> 16K -> 65K. Each button requests an SPH reset.");
+
         ImGui::SeparatorText("W9.5 Runtime");
         ImGui::Text("Solver: %s", stats.dfsphActive ? "DFSPH" : "WCSPH / Tait EOS Fallback");
         ImGui::Text("Effective dt: %.6f | Requested dt: %.6f", stats.effectiveDeltaTime, settings.fixedDeltaTime);
         ImGui::Text("Measured Max Speed: %.3f m/s", stats.lastMeasuredMaxSpeed);
-        ImGui::Text("CFL Frame Resources: %u | Readbacks: %llu",
+        ImGui::Text("Max Density Error: %.5f | Tolerance: %.5f",
+            stats.lastMaxDensityError,
+            settings.dfsphDensityErrorTolerance);
+        ImGui::Text("Max Divergence Error: %.5f | Tolerance: %.5f",
+            stats.lastMaxDivergenceError,
+            settings.dfsphDivergenceErrorTolerance);
+        ImGui::Text("Metric Frame Resources: %u | Async Readbacks: %llu",
             stats.frameResourceCount,
             static_cast<unsigned long long>(stats.cflReadbackCount));
         ImGui::Text("Density Iterations: %u | Divergence Iterations: %u",
@@ -99,11 +119,12 @@ public:
         ImGui::Text("Factor Dispatches: %llu", static_cast<unsigned long long>(stats.dfsphFactorDispatchCount));
         ImGui::Text("Density Projection Dispatches: %llu", static_cast<unsigned long long>(stats.dfsphDensityDispatchCount));
         ImGui::Text("Divergence Projection Dispatches: %llu", static_cast<unsigned long long>(stats.dfsphDivergenceDispatchCount));
-        ImGui::Text("CFL Metric Dispatches: %llu", static_cast<unsigned long long>(stats.cflMetricDispatchCount));
+        ImGui::Text("GPU Metric Dispatches: %llu", static_cast<unsigned long long>(stats.cflMetricDispatchCount));
         ImGui::Text("CFL Stabilizations: %llu", static_cast<unsigned long long>(stats.cflStabilizationCount));
         ImGui::Text("WCSPH Pressure Dispatches: %llu", static_cast<unsigned long long>(stats.pressureDispatchCount));
         ImGui::TextDisabled("DFSPH ON keeps the W6 27-cell Spatial Hash and bypasses Tait pressure force passes.");
-        ImGui::TextDisabled("Adaptive CFL uses an asynchronous GPU max-speed readback; it never waits for the GPU in this panel.");
+        ImGui::TextDisabled("Warm Start reuses the previous DFSPH kappa only on the first projection iteration.");
+        ImGui::TextDisabled("Speed / density / divergence metrics use asynchronous Frame Resource readback without GPU waits.");
         ImGui::TextDisabled("Disable DFSPH to A/B compare against the previous W7 WCSPH behavior.");
 
         ImGui::End();
