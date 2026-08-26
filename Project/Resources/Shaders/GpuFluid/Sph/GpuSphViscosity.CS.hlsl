@@ -12,6 +12,7 @@ void ComputeViscosityDelta(uint3 dispatchThreadId : SV_DispatchThreadID)
 
     const float3 positionI = gParticles[index].predictedPosition;
     const float3 velocityI = gParticles[index].velocity;
+    const float densityI = max(gParticles[index].density, 1.0e-5f);
     const int3 baseCell = GpuSphPositionToCell(positionI);
     float3 acceleration = float3(0.0f, 0.0f, 0.0f);
     float3 xsphDelta = float3(0.0f, 0.0f, 0.0f);
@@ -58,13 +59,17 @@ void ComputeViscosityDelta(uint3 dispatchThreadId : SV_DispatchThreadID)
                         (velocityJ - velocityI) *
                         (laplacian / densityJ);
 
-                    // W7 Surface Tension: 近傍粒子へ向かう弱いCohesionを加えて自由表面をまとまりやすくする。
+                    // W7 Surface Tension: 密度不足の自由表面付近だけCohesionを強くする。
+                    const float surfaceDensity = min(densityI, densityJ);
+                    const float surfaceFactor = saturate(
+                        1.0f - surfaceDensity / max(gSph.targetDensity, 1.0e-5f));
                     const float cohesionWeight = GpuSphCohesionWeight(distanceValue, gSph.smoothingRadius);
                     const float cohesionAcceleration =
                         kGpuSphSurfaceTension *
                         gSph.targetDensity *
                         neighborVolume *
-                        cohesionWeight;
+                        cohesionWeight *
+                        surfaceFactor;
                     acceleration -= cohesionAcceleration * (delta / distanceValue);
 
                     // XSPHは局所的な速度差だけを平滑化し、粒子のバラつきと高周波振動を抑える。
