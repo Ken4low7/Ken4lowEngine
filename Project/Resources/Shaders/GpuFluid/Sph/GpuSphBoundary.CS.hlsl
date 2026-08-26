@@ -3,8 +3,9 @@
 void ResolveBoundary(inout float3 positionValue, inout float3 velocityValue)
 {
     const float radius = max(gSph.spawnSpacing * 0.5f, 0.001f);
-    const float3 minValue = gSph.boundaryMin + radius.xxx;
-    const float3 maxValue = gSph.boundaryMax - radius.xxx;
+    const float3 margin = float3(radius, radius, radius);
+    const float3 minValue = gSph.boundaryMin + margin;
+    const float3 maxValue = gSph.boundaryMax - margin;
 
     if (positionValue.x < minValue.x)
     {
@@ -49,10 +50,12 @@ void ConstrainPredicted(uint3 dispatchThreadId : SV_DispatchThreadID)
         return;
     }
 
-    GpuSphParticle particle = gParticles[index];
+    float3 predictedPosition = gParticles[index].predictedPosition;
+    float3 velocityValue = gParticles[index].velocity;
     // W5.3では予測位置をDomain内へ収め、外向き速度だけを反射する。
-    ResolveBoundary(particle.predictedPosition, particle.velocity);
-    gParticles[index] = particle;
+    ResolveBoundary(predictedPosition, velocityValue);
+    gParticles[index].predictedPosition = predictedPosition;
+    gParticles[index].velocity = velocityValue;
 }
 
 [numthreads(128, 1, 1)]
@@ -64,8 +67,10 @@ void ConstrainPosition(uint3 dispatchThreadId : SV_DispatchThreadID)
         return;
     }
 
-    GpuSphParticle particle = gParticles[index];
-    ResolveBoundary(particle.position, particle.velocity);
-    particle.predictedPosition = particle.position;
-    gParticles[index] = particle;
+    float3 positionValue = gParticles[index].position;
+    float3 velocityValue = gParticles[index].velocity;
+    ResolveBoundary(positionValue, velocityValue);
+    gParticles[index].position = positionValue;
+    gParticles[index].predictedPosition = positionValue;
+    gParticles[index].velocity = velocityValue;
 }
