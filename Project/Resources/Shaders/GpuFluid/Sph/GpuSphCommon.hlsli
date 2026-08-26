@@ -61,6 +61,26 @@ struct GpuSphSimulationConstants
     uint spatialGridDimY;
     uint spatialGridDimZ;
     uint spatialCellCount;
+
+    uint dfsphEnabled;
+    uint dfsphDensityIterations;
+    uint dfsphDivergenceIterations;
+    uint adaptiveCflEnabled;
+
+    float dfsphDensityRelaxation;
+    float dfsphDivergenceRelaxation;
+    float dfsphDensityErrorTolerance;
+    float dfsphDivergenceErrorTolerance;
+
+    float cflNumber;
+    float minimumDeltaTime;
+    float surfaceTensionStrength;
+    float xsphStrength;
+
+    float boundaryFriction;
+    float maxDfsphVelocityCorrection;
+    float padding4;
+    float padding5;
 };
 
 cbuffer GpuSphSimulationCB : register(b0)
