@@ -135,13 +135,21 @@ void PrepareDensity(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float targetDensity = max(gSph.targetDensity, 1.0e-5f);
     const float predictedDensity = max(particleI.density + gSph.deltaTime * densityRate, 0.0f);
     const float densityError = max(predictedDensity / targetDensity - 1.0f, 0.0f);
+    float4 solverState = gDfSphState[index];
     float kappa = 0.0f;
     if (densityError > gSph.dfsphDensityErrorTolerance)
     {
         const float dt2 = max(gSph.deltaTime * gSph.deltaTime, 1.0e-8f);
         kappa = densityError * gScratch[index].x * max(gSph.dfsphDensityRelaxation, 0.0f) / dt2;
+        if (gSph.dfsphWarmStartEnabled != 0u && gSortLevel == 0u)
+        {
+            kappa += max(solverState.x, 0.0f) * saturate(gSph.dfsphWarmStartStrength);
+        }
     }
 
+    solverState.x = kappa;
+    solverState.z = densityError;
+    gDfSphState[index] = solverState;
     gParticles[index].pressure = kappa;
     gParticles[index].padding = densityError;
 }
@@ -256,13 +264,21 @@ void PrepareDivergence(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     const float compression = max(divergence, 0.0f);
+    float4 solverState = gDfSphState[index];
     float kappa = 0.0f;
     if (compression > gSph.dfsphDivergenceErrorTolerance)
     {
         kappa = compression * gScratch[index].x * max(gSph.dfsphDivergenceRelaxation, 0.0f) /
             max(gSph.deltaTime, 1.0e-6f);
+        if (gSph.dfsphWarmStartEnabled != 0u && gSortLevel == 0u)
+        {
+            kappa += max(solverState.y, 0.0f) * saturate(gSph.dfsphWarmStartStrength);
+        }
     }
 
+    solverState.y = kappa;
+    solverState.w = compression;
+    gDfSphState[index] = solverState;
     gParticles[index].pressure = kappa;
     gParticles[index].padding = compression;
 }
