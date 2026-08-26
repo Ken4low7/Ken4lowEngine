@@ -109,17 +109,72 @@ void GpuFluidDiagnosticsPanel::Draw()
 		ImGui::Text("Simulation time: %.2f sec", stats.elapsedSimulationSeconds);
 	}
 
-	if (ImGui::CollapsingHeader("SPH Foundation (W5.1)", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("SPH Foundation (W5)", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		GpuSphManager* sphManager = GpuSphManager::GetInstance();
-		const GpuSphParticleBufferStats sphStats = sphManager->GetParticleBufferStats();
+		GpuSphSimulationSettings& sphSettings = sphManager->GetEditableSimulationSettings();
+		const GpuSphParticleBufferStats sphBufferStats = sphManager->GetParticleBufferStats();
+		const GpuSphRuntimeStats& sphStats = sphManager->GetRuntimeStats();
 		const double sphMemoryMiB = static_cast<double>(sphStats.approximateGpuMemoryBytes) / (1024.0 * 1024.0);
 
-		ImGui::Text("Particle Buffer: %s", sphStats.initialized ? "Ready" : "FAILED");
-		ImGui::Text("Active / Capacity: %u / %u", sphStats.activeCount, sphStats.capacity);
-		ImGui::Text("Particle Stride: %u bytes", sphStats.strideBytes);
-		ImGui::Text("Particle GPU Storage: %.2f MiB", sphMemoryMiB);
-		if (sphStats.initialized)
+		bool sphPaused = sphManager->IsPaused();
+		if (ImGui::Checkbox("SPH Paused", &sphPaused))
+		{
+			sphManager->SetPaused(sphPaused);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("SPH Step"))
+		{
+			sphManager->RequestSingleStep();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("SPH Reset"))
+		{
+			sphManager->RequestReset();
+		}
+
+		int activeParticles = static_cast<int>(sphBufferStats.activeCount);
+		if (ImGui::SliderInt("SPH Active Particles", &activeParticles, 1, static_cast<int>(GpuSphManager::kMaxNaiveNeighborParticles)))
+		{
+			sphManager->SetActiveParticleCount(static_cast<uint32_t>((std::max)(1, activeParticles)));
+		}
+
+		ImGui::DragFloat("SPH Fixed Delta", &sphSettings.fixedDeltaTime, 0.0001f, 1.0f / 240.0f, 1.0f / 30.0f, "%.5f");
+		int sphMaxSubsteps = static_cast<int>(sphSettings.maxSubsteps);
+		if (ImGui::SliderInt("SPH Max Substeps", &sphMaxSubsteps, 1, 8))
+		{
+			sphSettings.maxSubsteps = static_cast<uint32_t>((std::max)(1, sphMaxSubsteps));
+		}
+		ImGui::DragFloat("Particle Mass", &sphSettings.particleMass, 0.001f, 0.001f, 10.0f);
+		ImGui::DragFloat("Smoothing Radius", &sphSettings.smoothingRadius, 0.001f, 0.01f, 2.0f);
+		ImGui::DragFloat("Target Density", &sphSettings.targetDensity, 1.0f, 1.0f, 5000.0f);
+		ImGui::DragFloat("Pressure Stiffness", &sphSettings.pressureStiffness, 1.0f, 0.0f, 5000.0f);
+		ImGui::DragFloat("Viscosity", &sphSettings.viscosityStrength, 0.005f, 0.0f, 10.0f);
+		ImGui::SliderFloat("Boundary Damping", &sphSettings.boundaryDamping, 0.0f, 1.0f);
+		ImGui::DragFloat3("SPH Gravity", &sphSettings.gravity.x, 0.05f);
+		ImGui::DragFloat3("SPH Boundary Min", &sphSettings.boundaryMin.x, 0.05f);
+		ImGui::DragFloat3("SPH Boundary Max", &sphSettings.boundaryMax.x, 0.05f);
+
+		ImGui::SeparatorText("W5 Runtime Status");
+		ImGui::Text("Particle Buffer: %s", sphBufferStats.initialized ? "Ready" : "FAILED");
+		ImGui::Text("Active / Capacity: %u / %u", sphBufferStats.activeCount, sphBufferStats.capacity);
+		ImGui::Text("Particle Stride: %u bytes", sphBufferStats.strideBytes);
+		ImGui::Text("Particle + Scratch GPU Storage: %.2f MiB", sphMemoryMiB);
+		ImGui::Text("Last Step: %s | Substeps: %u", sphStats.lastStepSucceeded ? "OK" : "FAILED", sphStats.lastFrameSubsteps);
+		ImGui::Text("Total Simulation Steps: %llu", static_cast<unsigned long long>(sphStats.totalSimulationSteps));
+		ImGui::Text("Reset Count: %llu | Total Dispatches: %llu",
+			static_cast<unsigned long long>(sphStats.resetCount),
+			static_cast<unsigned long long>(sphStats.totalDispatchCount));
+		ImGui::Text("Gravity: %llu | Boundary: %llu | Density: %llu",
+			static_cast<unsigned long long>(sphStats.gravityDispatchCount),
+			static_cast<unsigned long long>(sphStats.boundaryDispatchCount),
+			static_cast<unsigned long long>(sphStats.densityDispatchCount));
+		ImGui::Text("Pressure: %llu | Viscosity: %llu | Predict/Integrate: %llu",
+			static_cast<unsigned long long>(sphStats.pressureDispatchCount),
+			static_cast<unsigned long long>(sphStats.viscosityDispatchCount),
+			static_cast<unsigned long long>(sphStats.predictionDispatchCount));
+
+		if (sphBufferStats.initialized)
 		{
 			const GpuSphParticleBuffer& particleBuffer = sphManager->GetParticleBuffer();
 			ImGui::Text("SRV: %u | Compute SRV: %u | UAV: %u",
@@ -128,7 +183,9 @@ void GpuFluidDiagnosticsPanel::Draw()
 				particleBuffer.GetUavIndex());
 			ImGui::Text("Resource State: %u", static_cast<uint32_t>(particleBuffer.GetCurrentState()));
 		}
-		ImGui::TextDisabled("W5.1 allocates storage only. Gravity/Boundary/SPH forces are not dispatched yet."); // W5.2以降との責務境界をDiagnosticsにも明示する。
+
+		// W6でSpatial Hashを導入するまで近傍探索はO(N^2)なので4096粒子を上限にする。
+		ImGui::TextDisabled("W5 neighbor search is O(N^2). Active particles are capped at 4096 until W6 Spatial Hash.");
 	}
 
 	if (ImGui::CollapsingHeader("Visualization", ImGuiTreeNodeFlags_DefaultOpen))
