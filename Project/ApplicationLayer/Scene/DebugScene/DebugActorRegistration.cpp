@@ -4,6 +4,7 @@
 #include <ComponentFactory.h>
 #include <SceneComponent.h>
 
+#include "BasicParticleActor.h"
 #include "TestGroundActor.h"
 
 using namespace Ken4lowEngine;
@@ -46,8 +47,12 @@ void RegisterApplicationActorTypes()
 	if (registered) return;
 	registered = true; // DebugSceneとGamePlaySceneの両方から呼ばれてもFactory登録を一度だけ行う。
 
+	// JSONへ保存されるClass名と同じ文字列でApplication ActorをFactory登録する。
+	ActorFactory::RegisterActorClass<BasicParticleActor>("BasicParticle");
 	ActorFactory::RegisterActorClass<TestGroundActor>("TestGroundActor");
-	
 }
 
-void RegisterDebugActors(){ RegisterApplicationActorTypes(); }
+void RegisterDebugActors()
+{
+	RegisterApplicationActorTypes();
+}
