@@ -21,7 +21,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
-#include <fstream>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -30,7 +30,6 @@
 
 namespace Ken4lowEngine
 {
-	/// <summary>Editor WorldとPIE Runtime Worldのどちらを現在表示しているかを表します。</summary>
 	enum class EditorWorldDomain
 	{
 		Editor,
@@ -69,7 +68,9 @@ namespace Ken4lowEngine
 			if (!ReplaceWorldFromSnapshot(scene, editorSnapshot_, EditorWorldDomain::Runtime, false))
 			{
 				editorSnapshot_ = {};
-				SetStatus(false, "PIE Runtime Worldの生成に失敗しました。");
+				SetStatus(false, lastReplaceError_.empty()
+					? "PIE Runtime Worldの生成に失敗しました。Editor Worldは維持されます。"
+					: lastReplaceError_);
 				return false;
 			}
 
@@ -107,7 +108,9 @@ namespace Ken4lowEngine
 
 			if (!ReplaceWorldFromSnapshot(scene, restoreSnapshot, EditorWorldDomain::Editor, true))
 			{
-				SetStatus(false, "Editor Worldの復元に失敗しました。");
+				SetStatus(false, lastReplaceError_.empty()
+					? "Editor Worldの復元に失敗しました。現在のRuntime Worldは維持されます。"
+					: lastReplaceError_);
 				return false;
 			}
 
@@ -131,8 +134,9 @@ namespace Ken4lowEngine
 			runtimeFrameCount_ = 0;
 			runtimeActorCount_ = 0;
 			editorSnapshot_ = {};
+			lastReplaceError_.clear();
 			std::error_code error;
-			std::filesystem::remove_all(kTemporaryRoot, error); // Application終了時はEditor Worldの再生成を行わず一時ファイルだけ片付ける。
+			std::filesystem::remove_all(kTemporaryRoot, error); // 旧PIE一時ファイルが残っていてもApplication終了時に掃除する。
 		}
 
 		void NotifyRuntimeTick(float deltaTime, const BaseScene& scene)
@@ -210,6 +214,25 @@ namespace Ken4lowEngine
 				{
 					return actor && !actor->IsPendingDestroy();
 				}));
+		}
+
+		static void FinalizeStagedActors(std::vector<std::unique_ptr<Actor>>& actors)
+		{
+			for (std::unique_ptr<Actor>& actor : actors)
+			{
+				if (actor) actor->FinalizeForWorld();
+			}
+			actors.clear();
+		}
+
+		static std::string DescribeSnapshotActor(const ActorSnapshot& snapshot, std::size_t index)
+		{
+			const std::string actorName = snapshot.actorJson.value("Name", std::string{});
+			const std::string actorClass = snapshot.actorJson.value("Class", std::string{});
+			std::string result = snapshot.id.empty() ? "Actor_" + std::to_string(index) : snapshot.id;
+			if (!actorName.empty()) result += " / " + actorName;
+			if (!actorClass.empty()) result += " [" + actorClass + "]";
+			return result;
 		}
 
 		static Actor* GetParentActor(const Actor& actor)
@@ -342,54 +365,105 @@ namespace Ken4lowEngine
 
 		bool ReplaceWorldFromSnapshot(BaseScene& scene, const WorldSnapshot& snapshot, EditorWorldDomain domain, bool restoreDocumentState)
 		{
-			if (!snapshot.valid) return false;
+			lastReplaceError_.clear();
+			if (!snapshot.valid)
+			{
+				lastReplaceError_ = "PIE World置換に使用するSnapshotが無効です。";
+				return false;
+			}
+
 			ActorWorld* actorWorld = scene.GetEditorActorWorld();
-			if (!actorWorld) return false;
+			if (!actorWorld)
+			{
+				lastReplaceError_ = "PIE World置換対象のActorWorldを取得できませんでした。";
+				return false;
+			}
 
-			const std::filesystem::path sessionDirectory = kTemporaryRoot /
-				(domain == EditorWorldDomain::Runtime ? "RuntimeWorld" : "EditorWorld");
-			std::error_code error;
-			std::filesystem::remove_all(sessionDirectory, error);
-			std::filesystem::create_directories(sessionDirectory, error);
-			if (error) return false;
+			std::vector<std::unique_ptr<Actor>> stagedActors;
+			std::unordered_map<std::string, Actor*> stagedActorsById;
+			stagedActors.reserve(snapshot.actors.size());
 
-			EditorContext::GetInstance()->ResetTransientState();
-			EditorCommandHistory::GetInstance()->Clear();
-			actorWorld->SetSelectedEditorObject(nullptr, nullptr);
-			actorWorld->Finalize();
-			actorWorld->Initialize(); // 空Worldを初期化してJSON ActorをRuntime Spawnと同じ経路で登録する。
+			ActorSpawnOptions spawnOptions{};
+			spawnOptions.applySpawnOffset = false;
+			spawnOptions.disableAutoRegisterMainCamera = true; // Commit前のStaging ActorからMainCameraなどのWorld状態を変更させない。
 
-			std::unordered_map<std::string, Actor*> loadedActors;
 			for (std::size_t index = 0; index < snapshot.actors.size(); ++index)
 			{
 				const ActorSnapshot& actorSnapshot = snapshot.actors[index];
-				const std::filesystem::path actorPath = sessionDirectory / ("Actor_" + std::to_string(index) + ".json");
+				std::unique_ptr<Actor> stagedActor = ActorJsonSerializer::CreateActorFromJson(actorSnapshot.actorJson, spawnOptions);
+				if (!stagedActor)
 				{
-					std::ofstream file(actorPath, std::ios::trunc);
-					if (!file.is_open()) return false;
-					file << actorSnapshot.actorJson.dump(4);
+					FinalizeStagedActors(stagedActors);
+					lastReplaceError_ = "PIE ActorのStagingに失敗しました。Editor Worldは維持されます: " +
+						DescribeSnapshotActor(actorSnapshot, index);
+					return false;
 				}
 
-				ActorSpawnOptions options{};
-				options.applySpawnOffset = false;
-				options.disableAutoRegisterMainCamera = false;
-				Actor* actor = actorWorld->SpawnActorFromJson(actorPath.generic_string(), options);
-				if (!actor) return false;
+				Actor* stagedActorPointer = stagedActor.get();
+				stagedActorsById[actorSnapshot.id] = stagedActorPointer;
+				stagedActors.push_back(std::move(stagedActor));
+			}
+
+			for (std::size_t index = 0; index < snapshot.actors.size(); ++index)
+			{
+				const ActorSnapshot& actorSnapshot = snapshot.actors[index];
+				if (actorSnapshot.parentId.empty()) continue;
+
+				const auto childIt = stagedActorsById.find(actorSnapshot.id);
+				const auto parentIt = stagedActorsById.find(actorSnapshot.parentId);
+				if (childIt == stagedActorsById.end() || parentIt == stagedActorsById.end())
+				{
+					FinalizeStagedActors(stagedActors);
+					lastReplaceError_ = "PIE Actorの親子関係を解決できませんでした。Editor Worldは維持されます: " +
+						DescribeSnapshotActor(actorSnapshot, index);
+					return false;
+				}
+
+				SceneComponent* childRoot = childIt->second ? childIt->second->GetRootComponent() : nullptr;
+				SceneComponent* parentRoot = parentIt->second ? parentIt->second->GetRootComponent() : nullptr;
+				if (!childRoot || !parentRoot)
+				{
+					FinalizeStagedActors(stagedActors);
+					lastReplaceError_ = "PIE Actor階層の復元に必要なRootComponentがありません。Editor Worldは維持されます: " +
+						DescribeSnapshotActor(actorSnapshot, index);
+					return false;
+				}
+
+				childRoot->AttachTo(parentRoot);
+			}
+
+			std::vector<Actor*> committedActors;
+			if (!actorWorld->CommitStagedActors(std::move(stagedActors), &committedActors))
+			{
+				lastReplaceError_ = "PIE ActorのCommitを開始できませんでした。現在のWorldは維持されます。";
+				return false;
+			}
+			if (committedActors.size() != snapshot.actors.size())
+			{
+				lastReplaceError_ = "PIE ActorのCommit件数がSnapshotと一致しませんでした。";
+				return false;
+			}
+
+			std::unordered_map<std::string, Actor*> loadedActors;
+			loadedActors.reserve(committedActors.size());
+			for (std::size_t index = 0; index < committedActors.size(); ++index)
+			{
+				Actor* actor = committedActors[index];
+				const ActorSnapshot& actorSnapshot = snapshot.actors[index];
+				if (!actor)
+				{
+					lastReplaceError_ = "PIE ActorのCommit後ポインタが無効です: " + DescribeSnapshotActor(actorSnapshot, index);
+					return false;
+				}
+
 				RestoreCameraRegistration(*actor, actorSnapshot.actorJson);
 				EditorActorStateRegistry::GetInstance()->SetState(actor, actorSnapshot.editorState);
 				loadedActors[actorSnapshot.id] = actor;
 			}
 
-			for (const ActorSnapshot& actorSnapshot : snapshot.actors)
-			{
-				if (actorSnapshot.parentId.empty()) continue;
-				const auto childIt = loadedActors.find(actorSnapshot.id);
-				const auto parentIt = loadedActors.find(actorSnapshot.parentId);
-				if (childIt == loadedActors.end() || parentIt == loadedActors.end()) continue;
-				SceneComponent* childRoot = childIt->second ? childIt->second->GetRootComponent() : nullptr;
-				SceneComponent* parentRoot = parentIt->second ? parentIt->second->GetRootComponent() : nullptr;
-				if (childRoot && parentRoot) childRoot->AttachTo(parentRoot); // Actor JSONのLocal Transformを維持してActor間階層だけを復元する。
-			}
+			EditorContext::GetInstance()->ResetTransientState();
+			EditorCommandHistory::GetInstance()->Clear();
+			actorWorld->SetSelectedEditorObject(nullptr, nullptr);
 
 			LightManager* lightManager = LightManager::GetInstance();
 			lightManager->GetMutableLightingSettingsForEditor() = snapshot.lighting;
@@ -413,7 +487,8 @@ namespace Ken4lowEngine
 				EditorContext::GetInstance()->MarkLevelDirty(false);
 			}
 
-			std::filesystem::remove_all(sessionDirectory, error);
+			std::error_code error;
+			std::filesystem::remove_all(kTemporaryRoot, error);
 			worldDomain_ = domain;
 			return true;
 		}
@@ -432,6 +507,7 @@ namespace Ken4lowEngine
 		uint64_t runtimeFrameCount_ = 0;
 		std::size_t runtimeActorCount_ = 0;
 		std::string statusMessage_;
+		std::string lastReplaceError_;
 		bool statusSucceeded_ = true;
 		uint64_t statusSerial_ = 0;
 		uint64_t consumedStatusSerial_ = 0;
