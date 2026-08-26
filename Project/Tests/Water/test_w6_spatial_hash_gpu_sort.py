@@ -66,8 +66,8 @@ class W6SpatialHashGpuSortTests(unittest.TestCase):
         ):
             self.assertIn(marker, self.manager_h + self.manager_cpp)
 
-    def test_root_signature_binds_particle_scratch_hash_ranges_and_sort_constants(self) -> None:
-        self.assertIn("D3D12_ROOT_PARAMETER rootParameters[6]", self.manager_cpp)
+    def test_root_signature_preserves_w6_bindings_inside_w95_extension(self) -> None:
+        self.assertIn("D3D12_ROOT_PARAMETER rootParameters[7]", self.manager_cpp)
         self.assertIn("hashUavRange.BaseShaderRegister = 2", self.manager_cpp)
         self.assertIn("cellRangeUavRange.BaseShaderRegister = 3", self.manager_cpp)
         self.assertIn("D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS", self.manager_cpp)
