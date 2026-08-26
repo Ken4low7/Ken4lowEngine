@@ -19,5 +19,6 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     particle.predictedPosition = particle.position;
     particle.density = gSph.targetDensity;
     gParticles[index] = particle;
-    gScratch[index] = 0.0f.xxxx;
+    // Viscosity scratchもReset時に明示的にゼロへ戻す。
+    gScratch[index] = float4(0.0f, 0.0f, 0.0f, 0.0f);
 }
