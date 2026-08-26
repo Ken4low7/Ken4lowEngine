@@ -11,7 +11,11 @@ void ComputePressure(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     const float densityValue = gParticles[index].density;
-    gParticles[index].pressure = max(densityValue - gSph.targetDensity, 0.0f) * gSph.pressureStiffness;
+    // W7ではTait EOSを使い、密度変化へ非線形に反応する弱圧縮性液体として扱う。
+    gParticles[index].pressure = GpuSphTaitPressure(
+        densityValue,
+        gSph.targetDensity,
+        gSph.pressureStiffness);
 }
 
 [numthreads(128, 1, 1)]
@@ -64,9 +68,14 @@ void ApplyPressure(uint3 dispatchThreadId : SV_DispatchThreadID)
 
                     const float densityJ = max(gParticles[neighborIndex].density, 1.0e-5f);
                     const float pressureJ = gParticles[neighborIndex].pressure;
-                    const float pressureTerm =
+                    float pressureTerm =
                         pressureI / (densityI * densityI) +
                         pressureJ / (densityJ * densityJ);
+                    pressureTerm = GpuSphApplyTensileCorrection(
+                        pressureTerm,
+                        distanceValue,
+                        gSph.smoothingRadius);
+
                     const float3 gradient = GpuSphSpikyGradient(delta, gSph.smoothingRadius);
                     acceleration -= gSph.particleMass * pressureTerm * gradient;
                 }
