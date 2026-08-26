@@ -10,7 +10,8 @@ void ComputeViscosityDelta(uint3 dispatchThreadId : SV_DispatchThreadID)
         return;
     }
 
-    const GpuSphParticle particle = gParticles[index];
+    const float3 positionI = gParticles[index].predictedPosition;
+    const float3 velocityI = gParticles[index].velocity;
     float3 acceleration = float3(0.0f, 0.0f, 0.0f);
 
     for (uint neighborIndex = 0; neighborIndex < gSph.activeParticleCount; ++neighborIndex)
@@ -20,18 +21,19 @@ void ComputeViscosityDelta(uint3 dispatchThreadId : SV_DispatchThreadID)
             continue;
         }
 
-        const GpuSphParticle neighbor = gParticles[neighborIndex];
-        const float distanceValue = length(particle.predictedPosition - neighbor.predictedPosition);
+        const float3 positionJ = gParticles[neighborIndex].predictedPosition;
+        const float distanceValue = length(positionI - positionJ);
         if (distanceValue >= gSph.smoothingRadius)
         {
             continue;
         }
 
-        const float densityJ = max(neighbor.density, 1.0e-5f);
+        const float densityJ = max(gParticles[neighborIndex].density, 1.0e-5f);
+        const float3 velocityJ = gParticles[neighborIndex].velocity;
         const float laplacian = GpuSphViscosityLaplacian(distanceValue, gSph.smoothingRadius);
         acceleration +=
             gSph.viscosityStrength * gSph.particleMass *
-            (neighbor.velocity - particle.velocity) *
+            (velocityJ - velocityI) *
             (laplacian / densityJ);
     }
 
@@ -48,7 +50,5 @@ void ApplyViscosity(uint3 dispatchThreadId : SV_DispatchThreadID)
         return;
     }
 
-    GpuSphParticle particle = gParticles[index];
-    particle.velocity += gScratch[index].xyz;
-    gParticles[index] = particle;
+    gParticles[index].velocity += gScratch[index].xyz;
 }
