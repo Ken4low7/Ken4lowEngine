@@ -42,7 +42,8 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     particle.predictedPosition = particle.position;
     particle.density = gSph.targetDensity;
     gParticles[index] = particle;
-    // W9.5: viscosity scratchとDFSPH warm-start/error stateを同時に初期化する。
+
+    // W9.5: Viscosity scratchとWarm Start / Error stateを同時に初期化する。
     gScratch[index] = float4(0.0f, 0.0f, 0.0f, 0.0f);
     gDfSphState[index] = float4(0.0f, 0.0f, 0.0f, 0.0f);
 }
