@@ -365,10 +365,15 @@ private:
 
     void ApplySpatialLod(GpuSphManager& sph, const GpuSphSimulationSettings& sphSettings)
     {
+        GpuSphScreenSpaceRenderSettings& renderSettings = GpuSphScreenSpaceFluidRenderer::GetInstance()->GetEditableSettings();
         if (!lodSettings_.enabled)
         {
             stats_.localSimulationVisible = true;
             stats_.oceanVisualBlend = 1.0f;
+            renderSettings.enabled = true;
+            renderSettings.absorption = 2.8f;
+            renderSettings.refractionStrength = 0.012f;
+            renderSettings.thicknessScale = 5.0f;
             return;
         }
 
@@ -388,9 +393,11 @@ private:
             0.0f,
             1.0f);
 
-        GpuSphScreenSpaceRenderSettings& renderSettings = GpuSphScreenSpaceFluidRenderer::GetInstance()->GetEditableSettings();
         const bool visible = stats_.focusDistanceToSimulation <= simulationRadius;
         renderSettings.enabled = visible;
+        renderSettings.absorption = 2.8f * stats_.oceanVisualBlend;
+        renderSettings.refractionStrength = 0.012f * stats_.oceanVisualBlend;
+        renderSettings.thicknessScale = 5.0f * stats_.oceanVisualBlend; // SSFR CompositeはThicknessScaleをLocal/OceanのBlend係数としてSceneColorへ戻す。
         stats_.localSimulationVisible = visible;
 
         uint32_t targetCount = lodSettings_.developmentParticleCount;
