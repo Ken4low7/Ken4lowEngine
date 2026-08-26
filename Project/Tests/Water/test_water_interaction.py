@@ -50,6 +50,7 @@ class WaterInteractionRegressionTests(unittest.TestCase):
         self.assertIn("rigidbody->AddForce", self.interaction)
         self.assertIn("std::exp", self.interaction)
         self.assertIn("rigidbody->SetVelocity", self.interaction)
+        self.assertIn("rigidbody->SetAngularVelocity", self.interaction)
 
     def test_w4_buoyancy_uses_displaced_volume_and_water_density(self) -> None:
         self.assertIn("CalculateColliderVolume", self.interaction)
@@ -80,13 +81,15 @@ class WaterInteractionRegressionTests(unittest.TestCase):
             self.assertAlmostEqual(mass / water_density, expected)
         self.assertGreater(1500.0 / water_density, 1.0)
 
-    def test_w4_uses_multi_point_surface_sampling_and_wave_normal_alignment(self) -> None:
+    def test_w4_uses_multi_point_surface_sampling_and_physical_torque(self) -> None:
         self.assertIn("struct ProbeSet", self.interaction)
         self.assertIn("std::array<Vector3, 8>", self.interaction)
         self.assertIn("BuildProbeSet", self.interaction)
         self.assertIn("submergedFraction", self.interaction)
         self.assertIn("submergedProbeCount", self.interaction)
-        self.assertIn("AlignActorToSurface", self.interaction)
+        self.assertIn("AddForceAtPosition", self.interaction)
+        self.assertIn("buoyancyTorque", self.interaction)
+        self.assertIn("ApplySurfaceAlignmentTorque", self.interaction)
         self.assertIn("targetPitch", self.interaction)
         self.assertIn("targetRoll", self.interaction)
         self.assertIn("waterAngularDrag_", self.interaction)
@@ -106,7 +109,9 @@ class WaterInteractionRegressionTests(unittest.TestCase):
         self.assertIn("submergedVolume", self.interaction)
         self.assertIn("gravityForce", self.interaction)
         self.assertIn("buoyancyForce", self.interaction)
+        self.assertIn("buoyancyTorque", self.interaction)
         self.assertIn("dragForce", self.interaction)
+        self.assertIn("angularSpeed", self.interaction)
         self.assertIn("GetLastDiagnostics", self.interaction)
 
     def test_w4_settings_are_serialized(self) -> None:
