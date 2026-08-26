@@ -98,11 +98,11 @@ bool ResolveBox(
             dot(delta, proxy.axisZ));
     }
 
-    const float3 expandedHalfSize = max(proxy.halfSize, 0.0f.xxx) + gParticleRadius.xxx;
+    const float3 expandedHalfSize = max(proxy.halfSize, float3(0.0f, 0.0f, 0.0f)) + float3(gParticleRadius, gParticleRadius, gParticleRadius);
     const float3 remaining = expandedHalfSize - abs(localPosition);
     if (remaining.x < 0.0f || remaining.y < 0.0f || remaining.z < 0.0f)
     {
-        normal = 0.0f.xxx;
+        normal = float3(0.0f, 0.0f, 0.0f);
         penetration = 0.0f;
         return false;
     }
@@ -137,7 +137,7 @@ bool ResolveSphere(
     const float limit = max(proxy.radius, 0.0f) + gParticleRadius;
     if (distanceValue >= limit)
     {
-        normal = 0.0f.xxx;
+        normal = float3(0.0f, 0.0f, 0.0f);
         penetration = 0.0f;
         return false;
     }
@@ -165,7 +165,7 @@ bool ResolveCapsule(
     const float limit = max(proxy.radius, 0.0f) + gParticleRadius;
     if (distanceValue >= limit)
     {
-        normal = 0.0f.xxx;
+        normal = float3(0.0f, 0.0f, 0.0f);
         penetration = 0.0f;
         return false;
     }
@@ -198,7 +198,7 @@ bool ResolveShape(
         return ResolveCapsule(worldPosition, proxy, normal, penetration);
     }
 
-    normal = 0.0f.xxx;
+    normal = float3(0.0f, 0.0f, 0.0f);
     penetration = 0.0f;
     return false;
 }
@@ -210,8 +210,10 @@ void AccumulateReaction(uint bodyIndex, float3 impulse, float3 torque)
         return;
     }
 
-    const float3 scaledImpulse = clamp(impulse * gImpulseScale, -2000000000.0f.xxx, 2000000000.0f.xxx);
-    const float3 scaledTorque = clamp(torque * gImpulseScale, -2000000000.0f.xxx, 2000000000.0f.xxx);
+    const float3 minimumAtomicValue = float3(-2000000000.0f, -2000000000.0f, -2000000000.0f);
+    const float3 maximumAtomicValue = float3(2000000000.0f, 2000000000.0f, 2000000000.0f);
+    const float3 scaledImpulse = clamp(impulse * gImpulseScale, minimumAtomicValue, maximumAtomicValue);
+    const float3 scaledTorque = clamp(torque * gImpulseScale, minimumAtomicValue, maximumAtomicValue);
 
     InterlockedAdd(gReactions[bodyIndex].impulseX, (int)round(scaledImpulse.x));
     InterlockedAdd(gReactions[bodyIndex].impulseY, (int)round(scaledImpulse.y));
