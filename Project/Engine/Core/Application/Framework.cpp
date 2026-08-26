@@ -220,7 +220,7 @@ namespace Ken4lowEngine
 		// FluidはSRV/UAV/Camera初期化後に起動し、Framework終了時にDescriptor Managerより先に必ず破棄する。
 		GpuFluidManager::GetInstance()->Initialize();
 
-		// W5.1はSPH計算をまだ行わず、Particle StructuredBufferだけをRuntimeで確保する。
+		// W5 GPU SPHはParticle BufferとCompute Pipelineをまとめて起動する。
 		GpuSphManager::GetInstance()->Initialize();
 
 		// 3D Volumetric Fluidはdefault-OFFのlazy runtimeなので、ここではTexture3DをAllocateしない。
@@ -243,8 +243,13 @@ namespace Ken4lowEngine
 		// ワイヤーフレームの更新処理
 		Wireframe::GetInstance()->Update();
 
+		const float deltaTime = GameTimer::GetInstance()->GetDeltaTime();
+
 		// Gpuパーティクルマネージャーの更新処理
-		GpuParticleManager::GetInstance()->Update(GameTimer::GetInstance()->GetDeltaTime());
+		GpuParticleManager::GetInstance()->Update(deltaTime);
+
+		// W5 SPHは固定StepでGravityからViscosity/IntegrationまでGPU上で進める。
+		GpuSphManager::GetInstance()->Update(deltaTime);
 	}
 
 
