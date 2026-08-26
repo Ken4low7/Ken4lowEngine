@@ -8,10 +8,59 @@
 #include <UAVManager.h>
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 
 namespace Ken4lowEngine
 {
+
+namespace
+{
+struct SpatialGridDesc
+{
+    Vector3 min{};
+    float cellSize = 0.0f;
+    uint32_t dimX = 0;
+    uint32_t dimY = 0;
+    uint32_t dimZ = 0;
+    uint32_t cellCount = 0;
+    bool valid = false;
+};
+
+SpatialGridDesc BuildSpatialGridDesc(
+    const GpuSphSimulationSettings& settings,
+    uint32_t maxCellCapacity)
+{
+    SpatialGridDesc desc{};
+    desc.min = settings.boundaryMin;
+    desc.cellSize = (std::max)(settings.smoothingRadius, 0.001f);
+
+    const float extentX = settings.boundaryMax.x - settings.boundaryMin.x;
+    const float extentY = settings.boundaryMax.y - settings.boundaryMin.y;
+    const float extentZ = settings.boundaryMax.z - settings.boundaryMin.z;
+    if (extentX <= 0.0f || extentY <= 0.0f || extentZ <= 0.0f)
+    {
+        return desc;
+    }
+
+    desc.dimX = (std::max)(1u, static_cast<uint32_t>(std::ceil(extentX / desc.cellSize)));
+    desc.dimY = (std::max)(1u, static_cast<uint32_t>(std::ceil(extentY / desc.cellSize)));
+    desc.dimZ = (std::max)(1u, static_cast<uint32_t>(std::ceil(extentZ / desc.cellSize)));
+
+    const uint64_t cellCount =
+        static_cast<uint64_t>(desc.dimX) *
+        static_cast<uint64_t>(desc.dimY) *
+        static_cast<uint64_t>(desc.dimZ);
+    if (cellCount == 0 || cellCount > maxCellCapacity)
+    {
+        return desc;
+    }
+
+    desc.cellCount = static_cast<uint32_t>(cellCount);
+    desc.valid = true;
+    return desc;
+}
+}
 
 GpuSphManager* GpuSphManager::GetInstance()
 {
@@ -34,6 +83,7 @@ bool GpuSphManager::Initialize(uint32_t particleCapacity)
 
     if (!particleBuffer_.Initialize(particleCapacity) ||
         !CreateScratchBuffer(particleCapacity) ||
+        !CreateSpatialHashBuffers(particleCapacity) ||
         !CreateRootSignature() ||
         !CreatePipelineStates())
     {
@@ -41,7 +91,7 @@ bool GpuSphManager::Initialize(uint32_t particleCapacity)
         return false;
     }
 
-    // W6導入前はO(N^2)近傍探索なので実行粒子数だけを安全域へ制限する。
+    // W6では近傍探索をSpatial Hashへ切り替え、Buffer CapacityまでActive粒子を許可する。
     SetActiveParticleCount(settings_.activeParticleCount);
     initialized_ = true;
     resetRequested_ = true;
@@ -56,6 +106,7 @@ void GpuSphManager::Finalize()
         pipelineState.Reset();
     }
     rootSignature_.Reset();
+    ReleaseSpatialHashBuffers();
     ReleaseScratchBuffer();
     particleBuffer_.Finalize();
 
@@ -114,7 +165,6 @@ void GpuSphManager::Update(float deltaTime)
             ++substeps;
         }
 
-        // 長い停止復帰でも無制限にCatch-upせず、次Frameへ最大1Frame分だけ持ち越す。
         accumulatorSeconds_ = (std::min)(accumulatorSeconds_, fixedDeltaTime * static_cast<float>(maxSubsteps));
     }
 
@@ -127,6 +177,7 @@ void GpuSphManager::SetActiveParticleCount(uint32_t activeCount)
     const uint32_t validatedCount = GetValidatedActiveParticleCount();
     settings_.activeParticleCount = validatedCount;
     particleBuffer_.SetActiveParticleCount(validatedCount);
+    UpdateSpawnLayoutForActiveCount(validatedCount);
     resetRequested_ = true;
 }
 
@@ -137,7 +188,7 @@ bool GpuSphManager::CreateRootSignature()
         return false;
     }
 
-    D3D12_ROOT_PARAMETER rootParameters[3]{};
+    D3D12_ROOT_PARAMETER rootParameters[6]{};
     rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameters[0].Descriptor.ShaderRegister = 0;
     rootParameters[0].Descriptor.RegisterSpace = 0;
@@ -164,6 +215,34 @@ bool GpuSphManager::CreateRootSignature()
     rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
     rootParameters[2].DescriptorTable.pDescriptorRanges = &scratchUavRange;
     rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+    D3D12_DESCRIPTOR_RANGE hashUavRange{};
+    hashUavRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    hashUavRange.NumDescriptors = 1;
+    hashUavRange.BaseShaderRegister = 2;
+    hashUavRange.RegisterSpace = 0;
+    hashUavRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[3].DescriptorTable.pDescriptorRanges = &hashUavRange;
+    rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+    D3D12_DESCRIPTOR_RANGE cellRangeUavRange{};
+    cellRangeUavRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    cellRangeUavRange.NumDescriptors = 1;
+    cellRangeUavRange.BaseShaderRegister = 3;
+    cellRangeUavRange.RegisterSpace = 0;
+    cellRangeUavRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[4].DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[4].DescriptorTable.pDescriptorRanges = &cellRangeUavRange;
+    rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+    rootParameters[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    rootParameters[5].Constants.ShaderRegister = 1;
+    rootParameters[5].Constants.RegisterSpace = 0;
+    rootParameters[5].Constants.Num32BitValues = 4;
+    rootParameters[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
     D3D12_ROOT_SIGNATURE_DESC desc{};
     desc.NumParameters = _countof(rootParameters);
@@ -196,15 +275,15 @@ bool GpuSphManager::CreateRootSignature()
         return false;
     }
 
-    rootSignature_->SetName(L"GpuSph.W5.RootSignature");
+    rootSignature_->SetName(L"GpuSph.W6.RootSignature");
     return true;
 }
 
 bool GpuSphManager::CreatePipelineStates()
 {
-    static_assert(static_cast<size_t>(GpuSphComputeShaderId::Count) == kPipelineStateCount);
+    static_assert(static_cast<std::size_t>(GpuSphComputeShaderId::Count) == kPipelineStateCount);
 
-    for (size_t index = 0; index < kPipelineStateCount; ++index)
+    for (std::size_t index = 0; index < kPipelineStateCount; ++index)
     {
         if (!CreatePipelineState(
             static_cast<GpuSphComputeShaderId>(index),
@@ -259,7 +338,7 @@ bool GpuSphManager::CreateScratchBuffer(uint32_t capacity)
         return false;
     }
 
-    scratchBuffer_->SetName(L"GpuSph.W5.VelocityDeltaScratch");
+    scratchBuffer_->SetName(L"GpuSph.W6.VelocityDeltaScratch");
     try
     {
         scratchUavIndex_ = UAVManager::GetInstance()->Allocate();
@@ -288,6 +367,75 @@ void GpuSphManager::ReleaseScratchBuffer()
     scratchBuffer_.Reset();
 }
 
+bool GpuSphManager::CreateSpatialHashBuffers(uint32_t particleCapacity)
+{
+    if (dxCommon_ == nullptr || dxCommon_->GetDevice() == nullptr || particleCapacity == 0)
+    {
+        return false;
+    }
+
+    hashEntryCapacity_ = GetSortCount(particleCapacity);
+    cellRangeCapacity_ = kMaxSpatialCellCapacity;
+    constexpr uint32_t kPairStride = sizeof(uint32_t) * 2;
+
+    hashEntriesBuffer_ = ResourceManager::CreateBufferResource(
+        dxCommon_->GetDevice(),
+        static_cast<uint64_t>(hashEntryCapacity_) * kPairStride,
+        D3D12_HEAP_TYPE_DEFAULT,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    cellRangesBuffer_ = ResourceManager::CreateBufferResource(
+        dxCommon_->GetDevice(),
+        static_cast<uint64_t>(cellRangeCapacity_) * kPairStride,
+        D3D12_HEAP_TYPE_DEFAULT,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    if (!hashEntriesBuffer_ || !cellRangesBuffer_)
+    {
+        ReleaseSpatialHashBuffers();
+        return false;
+    }
+
+    hashEntriesBuffer_->SetName(L"GpuSph.W6.HashEntries");
+    cellRangesBuffer_->SetName(L"GpuSph.W6.CellRanges");
+
+    try
+    {
+        hashEntriesUavIndex_ = UAVManager::GetInstance()->Allocate();
+        cellRangesUavIndex_ = UAVManager::GetInstance()->Allocate();
+        UAVManager::GetInstance()->CreateUAVForStructuredBuffer(
+            hashEntriesUavIndex_, hashEntriesBuffer_.Get(), hashEntryCapacity_, kPairStride);
+        UAVManager::GetInstance()->CreateUAVForStructuredBuffer(
+            cellRangesUavIndex_, cellRangesBuffer_.Get(), cellRangeCapacity_, kPairStride);
+    }
+    catch (...)
+    {
+        ReleaseSpatialHashBuffers();
+        return false;
+    }
+
+    return true;
+}
+
+void GpuSphManager::ReleaseSpatialHashBuffers()
+{
+    if (hashEntriesUavIndex_ != UINT32_MAX)
+    {
+        UAVManager::GetInstance()->Free(hashEntriesUavIndex_);
+    }
+    if (cellRangesUavIndex_ != UINT32_MAX)
+    {
+        UAVManager::GetInstance()->Free(cellRangesUavIndex_);
+    }
+
+    hashEntriesUavIndex_ = UINT32_MAX;
+    cellRangesUavIndex_ = UINT32_MAX;
+    hashEntryCapacity_ = 0;
+    cellRangeCapacity_ = 0;
+    hashEntriesBuffer_.Reset();
+    cellRangesBuffer_.Reset();
+}
+
 bool GpuSphManager::ExecuteReset()
 {
     if (!initialized_ && (dxCommon_ == nullptr || rootSignature_ == nullptr))
@@ -310,22 +458,25 @@ bool GpuSphManager::ExecuteReset()
         return false;
     }
 
-    ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
-    if (commandList == nullptr)
-    {
-        return false;
-    }
-
-    particleBuffer_.Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    particleBuffer_.Transition(
+        dxCommon_->GetCommandManager()->GetCommandList(),
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     UAVManager::GetInstance()->PreDispatch();
+
+    const GpuSphDispatchConstants dispatchConstants{};
     const bool succeeded = DispatchStage(
         GpuSphComputeShaderId::Reset,
         allocation.gpuAddress,
+        activeCount,
+        dispatchConstants,
         true,
-        true);
+        true,
+        false,
+        false);
     if (succeeded)
     {
         ++stats_.resetCount;
+        stats_.spatialHashReady = false;
     }
     return succeeded;
 }
@@ -340,6 +491,12 @@ bool GpuSphManager::ExecuteSimulationStep(float deltaTime)
     }
 
     const GpuSphSimulationConstants constants = BuildConstants(deltaTime);
+    if (constants.spatialCellCount == 0)
+    {
+        stats_.spatialHashReady = false;
+        return false;
+    }
+
     const FrameUploadArena::Allocation allocation = dxCommon_->GetFrameUploadArena().AllocateConstant(constants);
     if (!allocation.IsValid())
     {
@@ -354,49 +511,162 @@ bool GpuSphManager::ExecuteSimulationStep(float deltaTime)
 
     particleBuffer_.Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     UAVManager::GetInstance()->PreDispatch();
+    const GpuSphDispatchConstants defaults{};
 
-    if (!DispatchStage(GpuSphComputeShaderId::Gravity, allocation.gpuAddress, true, false)) return false;
+    if (!DispatchStage(GpuSphComputeShaderId::Gravity, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
     ++stats_.gravityDispatchCount;
 
-    if (!DispatchStage(GpuSphComputeShaderId::Predict, allocation.gpuAddress, true, false)) return false;
+    if (!DispatchStage(GpuSphComputeShaderId::Predict, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
     ++stats_.predictionDispatchCount;
 
-    if (!DispatchStage(GpuSphComputeShaderId::BoundaryPredicted, allocation.gpuAddress, true, false)) return false;
+    if (!DispatchStage(GpuSphComputeShaderId::BoundaryPredicted, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
     ++stats_.boundaryDispatchCount;
 
-    if (!DispatchStage(GpuSphComputeShaderId::Density, allocation.gpuAddress, true, false)) return false;
+    // W6では予測位置をKey化・GPU Sortし、各Cellの連続Rangeを構築してからSPH近傍計算へ進む。
+    if (!ExecuteSpatialHashBuild(allocation.gpuAddress)) return false;
+
+    if (!DispatchStage(GpuSphComputeShaderId::Density, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
     ++stats_.densityDispatchCount;
 
-    if (!DispatchStage(GpuSphComputeShaderId::PressureProperty, allocation.gpuAddress, true, false)) return false;
-    if (!DispatchStage(GpuSphComputeShaderId::PressureForce, allocation.gpuAddress, true, false)) return false;
+    if (!DispatchStage(GpuSphComputeShaderId::PressureProperty, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
+    if (!DispatchStage(GpuSphComputeShaderId::PressureForce, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
     stats_.pressureDispatchCount += 2;
 
-    if (!DispatchStage(GpuSphComputeShaderId::ViscosityDelta, allocation.gpuAddress, false, true)) return false;
-    if (!DispatchStage(GpuSphComputeShaderId::ViscosityApply, allocation.gpuAddress, true, false)) return false;
+    if (!DispatchStage(GpuSphComputeShaderId::ViscosityDelta, allocation.gpuAddress, activeCount, defaults, false, true, false, false)) return false;
+    if (!DispatchStage(GpuSphComputeShaderId::ViscosityApply, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
     stats_.viscosityDispatchCount += 2;
 
-    if (!DispatchStage(GpuSphComputeShaderId::Integrate, allocation.gpuAddress, true, false)) return false;
+    if (!DispatchStage(GpuSphComputeShaderId::Integrate, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
     ++stats_.predictionDispatchCount;
 
-    if (!DispatchStage(GpuSphComputeShaderId::BoundaryPosition, allocation.gpuAddress, true, false)) return false;
+    if (!DispatchStage(GpuSphComputeShaderId::BoundaryPosition, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
     ++stats_.boundaryDispatchCount;
 
     ++stats_.totalSimulationSteps;
     return true;
 }
 
+bool GpuSphManager::ExecuteSpatialHashBuild(D3D12_GPU_VIRTUAL_ADDRESS constantBufferAddress)
+{
+    const uint32_t activeCount = GetValidatedActiveParticleCount();
+    const uint32_t sortCount = GetSortCount(activeCount);
+    const SpatialGridDesc grid = BuildSpatialGridDesc(settings_, cellRangeCapacity_);
+    stats_.spatialHashReady = false;
+
+    if (activeCount == 0 || sortCount == 0 || sortCount > hashEntryCapacity_ || !grid.valid)
+    {
+        return false;
+    }
+
+    GpuSphDispatchConstants dispatchConstants{};
+    dispatchConstants.sortCount = sortCount;
+    dispatchConstants.cellCount = grid.cellCount;
+
+    if (!DispatchStage(
+        GpuSphComputeShaderId::SpatialBuildKeys,
+        constantBufferAddress,
+        sortCount,
+        dispatchConstants,
+        false,
+        false,
+        true,
+        false))
+    {
+        return false;
+    }
+
+    for (uint32_t sortLevel = 2; sortLevel <= sortCount; sortLevel <<= 1u)
+    {
+        for (uint32_t sortMask = sortLevel >> 1u; sortMask > 0; sortMask >>= 1u)
+        {
+            dispatchConstants.sortLevel = sortLevel;
+            dispatchConstants.sortLevelMask = sortMask;
+            if (!DispatchStage(
+                GpuSphComputeShaderId::SpatialBitonicSort,
+                constantBufferAddress,
+                sortCount,
+                dispatchConstants,
+                false,
+                false,
+                true,
+                false))
+            {
+                return false;
+            }
+            ++stats_.spatialHashSortDispatchCount;
+        }
+
+        if (sortLevel == sortCount)
+        {
+            break;
+        }
+    }
+
+    dispatchConstants.sortLevel = 0;
+    dispatchConstants.sortLevelMask = 0;
+    if (!DispatchStage(
+        GpuSphComputeShaderId::SpatialClearCellRanges,
+        constantBufferAddress,
+        grid.cellCount,
+        dispatchConstants,
+        false,
+        false,
+        false,
+        true))
+    {
+        return false;
+    }
+    ++stats_.cellRangeDispatchCount;
+
+    if (!DispatchStage(
+        GpuSphComputeShaderId::SpatialBuildCellRanges,
+        constantBufferAddress,
+        activeCount,
+        dispatchConstants,
+        false,
+        false,
+        false,
+        true))
+    {
+        return false;
+    }
+    ++stats_.cellRangeDispatchCount;
+
+    ++stats_.spatialHashBuildCount;
+    stats_.sortedParticleCount = sortCount;
+    stats_.spatialGridDimX = grid.dimX;
+    stats_.spatialGridDimY = grid.dimY;
+    stats_.spatialGridDimZ = grid.dimZ;
+    stats_.spatialCellCount = grid.cellCount;
+    stats_.spatialCellSize = grid.cellSize;
+    stats_.spatialHashReady = true;
+    return true;
+}
+
 bool GpuSphManager::DispatchStage(
     GpuSphComputeShaderId shaderId,
     D3D12_GPU_VIRTUAL_ADDRESS constantBufferAddress,
+    uint32_t dispatchItemCount,
+    const GpuSphDispatchConstants& dispatchConstants,
     bool particleBarrier,
-    bool scratchBarrier)
+    bool scratchBarrier,
+    bool hashBarrier,
+    bool cellRangeBarrier)
 {
-    const size_t pipelineIndex = static_cast<size_t>(shaderId);
+    const std::size_t pipelineIndex = static_cast<std::size_t>(shaderId);
+    if (dispatchItemCount == 0)
+    {
+        return true;
+    }
     if (pipelineIndex >= pipelineStates_.size() ||
         !pipelineStates_[pipelineIndex] ||
         !rootSignature_ ||
         !scratchBuffer_ ||
-        scratchUavIndex_ == UINT32_MAX)
+        !hashEntriesBuffer_ ||
+        !cellRangesBuffer_ ||
+        scratchUavIndex_ == UINT32_MAX ||
+        hashEntriesUavIndex_ == UINT32_MAX ||
+        cellRangesUavIndex_ == UINT32_MAX)
     {
         return false;
     }
@@ -407,18 +677,17 @@ bool GpuSphManager::DispatchStage(
         return false;
     }
 
+    UAVManager* descriptors = UAVManager::GetInstance();
     commandList->SetComputeRootSignature(rootSignature_.Get());
     commandList->SetPipelineState(pipelineStates_[pipelineIndex].Get());
     commandList->SetComputeRootConstantBufferView(0, constantBufferAddress);
-    commandList->SetComputeRootDescriptorTable(
-        1,
-        UAVManager::GetInstance()->GetGPUDescriptorHandle(particleBuffer_.GetUavIndex()));
-    commandList->SetComputeRootDescriptorTable(
-        2,
-        UAVManager::GetInstance()->GetGPUDescriptorHandle(scratchUavIndex_));
+    commandList->SetComputeRootDescriptorTable(1, descriptors->GetGPUDescriptorHandle(particleBuffer_.GetUavIndex()));
+    commandList->SetComputeRootDescriptorTable(2, descriptors->GetGPUDescriptorHandle(scratchUavIndex_));
+    commandList->SetComputeRootDescriptorTable(3, descriptors->GetGPUDescriptorHandle(hashEntriesUavIndex_));
+    commandList->SetComputeRootDescriptorTable(4, descriptors->GetGPUDescriptorHandle(cellRangesUavIndex_));
+    commandList->SetComputeRoot32BitConstants(5, 4, &dispatchConstants, 0);
 
-    const uint32_t activeCount = GetValidatedActiveParticleCount();
-    const uint32_t groupCount = (activeCount + kThreadGroupSize - 1u) / kThreadGroupSize;
+    const uint32_t groupCount = (dispatchItemCount + kThreadGroupSize - 1u) / kThreadGroupSize;
     commandList->Dispatch(groupCount, 1, 1);
 
     if (particleBarrier)
@@ -427,10 +696,15 @@ bool GpuSphManager::DispatchStage(
     }
     if (scratchBarrier)
     {
-        D3D12_RESOURCE_BARRIER barrier{};
-        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-        barrier.UAV.pResource = scratchBuffer_.Get();
-        commandList->ResourceBarrier(1, &barrier);
+        InsertUavBarrier(scratchBuffer_.Get());
+    }
+    if (hashBarrier)
+    {
+        InsertUavBarrier(hashEntriesBuffer_.Get());
+    }
+    if (cellRangeBarrier)
+    {
+        InsertUavBarrier(cellRangesBuffer_.Get());
     }
 
     ++stats_.totalDispatchCount;
@@ -456,20 +730,88 @@ GpuSphManager::GpuSphSimulationConstants GpuSphManager::BuildConstants(float del
     constants.spawnDimX = (std::max)(settings_.spawnDimX, 1u);
     constants.spawnDimY = (std::max)(settings_.spawnDimY, 1u);
     constants.spawnDimZ = (std::max)(settings_.spawnDimZ, 1u);
+
+    const SpatialGridDesc grid = BuildSpatialGridDesc(settings_, cellRangeCapacity_);
+    if (grid.valid)
+    {
+        constants.spatialGridMin = grid.min;
+        constants.spatialCellSize = grid.cellSize;
+        constants.spatialGridDimX = grid.dimX;
+        constants.spatialGridDimY = grid.dimY;
+        constants.spatialGridDimZ = grid.dimZ;
+        constants.spatialCellCount = grid.cellCount;
+    }
     return constants;
 }
 
 uint32_t GpuSphManager::GetValidatedActiveParticleCount() const
 {
-    const uint64_t spawnCapacity =
-        static_cast<uint64_t>((std::max)(settings_.spawnDimX, 1u)) *
-        static_cast<uint64_t>((std::max)(settings_.spawnDimY, 1u)) *
-        static_cast<uint64_t>((std::max)(settings_.spawnDimZ, 1u));
-    const uint32_t bufferCapacity = particleBuffer_.GetCapacity();
-    const uint64_t limit = (std::min)(
-        static_cast<uint64_t>((std::min)(bufferCapacity, kMaxNaiveNeighborParticles)),
-        spawnCapacity);
-    return static_cast<uint32_t>((std::min)(static_cast<uint64_t>(settings_.activeParticleCount), limit));
+    return (std::min)(settings_.activeParticleCount, particleBuffer_.GetCapacity());
+}
+
+uint32_t GpuSphManager::GetSortCount(uint32_t activeCount) const
+{
+    if (activeCount == 0)
+    {
+        return 0;
+    }
+
+    uint32_t result = 1;
+    while (result < activeCount && result <= (1u << 30))
+    {
+        result <<= 1u;
+    }
+    return result;
+}
+
+void GpuSphManager::UpdateSpawnLayoutForActiveCount(uint32_t activeCount)
+{
+    if (activeCount == 0)
+    {
+        return;
+    }
+
+    const uint32_t side = (std::max)(1u, static_cast<uint32_t>(std::ceil(std::cbrt(static_cast<double>(activeCount)))));
+    settings_.spawnDimX = side;
+    settings_.spawnDimY = side;
+    const uint64_t slice = static_cast<uint64_t>(side) * side;
+    settings_.spawnDimZ = static_cast<uint32_t>((activeCount + slice - 1ull) / slice);
+
+    float spacing = (std::max)(settings_.spawnSpacing, 0.001f);
+    const float extentX = (std::max)(settings_.boundaryMax.x - settings_.boundaryMin.x, 0.001f);
+    const float extentY = (std::max)(settings_.boundaryMax.y - settings_.boundaryMin.y, 0.001f);
+    const float extentZ = (std::max)(settings_.boundaryMax.z - settings_.boundaryMin.z, 0.001f);
+
+    const float fitX = settings_.spawnDimX > 1 ? extentX * 0.95f / static_cast<float>(settings_.spawnDimX - 1u) : spacing;
+    const float fitY = settings_.spawnDimY > 1 ? extentY * 0.95f / static_cast<float>(settings_.spawnDimY - 1u) : spacing;
+    const float fitZ = settings_.spawnDimZ > 1 ? extentZ * 0.95f / static_cast<float>(settings_.spawnDimZ - 1u) : spacing;
+    spacing = (std::max)(0.001f, (std::min)(spacing, (std::min)(fitX, (std::min)(fitY, fitZ)))));
+    settings_.spawnSpacing = spacing;
+
+    const float spanX = static_cast<float>(settings_.spawnDimX - 1u) * spacing;
+    const float spanZ = static_cast<float>(settings_.spawnDimZ - 1u) * spacing;
+    settings_.spawnOrigin.x = (settings_.boundaryMin.x + settings_.boundaryMax.x - spanX) * 0.5f;
+    settings_.spawnOrigin.y = settings_.boundaryMin.y + spacing * 0.5f;
+    settings_.spawnOrigin.z = (settings_.boundaryMin.z + settings_.boundaryMax.z - spanZ) * 0.5f;
+}
+
+void GpuSphManager::InsertUavBarrier(ID3D12Resource* resource) const
+{
+    if (resource == nullptr || dxCommon_ == nullptr)
+    {
+        return;
+    }
+
+    ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandManager()->GetCommandList();
+    if (commandList == nullptr)
+    {
+        return;
+    }
+
+    D3D12_RESOURCE_BARRIER barrier{};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+    barrier.UAV.pResource = resource;
+    commandList->ResourceBarrier(1, &barrier);
 }
 
 void GpuSphManager::RefreshStats(uint32_t substeps, bool lastStepSucceeded)
@@ -481,7 +823,28 @@ void GpuSphManager::RefreshStats(uint32_t substeps, bool lastStepSucceeded)
     stats_.lastStepSucceeded = lastStepSucceeded;
     stats_.approximateGpuMemoryBytes =
         particleBuffer_.GetApproximateGpuMemoryBytes() +
-        static_cast<uint64_t>(particleBuffer_.GetCapacity()) * sizeof(float) * 4ull;
+        static_cast<uint64_t>(particleBuffer_.GetCapacity()) * sizeof(float) * 4ull +
+        static_cast<uint64_t>(hashEntryCapacity_) * sizeof(uint32_t) * 2ull +
+        static_cast<uint64_t>(cellRangeCapacity_) * sizeof(uint32_t) * 2ull;
+
+    const SpatialGridDesc grid = BuildSpatialGridDesc(settings_, cellRangeCapacity_);
+    if (grid.valid)
+    {
+        stats_.spatialGridDimX = grid.dimX;
+        stats_.spatialGridDimY = grid.dimY;
+        stats_.spatialGridDimZ = grid.dimZ;
+        stats_.spatialCellCount = grid.cellCount;
+        stats_.spatialCellSize = grid.cellSize;
+    }
+    else
+    {
+        stats_.spatialHashReady = false;
+        stats_.spatialGridDimX = 0;
+        stats_.spatialGridDimY = 0;
+        stats_.spatialGridDimZ = 0;
+        stats_.spatialCellCount = 0;
+        stats_.spatialCellSize = 0.0f;
+    }
 }
 
 } // namespace Ken4lowEngine
