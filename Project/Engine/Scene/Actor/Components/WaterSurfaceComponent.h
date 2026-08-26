@@ -1,6 +1,7 @@
 #pragma once
 #include "ModelComponent.h"
 #include "Matrix4x4.h"
+#include "Engine/Graphics/Renderer/GpuFluid/Liquid/Manager/GpuProductionLiquidManager.h"
 
 #include <algorithm>
 #include <cmath>
@@ -17,12 +18,13 @@ namespace Ken4lowEngine
 	{
 		Vector3 worldPosition{};
 		Vector3 worldNormal{ 0.0f, 1.0f, 0.0f };
+		Vector3 worldVelocity{};
 		float signedDistance = 0.0f;
 		float submersionDepth = 0.0f;
 		bool isBelowSurface = false;
 	};
 
-	class WaterSurfaceComponent final : public ModelComponent
+	class WaterSurfaceComponent final : public ModelComponent, public IGpuProductionLiquidOceanProvider
 	{
 	public:
 		void Initialize() override
@@ -46,6 +48,19 @@ namespace Ken4lowEngine
 
 			ModelComponent::Initialize();
 			ApplyWaterMaterial(); // Waterは細分化Gridを通常Model描画へ載せ、専用Materialと頂点変形だけを追加する。
+
+			GpuProductionLiquidManager* productionLiquid = GpuProductionLiquidManager::GetInstance();
+			if (productionLiquid->IsInitialized())
+			{
+				productionLiquid->SetOceanProvider(this);
+				productionLiquid->GetEditableOceanSettings().enabled = true; // Scene上のWaterSurfaceをW10 Ocean Bridgeの実データ源として自動接続する。
+			}
+		}
+
+		void Finalize() override
+		{
+			GpuProductionLiquidManager::GetInstance()->ClearOceanProvider(this);
+			ModelComponent::Finalize();
 		}
 
 		void Update(float deltaTime) override
@@ -111,14 +126,31 @@ namespace Ken4lowEngine
 			const Vector3 localSurfaceNormal = Vector3::NormalizeSafe(
 				{ -evaluation.gradientX, -evaluation.gradientY, 1.0f },
 				{ 0.0f, 0.0f, 1.0f });
+			const Vector3 localSurfaceVelocity{
+				evaluation.velocityX,
+				evaluation.velocityY,
+				evaluation.velocityZ
+			};
 
 			const Matrix4x4 normalMatrix = Matrix4x4::Transpose(inverseWorld);
 			sample.worldPosition = Vector3::Transform(localSurfacePosition, worldMatrix);
 			sample.worldNormal = Vector3::NormalizeSafe(TransformDirection(localSurfaceNormal, normalMatrix), { 0.0f, 1.0f, 0.0f });
+			sample.worldVelocity = TransformDirection(localSurfaceVelocity, worldMatrix);
 			sample.signedDistance = Vector3::Dot(worldPosition - sample.worldPosition, sample.worldNormal);
 			sample.submersionDepth = (std::max)(-sample.signedDistance, 0.0f);
 			sample.isBelowSurface = sample.signedDistance < 0.0f;
 			return sample; // CPU判定もGPUと同じGerstner位相を参照し、見た目の波面と入水判定を一致させる。
+		}
+
+		GpuProductionLiquidOceanSample SampleOcean(const Vector3& worldPosition) const override
+		{
+			const WaterSurfaceSample surface = SampleSurfaceAtWorldPosition(worldPosition);
+			GpuProductionLiquidOceanSample sample{};
+			sample.height = surface.worldPosition.y;
+			sample.normal = surface.worldNormal;
+			sample.velocity = surface.worldVelocity;
+			sample.valid = true;
+			return sample; // W10はWater描画と同じGerstner波面・法線・速度を参照し、Ocean/SPH境界の位相差を防ぐ。
 		}
 
 		float GetSurfaceHeightAtWorldPosition(const Vector3& worldPosition) const
@@ -218,6 +250,9 @@ namespace Ken4lowEngine
 			float height = 0.0f;
 			float gradientX = 0.0f;
 			float gradientY = 0.0f;
+			float velocityX = 0.0f;
+			float velocityY = 0.0f;
+			float velocityZ = 0.0f;
 		};
 
 		static Vector3 TransformDirection(const Vector3& direction, const Matrix4x4& matrix)
@@ -254,12 +289,16 @@ namespace Ken4lowEngine
 			const float sinePhase = std::sin(phase);
 			const float cosinePhase = std::cos(phase);
 			const float clampedSteepness = std::clamp(steepness, 0.0f, 1.0f);
+			const float horizontalVelocityScale = clampedSteepness * amplitude * speed * sinePhase;
 
 			evaluation.offsetX += directionX * (clampedSteepness * amplitude * cosinePhase);
 			evaluation.offsetY += directionY * (clampedSteepness * amplitude * cosinePhase);
 			evaluation.height += amplitude * sinePhase;
 			evaluation.gradientX += directionX * (amplitude * waveNumber * cosinePhase);
 			evaluation.gradientY += directionY * (amplitude * waveNumber * cosinePhase);
+			evaluation.velocityX += directionX * horizontalVelocityScale;
+			evaluation.velocityY += directionY * horizontalVelocityScale;
+			evaluation.velocityZ += -amplitude * speed * cosinePhase; // Gerstner位相の時間微分からOcean境界へ渡す表面速度を求める。
 		}
 
 		GerstnerEvaluation EvaluateGerstner(float baseX, float baseY) const
