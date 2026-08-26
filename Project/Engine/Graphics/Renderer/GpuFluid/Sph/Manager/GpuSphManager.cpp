@@ -85,6 +85,7 @@ bool GpuSphManager::Initialize(uint32_t particleCapacity)
     if (!particleBuffer_.Initialize(particleCapacity) ||
         !CreateScratchBuffer(particleCapacity) ||
         !CreateSpatialHashBuffers(particleCapacity) ||
+        !CreateCflReadbackBuffers() ||
         !CreateRootSignature() ||
         !CreatePipelineStates())
     {
@@ -107,6 +108,7 @@ void GpuSphManager::Finalize()
         pipelineState.Reset();
     }
     rootSignature_.Reset();
+    ReleaseCflReadbackBuffers();
     ReleaseSpatialHashBuffers();
     ReleaseScratchBuffer();
     particleBuffer_.Finalize();
@@ -115,6 +117,7 @@ void GpuSphManager::Finalize()
     stats_ = {};
     accumulatorSeconds_ = 0.0f;
     effectiveDeltaTime_ = 1.0f / 120.0f;
+    lastMeasuredMaxSpeed_ = 0.0f;
     dxCommon_ = nullptr;
     initialized_ = false;
     paused_ = false;
@@ -128,6 +131,8 @@ void GpuSphManager::Update(float deltaTime)
     {
         return;
     }
+
+    ConsumeCflReadback();
 
     bool stepSucceeded = true;
     if (resetRequested_)
@@ -170,6 +175,11 @@ void GpuSphManager::Update(float deltaTime)
         }
 
         accumulatorSeconds_ = (std::min)(accumulatorSeconds_, fixedDeltaTime * static_cast<float>(maxSubsteps));
+    }
+
+    if (stepSucceeded && substeps > 0 && settings_.adaptiveCflEnabled)
+    {
+        ScheduleCflReadback();
     }
 
     RefreshStats(substeps, stepSucceeded);
@@ -458,6 +468,124 @@ void GpuSphManager::ReleaseSpatialHashBuffers()
     cellRangeCapacity_ = 0;
     hashEntriesBuffer_.Reset();
     cellRangesBuffer_.Reset();
+}
+
+bool GpuSphManager::CreateCflReadbackBuffers()
+{
+    if (!dxCommon_ || !dxCommon_->GetDevice() || !dxCommon_->GetCommandManager())
+    {
+        return false;
+    }
+
+    const uint32_t frameCount = (std::max)(1u, dxCommon_->GetCommandManager()->GetFrameResourceCount());
+    cflReadbackSlots_.resize(frameCount);
+    for (uint32_t index = 0; index < frameCount; ++index)
+    {
+        CflReadbackSlot& slot = cflReadbackSlots_[index];
+        slot.buffer = ResourceManager::CreateBufferResource(
+            dxCommon_->GetDevice(),
+            sizeof(uint32_t),
+            D3D12_HEAP_TYPE_READBACK,
+            D3D12_RESOURCE_FLAG_NONE,
+            D3D12_RESOURCE_STATE_COPY_DEST);
+        if (!slot.buffer)
+        {
+            ReleaseCflReadbackBuffers();
+            return false;
+        }
+        const std::wstring name = L"GpuSph.W9.5.CflReadback." + std::to_wstring(index);
+        slot.buffer->SetName(name.c_str());
+    }
+
+    stats_.frameResourceCount = frameCount;
+    return true;
+}
+
+void GpuSphManager::ReleaseCflReadbackBuffers()
+{
+    for (CflReadbackSlot& slot : cflReadbackSlots_)
+    {
+        slot.buffer.Reset();
+        slot.pending = false;
+    }
+    cflReadbackSlots_.clear();
+}
+
+void GpuSphManager::ConsumeCflReadback()
+{
+    if (!dxCommon_ || !dxCommon_->GetCommandManager() || cflReadbackSlots_.empty())
+    {
+        return;
+    }
+
+    const uint32_t frameIndex = dxCommon_->GetCommandManager()->GetCurrentFrameIndex();
+    if (frameIndex >= cflReadbackSlots_.size())
+    {
+        return;
+    }
+
+    CflReadbackSlot& slot = cflReadbackSlots_[frameIndex];
+    if (!slot.pending || !slot.buffer)
+    {
+        return;
+    }
+
+    uint32_t* mappedValue = nullptr;
+    D3D12_RANGE readRange{ 0, sizeof(uint32_t) };
+    if (SUCCEEDED(slot.buffer->Map(0, &readRange, reinterpret_cast<void**>(&mappedValue))) && mappedValue)
+    {
+        lastMeasuredMaxSpeed_ = static_cast<float>(*mappedValue) / kCflMetricScale;
+        D3D12_RANGE writeRange{ 0, 0 };
+        slot.buffer->Unmap(0, &writeRange);
+        ++stats_.cflReadbackCount;
+    }
+    slot.pending = false;
+}
+
+bool GpuSphManager::ScheduleCflReadback()
+{
+    if (!dxCommon_ || !dxCommon_->GetCommandManager() || cflReadbackSlots_.empty() || !hashEntriesBuffer_)
+    {
+        return false;
+    }
+
+    DX12CommandManager* commandManager = dxCommon_->GetCommandManager();
+    ID3D12GraphicsCommandList* commandList = commandManager->GetCommandList();
+    const uint32_t frameIndex = commandManager->GetCurrentFrameIndex();
+    if (!commandList || frameIndex >= cflReadbackSlots_.size())
+    {
+        return false;
+    }
+
+    const uint32_t activeCount = GetValidatedActiveParticleCount();
+    if (activeCount == 0)
+    {
+        return true;
+    }
+
+    const GpuSphSimulationConstants constants = BuildConstants(effectiveDeltaTime_);
+    const FrameUploadArena::Allocation allocation = dxCommon_->GetFrameUploadArena().AllocateConstant(constants);
+    if (!allocation.IsValid())
+    {
+        return false;
+    }
+
+    const GpuSphDispatchConstants defaults{};
+    if (!DispatchStage(GpuSphComputeShaderId::CflMetricClear, allocation.gpuAddress, 1u, defaults, false, false, true, false))
+    {
+        return false;
+    }
+    if (!DispatchStage(GpuSphComputeShaderId::CflMetricMeasure, allocation.gpuAddress, activeCount, defaults, false, false, true, false))
+    {
+        return false;
+    }
+    stats_.cflMetricDispatchCount += 2;
+
+    TransitionHashBuffer(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    commandList->CopyBufferRegion(cflReadbackSlots_[frameIndex].buffer.Get(), 0, hashEntriesBuffer_.Get(), 0, sizeof(uint32_t));
+    TransitionHashBuffer(commandList, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    cflReadbackSlots_[frameIndex].pending = true;
+    return true;
 }
 
 bool GpuSphManager::ExecuteReset()
@@ -861,14 +989,18 @@ float GpuSphManager::CalculateEffectiveDeltaTime(float requestedDeltaTime) const
         return safeRequested;
     }
 
-    // GPU側のVelocity CFL clampに加え、重力下の自由落下速度を予測して固定Stepを保守的に縮める。
-    const float domainHeight = (std::max)(settings_.boundaryMax.y - settings_.boundaryMin.y, settings_.smoothingRadius);
-    const float gravityMagnitude = Vector3::Length(settings_.gravity);
-    const float predictedPeakSpeed = std::sqrt((std::max)(2.0f * gravityMagnitude * domainHeight, 0.01f));
+    float referenceSpeed = lastMeasuredMaxSpeed_;
+    if (referenceSpeed <= 0.1f)
+    {
+        const float domainHeight = (std::max)(settings_.boundaryMax.y - settings_.boundaryMin.y, settings_.smoothingRadius);
+        const float gravityMagnitude = Vector3::Length(settings_.gravity);
+        referenceSpeed = std::sqrt((std::max)(2.0f * gravityMagnitude * domainHeight, 0.01f));
+    }
+
     const float cflDeltaTime =
         (std::clamp)(settings_.cflNumber, 0.05f, 0.95f) *
         (std::max)(settings_.smoothingRadius, 0.001f) /
-        (std::max)(predictedPeakSpeed, 0.1f);
+        (std::max)(referenceSpeed, 0.1f);
     const float minimumDeltaTime = (std::clamp)(settings_.minimumDeltaTime, 1.0f / 2000.0f, safeRequested);
     return (std::clamp)(cflDeltaTime, minimumDeltaTime, safeRequested);
 }
@@ -923,15 +1055,36 @@ void GpuSphManager::InsertUavBarrier(ID3D12Resource* resource) const
     commandList->ResourceBarrier(1, &barrier);
 }
 
+void GpuSphManager::TransitionHashBuffer(
+    ID3D12GraphicsCommandList* commandList,
+    D3D12_RESOURCE_STATES beforeState,
+    D3D12_RESOURCE_STATES afterState) const
+{
+    if (!commandList || !hashEntriesBuffer_ || beforeState == afterState)
+    {
+        return;
+    }
+
+    D3D12_RESOURCE_BARRIER barrier{};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = hashEntriesBuffer_.Get();
+    barrier.Transition.StateBefore = beforeState;
+    barrier.Transition.StateAfter = afterState;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    commandList->ResourceBarrier(1, &barrier);
+}
+
 void GpuSphManager::RefreshStats(uint32_t substeps, bool lastStepSucceeded)
 {
     stats_.lastFrameSubsteps = substeps;
     stats_.accumulatorSeconds = accumulatorSeconds_;
     stats_.effectiveDeltaTime = effectiveDeltaTime_;
+    stats_.lastMeasuredMaxSpeed = lastMeasuredMaxSpeed_;
     stats_.initialized = initialized_;
     stats_.paused = paused_;
     stats_.lastStepSucceeded = lastStepSucceeded;
     stats_.dfsphActive = settings_.dfsphEnabled;
+    stats_.frameResourceCount = static_cast<uint32_t>(cflReadbackSlots_.size());
     if (settings_.adaptiveCflEnabled && effectiveDeltaTime_ < settings_.fixedDeltaTime)
     {
         ++stats_.cflStabilizationCount;
