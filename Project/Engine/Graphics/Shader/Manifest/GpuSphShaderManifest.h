@@ -25,6 +25,11 @@ enum class GpuSphComputeShaderId : uint32_t
     SpatialBitonicSort,
     SpatialClearCellRanges,
     SpatialBuildCellRanges,
+    DfSphFactor,
+    DfSphDensityPrepare,
+    DfSphDensityApply,
+    DfSphDivergencePrepare,
+    DfSphDivergenceApply,
     Count,
 };
 
@@ -108,6 +113,31 @@ public:
         case GpuSphComputeShaderId::SpatialBuildCellRanges:
         {
             static const ShaderDescriptor desc{ L"GpuSphSpatialBuildCellRangesCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphSpatialBuildCellRanges.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+            return desc;
+        }
+        case GpuSphComputeShaderId::DfSphFactor:
+        {
+            static const ShaderDescriptor desc{ L"GpuSphDfSphFactorCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphDfSph.CS.hlsl", L"ComputeFactor", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+            return desc;
+        }
+        case GpuSphComputeShaderId::DfSphDensityPrepare:
+        {
+            static const ShaderDescriptor desc{ L"GpuSphDfSphDensityPrepareCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphDfSph.CS.hlsl", L"PrepareDensity", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+            return desc;
+        }
+        case GpuSphComputeShaderId::DfSphDensityApply:
+        {
+            static const ShaderDescriptor desc{ L"GpuSphDfSphDensityApplyCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphDfSph.CS.hlsl", L"ApplyDensity", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+            return desc;
+        }
+        case GpuSphComputeShaderId::DfSphDivergencePrepare:
+        {
+            static const ShaderDescriptor desc{ L"GpuSphDfSphDivergencePrepareCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphDfSph.CS.hlsl", L"PrepareDivergence", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+            return desc;
+        }
+        case GpuSphComputeShaderId::DfSphDivergenceApply:
+        {
+            static const ShaderDescriptor desc{ L"GpuSphDfSphDivergenceApplyCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphDfSph.CS.hlsl", L"ApplyDivergence", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
             return desc;
         }
         default:
