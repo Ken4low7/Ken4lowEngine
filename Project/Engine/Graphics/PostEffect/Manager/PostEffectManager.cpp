@@ -11,6 +11,10 @@
 #include "Engine/Graphics/Renderer/GpuFluid/Sph/Manager/GpuSphManager.h"
 #include "Engine/Graphics/Renderer/GpuFluid/Sph/Renderer/GpuSphScreenSpaceFluidRenderer.h"
 
+#ifdef USE_IMGUI
+#include <imgui.h>
+#endif // USE_IMGUI
+
 namespace Ken4lowEngine
 {
 	PostEffectManager::PostEffectManager() = default;
@@ -113,6 +117,49 @@ namespace Ken4lowEngine
 		{
 			editorPanel_->Draw(*registry_, *runtimeState_, pOpen);
 		}
+
+#ifdef USE_IMGUI
+		GpuSphScreenSpaceFluidRenderer* sphRenderer = GpuSphScreenSpaceFluidRenderer::GetInstance();
+		GpuSphScreenSpaceRenderSettings& settings = sphRenderer->GetEditableSettings();
+		const GpuSphScreenSpaceRenderStats& stats = sphRenderer->GetStats();
+		if (ImGui::Begin("W8 Screen Space Fluid"))
+		{
+			ImGui::Checkbox("Rendering Enabled", &settings.enabled);
+			ImGui::DragFloat("Particle Radius", &settings.particleRadius, 0.001f, 0.005f, 0.5f, "%.3f");
+			ImGui::DragFloat("Blur Depth Falloff", &settings.blurDepthFalloff, 0.25f, 0.1f, 100.0f, "%.2f");
+			ImGui::DragFloat("Absorption", &settings.absorption, 0.05f, 0.0f, 20.0f, "%.2f");
+			ImGui::DragFloat("Refraction Strength", &settings.refractionStrength, 0.0005f, 0.0f, 0.1f, "%.4f");
+			ImGui::DragFloat("Fresnel Power", &settings.fresnelPower, 0.05f, 1.0f, 12.0f, "%.2f");
+			ImGui::DragFloat("Thickness Scale", &settings.thicknessScale, 0.05f, 0.0f, 20.0f, "%.2f");
+			ImGui::ColorEdit4("Shallow Color", &settings.shallowColor.x);
+			ImGui::ColorEdit4("Deep Color", &settings.deepColor.x);
+
+			if (ImGui::Button("Water Visual Preset"))
+			{
+				// W8の粒感を弱め、最初に連続した水面を確認しやすい値へ戻す。
+				settings.particleRadius = 0.12f;
+				settings.blurDepthFalloff = 12.0f;
+				settings.absorption = 2.8f;
+				settings.refractionStrength = 0.012f;
+				settings.fresnelPower = 5.0f;
+				settings.thicknessScale = 5.0f;
+			}
+
+			ImGui::SeparatorText("W8 Diagnostics");
+			ImGui::Text("Renderer: %s", stats.initialized ? "Ready" : "Waiting");
+			ImGui::Text("Last Draw: %s", stats.lastDrawSucceeded ? "OK" : "FAILED");
+			ImGui::Text("Particles: %u | Resolution: %u x %u", stats.lastParticleCount, stats.width, stats.height);
+			ImGui::Text("Depth Draws: %llu | Thickness Draws: %llu",
+				static_cast<unsigned long long>(stats.particleDepthDrawCount),
+				static_cast<unsigned long long>(stats.thicknessDrawCount));
+			ImGui::Text("Blur Draws: %llu | Composite Draws: %llu",
+				static_cast<unsigned long long>(stats.blurDrawCount),
+				static_cast<unsigned long long>(stats.compositeDrawCount));
+			ImGui::TextDisabled("Active particle count currently changes the amount/volume of SPH fluid, not only render resolution.");
+			ImGui::TextDisabled("For water-like walls, keep SPH Boundary Damping near 0.05 in the F7 panel.");
+		}
+		ImGui::End();
+#endif // USE_IMGUI
 	}
 
 	void PostEffectManager::EnableEffect(const std::string& effectName)
