@@ -785,7 +785,7 @@ void GpuSphManager::UpdateSpawnLayoutForActiveCount(uint32_t activeCount)
     const float fitX = settings_.spawnDimX > 1 ? extentX * 0.95f / static_cast<float>(settings_.spawnDimX - 1u) : spacing;
     const float fitY = settings_.spawnDimY > 1 ? extentY * 0.95f / static_cast<float>(settings_.spawnDimY - 1u) : spacing;
     const float fitZ = settings_.spawnDimZ > 1 ? extentZ * 0.95f / static_cast<float>(settings_.spawnDimZ - 1u) : spacing;
-    spacing = (std::max)(0.001f, (std::min)(spacing, (std::min)(fitX, (std::min)(fitY, fitZ)))));
+    spacing = (std::max)(0.001f, (std::min)(spacing, (std::min)(fitX, (std::min)(fitY, fitZ))));
     settings_.spawnSpacing = spacing;
 
     const float spanX = static_cast<float>(settings_.spawnDimX - 1u) * spacing;
