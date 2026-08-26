@@ -1,12 +1,14 @@
 #pragma once
 
 #include "GpuProductionLiquidOceanBridge.h"
+#include "GpuProductionLiquidOceanCoupler.h"
 #include "GpuProductionLiquidSecondaryClassifier.h"
 #include "Engine/Graphics/Renderer/GpuFluid/Sph/Manager/GpuSphManager.h"
 #include "Engine/Graphics/Renderer/GpuFluid/Sph/Renderer/GpuSphScreenSpaceFluidRenderer.h"
 #include "Engine/Graphics/Renderer/GpuFluid/Volumetric/Manager/GpuVolumetricFluidManager.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 namespace Ken4lowEngine
@@ -76,14 +78,18 @@ struct GpuProductionLiquidRuntimeStats
     uint32_t bubbleCandidateCount = 0;
     float densityErrorRatio = 0.0f;
     float divergenceErrorRatio = 0.0f;
+    float focusDistanceToSimulation = 0.0f;
     bool initialized = false;
     bool adaptiveSolverActive = false;
     bool flipApicFoundationAvailable = false;
     bool oceanProviderConnected = false;
+    bool oceanSampleValid = false;
+    bool oceanCouplingSucceeded = true;
     bool secondaryClassificationSucceeded = true;
+    bool localSimulationVisible = true;
 };
 
-/// W10: DFSPH品質制御、Surface予算、Hybrid Grid/Ocean Bridgeを束ねるProduction Liquid Controller。
+/// W10: DFSPH品質制御、Secondary、Spatial LOD、Ocean双方向Bridgeを束ねるProduction Liquid Controller。
 class GpuProductionLiquidManager final
 {
 public:
@@ -101,6 +107,7 @@ public:
         oceanSettings_ = {};
         lodSettings_ = {};
         stats_ = {};
+        focusPosition_ = {};
         preset_ = GpuProductionLiquidQualityPreset::High;
         initialized_ = true;
         ApplyQualityPreset(preset_, false);
@@ -110,6 +117,7 @@ public:
 
     void Finalize()
     {
+        GpuProductionLiquidOceanCoupler::GetInstance()->Finalize();
         GpuProductionLiquidSecondaryClassifier::GetInstance()->Finalize();
         oceanProvider_ = nullptr;
         settings_ = {};
@@ -121,9 +129,13 @@ public:
         initialized_ = false;
     }
 
+    void SetSimulationFocus(const Vector3& worldPosition)
+    {
+        focusPosition_ = worldPosition;
+    }
+
     void PreSphUpdate(float deltaTime)
     {
-        (void)deltaTime;
         if (!initialized_)
         {
             return;
@@ -139,6 +151,22 @@ public:
         const GpuSphRuntimeStats& sphStats = sph->GetRuntimeStats();
         stats_.activeParticleCount = sphSettings.activeParticleCount;
         stats_.adaptiveSolverActive = settings_.enabled && sphSettings.dfsphEnabled;
+
+        ApplySpatialLod(*sph, sphSettings);
+
+        lastOceanSample_ = SampleOcean(focusPosition_);
+        stats_.oceanSampleValid = lastOceanSample_.valid;
+        if (lastOceanSample_.valid)
+        {
+            stats_.oceanCouplingSucceeded = GpuProductionLiquidOceanCoupler::GetInstance()->Update(
+                sph->GetParticleBuffer(),
+                deltaTime,
+                lastOceanSample_,
+                oceanSettings_.blendBand,
+                oceanSettings_.velocityCoupling,
+                oceanSettings_.surfaceAttraction,
+                oceanSettings_.maxVelocityCorrection); // W10 Ocean→SPHはCamera近傍の実Gerstner SampleをPrimary粒子へ直接渡す。
+        }
 
         if (!stats_.adaptiveSolverActive)
         {
@@ -239,6 +267,17 @@ public:
         stats_.sprayCandidateCount = secondaryStats.sprayCandidateCount;
         stats_.foamCandidateCount = secondaryStats.foamCandidateCount;
         stats_.bubbleCandidateCount = secondaryStats.bubbleCandidateCount;
+
+        if (oceanSettings_.enabled && oceanProvider_ && lastOceanSample_.valid && sphSettings.activeParticleCount > 0)
+        {
+            const float secondaryRatio = static_cast<float>(
+                stats_.sprayCandidateCount + stats_.foamCandidateCount) /
+                static_cast<float>((std::max)(sphSettings.activeParticleCount, 1u));
+            const float feedbackMagnitude = oceanSettings_.feedbackStrength * (std::min)(secondaryRatio, 1.0f);
+            const Vector3 impulse = lastOceanSample_.normal * feedbackMagnitude;
+            oceanProvider_->SubmitLiquidFeedback(focusPosition_, impulse, oceanSettings_.feedbackRadius); // SPH側の自由表面活動量をOceanへ戻し、双方向Bridgeを閉じる。
+        }
+
         stats_.flipApicFoundationAvailable = GpuVolumetricFluidManager::GetInstance()->IsInitialized();
         stats_.oceanProviderConnected = oceanProvider_ != nullptr;
         ++stats_.frameCount;
@@ -250,7 +289,8 @@ public:
         GpuSphManager* sph = GpuSphManager::GetInstance();
         GpuSphScreenSpaceFluidRenderer* renderer = GpuSphScreenSpaceFluidRenderer::GetInstance();
         uint32_t particleCount = 0;
-        uint32_t smoothingIterations = 2;
+        uint32_t smoothingBudget = 2;
+        float blurDepthFalloff = 28.0f;
 
         switch (preset)
         {
@@ -261,7 +301,8 @@ public:
             settings_.maxDivergenceIterations = 2;
             secondarySettings_.classificationIntervalFrames = 4;
             particleCount = lodSettings_.developmentParticleCount;
-            smoothingIterations = 1;
+            smoothingBudget = 1;
+            blurDepthFalloff = 18.0f;
             break;
         case GpuProductionLiquidQualityPreset::Interactive:
             settings_.minDensityIterations = 2;
@@ -270,7 +311,8 @@ public:
             settings_.maxDivergenceIterations = 3;
             secondarySettings_.classificationIntervalFrames = 2;
             particleCount = lodSettings_.interactiveParticleCount;
-            smoothingIterations = 2;
+            smoothingBudget = 2;
+            blurDepthFalloff = 24.0f;
             break;
         case GpuProductionLiquidQualityPreset::High:
             settings_.minDensityIterations = 2;
@@ -279,7 +321,8 @@ public:
             settings_.maxDivergenceIterations = 5;
             secondarySettings_.classificationIntervalFrames = 2;
             particleCount = lodSettings_.highParticleCount;
-            smoothingIterations = 3;
+            smoothingBudget = 3;
+            blurDepthFalloff = 28.0f;
             break;
         case GpuProductionLiquidQualityPreset::Cinematic:
             settings_.minDensityIterations = 3;
@@ -288,7 +331,8 @@ public:
             settings_.maxDivergenceIterations = 7;
             secondarySettings_.classificationIntervalFrames = 1;
             particleCount = lodSettings_.cinematicParticleCount;
-            smoothingIterations = 4;
+            smoothingBudget = 4;
+            blurDepthFalloff = 34.0f;
             break;
         case GpuProductionLiquidQualityPreset::Stress:
         default:
@@ -298,20 +342,20 @@ public:
             settings_.maxDivergenceIterations = 4;
             secondarySettings_.classificationIntervalFrames = 4;
             particleCount = lodSettings_.stressParticleCount;
-            smoothingIterations = 1;
+            smoothingBudget = 1;
+            blurDepthFalloff = 18.0f;
             break;
         }
 
-        renderer->GetEditableSettings().smoothingIterations = smoothingIterations;
-        stats_.surfaceSmoothingIterations = smoothingIterations;
+        renderer->GetEditableSettings().blurDepthFalloff = blurDepthFalloff;
+        stats_.surfaceSmoothingIterations = smoothingBudget;
         if (applyParticleCount && sph && sph->IsInitialized())
         {
-            // 粒子数変更は明示Preset操作時だけ行い、毎FrameのLODでは勝手に減らさない。
             sph->SetActiveParticleCount(particleCount);
         }
     }
 
-    void SetOceanProvider(const IGpuProductionLiquidOceanProvider* provider)
+    void SetOceanProvider(IGpuProductionLiquidOceanProvider* provider)
     {
         oceanProvider_ = provider;
         stats_.oceanProviderConnected = provider != nullptr;
@@ -349,19 +393,44 @@ private:
     static uint32_t SelectIterationBudget(float ratio, uint32_t minimum, uint32_t maximum)
     {
         minimum = (std::min)(minimum, maximum);
-        if (ratio <= 0.75f)
-        {
-            return minimum;
-        }
-        if (ratio <= 1.5f)
-        {
-            return (std::min)(minimum + 1u, maximum);
-        }
-        if (ratio <= 3.0f)
-        {
-            return minimum + (maximum - minimum) / 2u;
-        }
+        if (ratio <= 0.75f) return minimum;
+        if (ratio <= 1.5f) return (std::min)(minimum + 1u, maximum);
+        if (ratio <= 3.0f) return minimum + (maximum - minimum) / 2u;
         return maximum;
+    }
+
+    void ApplySpatialLod(GpuSphManager& sph, const GpuSphSimulationSettings& sphSettings)
+    {
+        if (!lodSettings_.enabled)
+        {
+            stats_.localSimulationVisible = true;
+            return;
+        }
+
+        const Vector3 center = (sphSettings.boundaryMin + sphSettings.boundaryMax) * 0.5f;
+        const float dx = focusPosition_.x - center.x;
+        const float dz = focusPosition_.z - center.z;
+        stats_.focusDistanceToSimulation = std::sqrt(dx * dx + dz * dz);
+
+        GpuSphScreenSpaceRenderSettings& renderSettings = GpuSphScreenSpaceFluidRenderer::GetInstance()->GetEditableSettings();
+        const bool visible = stats_.focusDistanceToSimulation <= (std::max)(lodSettings_.simulationRadius, 0.1f);
+        renderSettings.enabled = visible;
+        stats_.localSimulationVisible = visible;
+
+        uint32_t targetCount = lodSettings_.developmentParticleCount;
+        if (stats_.focusDistanceToSimulation <= lodSettings_.highQualityRadius)
+        {
+            targetCount = lodSettings_.highParticleCount;
+        }
+        else if (visible)
+        {
+            targetCount = lodSettings_.interactiveParticleCount;
+        }
+        targetCount = (std::max)(1u, targetCount);
+        if (sphSettings.activeParticleCount != targetCount)
+        {
+            sph.SetActiveParticleCount(targetCount); // LOD帯を跨いだ時だけ再配置し、毎FrameのParticle Resetを避ける。
+        }
     }
 
     GpuProductionLiquidManager() = default;
@@ -373,7 +442,9 @@ private:
     GpuProductionLiquidLodSettings lodSettings_{};
     GpuProductionLiquidRuntimeStats stats_{};
     GpuProductionLiquidQualityPreset preset_ = GpuProductionLiquidQualityPreset::High;
-    const IGpuProductionLiquidOceanProvider* oceanProvider_ = nullptr;
+    IGpuProductionLiquidOceanProvider* oceanProvider_ = nullptr;
+    GpuProductionLiquidOceanSample lastOceanSample_{};
+    Vector3 focusPosition_{};
     bool initialized_ = false;
 };
 
