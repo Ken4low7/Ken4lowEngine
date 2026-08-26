@@ -27,8 +27,8 @@ void MeasureMaxSpeed(uint3 dispatchThreadId : SV_DispatchThreadID)
 
     const float speed = length(gParticles[index].velocity);
     const float4 solverState = gDfSphState[index];
-    const float densityError = max(solverState.z, 0.0f);
-    const float divergenceError = max(solverState.w, 0.0f);
+    const float densityError = gSph.dfsphEnabled != 0u ? max(solverState.z, 0.0f) : 0.0f;
+    const float divergenceError = gSph.dfsphEnabled != 0u ? max(solverState.w, 0.0f) : 0.0f;
 
     const uint fixedSpeed = (uint)min(speed * kGpuSphCflMetricScale, 4294960000.0f);
     const uint fixedDensityError = (uint)min(densityError * kGpuSphConstraintMetricScale, 4294960000.0f);
