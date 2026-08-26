@@ -89,15 +89,21 @@ public:
         ImGui::SeparatorText("W9.5 Runtime");
         ImGui::Text("Solver: %s", stats.dfsphActive ? "DFSPH" : "WCSPH / Tait EOS Fallback");
         ImGui::Text("Effective dt: %.6f | Requested dt: %.6f", stats.effectiveDeltaTime, settings.fixedDeltaTime);
+        ImGui::Text("Measured Max Speed: %.3f m/s", stats.lastMeasuredMaxSpeed);
+        ImGui::Text("CFL Frame Resources: %u | Readbacks: %llu",
+            stats.frameResourceCount,
+            static_cast<unsigned long long>(stats.cflReadbackCount));
         ImGui::Text("Density Iterations: %u | Divergence Iterations: %u",
             stats.lastDensityIterations,
             stats.lastDivergenceIterations);
         ImGui::Text("Factor Dispatches: %llu", static_cast<unsigned long long>(stats.dfsphFactorDispatchCount));
         ImGui::Text("Density Projection Dispatches: %llu", static_cast<unsigned long long>(stats.dfsphDensityDispatchCount));
         ImGui::Text("Divergence Projection Dispatches: %llu", static_cast<unsigned long long>(stats.dfsphDivergenceDispatchCount));
+        ImGui::Text("CFL Metric Dispatches: %llu", static_cast<unsigned long long>(stats.cflMetricDispatchCount));
         ImGui::Text("CFL Stabilizations: %llu", static_cast<unsigned long long>(stats.cflStabilizationCount));
         ImGui::Text("WCSPH Pressure Dispatches: %llu", static_cast<unsigned long long>(stats.pressureDispatchCount));
         ImGui::TextDisabled("DFSPH ON keeps the W6 27-cell Spatial Hash and bypasses Tait pressure force passes.");
+        ImGui::TextDisabled("Adaptive CFL uses an asynchronous GPU max-speed readback; it never waits for the GPU in this panel.");
         ImGui::TextDisabled("Disable DFSPH to A/B compare against the previous W7 WCSPH behavior.");
 
         ImGui::End();
