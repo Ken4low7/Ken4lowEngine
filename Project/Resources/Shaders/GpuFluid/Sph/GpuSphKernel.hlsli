@@ -5,9 +5,6 @@ static const float kGpuSphPi = 3.14159265358979323846f;
 static const float kGpuSphTaitExponent = 7.0f;
 static const float kGpuSphNegativePressureRatio = 0.02f;
 static const float kGpuSphTensileCorrectionStrength = 0.25f;
-static const float kGpuSphSurfaceTension = 0.0728f;
-static const float kGpuSphXsphStrength = 0.025f;
-static const float kGpuSphCflNumber = 0.4f;
 
 // Poly6 kernelは密度推定に使用する。
 float GpuSphPoly6Kernel(float distanceValue, float smoothingRadius)
@@ -94,11 +91,16 @@ float GpuSphCohesionWeight(float distanceValue, float smoothingRadius)
     return saturate(GpuSphPoly6Kernel(distanceValue, smoothingRadius) / centerKernel);
 }
 
-// GPU Readback無しでCFL条件を満たすよう、1 Stepで進み過ぎる速度を制限する。
-float3 GpuSphClampVelocityByCfl(float3 velocityValue, float smoothingRadius, float deltaTime)
+// W9.5: CFL数をPreset/Editorから調整し、1 Stepでhを跨ぎ過ぎる速度をGPU内で制限する。
+float3 GpuSphClampVelocityByCfl(
+    float3 velocityValue,
+    float smoothingRadius,
+    float deltaTime,
+    float cflNumber)
 {
     const float safeDeltaTime = max(deltaTime, 1.0e-6f);
-    const float maxVelocity = max(kGpuSphCflNumber * smoothingRadius / safeDeltaTime, 0.1f);
+    const float safeCflNumber = clamp(cflNumber, 0.05f, 0.95f);
+    const float maxVelocity = max(safeCflNumber * smoothingRadius / safeDeltaTime, 0.1f);
     const float speed = length(velocityValue);
     if (speed <= maxVelocity || speed <= 1.0e-6f)
     {
