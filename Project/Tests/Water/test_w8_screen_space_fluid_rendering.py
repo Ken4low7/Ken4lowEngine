@@ -3,6 +3,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 RENDERER = ROOT / "Engine/Graphics/Renderer/GpuFluid/Sph/Renderer/GpuSphScreenSpaceFluidRenderer.h"
+SPH_MANAGER_H = ROOT / "Engine/Graphics/Renderer/GpuFluid/Sph/Manager/GpuSphManager.h"
 POST_MANAGER_H = ROOT / "Engine/Graphics/PostEffect/Manager/PostEffectManager.h"
 POST_MANAGER_CPP = ROOT / "Engine/Graphics/PostEffect/Manager/PostEffectManager.cpp"
 SHADER_ROOT = ROOT / "Resources/Shaders/GpuFluid/Sph/ScreenSpace"
@@ -17,6 +18,7 @@ class W8ScreenSpaceFluidRenderingTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.renderer = RENDERER.read_text(encoding="utf-8")
+        cls.sph_manager_h = SPH_MANAGER_H.read_text(encoding="utf-8")
         cls.post_h = POST_MANAGER_H.read_text(encoding="utf-8")
         cls.post_cpp = POST_MANAGER_CPP.read_text(encoding="utf-8")
         cls.particle_vs = PARTICLE_VS.read_text(encoding="utf-8")
@@ -89,6 +91,19 @@ class W8ScreenSpaceFluidRenderingTests(unittest.TestCase):
         self.assertIn("&optimizedClear", self.renderer)
         self.assertIn("const float clearValue[4] = { kDepthClearValue", self.renderer)
         self.assertIn("const float clearValue[4] = { kThicknessClearValue", self.renderer)
+
+    def test_water_defaults_reduce_boundary_rebound(self) -> None:
+        self.assertIn("float boundaryDamping = 0.05f;", self.sph_manager_h)
+
+    def test_w8_visual_tuning_window_exposes_surface_controls_and_stats(self) -> None:
+        self.assertIn('ImGui::Begin("W8 Screen Space Fluid")', self.post_cpp)
+        self.assertIn('"Particle Radius"', self.post_cpp)
+        self.assertIn('"Blur Depth Falloff"', self.post_cpp)
+        self.assertIn('"Refraction Strength"', self.post_cpp)
+        self.assertIn('"Water Visual Preset"', self.post_cpp)
+        self.assertIn('"W8 Diagnostics"', self.post_cpp)
+        self.assertIn("particleDepthDrawCount", self.post_cpp)
+        self.assertIn("compositeDrawCount", self.post_cpp)
 
 
 if __name__ == "__main__":
