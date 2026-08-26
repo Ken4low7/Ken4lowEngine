@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GpuProductionLiquidOceanBridge.h"
+#include "GpuProductionLiquidSecondaryClassifier.h"
 #include "Engine/Graphics/Renderer/GpuFluid/Sph/Manager/GpuSphManager.h"
 #include "Engine/Graphics/Renderer/GpuFluid/Sph/Renderer/GpuSphScreenSpaceFluidRenderer.h"
 #include "Engine/Graphics/Renderer/GpuFluid/Volumetric/Manager/GpuVolumetricFluidManager.h"
@@ -70,12 +71,16 @@ struct GpuProductionLiquidRuntimeStats
     uint32_t calmFrameCount = 0;
     uint32_t activeParticleCount = 0;
     uint32_t surfaceSmoothingIterations = 2;
+    uint32_t sprayCandidateCount = 0;
+    uint32_t foamCandidateCount = 0;
+    uint32_t bubbleCandidateCount = 0;
     float densityErrorRatio = 0.0f;
     float divergenceErrorRatio = 0.0f;
     bool initialized = false;
     bool adaptiveSolverActive = false;
     bool flipApicFoundationAvailable = false;
     bool oceanProviderConnected = false;
+    bool secondaryClassificationSucceeded = true;
 };
 
 /// W10: DFSPH品質制御、Surface予算、Hybrid Grid/Ocean Bridgeを束ねるProduction Liquid Controller。
@@ -105,6 +110,7 @@ public:
 
     void Finalize()
     {
+        GpuProductionLiquidSecondaryClassifier::GetInstance()->Finalize();
         oceanProvider_ = nullptr;
         settings_ = {};
         secondarySettings_ = {};
@@ -199,7 +205,13 @@ public:
             return;
         }
 
-        const GpuSphRuntimeStats& sphStats = GpuSphManager::GetInstance()->GetRuntimeStats();
+        GpuSphManager* sph = GpuSphManager::GetInstance();
+        if (!sph || !sph->IsInitialized())
+        {
+            return;
+        }
+
+        const GpuSphRuntimeStats& sphStats = sph->GetRuntimeStats();
         const uint64_t substeps = sphStats.lastFrameSubsteps;
         const uint64_t baselinePerStep = 2ull *
             (static_cast<uint64_t>(settings_.maxDensityIterations) + static_cast<uint64_t>(settings_.maxDivergenceIterations));
@@ -211,6 +223,22 @@ public:
             stats_.estimatedProjectionDispatchesSaved += (baselinePerStep - selectedPerStep) * substeps;
         }
 
+        GpuSphSimulationSettings& sphSettings = sph->GetEditableSimulationSettings();
+        GpuProductionLiquidSecondaryClassifier* classifier = GpuProductionLiquidSecondaryClassifier::GetInstance();
+        stats_.secondaryClassificationSucceeded = classifier->Update(
+            sph->GetEditableParticleBuffer(),
+            secondarySettings_.enabled,
+            secondarySettings_.classificationIntervalFrames,
+            sphSettings.targetDensity,
+            secondarySettings_.spraySpeedThreshold,
+            secondarySettings_.foamSpeedThreshold,
+            secondarySettings_.freeSurfaceDensityRatio,
+            secondarySettings_.bubbleDensityRatio); // Secondary分類はSPH終了後に同じParticle Bufferを読み取り、Primary Solverを汚さない。
+
+        const GpuProductionLiquidSecondaryClassifierStats& secondaryStats = classifier->GetStats();
+        stats_.sprayCandidateCount = secondaryStats.sprayCandidateCount;
+        stats_.foamCandidateCount = secondaryStats.foamCandidateCount;
+        stats_.bubbleCandidateCount = secondaryStats.bubbleCandidateCount;
         stats_.flipApicFoundationAvailable = GpuVolumetricFluidManager::GetInstance()->IsInitialized();
         stats_.oceanProviderConnected = oceanProvider_ != nullptr;
         ++stats_.frameCount;
@@ -288,6 +316,16 @@ public:
         oceanProvider_ = provider;
         stats_.oceanProviderConnected = provider != nullptr;
     }
+
+    void ClearOceanProvider(const IGpuProductionLiquidOceanProvider* provider)
+    {
+        if (oceanProvider_ == provider)
+        {
+            SetOceanProvider(nullptr); // 複数WaterSurfaceがある場合に別SurfaceのProviderを誤って解除しない。
+        }
+    }
+
+    [[nodiscard]] bool HasOceanProvider() const { return oceanProvider_ != nullptr; }
 
     [[nodiscard]] GpuProductionLiquidOceanSample SampleOcean(const Vector3& worldPosition) const
     {
