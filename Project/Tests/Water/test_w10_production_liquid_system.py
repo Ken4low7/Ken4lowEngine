@@ -11,6 +11,7 @@ SECONDARY = LIQUID_ROOT / "GpuProductionLiquidSecondaryClassifier.h"
 WATER_SURFACE = ROOT / "Engine/Scene/Actor/Components/WaterSurfaceComponent.h"
 SECONDARY_SHADER = ROOT / "Resources/Shaders/GpuFluid/Sph/Production/GpuSphSecondaryClassify.CS.hlsl"
 OCEAN_SHADER = ROOT / "Resources/Shaders/GpuFluid/Sph/Production/GpuSphOceanCoupling.CS.hlsl"
+COMPOSITE_SHADER = ROOT / "Resources/Shaders/GpuFluid/Sph/ScreenSpace/GpuSphScreenSpaceComposite.PS.hlsl"
 SPH_MANAGER = ROOT / "Engine/Graphics/Renderer/GpuFluid/Sph/Manager/GpuSphManager.h"
 SPH_COMMON = ROOT / "Resources/Shaders/GpuFluid/Sph/GpuSphCommon.hlsli"
 
@@ -26,6 +27,7 @@ class W10ProductionLiquidSystemTests(unittest.TestCase):
         cls.water_surface = WATER_SURFACE.read_text(encoding="utf-8")
         cls.secondary_shader = SECONDARY_SHADER.read_text(encoding="utf-8")
         cls.ocean_shader = OCEAN_SHADER.read_text(encoding="utf-8")
+        cls.composite_shader = COMPOSITE_SHADER.read_text(encoding="utf-8")
         cls.sph_manager = SPH_MANAGER.read_text(encoding="utf-8")
         cls.sph_common = SPH_COMMON.read_text(encoding="utf-8")
 
@@ -80,6 +82,11 @@ class W10ProductionLiquidSystemTests(unittest.TestCase):
         self.assertIn("focusDistanceToSimulation", self.manager)
         self.assertIn("oceanVisualBlend", self.manager)
         self.assertIn("SetActiveParticleCount(targetCount)", self.manager)
+
+    def test_ssfr_blends_back_to_pre_rendered_ocean(self) -> None:
+        self.assertIn("renderSettings.thicknessScale = 5.0f * stats_.oceanVisualBlend", self.manager)
+        self.assertIn("localLiquidBlend", self.composite_shader)
+        self.assertIn("lerp(sceneBase, color, localLiquidBlend)", self.composite_shader)
 
     def test_sph_to_ocean_feedback_closes_the_bridge(self) -> None:
         self.assertIn("SubmitLiquidFeedback", self.ocean_bridge)
