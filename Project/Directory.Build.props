@@ -82,6 +82,10 @@
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphDensity.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphPressure.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphViscosity.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphSpatialBuildKeys.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphSpatialBitonicSort.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphSpatialClearCellRanges.CS.hlsl" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\Sph\GpuSphSpatialBuildCellRanges.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidVelocityAdvection.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidDivergence.CS.hlsl" />
     <None Include="$(MSBuildThisFileDirectory)Resources\Shaders\GpuFluid\GpuFluidPressureJacobi.CS.hlsl" />
