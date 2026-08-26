@@ -6,6 +6,7 @@
 #include "ModelComponent.h"
 #include "PlanarReflectionComponent.h"
 #include "ReflectionProbeComponent.h"
+#include <Engine/Graphics/Renderer/GpuFluid/Sph/Interaction/GpuSphRigidbodyInteraction.h>
 
 #ifdef USE_IMGUI
 #include <Editor/EditorActorStateRegistry.h>
@@ -36,6 +37,9 @@ namespace Ken4lowEngine
 
 		static bool CapturePending(ActorWorld& actorWorld)
 		{
+			// W9はMain Scene描画直前の最新Physics Transformを使い、SPH粒子とRigidbodyを双方向に接続する。
+			GpuSphRigidbodyInteraction::GetInstance()->Update(actorWorld);
+
 			SyncProbes(actorWorld);
 			actorWorld.PrepareRenderState(); // Probe内のDirect Lightingも現在SceneのLightComponent値を使う。
 			const bool probeCaptured = ReflectionProbeManager::GetInstance()->CapturePending(
