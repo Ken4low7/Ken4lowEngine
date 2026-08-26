@@ -97,9 +97,13 @@ void ApplyViscosity(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     const float3 velocityValue = gParticles[index].velocity + gScratch[index].xyz;
+
+    // Adaptive CFL時は速度を0.35h/dt等で先に切らず、実測速度から次Frameのdtを縮める。
+    // ただし現在Stepの破綻防止として0.95h/dtだけを緊急安全上限に残す。
+    const float emergencyCfl = gSph.adaptiveCflEnabled != 0u ? 0.95f : gSph.cflNumber;
     gParticles[index].velocity = GpuSphClampVelocityByCfl(
         velocityValue,
         gSph.smoothingRadius,
         gSph.deltaTime,
-        gSph.cflNumber);
+        emergencyCfl);
 }
