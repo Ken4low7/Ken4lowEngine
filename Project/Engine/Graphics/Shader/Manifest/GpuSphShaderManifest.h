@@ -1,6 +1,8 @@
 #pragma once
 
 #include "ShaderManifestTypes.h"
+
+#include <cstdint>
 #include <stdexcept>
 
 namespace Ken4lowEngine
