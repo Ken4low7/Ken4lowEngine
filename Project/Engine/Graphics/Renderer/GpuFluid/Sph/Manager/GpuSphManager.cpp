@@ -84,6 +84,7 @@ bool GpuSphManager::Initialize(uint32_t particleCapacity)
 
     if (!particleBuffer_.Initialize(particleCapacity) ||
         !CreateScratchBuffer(particleCapacity) ||
+        !CreateDfSphStateBuffer(particleCapacity) ||
         !CreateSpatialHashBuffers(particleCapacity) ||
         !CreateCflReadbackBuffers() ||
         !CreateRootSignature() ||
@@ -93,7 +94,7 @@ bool GpuSphManager::Initialize(uint32_t particleCapacity)
         return false;
     }
 
-    // W6では近傍探索をSpatial Hashへ切り替え、Buffer CapacityまでActive粒子を許可する。
+    // W6のSpatial HashをW9.5のDFSPH近傍探索にもそのまま再利用する。
     SetActiveParticleCount(settings_.activeParticleCount);
     initialized_ = true;
     resetRequested_ = true;
@@ -110,6 +111,7 @@ void GpuSphManager::Finalize()
     rootSignature_.Reset();
     ReleaseCflReadbackBuffers();
     ReleaseSpatialHashBuffers();
+    ReleaseDfSphStateBuffer();
     ReleaseScratchBuffer();
     particleBuffer_.Finalize();
 
@@ -118,6 +120,8 @@ void GpuSphManager::Finalize()
     accumulatorSeconds_ = 0.0f;
     effectiveDeltaTime_ = 1.0f / 120.0f;
     lastMeasuredMaxSpeed_ = 0.0f;
+    lastMaxDensityError_ = 0.0f;
+    lastMaxDivergenceError_ = 0.0f;
     dxCommon_ = nullptr;
     initialized_ = false;
     paused_ = false;
@@ -177,7 +181,8 @@ void GpuSphManager::Update(float deltaTime)
         accumulatorSeconds_ = (std::min)(accumulatorSeconds_, fixedDeltaTime * static_cast<float>(maxSubsteps));
     }
 
-    if (stepSucceeded && substeps > 0 && settings_.adaptiveCflEnabled)
+    // DFSPH Error診断はAdaptive CFLをOFFにしていても更新する。
+    if (stepSucceeded && substeps > 0 && (settings_.adaptiveCflEnabled || settings_.dfsphEnabled))
     {
         ScheduleCflReadback();
     }
@@ -204,6 +209,8 @@ void GpuSphManager::ApplyWaterProductionPreset()
     settings_.dfsphDivergenceRelaxation = 0.35f;
     settings_.dfsphDensityErrorTolerance = 0.01f;
     settings_.dfsphDivergenceErrorTolerance = 0.01f;
+    settings_.dfsphWarmStartEnabled = true;
+    settings_.dfsphWarmStartStrength = 0.35f;
     settings_.adaptiveCflEnabled = true;
     settings_.cflNumber = 0.35f;
     settings_.minimumDeltaTime = 1.0f / 480.0f;
@@ -222,7 +229,7 @@ bool GpuSphManager::CreateRootSignature()
         return false;
     }
 
-    D3D12_ROOT_PARAMETER rootParameters[6]{};
+    D3D12_ROOT_PARAMETER rootParameters[7]{};
     rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameters[0].Descriptor.ShaderRegister = 0;
     rootParameters[0].Descriptor.RegisterSpace = 0;
@@ -272,11 +279,22 @@ bool GpuSphManager::CreateRootSignature()
     rootParameters[4].DescriptorTable.pDescriptorRanges = &cellRangeUavRange;
     rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-    rootParameters[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-    rootParameters[5].Constants.ShaderRegister = 1;
-    rootParameters[5].Constants.RegisterSpace = 0;
-    rootParameters[5].Constants.Num32BitValues = 4;
+    D3D12_DESCRIPTOR_RANGE dfsphStateUavRange{};
+    dfsphStateUavRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    dfsphStateUavRange.NumDescriptors = 1;
+    dfsphStateUavRange.BaseShaderRegister = 4;
+    dfsphStateUavRange.RegisterSpace = 0;
+    dfsphStateUavRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    rootParameters[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[5].DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[5].DescriptorTable.pDescriptorRanges = &dfsphStateUavRange;
     rootParameters[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+    rootParameters[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    rootParameters[6].Constants.ShaderRegister = 1;
+    rootParameters[6].Constants.RegisterSpace = 0;
+    rootParameters[6].Constants.Num32BitValues = 4;
+    rootParameters[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
     D3D12_ROOT_SIGNATURE_DESC desc{};
     desc.NumParameters = _countof(rootParameters);
@@ -401,6 +419,53 @@ void GpuSphManager::ReleaseScratchBuffer()
     scratchBuffer_.Reset();
 }
 
+bool GpuSphManager::CreateDfSphStateBuffer(uint32_t capacity)
+{
+    if (dxCommon_ == nullptr || dxCommon_->GetDevice() == nullptr || capacity == 0)
+    {
+        return false;
+    }
+
+    constexpr uint32_t kStateStride = sizeof(float) * 4;
+    dfsphStateBuffer_ = ResourceManager::CreateBufferResource(
+        dxCommon_->GetDevice(),
+        static_cast<uint64_t>(capacity) * kStateStride,
+        D3D12_HEAP_TYPE_DEFAULT,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    if (!dfsphStateBuffer_)
+    {
+        return false;
+    }
+
+    dfsphStateBuffer_->SetName(L"GpuSph.W9.5.PersistentDfSphState");
+    try
+    {
+        dfsphStateUavIndex_ = UAVManager::GetInstance()->Allocate();
+        UAVManager::GetInstance()->CreateUAVForStructuredBuffer(
+            dfsphStateUavIndex_,
+            dfsphStateBuffer_.Get(),
+            capacity,
+            kStateStride);
+    }
+    catch (...)
+    {
+        ReleaseDfSphStateBuffer();
+        return false;
+    }
+    return true;
+}
+
+void GpuSphManager::ReleaseDfSphStateBuffer()
+{
+    if (dfsphStateUavIndex_ != UINT32_MAX)
+    {
+        UAVManager::GetInstance()->Free(dfsphStateUavIndex_);
+    }
+    dfsphStateUavIndex_ = UINT32_MAX;
+    dfsphStateBuffer_.Reset();
+}
+
 bool GpuSphManager::CreateSpatialHashBuffers(uint32_t particleCapacity)
 {
     if (dxCommon_ == nullptr || dxCommon_->GetDevice() == nullptr || particleCapacity == 0)
@@ -484,7 +549,7 @@ bool GpuSphManager::CreateCflReadbackBuffers()
         CflReadbackSlot& slot = cflReadbackSlots_[index];
         slot.buffer = ResourceManager::CreateBufferResource(
             dxCommon_->GetDevice(),
-            sizeof(uint32_t),
+            sizeof(CflMetricReadback),
             D3D12_HEAP_TYPE_READBACK,
             D3D12_RESOURCE_FLAG_NONE,
             D3D12_RESOURCE_STATE_COPY_DEST);
@@ -493,7 +558,7 @@ bool GpuSphManager::CreateCflReadbackBuffers()
             ReleaseCflReadbackBuffers();
             return false;
         }
-        const std::wstring name = L"GpuSph.W9.5.CflReadback." + std::to_wstring(index);
+        const std::wstring name = L"GpuSph.W9.5.MetricReadback." + std::to_wstring(index);
         slot.buffer->SetName(name.c_str());
     }
 
@@ -530,11 +595,13 @@ void GpuSphManager::ConsumeCflReadback()
         return;
     }
 
-    uint32_t* mappedValue = nullptr;
-    D3D12_RANGE readRange{ 0, sizeof(uint32_t) };
+    CflMetricReadback* mappedValue = nullptr;
+    D3D12_RANGE readRange{ 0, sizeof(CflMetricReadback) };
     if (SUCCEEDED(slot.buffer->Map(0, &readRange, reinterpret_cast<void**>(&mappedValue))) && mappedValue)
     {
-        lastMeasuredMaxSpeed_ = static_cast<float>(*mappedValue) / kCflMetricScale;
+        lastMeasuredMaxSpeed_ = static_cast<float>(mappedValue->maxSpeed) / kCflMetricScale;
+        lastMaxDensityError_ = static_cast<float>(mappedValue->maxDensityError) / kConstraintMetricScale;
+        lastMaxDivergenceError_ = static_cast<float>(mappedValue->maxDivergenceError) / kConstraintMetricScale;
         D3D12_RANGE writeRange{ 0, 0 };
         slot.buffer->Unmap(0, &writeRange);
         ++stats_.cflReadbackCount;
@@ -571,18 +638,41 @@ bool GpuSphManager::ScheduleCflReadback()
     }
 
     const GpuSphDispatchConstants defaults{};
-    if (!DispatchStage(GpuSphComputeShaderId::CflMetricClear, allocation.gpuAddress, 1u, defaults, false, false, true, false))
+    if (!DispatchStage(
+        GpuSphComputeShaderId::CflMetricClear,
+        allocation.gpuAddress,
+        1u,
+        defaults,
+        false,
+        false,
+        true,
+        false,
+        false))
     {
         return false;
     }
-    if (!DispatchStage(GpuSphComputeShaderId::CflMetricMeasure, allocation.gpuAddress, activeCount, defaults, false, false, true, false))
+    if (!DispatchStage(
+        GpuSphComputeShaderId::CflMetricMeasure,
+        allocation.gpuAddress,
+        activeCount,
+        defaults,
+        false,
+        false,
+        true,
+        false,
+        false))
     {
         return false;
     }
     stats_.cflMetricDispatchCount += 2;
 
     TransitionHashBuffer(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
-    commandList->CopyBufferRegion(cflReadbackSlots_[frameIndex].buffer.Get(), 0, hashEntriesBuffer_.Get(), 0, sizeof(uint32_t));
+    commandList->CopyBufferRegion(
+        cflReadbackSlots_[frameIndex].buffer.Get(),
+        0,
+        hashEntriesBuffer_.Get(),
+        0,
+        sizeof(CflMetricReadback));
     TransitionHashBuffer(commandList, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     cflReadbackSlots_[frameIndex].pending = true;
     return true;
@@ -624,11 +714,15 @@ bool GpuSphManager::ExecuteReset()
         true,
         true,
         false,
-        false);
+        false,
+        true);
     if (succeeded)
     {
         ++stats_.resetCount;
         stats_.spatialHashReady = false;
+        lastMeasuredMaxSpeed_ = 0.0f;
+        lastMaxDensityError_ = 0.0f;
+        lastMaxDivergenceError_ = 0.0f;
     }
     return succeeded;
 }
@@ -674,7 +768,6 @@ bool GpuSphManager::ExecuteSimulationStep(float deltaTime)
     if (!DispatchStage(GpuSphComputeShaderId::BoundaryPredicted, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
     ++stats_.boundaryDispatchCount;
 
-    // W6では予測位置をKey化・GPU Sortし、各Cellの連続Rangeを構築してからSPH近傍計算へ進む。
     if (!ExecuteSpatialHashBuild(allocation.gpuAddress)) return false;
 
     if (!DispatchStage(GpuSphComputeShaderId::Density, allocation.gpuAddress, activeCount, defaults, true, false, false, false)) return false;
@@ -720,6 +813,7 @@ bool GpuSphManager::ExecuteDfSphProjection(
         false,
         true,
         false,
+        false,
         false))
     {
         return false;
@@ -731,15 +825,55 @@ bool GpuSphManager::ExecuteDfSphProjection(
 
     for (uint32_t iteration = 0; iteration < densityIterations; ++iteration)
     {
-        if (!DispatchStage(GpuSphComputeShaderId::DfSphDensityPrepare, constantBufferAddress, activeCount, defaults, true, false, false, false)) return false;
-        if (!DispatchStage(GpuSphComputeShaderId::DfSphDensityApply, constantBufferAddress, activeCount, defaults, true, false, false, false)) return false;
+        GpuSphDispatchConstants iterationConstants{};
+        iterationConstants.sortLevel = iteration; // DFSPH Shaderでは0をWarm Start可能な最初の反復として使用する。
+        if (!DispatchStage(
+            GpuSphComputeShaderId::DfSphDensityPrepare,
+            constantBufferAddress,
+            activeCount,
+            iterationConstants,
+            true,
+            false,
+            false,
+            false,
+            true)) return false;
+        if (!DispatchStage(
+            GpuSphComputeShaderId::DfSphDensityApply,
+            constantBufferAddress,
+            activeCount,
+            iterationConstants,
+            true,
+            false,
+            false,
+            false,
+            false)) return false;
         stats_.dfsphDensityDispatchCount += 2;
     }
 
     for (uint32_t iteration = 0; iteration < divergenceIterations; ++iteration)
     {
-        if (!DispatchStage(GpuSphComputeShaderId::DfSphDivergencePrepare, constantBufferAddress, activeCount, defaults, true, false, false, false)) return false;
-        if (!DispatchStage(GpuSphComputeShaderId::DfSphDivergenceApply, constantBufferAddress, activeCount, defaults, true, false, false, false)) return false;
+        GpuSphDispatchConstants iterationConstants{};
+        iterationConstants.sortLevel = iteration;
+        if (!DispatchStage(
+            GpuSphComputeShaderId::DfSphDivergencePrepare,
+            constantBufferAddress,
+            activeCount,
+            iterationConstants,
+            true,
+            false,
+            false,
+            false,
+            true)) return false;
+        if (!DispatchStage(
+            GpuSphComputeShaderId::DfSphDivergenceApply,
+            constantBufferAddress,
+            activeCount,
+            iterationConstants,
+            true,
+            false,
+            false,
+            false,
+            false)) return false;
         stats_.dfsphDivergenceDispatchCount += 2;
     }
 
@@ -853,7 +987,8 @@ bool GpuSphManager::DispatchStage(
     bool particleBarrier,
     bool scratchBarrier,
     bool hashBarrier,
-    bool cellRangeBarrier)
+    bool cellRangeBarrier,
+    bool dfsphStateBarrier)
 {
     const std::size_t pipelineIndex = static_cast<std::size_t>(shaderId);
     if (dispatchItemCount == 0)
@@ -864,9 +999,11 @@ bool GpuSphManager::DispatchStage(
         !pipelineStates_[pipelineIndex] ||
         !rootSignature_ ||
         !scratchBuffer_ ||
+        !dfsphStateBuffer_ ||
         !hashEntriesBuffer_ ||
         !cellRangesBuffer_ ||
         scratchUavIndex_ == UINT32_MAX ||
+        dfsphStateUavIndex_ == UINT32_MAX ||
         hashEntriesUavIndex_ == UINT32_MAX ||
         cellRangesUavIndex_ == UINT32_MAX)
     {
@@ -887,7 +1024,8 @@ bool GpuSphManager::DispatchStage(
     commandList->SetComputeRootDescriptorTable(2, descriptors->GetGPUDescriptorHandle(scratchUavIndex_));
     commandList->SetComputeRootDescriptorTable(3, descriptors->GetGPUDescriptorHandle(hashEntriesUavIndex_));
     commandList->SetComputeRootDescriptorTable(4, descriptors->GetGPUDescriptorHandle(cellRangesUavIndex_));
-    commandList->SetComputeRoot32BitConstants(5, 4, &dispatchConstants, 0);
+    commandList->SetComputeRootDescriptorTable(5, descriptors->GetGPUDescriptorHandle(dfsphStateUavIndex_));
+    commandList->SetComputeRoot32BitConstants(6, 4, &dispatchConstants, 0);
 
     const uint32_t groupCount = (dispatchItemCount + kThreadGroupSize - 1u) / kThreadGroupSize;
     commandList->Dispatch(groupCount, 1, 1);
@@ -907,6 +1045,10 @@ bool GpuSphManager::DispatchStage(
     if (cellRangeBarrier)
     {
         InsertUavBarrier(cellRangesBuffer_.Get());
+    }
+    if (dfsphStateBarrier)
+    {
+        InsertUavBarrier(dfsphStateBuffer_.Get());
     }
 
     ++stats_.totalDispatchCount;
@@ -958,6 +1100,8 @@ GpuSphManager::GpuSphSimulationConstants GpuSphManager::BuildConstants(float del
     constants.xsphStrength = (std::clamp)(settings_.xsphStrength, 0.0f, 1.0f);
     constants.boundaryFriction = (std::clamp)(settings_.boundaryFriction, 0.0f, 1.0f);
     constants.maxDfsphVelocityCorrection = (std::max)(settings_.maxDfsphVelocityCorrection, 0.01f);
+    constants.dfsphWarmStartEnabled = settings_.dfsphWarmStartEnabled ? 1u : 0u;
+    constants.dfsphWarmStartStrength = (std::clamp)(settings_.dfsphWarmStartStrength, 0.0f, 1.0f);
     return constants;
 }
 
@@ -1080,6 +1224,8 @@ void GpuSphManager::RefreshStats(uint32_t substeps, bool lastStepSucceeded)
     stats_.accumulatorSeconds = accumulatorSeconds_;
     stats_.effectiveDeltaTime = effectiveDeltaTime_;
     stats_.lastMeasuredMaxSpeed = lastMeasuredMaxSpeed_;
+    stats_.lastMaxDensityError = lastMaxDensityError_;
+    stats_.lastMaxDivergenceError = lastMaxDivergenceError_;
     stats_.initialized = initialized_;
     stats_.paused = paused_;
     stats_.lastStepSucceeded = lastStepSucceeded;
@@ -1092,8 +1238,10 @@ void GpuSphManager::RefreshStats(uint32_t substeps, bool lastStepSucceeded)
     stats_.approximateGpuMemoryBytes =
         particleBuffer_.GetApproximateGpuMemoryBytes() +
         static_cast<uint64_t>(particleBuffer_.GetCapacity()) * sizeof(float) * 4ull +
+        static_cast<uint64_t>(particleBuffer_.GetCapacity()) * sizeof(float) * 4ull +
         static_cast<uint64_t>(hashEntryCapacity_) * sizeof(uint32_t) * 2ull +
-        static_cast<uint64_t>(cellRangeCapacity_) * sizeof(uint32_t) * 2ull;
+        static_cast<uint64_t>(cellRangeCapacity_) * sizeof(uint32_t) * 2ull +
+        static_cast<uint64_t>(cflReadbackSlots_.size()) * sizeof(CflMetricReadback);
 
     const SpatialGridDesc grid = BuildSpatialGridDesc(settings_, cellRangeCapacity_);
     if (grid.valid)
