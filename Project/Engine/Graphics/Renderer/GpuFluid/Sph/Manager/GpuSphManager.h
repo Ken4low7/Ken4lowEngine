@@ -53,6 +53,18 @@ struct GpuSphSimulationSettings
     float maxDfsphVelocityCorrection = 2.0f;
     bool dfsphWarmStartEnabled = true;
     float dfsphWarmStartStrength = 0.35f;
+
+    // W10: Ocean側の局所波面をPrimary SPHへ流速・表面拘束として与える。
+    bool oceanCouplingEnabled = false;
+    float oceanVelocityCoupling = 3.0f;
+    float oceanSurfaceAttraction = 6.0f;
+    float oceanBlendBand = 3.0f;
+    Vector3 oceanSurfacePoint{};
+    float oceanMaxCorrection = 4.0f;
+    Vector3 oceanSurfaceNormal{ 0.0f, 1.0f, 0.0f };
+    float oceanPadding0 = 0.0f;
+    Vector3 oceanSurfaceVelocity{};
+    float oceanPadding1 = 0.0f;
 };
 
 struct GpuSphRuntimeStats
@@ -98,7 +110,7 @@ struct GpuSphRuntimeStats
     bool dfsphActive = false;
 };
 
-/// W5-W9.5のGPU SPH / Spatial Hash / DFSPH projectionを所有するRuntime。
+/// W5-W10のGPU SPH / Spatial Hash / DFSPH / Ocean Couplingを所有するRuntime。
 class GpuSphManager
 {
 public:
@@ -180,8 +192,19 @@ private:
         float maxDfsphVelocityCorrection = 0.0f;
         uint32_t dfsphWarmStartEnabled = 0;
         float dfsphWarmStartStrength = 0.0f;
+
+        uint32_t oceanCouplingEnabled = 0;
+        float oceanVelocityCoupling = 0.0f;
+        float oceanSurfaceAttraction = 0.0f;
+        float oceanBlendBand = 0.0f;
+        Vector3 oceanSurfacePoint{};
+        float oceanMaxCorrection = 0.0f;
+        Vector3 oceanSurfaceNormal{ 0.0f, 1.0f, 0.0f };
+        float oceanPadding0 = 0.0f;
+        Vector3 oceanSurfaceVelocity{};
+        float oceanPadding1 = 0.0f;
     };
-    static_assert(sizeof(GpuSphSimulationConstants) == 208);
+    static_assert(sizeof(GpuSphSimulationConstants) == 272);
 
     struct GpuSphDispatchConstants
     {
