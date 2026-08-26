@@ -50,8 +50,8 @@ class W6SpatialHashGpuSortTests(unittest.TestCase):
         ):
             self.assertIn(marker, self.common)
 
-    def test_cpp_and_hlsl_constant_layout_is_extended_to_144_bytes(self) -> None:
-        self.assertIn("static_assert(sizeof(GpuSphSimulationConstants) == 144)", self.manager_h)
+    def test_cpp_and_hlsl_constant_layout_preserves_w6_fields_under_w95_extension(self) -> None:
+        self.assertIn("static_assert(sizeof(GpuSphSimulationConstants) == 208)", self.manager_h)
         self.assertIn("static_assert(sizeof(GpuSphDispatchConstants) == 16)", self.manager_h)
         self.assertIn("GpuSphDispatchCB : register(b1)", self.common)
 
@@ -97,7 +97,7 @@ class W6SpatialHashGpuSortTests(unittest.TestCase):
 
     def test_spatial_hash_runs_between_predicted_boundary_and_density(self) -> None:
         start = self.manager_cpp.index("bool GpuSphManager::ExecuteSimulationStep")
-        end = self.manager_cpp.index("bool GpuSphManager::ExecuteSpatialHashBuild", start)
+        end = self.manager_cpp.index("bool GpuSphManager::ExecuteDfSphProjection", start)
         body = self.manager_cpp[start:end]
         boundary = body.index("GpuSphComputeShaderId::BoundaryPredicted")
         spatial = body.index("ExecuteSpatialHashBuild")
@@ -133,7 +133,7 @@ class W6SpatialHashGpuSortTests(unittest.TestCase):
         self.assertIn("UpdateSpawnLayoutForActiveCount", self.manager_cpp)
         self.assertIn("settings_.spawnDimZ", self.manager_cpp)
 
-    def test_manifest_registers_all_four_w6_spatial_passes(self) -> None:
+    def test_manifest_preserves_w6_spatial_passes_inside_extended_pipeline(self) -> None:
         for marker in (
             "SpatialBuildKeys",
             "SpatialBitonicSort",
@@ -141,7 +141,7 @@ class W6SpatialHashGpuSortTests(unittest.TestCase):
             "SpatialBuildCellRanges",
         ):
             self.assertIn(marker, self.manifest)
-        self.assertIn("kPipelineStateCount = 15", self.manager_h)
+        self.assertIn("kPipelineStateCount = 22", self.manager_h)
 
     def test_diagnostics_exposes_w6_grid_sort_and_dispatch_status(self) -> None:
         for marker in (
