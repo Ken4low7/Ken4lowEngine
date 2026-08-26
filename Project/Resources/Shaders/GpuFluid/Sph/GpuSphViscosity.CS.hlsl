@@ -14,6 +14,7 @@ void ComputeViscosityDelta(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float3 velocityI = gParticles[index].velocity;
     const int3 baseCell = GpuSphPositionToCell(positionI);
     float3 acceleration = float3(0.0f, 0.0f, 0.0f);
+    float3 xsphDelta = float3(0.0f, 0.0f, 0.0f);
 
     [loop]
     for (int z = -1; z <= 1; ++z)
@@ -40,26 +41,46 @@ void ComputeViscosityDelta(uint3 dispatchThreadId : SV_DispatchThreadID)
                     }
 
                     const float3 positionJ = gParticles[neighborIndex].predictedPosition;
-                    const float distanceValue = length(positionI - positionJ);
-                    if (distanceValue >= gSph.smoothingRadius)
+                    const float3 delta = positionI - positionJ;
+                    const float distanceValue = length(delta);
+                    if (distanceValue <= 1.0e-6f || distanceValue >= gSph.smoothingRadius)
                     {
                         continue;
                     }
 
                     const float densityJ = max(gParticles[neighborIndex].density, 1.0e-5f);
                     const float3 velocityJ = gParticles[neighborIndex].velocity;
+                    const float neighborVolume = gSph.particleMass / densityJ;
+
                     const float laplacian = GpuSphViscosityLaplacian(distanceValue, gSph.smoothingRadius);
                     acceleration +=
                         gSph.viscosityStrength * gSph.particleMass *
                         (velocityJ - velocityI) *
                         (laplacian / densityJ);
+
+                    // W7 Surface Tension: 近傍粒子へ向かう弱いCohesionを加えて自由表面をまとまりやすくする。
+                    const float cohesionWeight = GpuSphCohesionWeight(distanceValue, gSph.smoothingRadius);
+                    const float cohesionAcceleration =
+                        kGpuSphSurfaceTension *
+                        gSph.targetDensity *
+                        neighborVolume *
+                        cohesionWeight;
+                    acceleration -= cohesionAcceleration * (delta / distanceValue);
+
+                    // XSPHは局所的な速度差だけを平滑化し、粒子のバラつきと高周波振動を抑える。
+                    xsphDelta +=
+                        neighborVolume *
+                        (velocityJ - velocityI) *
+                        GpuSphPoly6Kernel(distanceValue, gSph.smoothingRadius);
                 }
             }
         }
     }
 
     // 近傍Velocityを読むPassと書くPassを分け、Spatial Hash化後もread/write競合を防ぐ。
-    gScratch[index] = float4(acceleration * gSph.deltaTime, 0.0f);
+    gScratch[index] = float4(
+        acceleration * gSph.deltaTime + xsphDelta * kGpuSphXsphStrength,
+        0.0f);
 }
 
 [numthreads(128, 1, 1)]
@@ -71,5 +92,10 @@ void ApplyViscosity(uint3 dispatchThreadId : SV_DispatchThreadID)
         return;
     }
 
-    gParticles[index].velocity += gScratch[index].xyz;
+    const float3 velocityValue = gParticles[index].velocity + gScratch[index].xyz;
+    // W7はGPU内CFL制限で1 Stepにhの40%以上進む速度を抑え、爆発的な発散を防ぐ。
+    gParticles[index].velocity = GpuSphClampVelocityByCfl(
+        velocityValue,
+        gSph.smoothingRadius,
+        gSph.deltaTime);
 }
