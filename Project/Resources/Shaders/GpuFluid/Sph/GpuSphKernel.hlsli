@@ -26,7 +26,7 @@ float3 GpuSphSpikyGradient(float3 delta, float smoothingRadius)
     const float distanceValue = length(delta);
     if (distanceValue <= 1.0e-6f || distanceValue >= smoothingRadius || smoothingRadius <= 0.0f)
     {
-        return 0.0f.xxx;
+        return float3(0.0f, 0.0f, 0.0f);
     }
 
     const float h2 = smoothingRadius * smoothingRadius;
