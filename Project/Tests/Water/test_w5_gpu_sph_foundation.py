@@ -38,8 +38,8 @@ class W5GpuSphFoundationTests(unittest.TestCase):
         cls.framework = FRAMEWORK.read_text(encoding="utf-8")
         cls.diagnostics = DIAGNOSTICS.read_text(encoding="utf-8")
 
-    def test_simulation_constant_layout_matches_hlsl_contract(self) -> None:
-        self.assertIn("static_assert(sizeof(GpuSphSimulationConstants) == 112)", self.manager_h)
+    def test_simulation_constant_layout_matches_extended_w6_contract(self) -> None:
+        self.assertIn("static_assert(sizeof(GpuSphSimulationConstants) == 144)", self.manager_h)
         for member in (
             "activeParticleCount",
             "deltaTime",
@@ -57,10 +57,9 @@ class W5GpuSphFoundationTests(unittest.TestCase):
         ):
             self.assertIn(member, self.common)
 
-    def test_w5_limits_naive_neighbor_search_until_w6(self) -> None:
+    def test_w5_particle_capacity_remains_65536_under_w6(self) -> None:
         self.assertIn("kDefaultParticleCapacity = 65536", self.manager_h)
         self.assertIn("kDefaultActiveParticleCount = 1000", self.manager_h)
-        self.assertIn("kMaxNaiveNeighborParticles = 4096", self.manager_h)
         self.assertIn("GetValidatedActiveParticleCount", self.manager_cpp)
 
     def test_w52_gravity_integrates_velocity(self) -> None:
@@ -78,9 +77,8 @@ class W5GpuSphFoundationTests(unittest.TestCase):
         self.assertIn("GpuSphSpikyGradient", self.kernel)
         self.assertIn("GpuSphViscosityLaplacian", self.kernel)
 
-    def test_w55_density_uses_predicted_positions_and_particle_mass(self) -> None:
+    def test_w55_density_keeps_predicted_position_and_poly6_contract(self) -> None:
         self.assertIn("predictedPosition", self.density)
-        self.assertIn("neighborIndex < gSph.activeParticleCount", self.density)
         self.assertIn("gSph.particleMass * GpuSphPoly6Kernel", self.density)
         self.assertIn("gParticles[index].density", self.density)
         self.assertNotIn("gParticles[index] = particle;", self.density)
@@ -122,15 +120,16 @@ class W5GpuSphFoundationTests(unittest.TestCase):
         self.assertIn("CreateRootSignature()", self.manager_cpp)
         self.assertIn("CreateScratchBuffer", self.manager_cpp)
         self.assertIn("CreatePipelineStates", self.manager_cpp)
-        self.assertIn("kPipelineStateCount = 11", self.manager_h)
+        self.assertIn("kPipelineStateCount = 15", self.manager_h)
         self.assertIn("BaseShaderRegister = 0", self.manager_cpp)
         self.assertIn("BaseShaderRegister = 1", self.manager_cpp)
 
-    def test_fixed_step_executes_w5_stages_in_dependency_order(self) -> None:
+    def test_fixed_step_preserves_w5_dependency_order_with_w6_inserted(self) -> None:
         ordered_markers = [
             "GpuSphComputeShaderId::Gravity",
             "GpuSphComputeShaderId::Predict",
             "GpuSphComputeShaderId::BoundaryPredicted",
+            "ExecuteSpatialHashBuild",
             "GpuSphComputeShaderId::Density",
             "GpuSphComputeShaderId::PressureProperty",
             "GpuSphComputeShaderId::PressureForce",
@@ -140,7 +139,7 @@ class W5GpuSphFoundationTests(unittest.TestCase):
             "GpuSphComputeShaderId::BoundaryPosition",
         ]
         start = self.manager_cpp.index("bool GpuSphManager::ExecuteSimulationStep")
-        end = self.manager_cpp.index("bool GpuSphManager::DispatchStage", start)
+        end = self.manager_cpp.index("bool GpuSphManager::ExecuteSpatialHashBuild", start)
         step_body = self.manager_cpp[start:end]
         positions = [step_body.index(marker) for marker in ordered_markers]
         self.assertEqual(positions, sorted(positions))
@@ -150,9 +149,9 @@ class W5GpuSphFoundationTests(unittest.TestCase):
         self.assertIn("GpuSphManager::GetInstance()->Initialize();", self.framework)
         self.assertIn("GpuSphManager::GetInstance()->Finalize();", self.framework)
 
-    def test_diagnostics_exposes_complete_w5_controls_and_counters(self) -> None:
+    def test_diagnostics_exposes_w5_controls_inside_w6_panel(self) -> None:
         for marker in (
-            'SPH Foundation (W5)',
+            'SPH Simulation (W5/W6)',
             'SPH Paused',
             'SPH Step',
             'SPH Reset',
