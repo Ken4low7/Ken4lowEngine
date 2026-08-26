@@ -51,6 +51,8 @@ struct GpuSphSimulationSettings
     float xsphStrength = 0.025f;
     float boundaryFriction = 0.08f;
     float maxDfsphVelocityCorrection = 2.0f;
+    bool dfsphWarmStartEnabled = true;
+    float dfsphWarmStartStrength = 0.35f;
 };
 
 struct GpuSphRuntimeStats
@@ -87,6 +89,8 @@ struct GpuSphRuntimeStats
     float accumulatorSeconds = 0.0f;
     float effectiveDeltaTime = 0.0f;
     float lastMeasuredMaxSpeed = 0.0f;
+    float lastMaxDensityError = 0.0f;
+    float lastMaxDivergenceError = 0.0f;
     bool initialized = false;
     bool paused = false;
     bool lastStepSucceeded = true;
@@ -174,8 +178,8 @@ private:
 
         float boundaryFriction = 0.0f;
         float maxDfsphVelocityCorrection = 0.0f;
-        float padding4 = 0.0f;
-        float padding5 = 0.0f;
+        uint32_t dfsphWarmStartEnabled = 0;
+        float dfsphWarmStartStrength = 0.0f;
     };
     static_assert(sizeof(GpuSphSimulationConstants) == 208);
 
@@ -188,6 +192,15 @@ private:
     };
     static_assert(sizeof(GpuSphDispatchConstants) == 16);
 
+    struct CflMetricReadback
+    {
+        uint32_t maxSpeed = 0;
+        uint32_t maxDensityError = 0;
+        uint32_t maxDivergenceError = 0;
+        uint32_t padding = 0;
+    };
+    static_assert(sizeof(CflMetricReadback) == 16);
+
     struct CflReadbackSlot
     {
         ComPtr<ID3D12Resource> buffer{};
@@ -197,6 +210,7 @@ private:
     static constexpr uint32_t kThreadGroupSize = 128;
     static constexpr std::size_t kPipelineStateCount = 22;
     static constexpr float kCflMetricScale = 1000.0f;
+    static constexpr float kConstraintMetricScale = 1000000.0f;
 
     GpuSphManager() = default;
     ~GpuSphManager() = default;
@@ -208,6 +222,8 @@ private:
     bool CreatePipelineState(GpuSphComputeShaderId shaderId, ComPtr<ID3D12PipelineState>& pipelineState);
     bool CreateScratchBuffer(uint32_t capacity);
     void ReleaseScratchBuffer();
+    bool CreateDfSphStateBuffer(uint32_t capacity);
+    void ReleaseDfSphStateBuffer();
     bool CreateSpatialHashBuffers(uint32_t particleCapacity);
     void ReleaseSpatialHashBuffers();
     bool CreateCflReadbackBuffers();
@@ -226,7 +242,8 @@ private:
         bool particleBarrier,
         bool scratchBarrier,
         bool hashBarrier,
-        bool cellRangeBarrier);
+        bool cellRangeBarrier,
+        bool dfsphStateBarrier = false);
     [[nodiscard]] GpuSphSimulationConstants BuildConstants(float deltaTime) const;
     [[nodiscard]] uint32_t GetValidatedActiveParticleCount() const;
     [[nodiscard]] uint32_t GetSortCount(uint32_t activeCount) const;
@@ -243,9 +260,11 @@ private:
     DirectXCommon* dxCommon_ = nullptr;
     GpuSphParticleBuffer particleBuffer_{};
     ComPtr<ID3D12Resource> scratchBuffer_{};
+    ComPtr<ID3D12Resource> dfsphStateBuffer_{};
     ComPtr<ID3D12Resource> hashEntriesBuffer_{};
     ComPtr<ID3D12Resource> cellRangesBuffer_{};
     uint32_t scratchUavIndex_ = UINT32_MAX;
+    uint32_t dfsphStateUavIndex_ = UINT32_MAX;
     uint32_t hashEntriesUavIndex_ = UINT32_MAX;
     uint32_t cellRangesUavIndex_ = UINT32_MAX;
     uint32_t hashEntryCapacity_ = 0;
@@ -258,6 +277,8 @@ private:
     float accumulatorSeconds_ = 0.0f;
     float effectiveDeltaTime_ = 1.0f / 120.0f;
     float lastMeasuredMaxSpeed_ = 0.0f;
+    float lastMaxDensityError_ = 0.0f;
+    float lastMaxDivergenceError_ = 0.0f;
     bool initialized_ = false;
     bool paused_ = false;
     bool resetRequested_ = false;
