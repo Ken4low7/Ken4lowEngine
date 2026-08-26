@@ -21,6 +21,10 @@ enum class GpuSphComputeShaderId : uint32_t
     ViscosityApply,
     Integrate,
     BoundaryPosition,
+    SpatialBuildKeys,
+    SpatialBitonicSort,
+    SpatialClearCellRanges,
+    SpatialBuildCellRanges,
     Count,
 };
 
@@ -84,6 +88,26 @@ public:
         case GpuSphComputeShaderId::BoundaryPosition:
         {
             static const ShaderDescriptor desc{ L"GpuSphBoundaryPositionCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphBoundary.CS.hlsl", L"ConstrainPosition", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+            return desc;
+        }
+        case GpuSphComputeShaderId::SpatialBuildKeys:
+        {
+            static const ShaderDescriptor desc{ L"GpuSphSpatialBuildKeysCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphSpatialBuildKeys.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+            return desc;
+        }
+        case GpuSphComputeShaderId::SpatialBitonicSort:
+        {
+            static const ShaderDescriptor desc{ L"GpuSphSpatialBitonicSortCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphSpatialBitonicSort.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+            return desc;
+        }
+        case GpuSphComputeShaderId::SpatialClearCellRanges:
+        {
+            static const ShaderDescriptor desc{ L"GpuSphSpatialClearCellRangesCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphSpatialClearCellRanges.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
+            return desc;
+        }
+        case GpuSphComputeShaderId::SpatialBuildCellRanges:
+        {
+            static const ShaderDescriptor desc{ L"GpuSphSpatialBuildCellRangesCS", L"Resources/Shaders/GpuFluid/Sph/GpuSphSpatialBuildCellRanges.CS.hlsl", L"main", L"cs_6_0", ShaderStage::Compute, RootSignatureType::Compute };
             return desc;
         }
         default:
