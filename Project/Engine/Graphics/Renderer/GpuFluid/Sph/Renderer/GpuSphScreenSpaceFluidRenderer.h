@@ -182,6 +182,8 @@ private:
 		Vector4 blurDirection{};
 	};
 	static_assert(sizeof(GpuSphScreenSpaceConstants) == 224);
+	static constexpr float kDepthClearValue = 1000000.0f;
+	static constexpr float kThicknessClearValue = 0.0f;
 
 	GpuSphScreenSpaceFluidRenderer() = default;
 	~GpuSphScreenSpaceFluidRenderer() = default;
@@ -259,12 +261,21 @@ private:
 		heap.Type = D3D12_HEAP_TYPE_DEFAULT;
 		heap.CreationNodeMask = 1;
 		heap.VisibleNodeMask = 1;
+
+		const float optimizedScalar = format == DXGI_FORMAT_R16_FLOAT ? kThicknessClearValue : kDepthClearValue;
+		D3D12_CLEAR_VALUE optimizedClear{};
+		optimizedClear.Format = format;
+		optimizedClear.Color[0] = optimizedScalar;
+		optimizedClear.Color[1] = optimizedScalar;
+		optimizedClear.Color[2] = optimizedScalar;
+		optimizedClear.Color[3] = optimizedScalar;
+		// W8専用RTはDebug LayerのClear契約とFast Clearの両方を満たす値をResource作成時に固定する。
 		if (FAILED(dxCommon_->GetDevice()->CreateCommittedResource(
 			&heap,
 			D3D12_HEAP_FLAG_NONE,
 			&desc,
 			D3D12_RESOURCE_STATE_COMMON,
-			nullptr,
+			&optimizedClear,
 			IID_PPV_ARGS(&target.resource))))
 		{
 			return false;
@@ -431,8 +442,7 @@ private:
 		D3D12_GPU_VIRTUAL_ADDRESS constants)
 	{
 		TransitionTarget(commandList, depthRaw_, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		const float farClip = CameraManager::GetInstance()->GetActiveFarClip();
-		const float clearValue[4] = { farClip, farClip, farClip, farClip };
+		const float clearValue[4] = { kDepthClearValue, kDepthClearValue, kDepthClearValue, kDepthClearValue };
 		commandList->ClearRenderTargetView(depthRaw_.rtvHandle, clearValue, 0, nullptr);
 		const D3D12_CPU_DESCRIPTOR_HANDLE dsv = PostEffectManager::GetInstance()->GetSceneDsvHandle();
 		commandList->OMSetRenderTargets(1, &depthRaw_.rtvHandle, false, dsv.ptr != 0 ? &dsv : nullptr);
@@ -455,7 +465,7 @@ private:
 		D3D12_GPU_VIRTUAL_ADDRESS constants)
 	{
 		TransitionTarget(commandList, thickness_, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		const float clearValue[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		const float clearValue[4] = { kThicknessClearValue, kThicknessClearValue, kThicknessClearValue, kThicknessClearValue };
 		commandList->ClearRenderTargetView(thickness_.rtvHandle, clearValue, 0, nullptr);
 		const D3D12_CPU_DESCRIPTOR_HANDLE dsv = PostEffectManager::GetInstance()->GetSceneDsvHandle();
 		commandList->OMSetRenderTargets(1, &thickness_.rtvHandle, false, dsv.ptr != 0 ? &dsv : nullptr);
@@ -480,8 +490,7 @@ private:
 	{
 		TransitionTarget(commandList, source, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		TransitionTarget(commandList, destination, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		const float farClip = CameraManager::GetInstance()->GetActiveFarClip();
-		const float clearValue[4] = { farClip, farClip, farClip, farClip };
+		const float clearValue[4] = { kDepthClearValue, kDepthClearValue, kDepthClearValue, kDepthClearValue };
 		commandList->ClearRenderTargetView(destination.rtvHandle, clearValue, 0, nullptr);
 		commandList->OMSetRenderTargets(1, &destination.rtvHandle, false, nullptr);
 		SetViewport(commandList);
