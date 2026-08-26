@@ -57,6 +57,7 @@ namespace Ken4lowEngine
 		rigidbody_->SetMass(mass_);
 		rigidbody_->SetUseGravity(useGravity_);
 		rigidbody_->SetVelocity(velocity_);
+		rigidbody_->SetAngularVelocity(angularVelocity_);
 		rigidbody_->SetSleepEnabled(sleepEnabled_); // Editor上でDebug操作するためSleep機能は無効化する
 		rigidbody_->SetRestitution(restitution_);
 		rigidbody_->SetStaticFriction(staticFriction_);
@@ -71,16 +72,39 @@ namespace Ken4lowEngine
 		}
 
 		velocity_ = rigidbody_->GetVelocity(); // Debug表示用に現在速度を保持する
+		angularVelocity_ = rigidbody_->GetAngularVelocity();
 	}
 
-	void RigidbodyComponent::PostPhysicsUpdate([[maybe_unused]] float deltaTime)
+	void RigidbodyComponent::PostPhysicsUpdate(float deltaTime)
 	{
 		if (!rigidbody_)
 		{
 			return; // Rigidbody未生成の場合は更新しない
 		}
 
-		velocity_ = rigidbody_->GetVelocity(); // Debug表示用に現在速度を保持する
+		velocity_ = rigidbody_->GetVelocity();
+		angularVelocity_ = rigidbody_->GetAngularVelocity();
+
+		if (rigidbody_->GetBodyType() != BodyType::Dynamic || deltaTime <= 0.0f)
+		{
+			return;
+		}
+
+		SceneComponent* root = GetTargetRootComponent();
+		if (!root || root->GetParent())
+		{
+			return;
+		}
+
+		if (Vector3::LengthSquared(angularVelocity_) <= 0.00000001f)
+		{
+			return;
+		}
+
+		Vector3 rotation = root->GetLocalRotation();
+		rotation += angularVelocity_ * deltaTime;
+		root->SetLocalRotation(rotation);
+		root->RefreshWorldTransform(); // Torqueで得た角速度をActorのRoot回転へ反映する。
 	}
 
 	void RigidbodyComponent::DrawImGui()
@@ -166,11 +190,30 @@ namespace Ken4lowEngine
 		}
 	}
 
+	void RigidbodyComponent::SetAngularVelocity(const Vector3& angularVelocity)
+	{
+		angularVelocity_ = angularVelocity;
+
+		if (rigidbody_)
+		{
+			rigidbody_->SetAngularVelocity(angularVelocity_);
+			rigidbody_->WakeUp();
+		}
+	}
+
 	void RigidbodyComponent::AddForce(const Vector3& force)
 	{
 		if (rigidbody_)
 		{
 			rigidbody_->AddForce(force); // 外部から加えた力をRigidbodyへ蓄積する
+		}
+	}
+
+	void RigidbodyComponent::AddTorque(const Vector3& torque)
+	{
+		if (rigidbody_)
+		{
+			rigidbody_->AddTorque(torque);
 		}
 	}
 
@@ -237,6 +280,7 @@ namespace Ken4lowEngine
 			{ "Mass", "Mass", ComponentPropertyType::Float, [this]() -> ComponentPropertyValue { return mass_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<float>(&value)) { SetMass(*typedValue); } }, 0.0001f, 1000.0f, 0.05f, true },
 			{ "UseGravity", "Use Gravity", ComponentPropertyType::Bool, [this]() -> ComponentPropertyValue { return useGravity_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<bool>(&value)) { SetUseGravity(*typedValue); } } },
 			{ "Velocity", "Velocity", ComponentPropertyType::Vector3, [this]() -> ComponentPropertyValue { return velocity_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<Vector3>(&value)) { SetVelocity(*typedValue); } }, 0.0f, 0.0f, 0.05f },
+			{ "AngularVelocity", "Angular Velocity", ComponentPropertyType::Vector3, [this]() -> ComponentPropertyValue { return angularVelocity_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<Vector3>(&value)) { SetAngularVelocity(*typedValue); } }, 0.0f, 0.0f, 0.05f },
 			{ "SleepEnabled", "Sleep Enabled", ComponentPropertyType::Bool, [this]() -> ComponentPropertyValue { return sleepEnabled_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<bool>(&value)) { SetSleepEnabled(*typedValue); } } },
 			{ "Restitution", "Restitution", ComponentPropertyType::Float, [this]() -> ComponentPropertyValue { return restitution_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<float>(&value)) { SetRestitution(*typedValue); } }, 0.0f, 1.0f, 0.01f, true },
 			{ "StaticFriction", "Static Friction", ComponentPropertyType::Float, [this]() -> ComponentPropertyValue { return staticFriction_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<float>(&value)) { SetStaticFriction(*typedValue); } }, 0.0f, 10.0f, 0.01f, true },
