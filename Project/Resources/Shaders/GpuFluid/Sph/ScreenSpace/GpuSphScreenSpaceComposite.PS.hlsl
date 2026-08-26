@@ -31,7 +31,6 @@ float3 SafeNormalFromDepth(float2 uv, float centerDepth)
     const float3 upPosition = GpuSphReconstructViewPosition(uv - float2(0.0f, texel.y), upDepth);
     const float3 downPosition = GpuSphReconstructViewPosition(uv + float2(0.0f, texel.y), downDepth);
 
-    // W8.5: Depth段差の小さい側を微分に選び、粒子境界や背景境界で法線が暴れるのを抑える。
     const float3 dx = abs(rightDepth - centerDepth) <= abs(centerDepth - leftDepth)
         ? rightPosition - centerPosition
         : centerPosition - leftPosition;
@@ -77,27 +76,26 @@ float4 main(PSInput input) : SV_Target0
         discard;
     }
 
+    const float3 sceneBase = gSceneColor.SampleLevel(gLinearClamp, input.uv, 0.0f).rgb;
     const float thicknessValue = max(gFluidThickness.SampleLevel(gLinearClamp, input.uv, 0.0f), 0.0f);
     const float3 viewPosition = GpuSphReconstructViewPosition(input.uv, depthValue);
     const float3 normalValue = SafeNormalFromDepth(input.uv, depthValue);
     const float3 viewDirection = normalize(-viewPosition);
 
     const float thicknessScale = max(gRender.opticalParams.w, 0.0f);
+    const float localLiquidBlend = saturate(thicknessScale / 5.0f);
     const float normalizedThickness = saturate(thicknessValue * thicknessScale);
     const float refractionStrength = gRender.opticalParams.y;
     const float2 refractedUv = saturate(input.uv + normalValue.xy * refractionStrength * (0.35f + normalizedThickness * 0.65f));
     const float3 refractedScene = gSceneColor.SampleLevel(gLinearClamp, refractedUv, 0.0f).rgb;
 
-    // W8.5: RGB別のBeer-Lambert吸収で、厚い水ほど赤/緑を失って自然な青へ寄せる。
     const float absorption = max(gRender.opticalParams.x, 0.0f);
     const float3 extinction = max((1.0f - saturate(gRender.deepColor.rgb)) * 0.42f, float3(0.08f, 0.035f, 0.012f));
     const float3 transmittance = exp(-extinction * absorption * thicknessValue);
     const float3 waterTint = lerp(gRender.shallowColor.rgb, gRender.deepColor.rgb, normalizedThickness);
     float3 color = refractedScene * transmittance + waterTint * (1.0f - transmittance);
 
-    const float fresnel = pow(
-        1.0f - saturate(dot(normalValue, viewDirection)),
-        max(gRender.opticalParams.z, 1.0f));
+    const float fresnel = pow(1.0f - saturate(dot(normalValue, viewDirection)), max(gRender.opticalParams.z, 1.0f));
     const float3 environmentReflection = lerp(float3(0.32f, 0.48f, 0.62f), float3(0.78f, 0.92f, 1.0f), saturate(normalValue.y * 0.5f + 0.5f));
     color = lerp(color, environmentReflection, saturate(fresnel * 0.48f));
 
@@ -109,5 +107,6 @@ float4 main(PSInput input) : SV_Target0
     const float foam = ComputeFoam(input.uv, depthValue, thicknessValue);
     color = lerp(color, float3(0.86f, 0.94f, 1.0f), saturate(foam * 0.24f));
 
+    color = lerp(sceneBase, color, localLiquidBlend); // W10のBlend BandではSSFRを既描画Oceanへ戻し、境界のハードな切替を消す。
     return float4(color, 1.0f);
 }
