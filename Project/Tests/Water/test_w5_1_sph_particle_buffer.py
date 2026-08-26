@@ -61,9 +61,9 @@ class W51SphParticleBufferTests(unittest.TestCase):
         self.assertIn("D3D12_RESOURCE_BARRIER_TYPE_TRANSITION", self.buffer_cpp)
         self.assertIn("D3D12_RESOURCE_BARRIER_TYPE_UAV", self.buffer_cpp)
 
-    def test_manager_starts_with_storage_only(self) -> None:
+    def test_manager_keeps_w51_capacity_contract(self) -> None:
         self.assertIn("kDefaultParticleCapacity = 65536", self.manager)
-        self.assertNotIn("Dispatch", self.manager)
+        self.assertIn("GpuSphParticleBuffer particleBuffer_", self.manager)
 
     def test_framework_owns_sph_runtime_before_descriptor_shutdown(self) -> None:
         self.assertIn("GpuSphManager::GetInstance()->Initialize();", self.framework)
@@ -73,8 +73,8 @@ class W51SphParticleBufferTests(unittest.TestCase):
             self.framework.index("UAVManager::GetInstance()->Finalize();"),
         )
 
-    def test_diagnostics_exposes_w51_storage_contract(self) -> None:
-        self.assertIn('SPH Foundation (W5.1)', self.diagnostics)
+    def test_diagnostics_still_exposes_w51_storage_contract(self) -> None:
+        self.assertIn('SPH Foundation (W5)', self.diagnostics)
         self.assertIn('Particle Buffer: %s', self.diagnostics)
         self.assertIn('Active / Capacity: %u / %u', self.diagnostics)
         self.assertIn('Particle Stride: %u bytes', self.diagnostics)
