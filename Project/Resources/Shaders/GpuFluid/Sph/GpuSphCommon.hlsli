@@ -79,8 +79,8 @@ struct GpuSphSimulationConstants
 
     float boundaryFriction;
     float maxDfsphVelocityCorrection;
-    float padding4;
-    float padding5;
+    uint dfsphWarmStartEnabled;
+    float dfsphWarmStartStrength;
 };
 
 cbuffer GpuSphSimulationCB : register(b0)
@@ -100,6 +100,7 @@ RWStructuredBuffer<GpuSphParticle> gParticles : register(u0);
 RWStructuredBuffer<float4> gScratch : register(u1);
 RWStructuredBuffer<GpuSphHashEntry> gHashEntries : register(u2);
 RWStructuredBuffer<GpuSphCellRange> gCellRanges : register(u3);
+RWStructuredBuffer<float4> gDfSphState : register(u4);
 
 bool GpuSphIsActiveParticle(uint index)
 {
