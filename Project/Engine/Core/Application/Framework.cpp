@@ -19,6 +19,7 @@
 #include <BlendStateFactory.h>
 #include "GpuParticleManager.h"
 #include "Engine/Graphics/Renderer/GpuFluid/Manager/GpuFluidManager.h"
+#include "Engine/Graphics/Renderer/GpuFluid/Sph/Manager/GpuSphManager.h"
 #include "Engine/Graphics/Renderer/GpuFluid/Volumetric/Manager/GpuVolumetricFluidManager.h"
 #include <GameTimer.h>
 #include <ResolutionManager.h>
@@ -219,6 +220,9 @@ namespace Ken4lowEngine
 		// FluidはSRV/UAV/Camera初期化後に起動し、Framework終了時にDescriptor Managerより先に必ず破棄する。
 		GpuFluidManager::GetInstance()->Initialize();
 
+		// W5.1はSPH計算をまだ行わず、Particle StructuredBufferだけをRuntimeで確保する。
+		GpuSphManager::GetInstance()->Initialize();
+
 		// 3D Volumetric Fluidはdefault-OFFのlazy runtimeなので、ここではTexture3DをAllocateしない。
 
 		// DebugビルドではCRT Hookを登録し、次フレームからAllocationを観測する。
@@ -265,6 +269,9 @@ namespace Ken4lowEngine
 
 		// 3D Texture3D/SRV/UAVをShared Descriptor Heapが生きている間に必ず返却する。
 		GpuVolumetricFluidManager::GetInstance()->Finalize();
+
+		// SPH Particle BufferのdescriptorをUAV/SRV Managerより先に返却する。
+		GpuSphManager::GetInstance()->Finalize();
 
 		// GPU FluidのSRV/UAVとPSOをDescriptor Manager破棄前に返却する。
 		GpuFluidManager::GetInstance()->Finalize();
