@@ -7,6 +7,7 @@
 #include "Engine/Graphics/Renderer/GpuFluid/Sph/Renderer/GpuSphScreenSpaceFluidRenderer.h"
 #include "Engine/Graphics/Renderer/GpuFluid/Volumetric/Manager/GpuVolumetricFluidManager.h"
 
+#include <CameraManager.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -79,6 +80,7 @@ struct GpuProductionLiquidRuntimeStats
     float densityErrorRatio = 0.0f;
     float divergenceErrorRatio = 0.0f;
     float focusDistanceToSimulation = 0.0f;
+    float oceanVisualBlend = 1.0f;
     bool initialized = false;
     bool adaptiveSolverActive = false;
     bool flipApicFoundationAvailable = false;
@@ -108,6 +110,7 @@ public:
         lodSettings_ = {};
         stats_ = {};
         focusPosition_ = {};
+        oceanFeedbackVelocity_ = {};
         preset_ = GpuProductionLiquidQualityPreset::High;
         initialized_ = true;
         ApplyQualityPreset(preset_, false);
@@ -126,6 +129,7 @@ public:
         oceanSettings_ = {};
         lodSettings_ = {};
         stats_ = {};
+        oceanFeedbackVelocity_ = {};
         initialized_ = false;
     }
 
@@ -139,6 +143,12 @@ public:
         if (!initialized_)
         {
             return;
+        }
+
+        CameraManager* cameraManager = CameraManager::GetInstance();
+        if (cameraManager)
+        {
+            focusPosition_ = cameraManager->GetActiveCameraPosition(); // Local LiquidのLOD/Ocean Sample中心は実際の描画Cameraへ追従させる。
         }
 
         GpuSphManager* sph = GpuSphManager::GetInstance();
@@ -158,6 +168,9 @@ public:
         stats_.oceanSampleValid = lastOceanSample_.valid;
         if (lastOceanSample_.valid)
         {
+            lastOceanSample_.velocity += oceanFeedbackVelocity_;
+            const float feedbackDecay = std::exp(-3.0f * (std::max)(deltaTime, 0.0f));
+            oceanFeedbackVelocity_ *= feedbackDecay;
             stats_.oceanCouplingSucceeded = GpuProductionLiquidOceanCoupler::GetInstance()->Update(
                 sph->GetParticleBuffer(),
                 deltaTime,
@@ -187,41 +200,14 @@ public:
             return;
         }
 
-        const uint32_t targetDensity = SelectIterationBudget(
-            stats_.densityErrorRatio,
-            settings_.minDensityIterations,
-            settings_.maxDensityIterations);
-        const uint32_t targetDivergence = SelectIterationBudget(
-            stats_.divergenceErrorRatio,
-            settings_.minDivergenceIterations,
-            settings_.maxDivergenceIterations);
-
-        const bool wantsDownshift =
-            targetDensity < sphSettings.dfsphDensityIterations ||
-            targetDivergence < sphSettings.dfsphDivergenceIterations;
-        if (wantsDownshift)
-        {
-            ++stats_.calmFrameCount;
-        }
-        else
-        {
-            stats_.calmFrameCount = 0;
-        }
-
+        const uint32_t targetDensity = SelectIterationBudget(stats_.densityErrorRatio, settings_.minDensityIterations, settings_.maxDensityIterations);
+        const uint32_t targetDivergence = SelectIterationBudget(stats_.divergenceErrorRatio, settings_.minDivergenceIterations, settings_.maxDivergenceIterations);
+        const bool wantsDownshift = targetDensity < sphSettings.dfsphDensityIterations || targetDivergence < sphSettings.dfsphDivergenceIterations;
+        stats_.calmFrameCount = wantsDownshift ? stats_.calmFrameCount + 1u : 0u;
         const bool allowDownshift = stats_.calmFrameCount >= (std::max)(settings_.calmFramesBeforeDownshift, 1u);
-        if (targetDensity > sphSettings.dfsphDensityIterations || allowDownshift)
-        {
-            sphSettings.dfsphDensityIterations = targetDensity;
-        }
-        if (targetDivergence > sphSettings.dfsphDivergenceIterations || allowDownshift)
-        {
-            sphSettings.dfsphDivergenceIterations = targetDivergence;
-        }
-        if (allowDownshift)
-        {
-            stats_.calmFrameCount = 0;
-        }
-
+        if (targetDensity > sphSettings.dfsphDensityIterations || allowDownshift) sphSettings.dfsphDensityIterations = targetDensity;
+        if (targetDivergence > sphSettings.dfsphDivergenceIterations || allowDownshift) sphSettings.dfsphDivergenceIterations = targetDivergence;
+        if (allowDownshift) stats_.calmFrameCount = 0;
         stats_.selectedDensityIterations = sphSettings.dfsphDensityIterations;
         stats_.selectedDivergenceIterations = sphSettings.dfsphDivergenceIterations;
     }
@@ -241,10 +227,8 @@ public:
 
         const GpuSphRuntimeStats& sphStats = sph->GetRuntimeStats();
         const uint64_t substeps = sphStats.lastFrameSubsteps;
-        const uint64_t baselinePerStep = 2ull *
-            (static_cast<uint64_t>(settings_.maxDensityIterations) + static_cast<uint64_t>(settings_.maxDivergenceIterations));
-        const uint64_t selectedPerStep = 2ull *
-            (static_cast<uint64_t>(stats_.selectedDensityIterations) + static_cast<uint64_t>(stats_.selectedDivergenceIterations));
+        const uint64_t baselinePerStep = 2ull * (static_cast<uint64_t>(settings_.maxDensityIterations) + static_cast<uint64_t>(settings_.maxDivergenceIterations));
+        const uint64_t selectedPerStep = 2ull * (static_cast<uint64_t>(stats_.selectedDensityIterations) + static_cast<uint64_t>(stats_.selectedDivergenceIterations));
         stats_.estimatedProjectionDispatches += selectedPerStep * substeps;
         if (baselinePerStep > selectedPerStep)
         {
@@ -270,12 +254,12 @@ public:
 
         if (oceanSettings_.enabled && oceanProvider_ && lastOceanSample_.valid && sphSettings.activeParticleCount > 0)
         {
-            const float secondaryRatio = static_cast<float>(
-                stats_.sprayCandidateCount + stats_.foamCandidateCount) /
+            const float secondaryRatio = static_cast<float>(stats_.sprayCandidateCount + stats_.foamCandidateCount) /
                 static_cast<float>((std::max)(sphSettings.activeParticleCount, 1u));
             const float feedbackMagnitude = oceanSettings_.feedbackStrength * (std::min)(secondaryRatio, 1.0f);
             const Vector3 impulse = lastOceanSample_.normal * feedbackMagnitude;
-            oceanProvider_->SubmitLiquidFeedback(focusPosition_, impulse, oceanSettings_.feedbackRadius); // SPH側の自由表面活動量をOceanへ戻し、双方向Bridgeを閉じる。
+            oceanFeedbackVelocity_ += impulse;
+            oceanProvider_->SubmitLiquidFeedback(focusPosition_, impulse, oceanSettings_.feedbackRadius); // SPH自由表面活動量を次FrameのOcean流速へ戻して双方向連成する。
         }
 
         stats_.flipApicFoundationAvailable = GpuVolumetricFluidManager::GetInstance()->IsInitialized();
@@ -295,55 +279,35 @@ public:
         switch (preset)
         {
         case GpuProductionLiquidQualityPreset::Development:
-            settings_.minDensityIterations = 1;
-            settings_.maxDensityIterations = 4;
-            settings_.minDivergenceIterations = 0;
-            settings_.maxDivergenceIterations = 2;
+            settings_.minDensityIterations = 1; settings_.maxDensityIterations = 4;
+            settings_.minDivergenceIterations = 0; settings_.maxDivergenceIterations = 2;
             secondarySettings_.classificationIntervalFrames = 4;
-            particleCount = lodSettings_.developmentParticleCount;
-            smoothingBudget = 1;
-            blurDepthFalloff = 18.0f;
+            particleCount = lodSettings_.developmentParticleCount; smoothingBudget = 1; blurDepthFalloff = 18.0f;
             break;
         case GpuProductionLiquidQualityPreset::Interactive:
-            settings_.minDensityIterations = 2;
-            settings_.maxDensityIterations = 5;
-            settings_.minDivergenceIterations = 1;
-            settings_.maxDivergenceIterations = 3;
+            settings_.minDensityIterations = 2; settings_.maxDensityIterations = 5;
+            settings_.minDivergenceIterations = 1; settings_.maxDivergenceIterations = 3;
             secondarySettings_.classificationIntervalFrames = 2;
-            particleCount = lodSettings_.interactiveParticleCount;
-            smoothingBudget = 2;
-            blurDepthFalloff = 24.0f;
+            particleCount = lodSettings_.interactiveParticleCount; smoothingBudget = 2; blurDepthFalloff = 24.0f;
             break;
         case GpuProductionLiquidQualityPreset::High:
-            settings_.minDensityIterations = 2;
-            settings_.maxDensityIterations = 8;
-            settings_.minDivergenceIterations = 1;
-            settings_.maxDivergenceIterations = 5;
+            settings_.minDensityIterations = 2; settings_.maxDensityIterations = 8;
+            settings_.minDivergenceIterations = 1; settings_.maxDivergenceIterations = 5;
             secondarySettings_.classificationIntervalFrames = 2;
-            particleCount = lodSettings_.highParticleCount;
-            smoothingBudget = 3;
-            blurDepthFalloff = 28.0f;
+            particleCount = lodSettings_.highParticleCount; smoothingBudget = 3; blurDepthFalloff = 28.0f;
             break;
         case GpuProductionLiquidQualityPreset::Cinematic:
-            settings_.minDensityIterations = 3;
-            settings_.maxDensityIterations = 10;
-            settings_.minDivergenceIterations = 2;
-            settings_.maxDivergenceIterations = 7;
+            settings_.minDensityIterations = 3; settings_.maxDensityIterations = 10;
+            settings_.minDivergenceIterations = 2; settings_.maxDivergenceIterations = 7;
             secondarySettings_.classificationIntervalFrames = 1;
-            particleCount = lodSettings_.cinematicParticleCount;
-            smoothingBudget = 4;
-            blurDepthFalloff = 34.0f;
+            particleCount = lodSettings_.cinematicParticleCount; smoothingBudget = 4; blurDepthFalloff = 34.0f;
             break;
         case GpuProductionLiquidQualityPreset::Stress:
         default:
-            settings_.minDensityIterations = 2;
-            settings_.maxDensityIterations = 6;
-            settings_.minDivergenceIterations = 1;
-            settings_.maxDivergenceIterations = 4;
+            settings_.minDensityIterations = 2; settings_.maxDensityIterations = 6;
+            settings_.minDivergenceIterations = 1; settings_.maxDivergenceIterations = 4;
             secondarySettings_.classificationIntervalFrames = 4;
-            particleCount = lodSettings_.stressParticleCount;
-            smoothingBudget = 1;
-            blurDepthFalloff = 18.0f;
+            particleCount = lodSettings_.stressParticleCount; smoothingBudget = 1; blurDepthFalloff = 18.0f;
             break;
         }
 
@@ -404,16 +368,28 @@ private:
         if (!lodSettings_.enabled)
         {
             stats_.localSimulationVisible = true;
+            stats_.oceanVisualBlend = 1.0f;
             return;
         }
 
-        const Vector3 center = (sphSettings.boundaryMin + sphSettings.boundaryMax) * 0.5f;
+        const Vector3 center{
+            (sphSettings.boundaryMin.x + sphSettings.boundaryMax.x) * 0.5f,
+            (sphSettings.boundaryMin.y + sphSettings.boundaryMax.y) * 0.5f,
+            (sphSettings.boundaryMin.z + sphSettings.boundaryMax.z) * 0.5f };
         const float dx = focusPosition_.x - center.x;
         const float dz = focusPosition_.z - center.z;
         stats_.focusDistanceToSimulation = std::sqrt(dx * dx + dz * dz);
 
+        const float simulationRadius = (std::max)(lodSettings_.simulationRadius, 0.1f);
+        const float blendBand = (std::clamp)(oceanSettings_.blendBand, 0.01f, simulationRadius);
+        const float blendStart = (std::max)(simulationRadius - blendBand, 0.0f);
+        stats_.oceanVisualBlend = 1.0f - (std::clamp)(
+            (stats_.focusDistanceToSimulation - blendStart) / blendBand,
+            0.0f,
+            1.0f);
+
         GpuSphScreenSpaceRenderSettings& renderSettings = GpuSphScreenSpaceFluidRenderer::GetInstance()->GetEditableSettings();
-        const bool visible = stats_.focusDistanceToSimulation <= (std::max)(lodSettings_.simulationRadius, 0.1f);
+        const bool visible = stats_.focusDistanceToSimulation <= simulationRadius;
         renderSettings.enabled = visible;
         stats_.localSimulationVisible = visible;
 
@@ -445,6 +421,7 @@ private:
     IGpuProductionLiquidOceanProvider* oceanProvider_ = nullptr;
     GpuProductionLiquidOceanSample lastOceanSample_{};
     Vector3 focusPosition_{};
+    Vector3 oceanFeedbackVelocity_{};
     bool initialized_ = false;
 };
 
