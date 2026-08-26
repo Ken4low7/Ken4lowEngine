@@ -1,9 +1,56 @@
 #include "PhysicsEventDispatcher.h"
+#include "Collider.h"
 
 #include <algorithm>
 
 namespace Ken4lowEngine
 {
+	namespace
+	{
+		CollisionHit BuildColliderHit(Collider* self, Collider* other, const Contact& contact, bool reverseNormal)
+		{
+			CollisionHit hit{};
+			hit.self = self;
+			hit.other = other;
+			hit.point = contact.point;
+			hit.normal = reverseNormal ? contact.normal * -1.0f : contact.normal;
+			hit.distance = contact.penetration;
+			return hit;
+		}
+
+		void DispatchToCollider(Collider* collider, PhysicsEventType type, const CollisionHit& hit)
+		{
+			if (!collider)
+			{
+				return;
+			}
+
+			switch (type)
+			{
+			case PhysicsEventType::CollisionEnter:
+				collider->OnCollisionEnter(hit);
+				break;
+			case PhysicsEventType::CollisionStay:
+				collider->OnCollisionStay(hit);
+				break;
+			case PhysicsEventType::CollisionExit:
+				collider->OnCollisionExit(hit);
+				break;
+			case PhysicsEventType::TriggerEnter:
+				collider->OnOverlapBegin(hit);
+				break;
+			case PhysicsEventType::TriggerStay:
+				collider->OnOverlapStay(hit);
+				break;
+			case PhysicsEventType::TriggerExit:
+				collider->OnOverlapEnd(hit);
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
 	ContactPairKey ContactPairKey::Make(Collider* colliderA, Collider* colliderB)
 	{
 		// nullptrが混ざるContactはイベント対象外にするため、無効キーとして返す。
@@ -116,8 +163,17 @@ namespace Ken4lowEngine
 
 	void PhysicsEventDispatcher::PushEvent(const PhysicsEvent& event)
 	{
-		// イベントログとListener通知を同じタイミングで行い、Debug表示と外部購読を同期させる。
+		// Physicsイベントはログだけでなく、各ColliderのForwarding経路へも同じフレームで配送する。
 		events_.push_back(event);
+
+		if (event.colliderA && event.colliderB)
+		{
+			const CollisionHit hitA = BuildColliderHit(event.colliderA, event.colliderB, event.contact, false);
+			const CollisionHit hitB = BuildColliderHit(event.colliderB, event.colliderA, event.contact, true);
+			DispatchToCollider(event.colliderA, event.type, hitA);
+			DispatchToCollider(event.colliderB, event.type, hitB);
+		}
+
 		for (IPhysicsEventListener* listener : listeners_)
 		{
 			if (listener)
