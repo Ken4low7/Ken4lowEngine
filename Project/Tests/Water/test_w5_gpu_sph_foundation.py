@@ -64,7 +64,7 @@ class W5GpuSphFoundationTests(unittest.TestCase):
         self.assertIn("GetValidatedActiveParticleCount", self.manager_cpp)
 
     def test_w52_gravity_integrates_velocity(self) -> None:
-        self.assertIn("particle.velocity += gSph.gravity * gSph.deltaTime", self.gravity)
+        self.assertIn("gParticles[index].velocity += gSph.gravity * gSph.deltaTime", self.gravity)
         self.assertIn("GpuSphComputeShaderId::Gravity", self.manifest)
 
     def test_w53_boundary_handles_predicted_and_final_position(self) -> None:
@@ -82,13 +82,15 @@ class W5GpuSphFoundationTests(unittest.TestCase):
         self.assertIn("predictedPosition", self.density)
         self.assertIn("neighborIndex < gSph.activeParticleCount", self.density)
         self.assertIn("gSph.particleMass * GpuSphPoly6Kernel", self.density)
-        self.assertIn("particle.density", self.density)
+        self.assertIn("gParticles[index].density", self.density)
+        self.assertNotIn("gParticles[index] = particle;", self.density)
 
     def test_w56_pressure_is_split_by_uav_barrier_boundary(self) -> None:
         self.assertIn("void ComputePressure", self.pressure)
         self.assertIn("void ApplyPressure", self.pressure)
-        self.assertIn("particle.pressure", self.pressure)
+        self.assertIn("gParticles[index].pressure", self.pressure)
         self.assertIn("GpuSphSpikyGradient", self.pressure)
+        self.assertNotIn("gParticles[index] = particle;", self.pressure)
         pressure_property = self.manager_cpp.index("GpuSphComputeShaderId::PressureProperty")
         pressure_force = self.manager_cpp.index("GpuSphComputeShaderId::PressureForce")
         self.assertLess(pressure_property, pressure_force)
@@ -97,15 +99,17 @@ class W5GpuSphFoundationTests(unittest.TestCase):
         self.assertIn("void ComputeViscosityDelta", self.viscosity)
         self.assertIn("gScratch[index]", self.viscosity)
         self.assertIn("void ApplyViscosity", self.viscosity)
-        self.assertIn("particle.velocity += gScratch[index].xyz", self.viscosity)
+        self.assertIn("gParticles[index].velocity += gScratch[index].xyz", self.viscosity)
+        self.assertNotIn("gParticles[index] = particle;", self.viscosity)
         self.assertIn("VelocityDeltaScratch", self.manager_cpp)
         self.assertIn("D3D12_RESOURCE_BARRIER_TYPE_UAV", self.manager_cpp)
 
     def test_w58_prediction_has_predict_and_integrate_stages(self) -> None:
         self.assertIn("void Predict", self.prediction)
-        self.assertIn("particle.predictedPosition = particle.position + particle.velocity * gSph.deltaTime", self.prediction)
+        self.assertIn("gParticles[index].predictedPosition", self.prediction)
+        self.assertIn("velocityValue * gSph.deltaTime", self.prediction)
         self.assertIn("void Integrate", self.prediction)
-        self.assertIn("particle.position += particle.velocity * gSph.deltaTime", self.prediction)
+        self.assertIn("gParticles[index].position = positionValue", self.prediction)
 
     def test_reset_seeds_a_3d_particle_block(self) -> None:
         self.assertIn("spawnDimX", self.reset)
