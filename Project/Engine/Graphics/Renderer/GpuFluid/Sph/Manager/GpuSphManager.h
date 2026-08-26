@@ -25,7 +25,7 @@ struct GpuSphSimulationSettings
     float targetDensity = 1000.0f;
     float pressureStiffness = 120.0f;
     float viscosityStrength = 0.08f;
-    float boundaryDamping = 0.5f;
+    float boundaryDamping = 0.05f;
     Vector3 gravity{ 0.0f, -9.81f, 0.0f };
     Vector3 boundaryMin{ -2.0f, 0.0f, -2.0f };
     Vector3 boundaryMax{ 2.0f, 4.0f, 2.0f };
