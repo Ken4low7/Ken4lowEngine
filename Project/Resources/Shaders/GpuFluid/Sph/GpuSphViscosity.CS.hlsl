@@ -59,20 +59,19 @@ void ComputeViscosityDelta(uint3 dispatchThreadId : SV_DispatchThreadID)
                         (velocityJ - velocityI) *
                         (laplacian / densityJ);
 
-                    // W7 Surface Tension: 密度不足の自由表面付近だけCohesionを強くする。
+                    // W9.5: 自由表面のCohesion強度を水Presetから調整可能にする。
                     const float surfaceDensity = min(densityI, densityJ);
                     const float surfaceFactor = saturate(
                         1.0f - surfaceDensity / max(gSph.targetDensity, 1.0e-5f));
                     const float cohesionWeight = GpuSphCohesionWeight(distanceValue, gSph.smoothingRadius);
                     const float cohesionAcceleration =
-                        kGpuSphSurfaceTension *
+                        max(gSph.surfaceTensionStrength, 0.0f) *
                         gSph.targetDensity *
                         neighborVolume *
                         cohesionWeight *
                         surfaceFactor;
                     acceleration -= cohesionAcceleration * (delta / distanceValue);
 
-                    // XSPHは局所的な速度差だけを平滑化し、粒子のバラつきと高周波振動を抑える。
                     xsphDelta +=
                         neighborVolume *
                         (velocityJ - velocityI) *
@@ -84,7 +83,7 @@ void ComputeViscosityDelta(uint3 dispatchThreadId : SV_DispatchThreadID)
 
     // 近傍Velocityを読むPassと書くPassを分け、Spatial Hash化後もread/write競合を防ぐ。
     gScratch[index] = float4(
-        acceleration * gSph.deltaTime + xsphDelta * kGpuSphXsphStrength,
+        acceleration * gSph.deltaTime + xsphDelta * clamp(gSph.xsphStrength, 0.0f, 1.0f),
         0.0f);
 }
 
@@ -98,9 +97,9 @@ void ApplyViscosity(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     const float3 velocityValue = gParticles[index].velocity + gScratch[index].xyz;
-    // W7はGPU内CFL制限で1 Stepにhの40%以上進む速度を抑え、爆発的な発散を防ぐ。
     gParticles[index].velocity = GpuSphClampVelocityByCfl(
         velocityValue,
         gSph.smoothingRadius,
-        gSph.deltaTime);
+        gSph.deltaTime,
+        gSph.cflNumber);
 }
