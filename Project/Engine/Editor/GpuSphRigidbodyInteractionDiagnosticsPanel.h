@@ -23,7 +23,7 @@ public:
 #ifdef USE_IMGUI
         if (ImGui::IsKeyPressed(ImGuiKey_F7, false))
         {
-            visible_ = !visible_; // SPH本体のF7診断と同時にW9双方向Interactionも確認する。
+            visible_ = !visible_; // SPH本体の診断と同時にRigidbodyとの相互作用も確認する。
         }
         if (!visible_)
         {
@@ -34,26 +34,26 @@ public:
         GpuSphRigidbodyInteractionSettings& settings = interaction->GetEditableSettings();
         const GpuSphRigidbodyInteractionStats& stats = interaction->GetStats();
 
-        if (!ImGui::Begin("W9 SPH Rigidbody Interaction", &visible_))
+        if (!ImGui::Begin("SPH / Rigidbody 相互作用", &visible_))
         {
             ImGui::End();
             return;
         }
 
-        ImGui::TextDisabled("F7: toggle with GPU Fluid Diagnostics");
-        ImGui::Checkbox("W9 Interaction Enabled", &settings.enabled);
+        ImGui::TextDisabled("F7: 表示切替");
+        ImGui::Checkbox("相互作用を有効化", &settings.enabled);
 
-        if (ImGui::CollapsingHeader("Coupling Settings", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("相互作用設定", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::SliderFloat("Particle Radius Scale", &settings.particleRadiusScale, 0.1f, 1.5f);
-            ImGui::DragFloat("Minimum Particle Radius", &settings.minimumParticleRadius, 0.0025f, 0.001f, 0.5f);
-            ImGui::SliderFloat("Collision Restitution", &settings.restitution, 0.0f, 1.0f);
-            ImGui::SliderFloat("Collision Friction", &settings.friction, 0.0f, 1.0f);
-            ImGui::SliderFloat("Coupling Strength", &settings.couplingStrength, 0.0f, 2.0f);
-            ImGui::DragFloat("Max Linear Impulse", &settings.maximumLinearImpulse, 1.0f, 1.0f, 500.0f);
-            ImGui::DragFloat("Max Angular Impulse", &settings.maximumAngularImpulse, 1.0f, 1.0f, 500.0f);
+            ImGui::SliderFloat("粒子半径倍率", &settings.particleRadiusScale, 0.1f, 1.5f);
+            ImGui::DragFloat("最小粒子半径", &settings.minimumParticleRadius, 0.0025f, 0.001f, 0.5f);
+            ImGui::SliderFloat("反発係数", &settings.restitution, 0.0f, 1.0f);
+            ImGui::SliderFloat("摩擦係数", &settings.friction, 0.0f, 1.0f);
+            ImGui::SliderFloat("連成強度", &settings.couplingStrength, 0.0f, 2.0f);
+            ImGui::DragFloat("最大直線インパルス", &settings.maximumLinearImpulse, 1.0f, 1.0f, 500.0f);
+            ImGui::DragFloat("最大角インパルス", &settings.maximumAngularImpulse, 1.0f, 1.0f, 500.0f);
 
-            if (ImGui::Button("Water Coupling Preset"))
+            if (ImGui::Button("水向け設定を適用"))
             {
                 settings.particleRadiusScale = 0.5f;
                 settings.minimumParticleRadius = 0.02f;
@@ -65,31 +65,31 @@ public:
             }
         }
 
-        if (ImGui::CollapsingHeader("W9 Runtime Status", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("実行状況", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::Text("Runtime: %s", stats.initialized ? "Ready" : "Waiting");
-            ImGui::Text("Last Dispatch: %s", stats.lastDispatchSucceeded ? "OK" : "FAILED");
-            ImGui::Text("Collider Proxies: %u / %u", stats.proxyCount, GpuSphRigidbodyInteraction::kMaxProxies);
-            ImGui::Text("Dynamic Bodies: %u / %u", stats.dynamicBodyCount, GpuSphRigidbodyInteraction::kMaxDynamicBodies);
-            ImGui::Text("Physical Particle Radius: %.4f", stats.particleRadius);
-            ImGui::Text("Frame Resource Ring: %u", stats.frameResourceCount);
+            ImGui::Text("初期化: %s", stats.initialized ? "完了" : "待機中");
+            ImGui::Text("直前のDispatch: %s", stats.lastDispatchSucceeded ? "成功" : "失敗");
+            ImGui::Text("Collider Proxy: %u / %u", stats.proxyCount, GpuSphRigidbodyInteraction::kMaxProxies);
+            ImGui::Text("動的Rigidbody: %u / %u", stats.dynamicBodyCount, GpuSphRigidbodyInteraction::kMaxDynamicBodies);
+            ImGui::Text("物理粒子半径: %.4f", stats.particleRadius);
+            ImGui::Text("フレームリソース数: %u", stats.frameResourceCount);
             ImGui::Separator();
-            ImGui::Text("Collision Dispatches: %llu", static_cast<unsigned long long>(stats.collisionDispatchCount));
-            ImGui::Text("Reaction Clear Dispatches: %llu", static_cast<unsigned long long>(stats.reactionClearDispatchCount));
-            ImGui::Text("Async Readbacks: %llu", static_cast<unsigned long long>(stats.readbackCount));
-            ImGui::Text("Applied Rigidbody Reactions: %llu", static_cast<unsigned long long>(stats.appliedBodyCount));
-            ImGui::Text("Last Linear Impulse: %.4f", stats.lastLinearImpulse);
-            ImGui::Text("Last Angular Impulse: %.4f", stats.lastAngularImpulse);
+            ImGui::Text("衝突Dispatch: %llu", static_cast<unsigned long long>(stats.collisionDispatchCount));
+            ImGui::Text("反作用初期化Dispatch: %llu", static_cast<unsigned long long>(stats.reactionClearDispatchCount));
+            ImGui::Text("非同期読取回数: %llu", static_cast<unsigned long long>(stats.readbackCount));
+            ImGui::Text("反作用を適用したRigidbody数: %llu", static_cast<unsigned long long>(stats.appliedBodyCount));
+            ImGui::Text("直前の直線インパルス: %.4f", stats.lastLinearImpulse);
+            ImGui::Text("直前の角インパルス: %.4f", stats.lastAngularImpulse);
         }
 
-        if (ImGui::CollapsingHeader("Stress Test Guidance"))
+        if (ImGui::CollapsingHeader("負荷確認の目安"))
         {
-            ImGui::BulletText("Start: 1 Dynamic OBB + 1000 SPH particles");
-            ImGui::BulletText("Scale: 4 / 16 / 32 Dynamic bodies");
-            ImGui::BulletText("Collider proxy hard limit: 64");
-            ImGui::BulletText("Dynamic reaction hard limit: 32 bodies");
-            ImGui::BulletText("Then test SPH 4096 / 16384 particles");
-            ImGui::TextDisabled("Frame Resource readback never calls ExecuteAndWait; reactions arrive a few frames later.");
+            ImGui::BulletText("開始: 動的OBB 1個 + SPH粒子1000個");
+            ImGui::BulletText("Rigidbody数: 4 / 16 / 32個へ段階的に増加");
+            ImGui::BulletText("Collider Proxy上限: 64個");
+            ImGui::BulletText("動的Rigidbody反作用上限: 32個");
+            ImGui::BulletText("SPH粒子数: 4096 / 16384個でも確認");
+            ImGui::TextDisabled("反作用の読取はGPU待機を行わないため、数フレーム遅れて反映されます。");
         }
 
         ImGui::End();
