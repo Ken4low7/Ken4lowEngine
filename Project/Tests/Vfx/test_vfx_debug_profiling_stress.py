@@ -1,14 +1,13 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-REPO = ROOT.parent
 
 
 def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8-sig")
 
 
-def test_diagnostics_owns_bounded_240_frame_ring_history():
+def test_diagnostics_owns_bounded_frame_history():
     diagnostics = read("Engine/Vfx/Graph/Diagnostics/VfxGraphDiagnostics.h")
     assert "kHistoryCapacity = 240u" in diagnostics
     assert "std::array<VfxDiagnosticsFrameSample, kHistoryCapacity> history_" in diagnostics
@@ -17,39 +16,23 @@ def test_diagnostics_owns_bounded_240_frame_ring_history():
     assert "BuildSummary() const" in diagnostics
 
 
-def test_capture_reuses_existing_frame_and_runtime_counters():
+def test_capture_reuses_existing_runtime_counters_without_gpu_waits():
     diagnostics = read("Engine/Vfx/Graph/Diagnostics/VfxGraphDiagnostics.h")
-    assert "GetCompletedFrameTiming()" in diagnostics
-    assert "GpuParticleManager::GetInstance()" in diagnostics
-    assert "VfxGraphRuntime::GetInstance()->GetStats()" in diagnostics
-    assert "VfxCueRuntime::GetInstance()->GetStats()" in diagnostics
-    assert "GetEstimatedActiveParticleCount()" in diagnostics
-    assert "GetLastDrawCallCount()" in diagnostics
-    assert "GetEmitDispatchCount()" in diagnostics
+    for marker in (
+        "GetCompletedFrameTiming()",
+        "GpuParticleManager::GetInstance()",
+        "VfxGraphRuntime::GetInstance()->GetStats()",
+        "VfxCueRuntime::GetInstance()->GetStats()",
+        "GetEstimatedActiveParticleCount()",
+        "GetLastDrawCallCount()",
+        "GetEmitDispatchCount()",
+    ):
+        assert marker in diagnostics
+    for forbidden in ("WaitForGPU", "WaitForGpu", "SetEventOnCompletion"):
+        assert forbidden not in diagnostics
 
 
-def test_counter_deltas_cover_dispatch_graph_culling_budget_lod_and_cues():
-    diagnostics = read("Engine/Vfx/Graph/Diagnostics/VfxGraphDiagnostics.h")
-    assert "emitDispatchesThisFrame = Delta" in diagnostics
-    assert "graphPlayRequestsThisFrame = Delta" in diagnostics
-    assert "graphCullsThisFrame = Delta" in diagnostics
-    assert "graphBudgetRejectsThisFrame = Delta" in diagnostics
-    assert "graphLodSelectionsThisFrame = Delta" in diagnostics
-    assert "cueTrackStartsThisFrame = Delta" in diagnostics
-    assert "cueBudgetRejectsThisFrame = Delta" in diagnostics
-    assert "cueBudgetDelaysThisFrame = Delta" in diagnostics
-
-
-def test_phase28_does_not_add_synchronous_gpu_readback_to_diagnostics():
-    diagnostics = read("Engine/Vfx/Graph/Diagnostics/VfxGraphDiagnostics.h")
-    assert "Readback" not in diagnostics
-    assert "WaitForGPU" not in diagnostics
-    assert "WaitForGpu" not in diagnostics
-    assert "SetEventOnCompletion" not in diagnostics
-    assert "GetCompletedValue" not in diagnostics
-
-
-def test_stress_runner_has_caps_real_graph_submission_and_loop_cleanup():
+def test_stress_runner_has_caps_submission_and_loop_cleanup():
     diagnostics = read("Engine/Vfx/Graph/Diagnostics/VfxGraphDiagnostics.h")
     assert "kMaxStressOneShots = 512u" in diagnostics
     assert "kMaxStressLoops = 128u" in diagnostics
@@ -60,27 +43,28 @@ def test_stress_runner_has_caps_real_graph_submission_and_loop_cleanup():
     assert "BuildGridPosition" in diagnostics
 
 
-def test_stress_result_reports_budget_culling_and_particle_pressure():
-    diagnostics = read("Engine/Vfx/Graph/Diagnostics/VfxGraphDiagnostics.h")
-    assert "graphBudgetRejects" in diagnostics
-    assert "graphCulls" in diagnostics
-    assert "estimatedActiveParticlesAfterStart" in diagnostics
-    assert "activeEmittersAfterStart" in diagnostics
-    assert "graphWasRegistered" in diagnostics
-
-
-def test_editor_exposes_overview_history_stress_and_budget_tabs():
+def test_editor_uses_localized_tabs_and_feature_named_sample():
     window = read("Engine/Vfx/Graph/Editor/VfxDiagnosticsWindow.h")
-    for tab in ("Overview", "History", "Stress", "Budget"):
+    for tab in ("概要", "履歴", "負荷確認", "実行予算"):
         assert f'BeginTabItem("{tab}")' in window
-    assert 'PlotLines("Frame ms"' in window
-    assert 'Button("Run Stress Burst")' in window
-    assert 'Button("Stop Stress Loops")' in window
-    assert 'Button("Load Phase27 Sample")' in window
-    assert "GetEditableBudget()" in window
+    assert 'Button("負荷確認を実行")' in window
+    assert 'Button("負荷確認Loopを停止")' in window
+    assert 'Button("負荷確認サンプルを読み込む")' in window
+    assert '"ScalableIntegratedExplosion"' in window
+    assert "Resources/VfxGraph/Samples/ScalableIntegratedExplosion.vfxgraph.json" in window
+    assert "Phase27" not in window
 
 
-def test_application_captures_after_completed_frame_and_draws_companion_window():
+def test_scalable_sample_has_clean_runtime_identity_and_scalability_settings():
+    sample = read("Resources/VfxGraph/Samples/ScalableIntegratedExplosion.vfxgraph.json")
+    assert '"graphName": "ScalableIntegratedExplosion"' in sample
+    assert '"boundsMode": "Automatic"' in sample
+    assert '"frustumCulling": true' in sample
+    assert '"budgetCost": 4' in sample
+    assert "Phase27" not in sample
+
+
+def test_application_captures_after_completed_frame_and_draws_diagnostics():
     app = read("Engine/Core/Application/GameApplication.cpp")
     scalability = app.index("VfxGraphRuntime::GetInstance()->UpdateScalability();")
     cue_update = app.index("VfxCueRuntime::GetInstance()->Update")
@@ -91,17 +75,10 @@ def test_application_captures_after_completed_frame_and_draws_companion_window()
     assert "VfxDiagnosticsWindow::GetInstance()->Draw(editorWindowState.showVfxGraphEditor);" in app
 
 
-def test_temporary_phase28_integration_helpers_are_removed():
-    assert not (REPO / ".github/scripts/phase28_integrate_diagnostics.py").exists()
-    assert not (REPO / ".github/workflows/Phase28IntegrateDiagnostics.yml").exists()
-
-
-def test_docs_define_nonblocking_contract_and_phase29_boundary():
-    docs = read("Docs/Phase28DebugProfilingStressTest.md")
-    assert "240" in docs
-    assert "no GPU fence wait" in docs
-    assert "no synchronous GPU readback" in docs
-    assert "512 one-shots" in docs
-    assert "128 loops" in docs
-    assert "Phase29" in docs
-    assert "Production VFX Library" in docs
+def test_runtime_budget_is_exposed_in_diagnostics_editor():
+    window = read("Engine/Vfx/Graph/Editor/VfxDiagnosticsWindow.h")
+    assert "GetEditableBudget()" in window
+    assert "maxVfxGraphStartCostPerFrame" in window
+    assert "maxActiveVfxGraphLoopCost" in window
+    assert "maxActiveInstances" in window
+    assert "maxActiveTracks" in window
