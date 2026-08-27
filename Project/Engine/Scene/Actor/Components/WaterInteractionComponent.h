@@ -168,58 +168,59 @@ namespace Ken4lowEngine
 		{
 			ColliderComponent::DrawImGui();
 #ifdef USE_IMGUI
-			ImGui::SeparatorText("Water Interaction");
+			// W4の浮力・入水判定をInspectorだけで確認できるよう、診断項目まで日本語へ統一する。
+			ImGui::SeparatorText("水との相互作用");
 			ImGui::Checkbox("水面へ自動フィット##WaterInteraction", &autoFitSurface_);
 			ImGui::DragFloat("水深##WaterInteraction", &volumeDepth_, 0.1f, 0.1f, 100.0f);
 			ImGui::DragFloat("水面上の余白##WaterInteraction", &surfacePadding_, 0.01f, 0.0f, 5.0f);
 			ImGui::DragFloat("接触許容幅##WaterInteraction", &surfaceTolerance_, 0.001f, 0.0f, 1.0f);
 
-			ImGui::SeparatorText("Buoyancy");
+			ImGui::SeparatorText("浮力");
 			ImGui::Checkbox("浮力を有効化##WaterInteraction", &buoyancyEnabled_);
 			ImGui::DragFloat("浮力倍率##WaterInteraction", &buoyancyScale_, 0.01f, 0.0f, 5.0f);
 			ImGui::DragFloat("水の密度 kg/m^3##WaterInteraction", &waterDensity_, 1.0f, 0.0f, 5000.0f);
-			ImGui::DragFloat("水中Linear Drag##WaterInteraction", &waterLinearDrag_, 0.05f, 0.0f, 20.0f);
-			ImGui::DragFloat("水中Angular Drag##WaterInteraction", &waterAngularDrag_, 0.05f, 0.0f, 20.0f);
+			ImGui::DragFloat("水中の直線抵抗##WaterInteraction", &waterLinearDrag_, 0.05f, 0.0f, 20.0f);
+			ImGui::DragFloat("水中の回転抵抗##WaterInteraction", &waterAngularDrag_, 0.05f, 0.0f, 20.0f);
 			ImGui::Checkbox("複数浮力点##WaterInteraction", &multiPointSampling_);
 			ImGui::Checkbox("波面へ傾きを追従##WaterInteraction", &surfaceAlignEnabled_);
 			ImGui::DragFloat("傾き追従速度##WaterInteraction", &surfaceAlignSpeed_, 0.05f, 0.0f, 20.0f);
 			ImGui::DragFloat("最大傾斜角(度)##WaterInteraction", &maxTiltDegrees_, 0.5f, 0.0f, 60.0f);
 
-			ImGui::SeparatorText("Splash Event");
-			ImGui::Checkbox("Splashイベント##WaterInteraction", &splashEnabled_);
-			ImGui::DragFloat("Splash最低速度##WaterInteraction", &minSplashSpeed_, 0.05f, 0.0f, 50.0f);
-			ImGui::DragFloat("Splash強度倍率##WaterInteraction", &splashIntensityScale_, 0.05f, 0.0f, 5.0f);
+			ImGui::SeparatorText("水しぶきイベント");
+			ImGui::Checkbox("水しぶきイベントを有効化##WaterInteraction", &splashEnabled_);
+			ImGui::DragFloat("発生する最低速度##WaterInteraction", &minSplashSpeed_, 0.05f, 0.0f, 50.0f);
+			ImGui::DragFloat("水しぶき強度倍率##WaterInteraction", &splashIntensityScale_, 0.05f, 0.0f, 5.0f);
 
-			ImGui::SeparatorText("Diagnostics");
-			ImGui::Text("Water Surface: %s", waterSurface_ ? "Found" : "Missing");
-			ImGui::Text("Candidates: %d", static_cast<int>(trackedColliders_.size()));
-			ImGui::Text("In Water: %d", static_cast<int>(GetInWaterCount()));
-			ImGui::Text("Buoyant Bodies: %d", static_cast<int>(GetBuoyantBodyCount()));
-			ImGui::Text("Average Submerged: %.2f", GetAverageSubmergedFraction());
-			ImGui::Text("Last Splash: %.2f", lastSplashIntensity_);
+			ImGui::SeparatorText("診断");
+			ImGui::Text("水面: %s", waterSurface_ ? "検出済み" : "未検出");
+			ImGui::Text("接触候補数: %d", static_cast<int>(trackedColliders_.size()));
+			ImGui::Text("入水中: %d", static_cast<int>(GetInWaterCount()));
+			ImGui::Text("浮力対象数: %d", static_cast<int>(GetBuoyantBodyCount()));
+			ImGui::Text("平均水没率: %.2f", GetAverageSubmergedFraction());
+			ImGui::Text("直近の水しぶき強度: %.2f", lastSplashIntensity_);
 			if (diagnosticsValid_)
 			{
-				ImGui::SeparatorText("Last Dynamic Body");
-				ImGui::Text("Water Height: %.3f", lastDiagnostics_.waterHeight);
-				ImGui::Text("Mass: %.3f kg", lastDiagnostics_.mass);
-				ImGui::Text("Object Volume: %.4f m^3", lastDiagnostics_.objectVolume);
-				ImGui::Text("Submerged Volume: %.4f m^3", lastDiagnostics_.submergedVolume);
-				ImGui::Text("Submerged Ratio: %.3f", lastDiagnostics_.submergedFraction);
-				ImGui::Text("Probe Count: %u", lastDiagnostics_.probeCount);
-				ImGui::Text("Submerged Probes: %u", lastDiagnostics_.submergedProbeCount);
-				ImGui::Text("Gravity Force: %.3f N", lastDiagnostics_.gravityForce);
-				ImGui::Text("Buoyancy Force: %.3f N", lastDiagnostics_.buoyancyForce);
-				ImGui::Text("Buoyancy Torque: %.3f N*m", lastDiagnostics_.buoyancyTorque);
-				ImGui::Text("Drag Force: %.3f N", lastDiagnostics_.dragForce);
-				ImGui::Text("Angular Speed: %.3f rad/s", lastDiagnostics_.angularSpeed);
-				ImGui::Text("State: %s", ContactStateName(lastDiagnostics_.state));
+				ImGui::SeparatorText("直近の動的ボディ");
+				ImGui::Text("水面高さ: %.3f", lastDiagnostics_.waterHeight);
+				ImGui::Text("質量: %.3f kg", lastDiagnostics_.mass);
+				ImGui::Text("物体体積: %.4f m^3", lastDiagnostics_.objectVolume);
+				ImGui::Text("水没体積: %.4f m^3", lastDiagnostics_.submergedVolume);
+				ImGui::Text("水没率: %.3f", lastDiagnostics_.submergedFraction);
+				ImGui::Text("浮力点数: %u", lastDiagnostics_.probeCount);
+				ImGui::Text("水没中の浮力点数: %u", lastDiagnostics_.submergedProbeCount);
+				ImGui::Text("重力: %.3f N", lastDiagnostics_.gravityForce);
+				ImGui::Text("浮力: %.3f N", lastDiagnostics_.buoyancyForce);
+				ImGui::Text("浮力トルク: %.3f N*m", lastDiagnostics_.buoyancyTorque);
+				ImGui::Text("抵抗力: %.3f N", lastDiagnostics_.dragForce);
+				ImGui::Text("角速度: %.3f rad/s", lastDiagnostics_.angularSpeed);
+				ImGui::Text("接触状態: %s", ContactStateName(lastDiagnostics_.state));
 			}
 			if (trackedColliders_.empty())
 			{
 				ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.35f, 1.0f), "候補0: 対象ActorにColliderComponentが必要です。");
 			}
-			ImGui::TextDisabled("1 Engine Unit = 1 m を前提にCollider体積から排水量を計算します。");
-			ImGui::TextDisabled("Multi-Point時は各Probeへ浮力を分配し、r x FでTorqueを生成します。"); // W4.5は重心1点ではなく偏った排水から回転力を作る。
+			ImGui::TextDisabled("1エンジン単位 = 1 m を前提にCollider体積から排水量を計算します。");
+			ImGui::TextDisabled("複数浮力点では各浮力点へ力を分配し、r x Fでトルクを生成します。");
 #endif
 			SyncVolumeToSurface();
 		}
@@ -819,13 +820,13 @@ namespace Ken4lowEngine
 			switch (state)
 			{
 			case EWaterContactState::AboveSurface:
-				return "Above Surface";
+				return "水面より上";
 			case EWaterContactState::TouchingSurface:
-				return "Touching Surface";
+				return "水面に接触";
 			case EWaterContactState::Submerged:
-				return "Submerged";
+				return "水没";
 			default:
-				return "Unknown";
+				return "不明";
 			}
 		}
 
