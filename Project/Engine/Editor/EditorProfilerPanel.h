@@ -47,7 +47,7 @@ namespace Ken4lowEngine
 				return;
 			}
 
-			if (!ImGui::Begin("Profiler###EditorUnifiedProfiler", &visible_, ImGuiWindowFlags_MenuBar))
+			if (!ImGui::Begin("プロファイラー###EditorUnifiedProfiler", &visible_, ImGuiWindowFlags_MenuBar))
 			{
 				ImGui::End();
 				return;
@@ -55,11 +55,11 @@ namespace Ken4lowEngine
 
 			if (ImGui::BeginMenuBar())
 			{
-				ImGui::TextDisabled("F11: toggle / read-only subsystem diagnostics");
+				ImGui::TextDisabled("F11: 表示切替 / 各サブシステムの読み取り専用診断");
 				ImGui::EndMenuBar();
 			}
 
-			// Phase 11.5はSubsystem自身の診断値を直接読むため、Profiler側に二重Counterを作らない。
+			// 各サブシステムが持つ診断値を直接表示し、プロファイラー側で二重に計測しない。
 			DrawFrame(performanceMonitor);
 			DrawRender();
 			DrawJobsAndSystems(sceneManager);
@@ -82,7 +82,7 @@ namespace Ken4lowEngine
 #ifdef USE_IMGUI
 		static void DrawFrame(const PerformanceMonitor* performanceMonitor)
 		{
-			ImGui::SeparatorText("Frame");
+			ImGui::SeparatorText("フレーム");
 			const GameTimer* timer = GameTimer::GetInstance();
 			const GameTimer::CompletedFrameTiming& timing = timer->GetCompletedFrameTiming();
 			const float instantFps = timing.frameIntervalMs > 0.0f ? 1000.0f / timing.frameIntervalMs : 0.0f;
@@ -90,19 +90,19 @@ namespace Ken4lowEngine
 			if (ImGui::BeginTable("##UnifiedProfilerFrame", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame))
 			{
 				DrawMetric("FPS", "%.1f", instantFps);
-				DrawMetric("Frame Interval", "%.2f ms", timing.frameIntervalMs);
-				DrawMetric("Total", "%.2f ms", timing.totalFrameMs);
-				DrawMetric("Target", "%d FPS", timer->GetTargetFPS());
-				DrawMetric("Update", "%.2f ms", timing.updateMs);
-				DrawMetric("Draw", "%.2f ms", timing.drawMs);
-				DrawMetric("Present", "%.2f ms", timing.presentMs);
+				DrawMetric("フレーム間隔", "%.2f ms", timing.frameIntervalMs);
+				DrawMetric("合計時間", "%.2f ms", timing.totalFrameMs);
+				DrawMetric("目標", "%d FPS", timer->GetTargetFPS());
+				DrawMetric("更新処理", "%.2f ms", timing.updateMs);
+				DrawMetric("描画処理", "%.2f ms", timing.drawMs);
+				DrawMetric("画面反映", "%.2f ms", timing.presentMs);
 				if (performanceMonitor)
 				{
 					const PerformanceStats& stats = performanceMonitor->GetStats();
-					DrawMetric("CPU", "%.1f %%", stats.cpuUsagePercent);
-					DrawMetric("Process CPU", "%.1f %%", stats.processCpuUsagePercent);
-					DrawMetric("Memory", "%.1f MB", stats.memoryUsageMB);
-					DrawMetric("Tracked Assets", "%.1f MB", stats.trackedAssetMemoryMB);
+					DrawMetric("CPU使用率", "%.1f %%", stats.cpuUsagePercent);
+					DrawMetric("プロセスCPU", "%.1f %%", stats.processCpuUsagePercent);
+					DrawMetric("メモリ使用量", "%.1f MB", stats.memoryUsageMB);
+					DrawMetric("管理中アセット", "%.1f MB", stats.trackedAssetMemoryMB);
 				}
 				ImGui::EndTable();
 			}
@@ -110,11 +110,11 @@ namespace Ken4lowEngine
 
 		static void DrawRender()
 		{
-			ImGui::SeparatorText("Render");
+			ImGui::SeparatorText("描画");
 			RenderPipelineController* controller = RenderPipelineController::GetActiveController();
 			if (!controller)
 			{
-				ImGui::TextDisabled("Active RenderPipelineController is not available.");
+				ImGui::TextDisabled("使用中のRenderPipelineControllerを取得できません。");
 				return;
 			}
 
@@ -124,38 +124,38 @@ namespace Ken4lowEngine
 
 			if (ImGui::BeginTable("##UnifiedProfilerRender", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame))
 			{
-				DrawMetric("Passes", "%zu / %zu", graphStats.executedPassCount, graphStats.passCount);
-				DrawMetric("Culled", "%zu", graphStats.culledPassCount);
-				DrawMetric("Resources", "%zu", graphStats.resourceCount);
-				DrawMetric("Dependencies", "%zu", graphStats.dependencyCount);
+				DrawMetric("実行パス / 全パス", "%zu / %zu", graphStats.executedPassCount, graphStats.passCount);
+				DrawMetric("省略パス", "%zu", graphStats.culledPassCount);
+				DrawMetric("リソース数", "%zu", graphStats.resourceCount);
+				DrawMetric("依存関係", "%zu", graphStats.dependencyCount);
 				DrawMetric("RAW / WAR / WAW", "%zu / %zu / %zu", graphStats.rawHazardCount, graphStats.warHazardCount, graphStats.wawHazardCount);
-				DrawMetric("Transition / UAV", "%zu / %zu", graphStats.transitionBarrierCount, graphStats.uavBarrierCount);
-				DrawMetric("Unknown State", "%zu", graphStats.unknownStateAccessCount);
-				DrawMetric("Transient Slots", "%zu", transientStats.physicalSlotCount);
-				DrawMetric("Alias Reuse", "%zu", transientStats.aliasingReuseCount);
-				DrawMetric("Transient Saved", "%.2f MB", BytesToMiB(transientStats.savedBytes));
-				DrawMetric("GPU Frame Last", "%.2f ms", gpuFrame.lastMs);
-				DrawMetric("GPU Frame Avg", "%.2f ms", gpuFrame.averageMs);
+				DrawMetric("遷移 / UAVバリア", "%zu / %zu", graphStats.transitionBarrierCount, graphStats.uavBarrierCount);
+				DrawMetric("不明な状態", "%zu", graphStats.unknownStateAccessCount);
+				DrawMetric("一時スロット", "%zu", transientStats.physicalSlotCount);
+				DrawMetric("エイリアス再利用", "%zu", transientStats.aliasingReuseCount);
+				DrawMetric("一時メモリ削減量", "%.2f MB", BytesToMiB(transientStats.savedBytes));
+				DrawMetric("GPUフレーム時間", "%.2f ms", gpuFrame.lastMs);
+				DrawMetric("GPU平均フレーム時間", "%.2f ms", gpuFrame.averageMs);
 				ImGui::EndTable();
 			}
 
-			if (ImGui::Button("Open RenderGraph Visualizer"))
+			if (ImGui::Button("RenderGraph可視化を開く"))
 			{
 				RenderGraphVisualizer::GetInstance()->SetVisible(true);
 			}
 			ImGui::SameLine();
-			ImGui::TextDisabled("Detailed pass order, lifetime, hazards and barriers stay in the RenderGraph-owned view.");
+			ImGui::TextDisabled("詳細なパス順序・寿命・ハザード・バリアはRenderGraph可視化画面で確認できます。");
 		}
 
 		static void DrawJobsAndSystems(SceneManager* sceneManager)
 		{
-			ImGui::SeparatorText("Jobs / Systems");
+			ImGui::SeparatorText("ジョブ / システム");
 			const JobSystem* jobSystem = JobSystem::GetInstance();
 			if (ImGui::BeginTable("##UnifiedProfilerJobs", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame))
 			{
-				DrawMetric("JobSystem", "%s", jobSystem->IsInitialized() ? "Initialized" : "Stopped");
-				DrawMetric("Workers", "%zu", jobSystem->GetWorkerCount());
-				DrawMetric("Pending Jobs", "%zu", jobSystem->GetPendingJobCount());
+				DrawMetric("ジョブシステム", "%s", jobSystem->IsInitialized() ? "初期化済み" : "停止中");
+				DrawMetric("ワーカースレッド", "%zu", jobSystem->GetWorkerCount());
+				DrawMetric("待機中ジョブ", "%zu", jobSystem->GetPendingJobCount());
 				ImGui::EndTable();
 			}
 
@@ -163,32 +163,32 @@ namespace Ken4lowEngine
 			const SystemScheduler* scheduler = scene ? scene->GetEditorSystemScheduler() : nullptr;
 			if (!scheduler)
 			{
-				ImGui::TextDisabled("Current scene does not expose a SystemScheduler diagnostic view.");
+				ImGui::TextDisabled("現在のシーンではSystemSchedulerの診断情報を取得できません。");
 				return;
 			}
 
 			const SystemScheduleStats& stats = scheduler->GetStats();
 			if (ImGui::BeginTable("##UnifiedProfilerSystems", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame))
 			{
-				DrawMetric("Systems", "%zu", stats.systemCount);
-				DrawMetric("Dependencies", "%zu", stats.dependencyCount);
-				DrawMetric("Main / Worker", "%zu / %zu", stats.mainThreadSystemCount, stats.workerSystemCount);
-				DrawMetric("Explicit", "%zu", stats.explicitDependencyCount);
+				DrawMetric("システム数", "%zu", stats.systemCount);
+				DrawMetric("依存関係", "%zu", stats.dependencyCount);
+				DrawMetric("メイン / ワーカー", "%zu / %zu", stats.mainThreadSystemCount, stats.workerSystemCount);
+				DrawMetric("明示依存", "%zu", stats.explicitDependencyCount);
 				DrawMetric("RAW", "%zu", stats.rawHazardCount);
 				DrawMetric("WAR", "%zu", stats.warHazardCount);
 				DrawMetric("WAW", "%zu", stats.wawHazardCount);
-				DrawMetric("Compiled", "%s", scheduler->IsCompiled() ? "Yes" : "No");
+				DrawMetric("コンパイル済み", "%s", scheduler->IsCompiled() ? "はい" : "いいえ");
 				ImGui::EndTable();
 			}
 
-			if (ImGui::TreeNode("Compiled System Order"))
+			if (ImGui::TreeNode("システム実行順序"))
 			{
 				const std::vector<SystemHandle>& order = scheduler->GetCompiledOrder();
 				for (std::size_t index = 0; index < order.size(); ++index)
 				{
 					const SystemHandle handle = order[index];
 					const std::string_view name = scheduler->GetSystemName(handle);
-					const char* policy = scheduler->GetExecutionPolicy(handle) == SystemExecutionPolicy::Worker ? "Worker" : "MainThread";
+					const char* policy = scheduler->GetExecutionPolicy(handle) == SystemExecutionPolicy::Worker ? "ワーカー" : "メインスレッド";
 					ImGui::Text("%zu. %.*s [%s]", index, static_cast<int>(name.size()), name.data(), policy);
 				}
 				ImGui::TreePop();
@@ -197,18 +197,18 @@ namespace Ken4lowEngine
 
 		static void DrawDescriptorsAndCaches()
 		{
-			ImGui::SeparatorText("Descriptors / Caches");
+			ImGui::SeparatorText("ディスクリプタ / キャッシュ");
 			const SRVManager::DescriptorStats descriptorStats = SRVManager::GetInstance()->GetDescriptorStats();
 			if (ImGui::BeginTable("##UnifiedProfilerDescriptors", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame))
 			{
-				DrawMetric("Persistent", "%u / %u", descriptorStats.persistentInUse, descriptorStats.persistentCapacity);
-				DrawMetric("Persistent High", "%u", descriptorStats.persistentHighWater);
-				DrawMetric("Transient", "%u / %u", descriptorStats.transientInUse, descriptorStats.transientCapacity);
-				DrawMetric("Transient / Frame", "%u", descriptorStats.transientCapacityPerFrame);
-				DrawMetric("Transient High", "%u", descriptorStats.transientHighWater);
-				DrawMetric("Transient Alloc", "%llu", static_cast<unsigned long long>(descriptorStats.transientAllocationCount));
-				DrawMetric("Reclaimed", "%llu", static_cast<unsigned long long>(descriptorStats.transientReclaimedCount));
-				DrawMetric("Exhaustion", "%llu", static_cast<unsigned long long>(descriptorStats.exhaustionCount));
+				DrawMetric("永続使用量", "%u / %u", descriptorStats.persistentInUse, descriptorStats.persistentCapacity);
+				DrawMetric("永続最大使用量", "%u", descriptorStats.persistentHighWater);
+				DrawMetric("一時使用量", "%u / %u", descriptorStats.transientInUse, descriptorStats.transientCapacity);
+				DrawMetric("1フレーム一時容量", "%u", descriptorStats.transientCapacityPerFrame);
+				DrawMetric("一時最大使用量", "%u", descriptorStats.transientHighWater);
+				DrawMetric("一時確保回数", "%llu", static_cast<unsigned long long>(descriptorStats.transientAllocationCount));
+				DrawMetric("再利用回収数", "%llu", static_cast<unsigned long long>(descriptorStats.transientReclaimedCount));
+				DrawMetric("枯渇回数", "%llu", static_cast<unsigned long long>(descriptorStats.exhaustionCount));
 				ImGui::EndTable();
 			}
 
@@ -217,7 +217,7 @@ namespace Ken4lowEngine
 			DXCCompilerManager* compiler = dxCommon ? dxCommon->GetDXCCompilerManager() : nullptr;
 			if (!dxCommon || !compiler)
 			{
-				ImGui::TextDisabled("Shader / PSO cache diagnostics are not available before renderer initialization.");
+				ImGui::TextDisabled("レンダラー初期化前のためShader / PSOキャッシュ診断を利用できません。");
 				return;
 			}
 
@@ -225,25 +225,25 @@ namespace Ken4lowEngine
 			const PipelineFactory::PipelineCacheStats psoStats = dxCommon->GetPipelineFactory().GetCacheStats();
 			if (ImGui::BeginTable("##UnifiedProfilerCaches", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame))
 			{
-				DrawMetric("Shader Requests", "%llu", static_cast<unsigned long long>(shaderStats.requestCount));
-				DrawMetric("Shader Hit / Miss", "%llu / %llu", static_cast<unsigned long long>(shaderStats.hitCount), static_cast<unsigned long long>(shaderStats.missCount));
-				DrawMetric("Shader Compile", "%llu", static_cast<unsigned long long>(shaderStats.compileCount));
-				DrawMetric("Shader Entries", "%u", shaderStats.entryCount);
-				DrawMetric("PSO Requests", "%llu", static_cast<unsigned long long>(psoStats.requestCount));
-				DrawMetric("PSO Hit / Miss", "%llu / %llu", static_cast<unsigned long long>(psoStats.hitCount), static_cast<unsigned long long>(psoStats.missCount));
-				DrawMetric("PSO Create", "%llu", static_cast<unsigned long long>(psoStats.createCount));
-				DrawMetric("PSO Entries", "%u", psoStats.entryCount);
+				DrawMetric("Shader要求", "%llu", static_cast<unsigned long long>(shaderStats.requestCount));
+				DrawMetric("Shaderヒット / ミス", "%llu / %llu", static_cast<unsigned long long>(shaderStats.hitCount), static_cast<unsigned long long>(shaderStats.missCount));
+				DrawMetric("Shaderコンパイル", "%llu", static_cast<unsigned long long>(shaderStats.compileCount));
+				DrawMetric("Shader登録数", "%u", shaderStats.entryCount);
+				DrawMetric("PSO要求", "%llu", static_cast<unsigned long long>(psoStats.requestCount));
+				DrawMetric("PSOヒット / ミス", "%llu / %llu", static_cast<unsigned long long>(psoStats.hitCount), static_cast<unsigned long long>(psoStats.missCount));
+				DrawMetric("PSO生成", "%llu", static_cast<unsigned long long>(psoStats.createCount));
+				DrawMetric("PSO登録数", "%u", psoStats.entryCount);
 				ImGui::EndTable();
 			}
 		}
 
 		static void DrawWorldPartition()
 		{
-			ImGui::SeparatorText("World Streaming");
+			ImGui::SeparatorText("ワールドストリーミング");
 			const WorldPartitionManager* partition = WorldPartitionManager::GetInstance();
 			if (!partition->IsConfigured())
 			{
-				ImGui::TextDisabled("WorldPartitionManager is not configured for the current world.");
+				ImGui::TextDisabled("現在のワールドではWorldPartitionManagerが設定されていません。");
 				return;
 			}
 
@@ -251,12 +251,12 @@ namespace Ken4lowEngine
 			const WorldPartitionCell sourceCell = partition->GetStreamingSourceCell();
 			if (ImGui::BeginTable("##UnifiedProfilerWorld", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame))
 			{
-				DrawMetric("Enabled", "%s", partition->IsEnabled() ? "Yes" : "No");
-				DrawMetric("Source Cell", "%d, %d", sourceCell.x, sourceCell.z);
-				DrawMetric("Loaded SubLevels", "%zu / %zu", partition->GetLoadedSubLevelCount(), partition->GetSubLevels().size());
-				DrawMetric("Cell Size", "%.1f", settings.cellSize);
-				DrawMetric("Load Radius", "%d", settings.loadRadiusCells);
-				DrawMetric("Unload Radius", "%d", settings.unloadRadiusCells);
+				DrawMetric("有効", "%s", partition->IsEnabled() ? "はい" : "いいえ");
+				DrawMetric("基準セル", "%d, %d", sourceCell.x, sourceCell.z);
+				DrawMetric("読込済みサブレベル", "%zu / %zu", partition->GetLoadedSubLevelCount(), partition->GetSubLevels().size());
+				DrawMetric("セルサイズ", "%.1f", settings.cellSize);
+				DrawMetric("読込半径", "%d", settings.loadRadiusCells);
+				DrawMetric("解放半径", "%d", settings.unloadRadiusCells);
 				ImGui::EndTable();
 			}
 		}
