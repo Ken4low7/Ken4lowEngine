@@ -1,7 +1,5 @@
 #pragma once
 #include "BaseScene.h"
-#include "Validation/LevelDataValidation.h"
-#include "Validation/LevelImportValidation.h"
 #include "Validation/PerformancePhaseValidation.h"
 
 #include <ActorWorld.h>
@@ -61,7 +59,7 @@ public:
 	}
 
 	K4E::ActorWorld* GetEditorActorWorld() override { return &actorWorld_; }
-	const K4E::SystemScheduler* GetEditorSystemScheduler() const override { return &worldSystemScheduler_; } // Phase 11.5 Profilerへ実際のWorld scheduleを読み取り専用で公開する。
+	const K4E::SystemScheduler* GetEditorSystemScheduler() const override { return &worldSystemScheduler_; } // Profilerへ実際のWorld scheduleを読み取り専用で公開する。
 
 	void PrepareShadowPass() override
 	{
@@ -189,7 +187,5 @@ private:
 	std::uint64_t editorObjectCacheFingerprint_ = 0;
 	bool editorObjectCacheValid_ = false;
 
-	LevelDataValidation levelDataValidation_;
-	LevelImportValidation levelImportValidation_{ &actorWorld_, &actorPhysicsWorld_ };
 	PerformancePhaseValidation performancePhaseValidation_{ &actorWorld_, &actorPhysicsWorld_ };
 };
