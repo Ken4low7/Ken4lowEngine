@@ -221,10 +221,10 @@ namespace Ken4lowEngine
 		// FluidはSRV/UAV/Camera初期化後に起動し、Framework終了時にDescriptor Managerより先に必ず破棄する。
 		GpuFluidManager::GetInstance()->Initialize();
 
-		// W5 GPU SPHはParticle BufferとCompute Pipelineをまとめて起動する。
+		// GPU SPHはParticle BufferとCompute Pipelineをまとめて起動する。
 		GpuSphManager::GetInstance()->Initialize();
 
-		// W10 Production LiquidはSPH初期化後に起動し、品質制御とSecondary/Ocean Bridgeを統括する。
+		// Production LiquidはSPH初期化後に起動し、品質制御とSecondary/Ocean Bridgeを統括する。
 		GpuProductionLiquidManager::GetInstance()->Initialize();
 
 		// 3D Volumetric Fluidはdefault-OFFのlazy runtimeなので、ここではTexture3DをAllocateしない。
@@ -252,7 +252,7 @@ namespace Ken4lowEngine
 		// Gpuパーティクルマネージャーの更新処理
 		GpuParticleManager::GetInstance()->Update(deltaTime);
 
-		// W10はSPHの直前にDFSPH反復予算を決定し、実行後にSecondary分類と統計を更新する。
+		// SPH実行前に反復予算を決定し、実行後にSecondary分類と統計を更新する。
 		GpuProductionLiquidManager::GetInstance()->PreSphUpdate(deltaTime);
 		GpuSphManager::GetInstance()->Update(deltaTime);
 		GpuProductionLiquidManager::GetInstance()->PostSphUpdate();
@@ -281,7 +281,7 @@ namespace Ken4lowEngine
 		// 3D Texture3D/SRV/UAVをShared Descriptor Heapが生きている間に必ず返却する。
 		GpuVolumetricFluidManager::GetInstance()->Finalize();
 
-		// W10が所有するSecondary GPU resourceをSPH/UAV Managerより先に解放する。
+		// Production Liquidが所有するSecondary GPU resourceをSPH/UAV Managerより先に解放する。
 		GpuProductionLiquidManager::GetInstance()->Finalize();
 
 		// SPH Particle BufferのdescriptorをUAV/SRV Managerより先に返却する。
