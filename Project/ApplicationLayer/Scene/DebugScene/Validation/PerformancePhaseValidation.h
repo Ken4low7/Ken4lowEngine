@@ -85,15 +85,15 @@ public:
 		const float displayFrameIntervalMs = completed.frameIntervalMs > 0.0f ? completed.frameIntervalMs : frameIntervalMs_;
 		const float displayInstantFps = displayFrameIntervalMs > 0.0f ? 1000.0f / displayFrameIntervalMs : instantFps_;
 
-		// 独立したDockウィンドウはPerformance Phase 検証の表示状態に依存させず、毎フレーム登録する。
+		// 独立したDockウィンドウは処理区間パフォーマンス画面の表示状態に依存させず、毎フレーム登録する。
 		if (Ken4lowEngine::RenderPipelineController* renderPipeline = Ken4lowEngine::RenderPipelineController::GetActiveController())
 		{
 			renderPipeline->DrawPerformanceImGui();
-			// Phase 9.7 Visualizerも同じcompile済みControllerを読み、F10で表示切替する。
+			// RenderGraph Visualizerも同じcompile済みControllerを読み、F10で表示切替する。
 			Ken4lowEngine::RenderGraphVisualizer::GetInstance()->Draw(*renderPipeline);
 		}
 
-		if (!ImGui::Begin("Performance Phase 検証"))
+		if (!ImGui::Begin("処理区間パフォーマンス"))
 		{
 			ImGui::End();
 			return;
@@ -127,10 +127,10 @@ public:
 		ImGui::Text("Contact Count: %zu", contactCount_);
 		ImGui::Text("Sub Step Count: %d", subStepCount_);
 
-		ImGui::SeparatorText("CPU Phase");
+		ImGui::SeparatorText("CPU処理区間");
 		if (ImGui::BeginTable("##PerformancePhaseTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame))
 		{
-			ImGui::TableSetupColumn("Phase");
+			ImGui::TableSetupColumn("処理区間");
 			ImGui::TableSetupColumn("Last ms");
 			ImGui::TableSetupColumn("EMA ms");
 			ImGui::TableSetupColumn("Max ms");
