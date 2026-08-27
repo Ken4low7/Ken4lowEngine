@@ -21,10 +21,10 @@ namespace
 	{
 		switch (preset)
 		{
-		case GpuVolumetricFluidStressPreset::Baseline64: return "Baseline 64^3";
-		case GpuVolumetricFluidStressPreset::Heavy128: return "Heavy 128^3";
+		case GpuVolumetricFluidStressPreset::Baseline64: return "標準 64^3";
+		case GpuVolumetricFluidStressPreset::Heavy128: return "高負荷 128^3";
 		case GpuVolumetricFluidStressPreset::Off:
-		default: return "Off / Custom";
+		default: return "無効 / 手動設定";
 		}
 	}
 
@@ -32,18 +32,18 @@ namespace
 	{
 		switch (mode)
 		{
-		case GpuVolumetricFluidRenderMode::DensityDebug: return "Density Debug";
-		case GpuVolumetricFluidRenderMode::TemperatureDebug: return "Temperature Debug";
-		case GpuVolumetricFluidRenderMode::ObstacleDebug: return "Obstacle Debug";
+		case GpuVolumetricFluidRenderMode::DensityDebug: return "密度確認";
+		case GpuVolumetricFluidRenderMode::TemperatureDebug: return "温度確認";
+		case GpuVolumetricFluidRenderMode::ObstacleDebug: return "障害物確認";
 		case GpuVolumetricFluidRenderMode::Smoke:
-		default: return "Smoke";
+		default: return "煙";
 		}
 	}
 
 	void DrawSectionLabel(const char* label)
 	{
 		ImGui::Separator();
-		ImGui::TextUnformatted(label); // 古いImGuiでも使える基本APIだけでSection見出しを構成する。
+		ImGui::TextUnformatted(label); // 基本APIだけでSection見出しを描画し、ImGuiバージョン依存を増やさない。
 	}
 #endif // USE_IMGUI
 }
@@ -53,7 +53,7 @@ void GpuVolumetricFluidDiagnosticsPanel::Draw()
 #ifdef USE_IMGUI
 	if (ImGui::IsKeyPressed(ImGuiKey_F8, false))
 	{
-		visible_ = !visible_; // F12のPhase16 Panelと分離し、2D/3D診断を独立して開けるようF8へ割り当てる。
+		visible_ = !visible_; // 2D流体診断とは別に3Dボリューム流体をF8で開閉する。
 	}
 	if (!visible_)
 	{
@@ -61,13 +61,13 @@ void GpuVolumetricFluidDiagnosticsPanel::Draw()
 	}
 
 	GpuVolumetricFluidManager* manager = GpuVolumetricFluidManager::GetInstance();
-	if (!ImGui::Begin("GPU Volumetric Fluid Diagnostics", &visible_))
+	if (!ImGui::Begin("3Dボリューム流体診断", &visible_))
 	{
 		ImGui::End();
 		return;
 	}
 
-	ImGui::TextDisabled("F8: toggle 3D panel | F12: toggle 2D panel");
+	ImGui::TextDisabled("F8: 3D流体パネルの表示切替 | F12: 2D流体パネルの表示切替");
 	if (!gridEditorValuesInitialized_)
 	{
 		RefreshGridEditorValues();
@@ -78,125 +78,125 @@ void GpuVolumetricFluidDiagnosticsPanel::Draw()
 	GpuVolumetricFluidRenderDesc& render = manager->GetEditableRenderDesc();
 	const GpuVolumetricFluidRuntimeStats& stats = manager->GetRuntimeStats();
 
-	if (ImGui::CollapsingHeader("Runtime", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("実行制御", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		bool enabled = manager->IsRuntimeEnabled();
-		if (ImGui::Checkbox("Enable 3D Runtime", &enabled))
+		if (ImGui::Checkbox("3D流体を有効化", &enabled))
 		{
 			manager->SetRuntimeEnabled(enabled);
 		}
 		ImGui::SameLine();
-		ImGui::TextDisabled("default OFF to preserve Phase16 scenes");
+		ImGui::TextDisabled("既存Sceneへ影響しないよう初期状態は無効です。");
 
 		bool paused = manager->IsPaused();
-		if (ImGui::Checkbox("Paused", &paused))
+		if (ImGui::Checkbox("一時停止", &paused))
 		{
 			manager->SetPaused(paused);
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Step"))
+		if (ImGui::Button("1ステップ実行"))
 		{
 			manager->RequestSingleStep();
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Reset"))
+		if (ImGui::Button("リセット"))
 		{
 			manager->RequestReset();
 		}
 
 		bool renderEnabled = manager->IsRenderEnabled();
-		if (ImGui::Checkbox("Forward Raymarch", &renderEnabled))
+		if (ImGui::Checkbox("Raymarch描画を有効化", &renderEnabled))
 		{
 			manager->SetRenderEnabled(renderEnabled);
 		}
 
-		ImGui::Text("Resources: %s", manager->IsInitialized() ? "Initialized" : "Not allocated");
-		ImGui::Text("Simulation: %s", stats.simulationActive ? "Active" : "Idle");
-		ImGui::Text("Last Step: %s", stats.lastStepSucceeded ? "OK" : "FAILED");
-		ImGui::Text("Substeps this frame: %u", stats.lastFrameSubsteps);
-		ImGui::Text("Accumulator: %.4f sec", stats.accumulatorSeconds);
-		ImGui::Text("Simulation time: %.2f sec", stats.elapsedSimulationSeconds);
+		ImGui::Text("GPUリソース: %s", manager->IsInitialized() ? "確保済み" : "未確保");
+		ImGui::Text("シミュレーション: %s", stats.simulationActive ? "実行中" : "待機中");
+		ImGui::Text("直前のステップ: %s", stats.lastStepSucceeded ? "成功" : "失敗");
+		ImGui::Text("このフレームのSubstep: %u", stats.lastFrameSubsteps);
+		ImGui::Text("時間蓄積: %.4f 秒", stats.accumulatorSeconds);
+		ImGui::Text("シミュレーション時間: %.2f 秒", stats.elapsedSimulationSeconds);
 	}
 
-	if (ImGui::CollapsingHeader("Visualization / Lighting", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("描画 / ライティング", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		int mode = static_cast<int>(render.mode);
-		const char* modes[] = { "Smoke", "Density Debug", "Temperature Debug", "Obstacle Debug" };
-		if (ImGui::Combo("Render Mode", &mode, modes, IM_ARRAYSIZE(modes)))
+		const char* modes[] = { "煙", "密度確認", "温度確認", "障害物確認" };
+		if (ImGui::Combo("表示モード", &mode, modes, IM_ARRAYSIZE(modes)))
 		{
 			render.mode = static_cast<GpuVolumetricFluidRenderMode>(std::clamp(mode, 0, 3));
 		}
-		ImGui::TextDisabled("Current: %s", GetRenderModeName(render.mode));
-		ImGui::SliderFloat("Opacity", &render.opacity, 0.0f, 1.0f);
-		ImGui::DragFloat("Density Scale", &render.densityScale, 0.05f, 0.0f, 100.0f);
-		ImGui::DragFloat("Temperature Scale", &render.temperatureScale, 0.05f, 0.001f, 100.0f);
-		ImGui::DragFloat("Absorption", &render.absorption, 0.05f, 0.0f, 50.0f);
-		ImGui::DragFloat("Thermal Emission", &render.emissionStrength, 0.01f, 0.0f, 20.0f);
-		ImGui::DragFloat("Ray Step Scale", &render.stepScale, 0.02f, 0.1f, 8.0f);
-		ImGui::SliderFloat("Early Exit T", &render.earlyExitTransmittance, 0.0f, 0.25f, "%.4f");
+		ImGui::TextDisabled("現在: %s", GetRenderModeName(render.mode));
+		ImGui::SliderFloat("不透明度", &render.opacity, 0.0f, 1.0f);
+		ImGui::DragFloat("密度倍率", &render.densityScale, 0.05f, 0.0f, 100.0f);
+		ImGui::DragFloat("温度倍率", &render.temperatureScale, 0.05f, 0.001f, 100.0f);
+		ImGui::DragFloat("光の吸収", &render.absorption, 0.05f, 0.0f, 50.0f);
+		ImGui::DragFloat("熱発光", &render.emissionStrength, 0.01f, 0.0f, 20.0f);
+		ImGui::DragFloat("Rayステップ倍率", &render.stepScale, 0.02f, 0.1f, 8.0f);
+		ImGui::SliderFloat("早期終了透過率", &render.earlyExitTransmittance, 0.0f, 0.25f, "%.4f");
 		int maxSteps = static_cast<int>(render.maxSteps);
-		if (ImGui::SliderInt("Max Ray Steps", &maxSteps, 16, 1024))
+		if (ImGui::SliderInt("最大Rayステップ数", &maxSteps, 16, 1024))
 		{
 			render.maxSteps = static_cast<uint32_t>(std::clamp(maxSteps, 16, 1024));
 		}
 
-		DrawSectionLabel("Directional Scattering");
-		ImGui::DragFloat("Scattering Strength", &render.scatteringStrength, 0.02f, 0.0f, 10.0f);
-		ImGui::DragFloat("Ambient Scattering", &render.ambientScattering, 0.01f, 0.0f, 5.0f);
-		ImGui::SliderFloat("Anisotropy", &render.anisotropy, -0.94f, 0.94f);
-		ImGui::SliderFloat("Self Shadow Strength", &render.selfShadowStrength, 0.0f, 1.0f);
-		ImGui::DragFloat("Shadow Sample Distance (cells)", &render.shadowSampleDistanceCells, 0.1f, 0.1f, 32.0f);
-		ImGui::ColorEdit4("Smoke Color", &render.smokeColor.x);
-		ImGui::ColorEdit4("Cold Color", &render.coldColor.x);
-		ImGui::ColorEdit4("Hot Color", &render.hotColor.x);
-		ImGui::ColorEdit4("Obstacle Color", &render.obstacleColor.x);
+		DrawSectionLabel("指向性散乱");
+		ImGui::DragFloat("散乱の強さ", &render.scatteringStrength, 0.02f, 0.0f, 10.0f);
+		ImGui::DragFloat("環境散乱", &render.ambientScattering, 0.01f, 0.0f, 5.0f);
+		ImGui::SliderFloat("異方性", &render.anisotropy, -0.94f, 0.94f);
+		ImGui::SliderFloat("自己影の強さ", &render.selfShadowStrength, 0.0f, 1.0f);
+		ImGui::DragFloat("影サンプル距離（Cell）", &render.shadowSampleDistanceCells, 0.1f, 0.1f, 32.0f);
+		ImGui::ColorEdit4("煙の色", &render.smokeColor.x);
+		ImGui::ColorEdit4("低温色", &render.coldColor.x);
+		ImGui::ColorEdit4("高温色", &render.hotColor.x);
+		ImGui::ColorEdit4("障害物色", &render.obstacleColor.x);
 	}
 
-	if (ImGui::CollapsingHeader("Domain / Solver", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("領域 / Solver", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		bool domainChanged = false;
-		domainChanged |= ImGui::DragFloat3("Domain Origin", &domain.origin.x, 0.05f);
-		domainChanged |= ImGui::DragFloat3("Domain Axis U", &domain.axisU.x, 0.01f, -1.0f, 1.0f);
-		domainChanged |= ImGui::DragFloat3("Domain Axis V", &domain.axisV.x, 0.01f, -1.0f, 1.0f);
-		domainChanged |= ImGui::DragFloat3("Domain Axis W", &domain.axisW.x, 0.01f, -1.0f, 1.0f);
+		domainChanged |= ImGui::DragFloat3("領域原点", &domain.origin.x, 0.05f);
+		domainChanged |= ImGui::DragFloat3("領域軸 U", &domain.axisU.x, 0.01f, -1.0f, 1.0f);
+		domainChanged |= ImGui::DragFloat3("領域軸 V", &domain.axisV.x, 0.01f, -1.0f, 1.0f);
+		domainChanged |= ImGui::DragFloat3("領域軸 W", &domain.axisW.x, 0.01f, -1.0f, 1.0f);
 		if (!domain.IsValid())
 		{
-			ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.25f, 1.0f), "U/V/W axes must be non-zero and pairwise orthogonal.");
+			ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.25f, 1.0f), "U/V/W軸はゼロベクトルにせず、互いに直交させてください。");
 		}
 		else if (domainChanged)
 		{
-			manager->RequestReset(); // World/Grid対応が変わったら旧座標系のfieldを新Domainとして解釈せずゼロから再開する。
+			manager->RequestReset(); // 座標系変更後に旧Gridの値を新しい領域へ誤解釈しないよう再初期化する。
 		}
 
-		DrawSectionLabel("Fixed Step");
-		ImGui::DragFloat("Fixed Delta Time", &simulation.fixedDeltaTime, 0.0005f, 1.0f / 240.0f, 1.0f / 15.0f, "%.5f");
+		DrawSectionLabel("固定ステップ");
+		ImGui::DragFloat("固定デルタタイム", &simulation.fixedDeltaTime, 0.0005f, 1.0f / 240.0f, 1.0f / 15.0f, "%.5f");
 		int maxSubsteps = static_cast<int>(simulation.maxSubsteps);
-		if (ImGui::SliderInt("Max Substeps", &maxSubsteps, 1, 8))
+		if (ImGui::SliderInt("最大Substep数", &maxSubsteps, 1, 8))
 		{
 			simulation.maxSubsteps = static_cast<uint32_t>((std::max)(1, maxSubsteps));
 		}
-		ImGui::SliderFloat("Velocity Dissipation", &simulation.velocityDissipation, 0.0f, 1.0f);
-		ImGui::SliderFloat("Density Dissipation", &simulation.densityDissipation, 0.0f, 1.0f);
-		ImGui::SliderFloat("Temperature Dissipation", &simulation.temperatureDissipation, 0.0f, 1.0f);
-		ImGui::DragFloat("Vorticity Strength", &simulation.vorticityStrength, 0.01f, 0.0f, 20.0f);
-		ImGui::DragFloat("Buoyancy", &simulation.buoyancy, 0.01f, -20.0f, 20.0f);
-		ImGui::DragFloat("Smoke Weight", &simulation.smokeWeight, 0.01f, 0.0f, 20.0f);
-		ImGui::DragFloat("Ambient Temperature", &simulation.ambientTemperature, 0.01f, -20.0f, 20.0f);
+		ImGui::SliderFloat("速度減衰", &simulation.velocityDissipation, 0.0f, 1.0f);
+		ImGui::SliderFloat("密度減衰", &simulation.densityDissipation, 0.0f, 1.0f);
+		ImGui::SliderFloat("温度減衰", &simulation.temperatureDissipation, 0.0f, 1.0f);
+		ImGui::DragFloat("渦度の強さ", &simulation.vorticityStrength, 0.01f, 0.0f, 20.0f);
+		ImGui::DragFloat("浮力", &simulation.buoyancy, 0.01f, -20.0f, 20.0f);
+		ImGui::DragFloat("煙の重さ", &simulation.smokeWeight, 0.01f, 0.0f, 20.0f);
+		ImGui::DragFloat("周囲温度", &simulation.ambientTemperature, 0.01f, -20.0f, 20.0f);
 
-		DrawSectionLabel("Grid Reconfigure");
+		DrawSectionLabel("Grid再構築");
 		int width = static_cast<int>(pendingGridWidth_);
 		int height = static_cast<int>(pendingGridHeight_);
 		int depth = static_cast<int>(pendingGridDepth_);
 		int pressureIterations = static_cast<int>(pendingPressureIterations_);
-		if (ImGui::InputInt("Grid Width", &width)) pendingGridWidth_ = static_cast<uint32_t>(std::clamp(width, 8, 256));
-		if (ImGui::InputInt("Grid Height", &height)) pendingGridHeight_ = static_cast<uint32_t>(std::clamp(height, 8, 256));
-		if (ImGui::InputInt("Grid Depth", &depth)) pendingGridDepth_ = static_cast<uint32_t>(std::clamp(depth, 8, 256));
-		ImGui::DragFloat("Cell Size", &pendingCellSize_, 0.005f, 0.001f, 10.0f);
-		if (ImGui::SliderInt("Pressure Iterations", &pressureIterations, 1, 192))
+		if (ImGui::InputInt("Grid幅", &width)) pendingGridWidth_ = static_cast<uint32_t>(std::clamp(width, 8, 256));
+		if (ImGui::InputInt("Grid高さ", &height)) pendingGridHeight_ = static_cast<uint32_t>(std::clamp(height, 8, 256));
+		if (ImGui::InputInt("Grid奥行き", &depth)) pendingGridDepth_ = static_cast<uint32_t>(std::clamp(depth, 8, 256));
+		ImGui::DragFloat("Cellサイズ", &pendingCellSize_, 0.005f, 0.001f, 10.0f);
+		if (ImGui::SliderInt("圧力反復回数", &pressureIterations, 1, 192))
 		{
 			pendingPressureIterations_ = static_cast<uint32_t>((std::max)(1, pressureIterations));
 		}
-		if (ImGui::Button("Apply Grid / Pressure"))
+		if (ImGui::Button("Grid / 圧力設定を適用"))
 		{
 			manager->RequestGridReconfigure(
 				pendingGridWidth_,
@@ -206,7 +206,7 @@ void GpuVolumetricFluidDiagnosticsPanel::Draw()
 				pendingPressureIterations_);
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Reload Current"))
+		if (ImGui::Button("現在値を再読込"))
 		{
 			RefreshGridEditorValues();
 		}
@@ -214,7 +214,7 @@ void GpuVolumetricFluidDiagnosticsPanel::Draw()
 		const float widthWorld = static_cast<float>(simulation.grid.width) * simulation.grid.cellSize;
 		const float heightWorld = static_cast<float>(simulation.grid.height) * simulation.grid.cellSize;
 		const float depthWorld = static_cast<float>(simulation.grid.depth) * simulation.grid.cellSize;
-		ImGui::Text("Configured Grid: %ux%ux%u | Cell %.4f | World %.2f x %.2f x %.2f",
+		ImGui::Text("現在のGrid: %ux%ux%u | Cell %.4f | World %.2f x %.2f x %.2f",
 			simulation.grid.width,
 			simulation.grid.height,
 			simulation.grid.depth,
@@ -224,82 +224,82 @@ void GpuVolumetricFluidDiagnosticsPanel::Draw()
 			depthWorld);
 	}
 
-	if (ImGui::CollapsingHeader("Diagnostics", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("診断", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		const uint64_t configuredBytes = simulation.grid.GetVoxelCount() * 39ull;
 		const double activeMemoryMiB = static_cast<double>(stats.approximateGpuMemoryBytes) / (1024.0 * 1024.0);
 		const double configuredMemoryMiB = static_cast<double>(configuredBytes) / (1024.0 * 1024.0);
-		ImGui::Text("Texture3D logical storage: %.2f MiB active | %.2f MiB configured", activeMemoryMiB, configuredMemoryMiB);
-		ImGui::Text("Scene Emitters: %u | Scene Obstacles: %u", stats.sceneEmitterCount, stats.sceneObstacleCount);
-		ImGui::Text("Synthetic Emitters: %u | Synthetic Obstacles: %u", stats.syntheticEmitterCount, stats.syntheticObstacleCount);
-		ImGui::Text("Emitter Upload: %u accepted | %u culled", stats.lastInjectedEmitterCount, stats.lastCulledEmitterCount);
-		ImGui::Text("Obstacle Raster: %u accepted | %u culled", stats.lastRasterObstacleCount, stats.lastCulledObstacleCount);
-		ImGui::Text("Pressure Iterations / projection: %u", stats.lastPressureIterationCount);
-		ImGui::Text("Total Simulation Steps: %llu", static_cast<unsigned long long>(stats.totalSimulationSteps));
-		ImGui::Text("Reset / Reconfigure / Failed: %llu / %llu / %llu",
+		ImGui::Text("Texture3D論理使用量: %.2f MiB 使用中 | %.2f MiB 設定値", activeMemoryMiB, configuredMemoryMiB);
+		ImGui::Text("Scene Emitter: %u | Scene Obstacle: %u", stats.sceneEmitterCount, stats.sceneObstacleCount);
+		ImGui::Text("負荷確認Emitter: %u | 負荷確認Obstacle: %u", stats.syntheticEmitterCount, stats.syntheticObstacleCount);
+		ImGui::Text("Emitter Upload: %u 採用 | %u 除外", stats.lastInjectedEmitterCount, stats.lastCulledEmitterCount);
+		ImGui::Text("Obstacle Raster: %u 採用 | %u 除外", stats.lastRasterObstacleCount, stats.lastCulledObstacleCount);
+		ImGui::Text("1回のProjectionに使う圧力反復: %u", stats.lastPressureIterationCount);
+		ImGui::Text("累計シミュレーションステップ: %llu", static_cast<unsigned long long>(stats.totalSimulationSteps));
+		ImGui::Text("リセット / 再構築 / 失敗: %llu / %llu / %llu",
 			static_cast<unsigned long long>(stats.resetCount),
 			static_cast<unsigned long long>(stats.reconfigureCount),
 			static_cast<unsigned long long>(stats.failedReconfigureCount));
-		ImGui::Text("Duplicate Frame Update Skips: %llu", static_cast<unsigned long long>(stats.duplicateFrameUpdateSkipCount));
+		ImGui::Text("重複フレーム更新スキップ: %llu", static_cast<unsigned long long>(stats.duplicateFrameUpdateSkipCount));
 
-		DrawSectionLabel("Lifetime GPU work counters");
-		ImGui::Text("Obstacle Raster Dispatches : %llu", static_cast<unsigned long long>(stats.obstacleDispatchCount));
-		ImGui::Text("Emitter Injection Dispatches: %llu", static_cast<unsigned long long>(stats.emitterDispatchCount));
-		ImGui::Text("Velocity Dispatches        : %llu", static_cast<unsigned long long>(stats.velocityDispatchCount));
-		ImGui::Text("Pressure Dispatches        : %llu", static_cast<unsigned long long>(stats.pressureDispatchCount));
-		ImGui::Text("Scalar Dispatches          : %llu", static_cast<unsigned long long>(stats.scalarDispatchCount));
-		ImGui::Text("Force Dispatches           : %llu", static_cast<unsigned long long>(stats.forceDispatchCount));
-		ImGui::Text("Raymarch Draws / Packets   : %llu / %llu",
+		DrawSectionLabel("累計GPU処理回数");
+		ImGui::Text("障害物Raster Dispatch : %llu", static_cast<unsigned long long>(stats.obstacleDispatchCount));
+		ImGui::Text("Emitter Injection      : %llu", static_cast<unsigned long long>(stats.emitterDispatchCount));
+		ImGui::Text("速度Dispatch           : %llu", static_cast<unsigned long long>(stats.velocityDispatchCount));
+		ImGui::Text("圧力Dispatch           : %llu", static_cast<unsigned long long>(stats.pressureDispatchCount));
+		ImGui::Text("Scalar Dispatch         : %llu", static_cast<unsigned long long>(stats.scalarDispatchCount));
+		ImGui::Text("Force Dispatch          : %llu", static_cast<unsigned long long>(stats.forceDispatchCount));
+		ImGui::Text("Raymarch Draw / Packet  : %llu / %llu",
 			static_cast<unsigned long long>(stats.forwardDrawCount),
 			static_cast<unsigned long long>(stats.forwardPacketCount));
 
 		const RenderDepthContextStats& depthStats = RenderDepthContext::GetInstance()->GetStats();
-		DrawSectionLabel("Depth-aware Composition");
-		ImGui::Text("Attachments: %u | Prepared: %s", depthStats.attachmentCount, depthStats.shaderReadPrepared ? "yes" : "no");
-		ImGui::Text("Prepare / Restore / Failed: %llu / %llu / %llu",
+		DrawSectionLabel("深度を使った合成");
+		ImGui::Text("Attachment: %u | Shader読取準備: %s", depthStats.attachmentCount, depthStats.shaderReadPrepared ? "はい" : "いいえ");
+		ImGui::Text("準備 / 復元 / 失敗: %llu / %llu / %llu",
 			static_cast<unsigned long long>(depthStats.prepareCount),
 			static_cast<unsigned long long>(depthStats.restoreCount),
 			static_cast<unsigned long long>(depthStats.failedPrepareCount));
-		ImGui::Text("Depth Override Pushes: %llu", static_cast<unsigned long long>(depthStats.overridePushCount));
-		ImGui::TextDisabled("RenderViewOverride without a registered depth attachment safely skips volume draw.");
+		ImGui::Text("Depth Override Push: %llu", static_cast<unsigned long long>(depthStats.overridePushCount));
+		ImGui::TextDisabled("登録済みDepthがないRenderViewOverrideではVolume描画を安全にスキップします。");
 
 		const SRVManager::DescriptorStats descriptorStats = SRVManager::GetInstance()->GetDescriptorStats();
-		DrawSectionLabel("Shared SRV Descriptor Heap");
-		ImGui::Text("Persistent: %u / %u | high water %u",
+		DrawSectionLabel("共有SRV Descriptor Heap");
+		ImGui::Text("Persistent: %u / %u | 最大 %u",
 			descriptorStats.persistentInUse,
 			descriptorStats.persistentCapacity,
 			descriptorStats.persistentHighWater);
-		ImGui::Text("Transient: %u / %u | high water %u",
+		ImGui::Text("Transient: %u / %u | 最大 %u",
 			descriptorStats.transientInUse,
 			descriptorStats.transientCapacity,
 			descriptorStats.transientHighWater);
-		ImGui::Text("Descriptor Exhaustions: %llu", static_cast<unsigned long long>(descriptorStats.exhaustionCount));
+		ImGui::Text("Descriptor枯渇回数: %llu", static_cast<unsigned long long>(descriptorStats.exhaustionCount));
 
 		const FrameUploadArena::Stats uploadStats = DirectXCommon::GetInstance()->GetFrameUploadArena().GetStats();
-		DrawSectionLabel("Shared Frame Upload Arena");
-		ImGui::Text("Used / Capacity: %.1f / %.1f KiB",
+		DrawSectionLabel("共有Frame Upload Arena");
+		ImGui::Text("使用量 / 容量: %.1f / %.1f KiB",
 			static_cast<double>(uploadStats.usedBytes) / 1024.0,
 			static_cast<double>(uploadStats.capacityBytes) / 1024.0);
-		ImGui::Text("High Water: %.1f KiB | Overflow %.1f KiB",
+		ImGui::Text("最大使用量: %.1f KiB | Overflow %.1f KiB",
 			static_cast<double>(uploadStats.highWaterBytes) / 1024.0,
 			static_cast<double>(uploadStats.overflowBytes) / 1024.0);
 	}
 
-	if (ImGui::CollapsingHeader("Stress Test", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("負荷確認", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		ImGui::Text("Preset: %s", GetStressPresetName(manager->GetStressPreset()));
-		if (ImGui::Button("Off / Custom"))
+		ImGui::Text("プリセット: %s", GetStressPresetName(manager->GetStressPreset()));
+		if (ImGui::Button("無効 / 手動設定"))
 		{
 			manager->ApplyStressPreset(GpuVolumetricFluidStressPreset::Off);
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Baseline 64^3"))
+		if (ImGui::Button("標準 64^3"))
 		{
 			manager->ApplyStressPreset(GpuVolumetricFluidStressPreset::Baseline64);
 			gridEditorValuesInitialized_ = false;
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Heavy 128^3"))
+		if (ImGui::Button("高負荷 128^3"))
 		{
 			manager->ApplyStressPreset(GpuVolumetricFluidStressPreset::Heavy128);
 			gridEditorValuesInitialized_ = false;
@@ -308,8 +308,8 @@ void GpuVolumetricFluidDiagnosticsPanel::Draw()
 		int syntheticEmitters = static_cast<int>(manager->GetSyntheticEmitterCount());
 		int syntheticObstacles = static_cast<int>(manager->GetSyntheticObstacleCount());
 		bool changed = false;
-		changed |= ImGui::SliderInt("Synthetic Emitters", &syntheticEmitters, 0, 256);
-		changed |= ImGui::SliderInt("Synthetic Obstacles", &syntheticObstacles, 0, 256);
+		changed |= ImGui::SliderInt("負荷確認Emitter数", &syntheticEmitters, 0, 256);
+		changed |= ImGui::SliderInt("負荷確認Obstacle数", &syntheticObstacles, 0, 256);
 		if (changed)
 		{
 			manager->SetSyntheticStressCounts(
@@ -317,8 +317,8 @@ void GpuVolumetricFluidDiagnosticsPanel::Draw()
 				static_cast<uint32_t>((std::max)(0, syntheticObstacles)));
 		}
 
-		ImGui::TextDisabled("64^3 = ~9.75 MiB logical fields. 128^3 = ~78 MiB before driver allocation overhead.");
-		ImGui::TextDisabled("Grid changes are deferred to Update and fence-safe before Texture3D recreation.");
+		ImGui::TextDisabled("64^3は論理フィールド約9.75 MiB、128^3はDriver側の追加領域を除いて約78 MiBです。");
+		ImGui::TextDisabled("Grid変更はUpdateへ遅延し、Texture3D再生成前にGPU使用完了を保証します。");
 	}
 
 	ImGui::End();
