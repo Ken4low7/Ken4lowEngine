@@ -6,6 +6,8 @@ GetInstance公開型は94件。返却型が自身のポインタ/参照である
 
 各系統の起動/終了と所有は [構造調査](EngineArchitectureAudit.md) を参照。通常所有のManagerとstaticユーティリティは後半で分ける。
 
+2026-08-27追補: master `752d48f`を基準に、以下の105型をすべて[所有・寿命の棚卸し](EngineServiceLifetimeAudit.md)で確認した。所有者、I/F担当、Lazy Initialize、再初期化、借用、Thread、Scene跨ぎ、Singleton必要性と分類を型ごとに記載。宣言数94 / 11は維持し、候補分類を削除・移行の確定とは扱わない。実装と検証の結果は[進捗](ProductionEngineProgress.md)を参照。
+
 ## GetInstance公開型
 
 | Module | 型 | 宣言 |
