@@ -36,7 +36,7 @@ struct GpuSphSimulationSettings
     uint32_t spawnDimY = 16;
     uint32_t spawnDimZ = 16;
 
-    // W9.5: WCSPHをFallbackとして残しながらDFSPH projectionを有効化する。
+    // WCSPHをFallbackとして残しながらDFSPH projectionを標準Solverとして利用する。
     bool dfsphEnabled = true;
     uint32_t dfsphDensityIterations = 5;
     uint32_t dfsphDivergenceIterations = 3;
@@ -54,7 +54,7 @@ struct GpuSphSimulationSettings
     bool dfsphWarmStartEnabled = true;
     float dfsphWarmStartStrength = 0.35f;
 
-    // W10: Ocean側の局所波面をPrimary SPHへ流速・表面拘束として与える。
+    // Ocean側の局所波面をPrimary SPHへ流速・表面拘束として与える。
     bool oceanCouplingEnabled = false;
     float oceanVelocityCoupling = 3.0f;
     float oceanSurfaceAttraction = 6.0f;
@@ -110,7 +110,7 @@ struct GpuSphRuntimeStats
     bool dfsphActive = false;
 };
 
-/// W5-W10のGPU SPH / Spatial Hash / DFSPH / Ocean Couplingを所有するRuntime。
+/// GPU SPH、Spatial Hash、DFSPH、Ocean Couplingを所有するRuntime。
 class GpuSphManager
 {
 public:
