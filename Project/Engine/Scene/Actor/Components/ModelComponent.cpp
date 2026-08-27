@@ -179,7 +179,8 @@ namespace Ken4lowEngine
 	{
 		SceneComponent::DrawImGui();
 #ifdef USE_IMGUI
-		ImGui::SeparatorText("Model Component");
+		// モデルの選択状態と描画オブジェクト生成状態を日本語で確認できるようにする。
+		ImGui::SeparatorText("モデルコンポーネント");
 		ImGui::Text("現在のモデル: %s", modelPath_.empty() ? "未選択" : modelPath_.c_str());
 		std::string selectedModelPath = modelPath_;
 		if (AssetPathSelector::DrawAssetSelector("一覧から選択##ModelComponentModelPath", selectedModelPath, AssetType::Model))
@@ -188,7 +189,7 @@ namespace Ken4lowEngine
 		}
 		ComponentPropertyUtility::DrawImGui(CreateProperties(false));
 		DrawMaterialBindingImGui();
-		ImGui::Text("Object3D: %s", object3D_ ? "Created" : "Not Created");
+		ImGui::Text("3D描画オブジェクト: %s", object3D_ ? "生成済み" : "未生成");
 #endif // USE_IMGUI
 	}
 
