@@ -68,7 +68,7 @@ public:
 private:
 	VfxDiagnosticsWindow()
 	{
-		std::snprintf(graphName_.data(), graphName_.size(), "%s", "Phase27ScalableIntegratedExplosion");
+		std::snprintf(graphName_.data(), graphName_.size(), "%s", "ScalableIntegratedExplosion");
 	}
 
 #ifdef USE_IMGUI
@@ -149,8 +149,8 @@ private:
 		ImGui::InputText("Graph名", graphName_.data(), graphName_.size());
 		if (ImGui::Button("負荷確認サンプルを読み込む"))
 		{
-			const bool loaded = VfxGraphRuntime::GetInstance()->LoadGraph("Resources/VfxGraph/Phase27/ScalableIntegratedExplosion.vfxgraph.json");
-			lastStressMessage_ = loaded ? "負荷確認用Graphを読み込みました。" : VfxGraphRuntime::GetInstance()->GetLastStatus();
+			const bool loaded = VfxGraphRuntime::GetInstance()->LoadGraph("Resources/VfxGraph/Samples/ScalableIntegratedExplosion.vfxgraph.json");
+			lastStressMessage_ = loaded ? "負荷確認用Graphを読み込みました。" : VfxGraphRuntime::GetInstance()->GetLastStatus(); // サンプルの配置場所は開発工程番号ではなく用途で固定する。
 		}
 
 		ImGui::InputInt("単発数", &oneShotCount_);
