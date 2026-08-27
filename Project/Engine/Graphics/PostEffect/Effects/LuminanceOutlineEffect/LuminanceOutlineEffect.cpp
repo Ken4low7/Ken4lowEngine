@@ -72,10 +72,11 @@ namespace Ken4lowEngine
 	{
 #ifdef USE_IMGUI
 		if (!luminanceOutlineSetting_) return;
-		ImGui::Text("Luminance Outline Effect Settings");
-		ImGui::ColorEdit4("Outline Color##LuminanceOutlineEffect", &luminanceOutlineSetting_->color.x);
-		ImGui::SliderFloat("Edge Strength##LuminanceOutlineEffect", &luminanceOutlineSetting_->edgeStrength, 0.0f, 5.0f);
-		ImGui::SliderFloat("Threshold##LuminanceOutlineEffect", &luminanceOutlineSetting_->threshold, 0.0f, 1.0f);
+		// 輝度差から生成する輪郭の設定を日本語で分かりやすく表示する。
+		ImGui::Text("輝度輪郭エフェクト設定");
+		ImGui::ColorEdit4("輪郭色##LuminanceOutlineEffect", &luminanceOutlineSetting_->color.x);
+		ImGui::SliderFloat("輪郭の強さ##LuminanceOutlineEffect", &luminanceOutlineSetting_->edgeStrength, 0.0f, 5.0f);
+		ImGui::SliderFloat("輝度差しきい値##LuminanceOutlineEffect", &luminanceOutlineSetting_->threshold, 0.0f, 1.0f);
 #endif // USE_IMGUI
 	}
 
