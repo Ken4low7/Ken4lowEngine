@@ -193,12 +193,13 @@ namespace Ken4lowEngine
 
 	const char* ToString(EditorLogLevel level)
 	{
+		// 診断画面に表示されるログレベル名は日本語へ統一する。
 		switch (level)
 		{
-		case EditorLogLevel::Info: return "Info";
-		case EditorLogLevel::Warning: return "Warning";
-		case EditorLogLevel::Error: return "Error";
-		default: return "Info";
+		case EditorLogLevel::Info: return "情報";
+		case EditorLogLevel::Warning: return "警告";
+		case EditorLogLevel::Error: return "エラー";
+		default: return "情報";
 		}
 	}
 
