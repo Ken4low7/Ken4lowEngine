@@ -21,7 +21,7 @@
       "localOffset": [0.0, 0.0, 0.0],
       "particle": {
         "effectAssetPath": "Resources/Effects/Explosion.effect.json",
-        "effectName": "Phase13Explosion",
+        "effectName": "Explosion",
         "loop": false
       },
       "bindings": []
