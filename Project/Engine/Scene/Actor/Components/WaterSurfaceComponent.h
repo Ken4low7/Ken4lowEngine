@@ -53,7 +53,7 @@ namespace Ken4lowEngine
 			if (productionLiquid->IsInitialized())
 			{
 				productionLiquid->SetOceanProvider(this);
-				productionLiquid->GetEditableOceanSettings().enabled = true; // Scene上のWaterSurfaceをW10 Ocean Bridgeの実データ源として自動接続する。
+				productionLiquid->GetEditableOceanSettings().enabled = true; // Scene上のWaterSurfaceをOcean Bridgeの実データ源として自動接続する。
 			}
 		}
 
@@ -150,7 +150,7 @@ namespace Ken4lowEngine
 			sample.normal = surface.worldNormal;
 			sample.velocity = surface.worldVelocity;
 			sample.valid = true;
-			return sample; // W10はWater描画と同じGerstner波面・法線・速度を参照し、Ocean/SPH境界の位相差を防ぐ。
+			return sample; // Water描画と同じGerstner波面・法線・速度を参照し、Ocean/SPH境界の位相差を防ぐ。
 		}
 
 		float GetSurfaceHeightAtWorldPosition(const Vector3& worldPosition) const
@@ -217,26 +217,26 @@ namespace Ken4lowEngine
 		{
 			ModelComponent::DrawImGui();
 #ifdef USE_IMGUI
-			ImGui::SeparatorText("Water Surface");
+			ImGui::SeparatorText("水面");
 			ImGui::ColorEdit4("水面色##WaterSurface", &waterColor_.x);
 			ImGui::DragFloat("透明度##WaterSurface", &opacity_, 0.01f, 0.05f, 1.0f);
 			ImGui::DragFloat("反射率##WaterSurface", &reflectivity_, 0.01f, 0.0f, 1.0f);
 			ImGui::DragFloat("粗さ##WaterSurface", &roughness_, 0.01f, 0.0f, 1.0f);
-			ImGui::SeparatorText("Water Detail Waves");
+			ImGui::SeparatorText("細かな波");
 			ImGui::DragFloat("波の密度##WaterSurface", &waveScale_, 0.01f, 0.01f, 4.0f);
 			ImGui::DragFloat("波の速度##WaterSurface", &waveSpeed_, 0.01f, 0.0f, 8.0f);
 			ImGui::DragFloat("法線の強さ##WaterSurface", &normalStrength_, 0.005f, 0.0f, 1.0f);
 			ImGui::DragFloat("副波スケール##WaterSurface", &secondaryWaveScale_, 0.01f, 0.05f, 4.0f);
-			ImGui::DragFloat("Fresnel F0##WaterSurface", &fresnelF0_, 0.001f, 0.0f, 0.15f);
+			ImGui::DragFloat("フレネル反射率 F0##WaterSurface", &fresnelF0_, 0.001f, 0.0f, 0.15f);
 			ImGui::DragFloat("反射ゆらぎ##WaterSurface", &reflectionDistortion_, 0.005f, 0.0f, 1.0f);
-			ImGui::SeparatorText("Gerstner Wave");
+			ImGui::SeparatorText("Gerstner波");
 			ImGui::Checkbox("立体波を有効化##WaterSurface", &gerstnerEnabled_);
 			ImGui::DragFloat("波高##WaterSurface", &gerstnerAmplitude_, 0.002f, 0.0f, 0.25f);
 			ImGui::DragFloat("波長##WaterSurface", &gerstnerWavelength_, 0.01f, 0.1f, 4.0f);
 			ImGui::DragFloat("進行速度##WaterSurface", &gerstnerSpeed_, 0.01f, 0.0f, 8.0f);
 			ImGui::DragFloat("尖り具合##WaterSurface", &gerstnerSteepness_, 0.01f, 0.0f, 1.0f);
 			ImGui::DragFloat("進行方向(度)##WaterSurface", &gerstnerDirectionDegrees_, 1.0f, -180.0f, 180.0f);
-			ImGui::TextDisabled("Gerstner WaveはGrid頂点そのものを変形し、法線波は表面の細かい揺らぎを担当します。");
+			ImGui::TextDisabled("Gerstner波はGrid頂点を変形し、法線波は表面の細かな揺らぎを担当します。");
 			ImGui::TextDisabled("同じActorへPlanarReflectionComponentを追加すると水面へ局所反射を適用します。");
 #endif
 			ApplyWaterMaterial();
