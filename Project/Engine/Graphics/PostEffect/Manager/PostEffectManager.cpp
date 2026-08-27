@@ -62,7 +62,7 @@ namespace Ken4lowEngine
 		}
 
 		dxCommon_->GetCommandManager()->ExecuteAndWait();
-		GpuSphScreenSpaceFluidRenderer::GetInstance()->Finalize(); // Descriptor Manager破棄前にW8専用RT/SRV/RTVを返す。
+		GpuSphScreenSpaceFluidRenderer::GetInstance()->Finalize(); // 専用RT/SRV/RTVをDescriptor Manager破棄前に返す。
 		if (executor_) { executor_->Finalize(); }
 		if (registry_) { registry_->Finalize(); }
 		if (pipelineBuilder_) { pipelineBuilder_->Finalize(); }
@@ -122,41 +122,40 @@ namespace Ken4lowEngine
 		GpuSphScreenSpaceFluidRenderer* sphRenderer = GpuSphScreenSpaceFluidRenderer::GetInstance();
 		GpuSphScreenSpaceRenderSettings& settings = sphRenderer->GetEditableSettings();
 		const GpuSphScreenSpaceRenderStats& stats = sphRenderer->GetStats();
-		if (ImGui::Begin("W8 Screen Space Fluid"))
+		if (ImGui::Begin("スクリーンスペース流体"))
 		{
-			ImGui::Checkbox("Rendering Enabled", &settings.enabled);
-			ImGui::DragFloat("Particle Radius", &settings.particleRadius, 0.001f, 0.005f, 0.5f, "%.3f");
-			ImGui::DragFloat("Blur Depth Falloff", &settings.blurDepthFalloff, 0.25f, 0.1f, 100.0f, "%.2f");
-			ImGui::DragFloat("Absorption", &settings.absorption, 0.05f, 0.0f, 20.0f, "%.2f");
-			ImGui::DragFloat("Refraction Strength", &settings.refractionStrength, 0.0005f, 0.0f, 0.1f, "%.4f");
-			ImGui::DragFloat("Fresnel Power", &settings.fresnelPower, 0.05f, 1.0f, 12.0f, "%.2f");
-			ImGui::DragFloat("Thickness Scale", &settings.thicknessScale, 0.05f, 0.0f, 20.0f, "%.2f");
-			ImGui::ColorEdit4("Shallow Color", &settings.shallowColor.x);
-			ImGui::ColorEdit4("Deep Color", &settings.deepColor.x);
+			ImGui::Checkbox("描画を有効化", &settings.enabled);
+			ImGui::DragFloat("粒子描画半径", &settings.particleRadius, 0.001f, 0.005f, 0.5f, "%.3f");
+			ImGui::DragFloat("深度ぼかし境界", &settings.blurDepthFalloff, 0.25f, 0.1f, 100.0f, "%.2f");
+			ImGui::DragFloat("光の吸収", &settings.absorption, 0.05f, 0.0f, 20.0f, "%.2f");
+			ImGui::DragFloat("屈折の強さ", &settings.refractionStrength, 0.0005f, 0.0f, 0.1f, "%.4f");
+			ImGui::DragFloat("フレネル指数", &settings.fresnelPower, 0.05f, 1.0f, 12.0f, "%.2f");
+			ImGui::DragFloat("厚み倍率", &settings.thicknessScale, 0.05f, 0.0f, 20.0f, "%.2f");
+			ImGui::ColorEdit4("浅い部分の色", &settings.shallowColor.x);
+			ImGui::ColorEdit4("深い部分の色", &settings.deepColor.x);
 
-			if (ImGui::Button("Water Visual Preset"))
+			if (ImGui::Button("水向け描画設定を適用"))
 			{
-				// W8の粒感を弱め、最初に連続した水面を確認しやすい値へ戻す。
 				settings.particleRadius = 0.12f;
 				settings.blurDepthFalloff = 12.0f;
 				settings.absorption = 2.8f;
 				settings.refractionStrength = 0.012f;
 				settings.fresnelPower = 5.0f;
-				settings.thicknessScale = 5.0f;
+				settings.thicknessScale = 5.0f; // 粒感を抑えて連続した水面を確認しやすい基準値へ戻す。
 			}
 
-			ImGui::SeparatorText("W8 Diagnostics");
-			ImGui::Text("Renderer: %s", stats.initialized ? "Ready" : "Waiting");
-			ImGui::Text("Last Draw: %s", stats.lastDrawSucceeded ? "OK" : "FAILED");
-			ImGui::Text("Particles: %u | Resolution: %u x %u", stats.lastParticleCount, stats.width, stats.height);
-			ImGui::Text("Depth Draws: %llu | Thickness Draws: %llu",
+			ImGui::SeparatorText("描画状況");
+			ImGui::Text("Renderer: %s", stats.initialized ? "準備完了" : "待機中");
+			ImGui::Text("直前の描画: %s", stats.lastDrawSucceeded ? "成功" : "失敗");
+			ImGui::Text("粒子数: %u | 解像度: %u x %u", stats.lastParticleCount, stats.width, stats.height);
+			ImGui::Text("深度描画: %llu | 厚み描画: %llu",
 				static_cast<unsigned long long>(stats.particleDepthDrawCount),
 				static_cast<unsigned long long>(stats.thicknessDrawCount));
-			ImGui::Text("Blur Draws: %llu | Composite Draws: %llu",
+			ImGui::Text("ぼかし描画: %llu | 合成描画: %llu",
 				static_cast<unsigned long long>(stats.blurDrawCount),
 				static_cast<unsigned long long>(stats.compositeDrawCount));
-			ImGui::TextDisabled("Active particle count currently changes the amount/volume of SPH fluid, not only render resolution.");
-			ImGui::TextDisabled("For water-like walls, keep SPH Boundary Damping near 0.05 in the F7 panel.");
+			ImGui::TextDisabled("SPH粒子数は描画解像度だけでなく、流体そのものの量にも影響します。");
+			ImGui::TextDisabled("水らしい境界挙動では、SPHの境界減衰を0.05付近から調整してください。");
 		}
 		ImGui::End();
 #endif // USE_IMGUI
