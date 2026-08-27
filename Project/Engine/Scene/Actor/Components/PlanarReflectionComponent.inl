@@ -107,12 +107,13 @@ namespace Ken4lowEngine
 	{
 		SceneComponent::DrawImGui();
 #ifdef USE_IMGUI
-		ImGui::SeparatorText("Planar Reflection");
+		// 鏡面反射の設定とキャプチャ診断を日本語で確認できるようにする。
+		ImGui::SeparatorText("平面反射（鏡）");
 		bool changed = false;
 		changed |= ImGui::Checkbox("有効##PlanarReflectionEnabled", &enabled_);
 		changed |= ImGui::SliderFloat("反射強度##PlanarReflectionStrength", &strength_, 0.0f, 1.0f, "%.2f");
 
-		const char* updateModeNames[] = { "On Demand", "Every Frame" };
+		const char* updateModeNames[] = { "必要時のみ", "毎フレーム" };
 		int updateModeIndex = updateMode_ == PlanarReflectionUpdateMode::OnDemand ? 0 : 1;
 		if (ImGui::Combo("更新モード##PlanarReflectionUpdateMode", &updateModeIndex, updateModeNames, IM_ARRAYSIZE(updateModeNames)))
 		{
@@ -120,7 +121,7 @@ namespace Ken4lowEngine
 			changed = true;
 		}
 
-		const char* qualityNames[] = { "Low (25%)", "Medium (50%)", "High (75%)", "Ultra (100%)" };
+		const char* qualityNames[] = { "低 (25%)", "中 (50%)", "高 (75%)", "最高 (100%)" };
 		int qualityIndex = static_cast<int>(quality_);
 		if (ImGui::Combo("反射品質##PlanarReflectionQuality", &qualityIndex, qualityNames, IM_ARRAYSIZE(qualityNames)))
 		{
@@ -128,16 +129,16 @@ namespace Ken4lowEngine
 			changed = true;
 		}
 
-		if (ImGui::Checkbox("Receiver形状から面方向を自動判定##PlanarReflectionAutoNormal", &autoDetectReceiverNormal_))
+		if (ImGui::Checkbox("反射対象の形状から面方向を自動判定##PlanarReflectionAutoNormal", &autoDetectReceiverNormal_))
 		{
 			InvalidateAutoNormalCache();
 			changed = true;
 		}
 		ImGui::TextDisabled(autoDetectReceiverNormal_
-			? "平たいReceiverは最薄軸、Cube等はReceiver Local Zを前後軸として使います。"
-			: "手動面ではReceiver Local軸を指定し、親Transformを含めてWorld法線へ変換します。");
+			? "平たい反射対象は最薄軸、立方体などはローカルZ軸を前後軸として使います。"
+			: "手動面では反射対象のローカル軸を指定し、親の変換を含めてワールド法線へ変換します。");
 
-		ImGui::TextDisabled("手動面プリセット（押すと自動判定をOFFにします）");
+		ImGui::TextDisabled("手動面プリセット（押すと自動判定を無効にします）");
 		if (ImGui::Button("+X##PlanarReflectionFace")) SetFacePreset(PlanarReflectionFacePreset::PositiveX);
 		ImGui::SameLine();
 		if (ImGui::Button("-X##PlanarReflectionFace")) SetFacePreset(PlanarReflectionFacePreset::NegativeX);
@@ -151,7 +152,7 @@ namespace Ken4lowEngine
 		if (ImGui::Button("-Z##PlanarReflectionFace")) SetFacePreset(PlanarReflectionFacePreset::NegativeZ);
 
 		changed |= ImGui::Checkbox("法線を反転##PlanarReflectionFlipNormal", &flipNormal_);
-		changed |= ImGui::Checkbox("Receiver表面へ自動Fit##PlanarReflectionAutoFit", &autoFitToReceiverSurface_);
+		changed |= ImGui::Checkbox("反射対象の表面へ自動フィット##PlanarReflectionAutoFit", &autoFitToReceiverSurface_);
 		changed |= ImGui::DragFloat("鏡面オフセット##PlanarReflectionPlaneOffset", &planeOffset_, 0.01f, -100.0f, 100.0f, "%.3f");
 		changed |= ImGui::DragFloat("面判定許容幅##PlanarReflectionSurfaceTolerance", &surfaceTolerance_, 0.001f, 0.001f, 1.0f, "%.3f");
 		changed |= ImGui::DragFloat("クリップバイアス##PlanarReflectionClipBias", &clipPlaneBias_, 0.001f, 0.0f, 1.0f, "%.3f");
@@ -177,21 +178,21 @@ namespace Ken4lowEngine
 		const PlanarReflectionBinding previewBinding = planarManager->ResolveBinding(this);
 		const Vector3 planePosition = GetPlanePosition();
 		const Vector3 planeNormal = GetPlaneNormal();
-		ImGui::Text("状態: %s", diagnostics.captured ? (diagnostics.dirty ? "再Capture待ち" : "Captured") : "未Capture");
-		ImGui::Text("Capture Revision: %llu", static_cast<unsigned long long>(diagnostics.captureRevision));
-		ImGui::Text("Capture Resolution: %u x %u", diagnostics.captureWidth, diagnostics.captureHeight);
-		ImGui::Text("Capture候補: %u (Opaque %u / Masked %u / Transparent %u / Additive %u)",
+		ImGui::Text("状態: %s", diagnostics.captured ? (diagnostics.dirty ? "再キャプチャ待ち" : "キャプチャ済み") : "未キャプチャ");
+		ImGui::Text("キャプチャ更新番号: %llu", static_cast<unsigned long long>(diagnostics.captureRevision));
+		ImGui::Text("キャプチャ解像度: %u x %u", diagnostics.captureWidth, diagnostics.captureHeight);
+		ImGui::Text("キャプチャ候補: %u (不透明 %u / マスク %u / 半透明 %u / 加算 %u)",
 			captureStats.drawableCount,
 			captureStats.opaqueCount,
 			captureStats.maskedCount,
 			captureStats.transparentCount,
 			captureStats.additiveCount);
-		ImGui::Text("Oblique Clip: %s", diagnostics.obliqueClipApplied ? "ON" : "OFF");
-		ImGui::Text("面方向: %s", autoDetectReceiverNormal_ ? "Auto / Receiver形状" : "Manual / Receiver Local軸");
+		ImGui::Text("斜めクリップ: %s", diagnostics.obliqueClipApplied ? "有効" : "無効");
+		ImGui::Text("面方向: %s", autoDetectReceiverNormal_ ? "自動 / 反射対象の形状" : "手動 / 反射対象のローカル軸");
 		ImGui::Text("鏡面法線: %.3f, %.3f, %.3f", planeNormal.x, planeNormal.y, planeNormal.z);
 		ImGui::Text("鏡面位置: %.3f, %.3f, %.3f", planePosition.x, planePosition.y, planePosition.z);
 
-		ImGui::SeparatorText("Capture RT Preview");
+		ImGui::SeparatorText("キャプチャ画像プレビュー");
 		if (previewBinding.valid && previewBinding.texture.ptr != 0 && diagnostics.captureWidth > 0 && diagnostics.captureHeight > 0)
 		{
 			const float availableWidth = (std::max)(ImGui::GetContentRegionAvail().x, 120.0f);
@@ -202,21 +203,21 @@ namespace Ken4lowEngine
 		}
 		else
 		{
-			ImGui::TextDisabled("Capture済みReflection Textureはまだありません。");
+			ImGui::TextDisabled("キャプチャ済みの反射テクスチャはまだありません。");
 		}
 
-		ImGui::TextDisabled("Auto Normalは平たいReceiverの最薄軸を優先し、Cube等ではReceiver Local Zを前後軸として固定します。");
-		ImGui::TextDisabled("Auto Fit ONでは同じActorのModel頂点から法線方向の最外面を鏡面にします。");
+		ImGui::TextDisabled("自動法線は平たい反射対象の最薄軸を優先し、立方体などではローカルZ軸を前後軸として固定します。");
+		ImGui::TextDisabled("自動フィット有効時は同じActorのモデル頂点から法線方向の最外面を鏡面にします。");
 		ImGui::TextDisabled("同じActorへ最大6面分追加でき、各Componentが1枚の独立した鏡面になります。");
-		ImGui::TextDisabled("Captureは全Component合計で1フレーム最大1面なので、複数面でも描画負荷を急増させません。");
-		ImGui::TextDisabled("クリップバイアスは鏡面より裏側や接触面の映り込みをOblique Near Planeで除去します。");
+		ImGui::TextDisabled("キャプチャは全Component合計で1フレーム最大1面なので、複数面でも描画負荷を急増させません。");
+		ImGui::TextDisabled("クリップバイアスは鏡面より裏側や接触面の映り込みを斜めNear Planeで除去します。");
 		if (updateMode_ == PlanarReflectionUpdateMode::OnDemand)
 		{
-			ImGui::TextDisabled("On DemandはCamera移動後に再キャプチャが必要です。");
+			ImGui::TextDisabled("必要時のみ更新では、カメラ移動後に再キャプチャが必要です。");
 		}
 		else
 		{
-			ImGui::TextDisabled("Every Frameは正確な鏡用ですがSceneを追加描画するため高負荷です。");
+			ImGui::TextDisabled("毎フレーム更新は正確な鏡用ですが、シーンを追加描画するため高負荷です。");
 		}
 #endif
 	}
