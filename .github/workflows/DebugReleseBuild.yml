@@ -1,4 +1,4 @@
-name: TeamDevelopmentCI
+name: EngineBuildCI
 
 on:
   push:
@@ -39,18 +39,21 @@ jobs:
         run: python Tools/Scripts/CheckBrokenReferences.py
 
       - name: Run Automated Tests
+        shell: bash
         run: |
-          python -m unittest discover -s Tests/Phase5 -p "test_*.py" -v
-          python -m unittest discover -s Tests/Phase7 -p "test_*.py" -v # Frames in Flightの危険な単一Upload再導入をCIで防ぐ。
-          python -m unittest discover -s Tests/Phase8 -p "test_*.py" -v # Content Pipelineの決定性・依存関係・DDC契約をCIで保証する。
-          python -m unittest discover -s Tests/Phase9 -p "test_*.py" -v # RenderGraphのResource access/hazard契約をCIで固定する。
-          python -m unittest discover -s Tests/Phase10 -p "test_*.py" -v # Job依存関係のfan-in/fan-outと実行順を実ランタイムで検証する。
-          python -m unittest discover -s Tests/Phase11 -p "test_*.py" -v # Editor Undo/Redoのtransaction・履歴整合性を実ランタイムで検証する。
-          python -m unittest discover -s Tests/Phase12 -p "test_*.py" -v # Crash/Replay/Migration/Stress/Shipping契約をCIで検証する。
-          python -m unittest discover -s Tests/Phase13 -p "test_*.py" -v # GPU Particle Effect AuthoringのModule/Runtime/Asset契約をCIで検証する。
-          python -m unittest discover -s Tests/Phase14 -p "test_*.py" -v # GPU Driven Compaction/Indirect Draw/Alpha Sort/Profiler契約をCIで固定する。
-          python Tests/Phase18/run_phase18_static_tests.py # Unified VFXのSchema/Runtime/Adapter/Editor/Budget契約を外部test frameworkなしで実行する。
-          python -m unittest discover -s Tests/Reflection -p "test_*.py" -v # Planar ReflectionのCapture対象と鏡面契約をCIで固定する。
+          set -euo pipefail
+          for test_dir in Tests/*; do
+            if [ -d "$test_dir" ]; then
+              echo "Running tests in $test_dir"
+              python -m unittest discover -s "$test_dir" -p "test_*.py" -v
+            fi
+          done
+          for test_file in Tests/test_*.py; do
+            if [ -f "$test_file" ]; then
+              python "$test_file"
+            fi
+          done
+          # Test分類名に依存せず、現在存在するSubsystem単位のテストをまとめて実行する。
 
   compile:
     name: Compile ${{ matrix.configuration }}
@@ -161,5 +164,5 @@ jobs:
       - name: Explain compile-only validation
         shell: pwsh
         run: |
-          Write-Host "Phase 5/7/8/9/10/11/12/13/14/18 CI validates project contracts, GPU particle HLSL, and every configured C++ translation unit in ${{ matrix.configuration }}."
+          Write-Host "CI validates project contracts, automated tests, GPU particle HLSL, and every configured C++ translation unit in ${{ matrix.configuration }}."
           Write-Host "The full Debug link is intentionally separate because the hosted runner does not provide the repository's assimp-vc143-mtd.lib binary."
