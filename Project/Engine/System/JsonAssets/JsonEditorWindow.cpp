@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <filesystem>
+#include <string_view>
 
 namespace
 {
@@ -22,6 +23,20 @@ namespace
 		"ExampleType", "LightPreset", "PostEffectPreset", "Object3DPreset",
 		"SpritePreset", "ParticlePreset", "ModelPreset", "MaterialPreset"
 	};
+
+	constexpr const char* kAssetTypeDisplayNames[] = {
+		"サンプル", "ライトプリセット", "ポストエフェクトプリセット", "3Dオブジェクトプリセット",
+		"スプライトプリセット", "パーティクルプリセット", "モデルプリセット", "マテリアルプリセット"
+	};
+
+	const char* GetAssetTypeDisplayName(std::string_view type)
+	{
+		for (size_t i = 0; i < std::size(kAssetTypes); ++i)
+		{
+			if (type == kAssetTypes[i]) return kAssetTypeDisplayNames[i];
+		}
+		return "不明";
+	}
 
 	std::string GetDataAssetFolder(const std::string& basePath, const std::string& type)
 	{
@@ -72,29 +87,29 @@ namespace Ken4lowEngine
 			changed |= ImGui::Checkbox("PBRを使用##MaterialPreset", &source.preferPbrWorkflow);
 			if (source.preferPbrWorkflow)
 			{
-				ImGui::SeparatorText("PBR Material");
+				ImGui::SeparatorText("PBRマテリアル");
 				changed |= ImGui::ColorEdit4("ベースカラー##MaterialPreset", &source.baseColorFactor.x);
 				changed |= ImGui::DragFloat("メタリック##MaterialPreset", &source.metallicFactor, 0.01f, 0.0f, 1.0f);
 				changed |= ImGui::DragFloat("粗さ##MaterialPreset", &source.roughnessFactor, 0.01f, 0.0f, 1.0f);
 				changed |= ImGui::DragFloat("法線の強さ##MaterialPreset", &source.normalScale, 0.01f, 0.0f, 2.0f);
 				changed |= ImGui::DragFloat("AOの強さ##MaterialPreset", &source.occlusionStrength, 0.01f, 0.0f, 1.0f);
 				changed |= ImGui::ColorEdit4("エミッシブカラー##MaterialPreset", &source.emissiveFactor.x);
-				changed |= DrawMaterialTextureSelector("BaseColor Texture##MaterialPreset", source.baseColorTexturePath);
-				changed |= DrawMaterialTextureSelector("MetallicRoughness Texture##MaterialPreset", source.metallicRoughnessTexturePath);
-				changed |= DrawMaterialTextureSelector("Normal Texture##MaterialPreset", source.normalTexturePath);
-				changed |= DrawMaterialTextureSelector("Occlusion Texture##MaterialPreset", source.occlusionTexturePath);
-				changed |= DrawMaterialTextureSelector("Emissive Texture##MaterialPreset", source.emissiveTexturePath);
-				ImGui::TextDisabled("5つのMaterial Texture Slotを全描画Componentへ反映します");
+				changed |= DrawMaterialTextureSelector("ベースカラーテクスチャ##MaterialPreset", source.baseColorTexturePath);
+				changed |= DrawMaterialTextureSelector("メタリック・粗さテクスチャ##MaterialPreset", source.metallicRoughnessTexturePath);
+				changed |= DrawMaterialTextureSelector("法線テクスチャ##MaterialPreset", source.normalTexturePath);
+				changed |= DrawMaterialTextureSelector("オクルージョンテクスチャ##MaterialPreset", source.occlusionTexturePath);
+				changed |= DrawMaterialTextureSelector("エミッシブテクスチャ##MaterialPreset", source.emissiveTexturePath);
+				ImGui::TextDisabled("5種類のマテリアル用テクスチャを各描画コンポーネントへ反映します。");
 			}
 			else
 			{
-				ImGui::SeparatorText("Legacy Material");
+				ImGui::SeparatorText("従来マテリアル");
 				changed |= ImGui::ColorEdit4("色##MaterialPreset", &source.legacyColor.x);
 				changed |= ImGui::DragFloat("光沢度##MaterialPreset", &source.legacyShininess, 1.0f, 0.0f, 256.0f);
 				changed |= ImGui::DragFloat("反射率##MaterialPreset", &source.legacyReflectionRate, 0.01f, 0.0f, 1.0f);
 				changed |= ImGui::DragFloat("粗さ##LegacyMaterialPreset", &source.legacyRoughness, 0.01f, 0.0f, 1.0f);
 				changed |= ImGui::Checkbox("ポイントサンプリング##MaterialPreset", &source.usePointSampling);
-				changed |= DrawMaterialTextureSelector("BaseColor Texture##LegacyMaterialPreset", source.baseColorTexturePath);
+				changed |= DrawMaterialTextureSelector("ベースカラーテクスチャ##LegacyMaterialPreset", source.baseColorTexturePath);
 			}
 
 			if (changed)
@@ -148,8 +163,7 @@ namespace Ken4lowEngine
 			spritePreview_ = std::make_unique<Sprite>();
 			spritePreview_->Initialize(preset.texturePath);
 		}
-		// SpritePresetをPreview用Spriteに適用して、JSON設定が実際の描画へ反映されることを確認できるようにする
-		ApplySpritePreset(*spritePreview_, preset);
+		ApplySpritePreset(*spritePreview_, preset); // スプライトプリセットの実描画結果をプレビューで確認できるようにする。
 		lastPreviewPresetId_ = asset.id;
 	}
 
@@ -188,7 +202,7 @@ namespace Ken4lowEngine
 			int suffix = 1;
 			while (MaterialRepository::GetInstance()->Contains(entry.id))
 			{
-				entry.id = registry_.MakeUniqueId(baseId + "_" + std::to_string(suffix++)); // DefaultMaterialを含む既存共有IDとの衝突を避ける。
+				entry.id = registry_.MakeUniqueId(baseId + "_" + std::to_string(suffix++));
 			}
 		}
 		entry.displayName = newDisplayName_;
@@ -205,50 +219,51 @@ namespace Ken4lowEngine
 			source.materialId = entry.id;
 			source.materialName = entry.displayName;
 			source.sourceKind = MaterialSourceKind::MaterialEditor;
-			entry.data = MaterialDescJsonConverter::ToJson(source); // 新規Materialは既存描画互換のLegacy既定値から開始する。
+			entry.data = MaterialDescJsonConverter::ToJson(source);
 		}
 		else { entry.data = nlohmann::json::object(); }
 		entry.dirty = true;
 		registry_.Register(entry);
-		RegisterMaterialPreset(entry); // Save前でもModelComponentから新規共有Materialを選択可能にする。
+		RegisterMaterialPreset(entry);
 	}
 
 	void JsonEditorWindow::Draw(bool* pOpen)
 	{
 #ifdef USE_IMGUI
 		if (!pOpen || !(*pOpen)) return;
-		if (!ImGui::Begin("Json Asset Manager", pOpen))
+		if (!ImGui::Begin("JSONアセット管理###Json Asset Manager", pOpen))
 		{
 			ImGui::End();
 			return;
 		}
 
-		ImGui::Checkbox("AutoSave", &autoSaveEnabled_);
-		ImGui::SliderFloat("AutoSave Interval(sec)", &autoSaveIntervalSec_, 0.5f, 30.0f, "%.1f");
-		ImGui::InputText("Asset Type Filter", typeFilter_, IM_ARRAYSIZE(typeFilter_));
+		// JSONアセット編集で利用者が直接触る項目は日本語表記へ統一する。
+		ImGui::Checkbox("自動保存", &autoSaveEnabled_);
+		ImGui::SliderFloat("自動保存間隔（秒）", &autoSaveIntervalSec_, 0.5f, 30.0f, "%.1f");
+		ImGui::InputText("アセット種類フィルター", typeFilter_, IM_ARRAYSIZE(typeFilter_));
 
-		if (ImGui::Button("New")) { CreateNewAsset(); }
+		if (ImGui::Button("新規作成")) { CreateNewAsset(); }
 		ImGui::SameLine();
-		if (ImGui::Button("Save") && selectedIndex_ >= 0)
+		if (ImGui::Button("保存") && selectedIndex_ >= 0)
 		{
 			auto& asset = const_cast<std::vector<JsonAssetEntry>&>(registry_.GetAssets())[selectedIndex_];
 			if (JsonDataManager::SafeSave(asset))
 			{
 				asset.dirty = false;
-				RegisterMaterialPreset(asset); // 保存時点のMaterialをRepositoryへ確実に同期する。
+				RegisterMaterialPreset(asset);
 			}
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Reload") && selectedIndex_ >= 0)
+		if (ImGui::Button("再読み込み") && selectedIndex_ >= 0)
 		{
 			auto& asset = const_cast<std::vector<JsonAssetEntry>&>(registry_.GetAssets())[selectedIndex_];
 			if (JsonDataManager::SafeLoad(asset.path, asset))
 			{
-				RegisterMaterialPreset(asset); // 外部編集されたJSONをReloadした場合も描画へ反映する。
+				RegisterMaterialPreset(asset);
 			}
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Duplicate") && selectedIndex_ >= 0)
+		if (ImGui::Button("複製") && selectedIndex_ >= 0)
 		{
 			auto& src = const_cast<std::vector<JsonAssetEntry>&>(registry_.GetAssets())[selectedIndex_];
 			JsonAssetEntry dup;
@@ -257,30 +272,30 @@ namespace Ken4lowEngine
 			if (JsonDataManager::Duplicate(src, dstPath, newId, dup))
 			{
 				registry_.Register(dup);
-				RegisterMaterialPreset(dup); // 複製したMaterialも独立した共有Assetとして登録する。
+				RegisterMaterialPreset(dup);
 			}
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Delete") && selectedIndex_ >= 0)
+		if (ImGui::Button("削除") && selectedIndex_ >= 0)
 		{
 			auto& src = const_cast<std::vector<JsonAssetEntry>&>(registry_.GetAssets())[selectedIndex_];
 			if (ImGui::IsKeyDown(ImGuiKey_LeftShift) && JsonDataManager::Delete(src.path))
 			{
 				if (src.type == "MaterialPreset")
 				{
-					MaterialRepository::GetInstance()->Unregister(src.id); // 削除済みMaterialを選択候補と描画更新対象から外す。
+					MaterialRepository::GetInstance()->Unregister(src.id);
 				}
 				registry_.RemoveById(src.id);
 				selectedIndex_ = -1;
 			}
 		}
 
-		ImGui::Combo("New Type", &newTypeIndex_, kAssetTypes, IM_ARRAYSIZE(kAssetTypes));
-		ImGui::InputText("New Id", newId_, IM_ARRAYSIZE(newId_));
-		ImGui::InputText("New DisplayName", newDisplayName_, IM_ARRAYSIZE(newDisplayName_));
+		ImGui::Combo("新規アセット種類", &newTypeIndex_, kAssetTypeDisplayNames, IM_ARRAYSIZE(kAssetTypeDisplayNames));
+		ImGui::InputText("新規ID", newId_, IM_ARRAYSIZE(newId_));
+		ImGui::InputText("新規表示名", newDisplayName_, IM_ARRAYSIZE(newDisplayName_));
 
 		auto indices = registry_.CollectFilteredIndices(typeFilter_);
-		ImGui::SeparatorText("Asset List");
+		ImGui::SeparatorText("アセット一覧");
 		for (size_t idx : indices)
 		{
 			auto& a = registry_.GetAssets()[idx];
@@ -294,13 +309,13 @@ namespace Ken4lowEngine
 		{
 			auto& asset = const_cast<std::vector<JsonAssetEntry>&>(registry_.GetAssets())[selectedIndex_];
 			bool metadataChanged = false;
-			ImGui::SeparatorText("Selected Asset Detail");
-			ImGui::Text("Type: %s", asset.type.c_str());
-			ImGui::Text("Dirty: %s", asset.dirty ? "true" : "false");
-			ImGui::TextWrapped("File Path: %s", asset.path.c_str());
+			ImGui::SeparatorText("選択中アセットの詳細");
+			ImGui::Text("種類: %s", GetAssetTypeDisplayName(asset.type));
+			ImGui::Text("未保存の変更: %s", asset.dirty ? "あり" : "なし");
+			ImGui::TextWrapped("ファイルパス: %s", asset.path.c_str());
 			char displayNameBuffer[128]{};
 			std::snprintf(displayNameBuffer, sizeof(displayNameBuffer), "%s", asset.displayName.c_str());
-			if (ImGui::InputText("Display Name", displayNameBuffer, IM_ARRAYSIZE(displayNameBuffer)))
+			if (ImGui::InputText("表示名", displayNameBuffer, IM_ARRAYSIZE(displayNameBuffer)))
 			{
 				asset.displayName = displayNameBuffer;
 				asset.dirty = true;
@@ -314,24 +329,24 @@ namespace Ken4lowEngine
 
 				char texturePathBuffer[256]{};
 				std::snprintf(texturePathBuffer, sizeof(texturePathBuffer), "%s", preset.texturePath.c_str());
-				if (ImGui::InputText("Texture Path", texturePathBuffer, IM_ARRAYSIZE(texturePathBuffer))) { preset.texturePath = texturePathBuffer; asset.dirty = true; }
-				if (ImGui::InputFloat2("Position", &preset.position.x)) { asset.dirty = true; }
-				if (ImGui::InputFloat2("Size", &preset.size.x)) { asset.dirty = true; }
-				if (ImGui::InputFloat("Rotation", &preset.rotation)) { asset.dirty = true; }
-				if (ImGui::InputFloat2("Anchor", &preset.anchor.x)) { asset.dirty = true; }
-				if (ImGui::ColorEdit4("Color", &preset.color.x)) { asset.dirty = true; }
-				if (ImGui::Checkbox("Visible", &preset.visible)) { asset.dirty = true; }
-				if (ImGui::InputInt("DrawOrder", &preset.drawOrder)) { asset.dirty = true; }
-				if (ImGui::InputFloat2("Texture LeftTop(px)", &preset.textureLeftTop.x)) { asset.dirty = true; }
-				if (ImGui::InputFloat2("Texture Size(px, 0=full)", &preset.textureSize.x)) { asset.dirty = true; }
-				ImGui::TextDisabled("Not applied yet: layer / pivot / enableAlpha / drawOrder");
-				if (ImGui::Button("Apply Selected SpritePreset to Test Sprite"))
+				if (ImGui::InputText("テクスチャパス", texturePathBuffer, IM_ARRAYSIZE(texturePathBuffer))) { preset.texturePath = texturePathBuffer; asset.dirty = true; }
+				if (ImGui::InputFloat2("位置", &preset.position.x)) { asset.dirty = true; }
+				if (ImGui::InputFloat2("サイズ", &preset.size.x)) { asset.dirty = true; }
+				if (ImGui::InputFloat("回転", &preset.rotation)) { asset.dirty = true; }
+				if (ImGui::InputFloat2("アンカー", &preset.anchor.x)) { asset.dirty = true; }
+				if (ImGui::ColorEdit4("色", &preset.color.x)) { asset.dirty = true; }
+				if (ImGui::Checkbox("表示", &preset.visible)) { asset.dirty = true; }
+				if (ImGui::InputInt("描画順", &preset.drawOrder)) { asset.dirty = true; }
+				if (ImGui::InputFloat2("テクスチャ左上位置（px）", &preset.textureLeftTop.x)) { asset.dirty = true; }
+				if (ImGui::InputFloat2("テクスチャサイズ（px、0で全体）", &preset.textureSize.x)) { asset.dirty = true; }
+				ImGui::TextDisabled("未反映項目: レイヤー / ピボット / アルファ有効 / 描画順");
+				if (ImGui::Button("選択中のスプライトプリセットをテスト表示へ適用"))
 				{
 					ApplySelectedSpritePresetToPreview();
 				}
 				if (!lastPreviewPresetId_.empty())
 				{
-					ImGui::Text("Preview Applied: %s", lastPreviewPresetId_.c_str());
+					ImGui::Text("プレビュー適用済み: %s", lastPreviewPresetId_.c_str());
 				}
 
 				if (asset.dirty)
@@ -344,9 +359,9 @@ namespace Ken4lowEngine
 				const bool materialChanged = DrawMaterialPresetEditor(asset);
 				if (materialChanged || metadataChanged)
 				{
-					RegisterMaterialPreset(asset); // 編集中の共有Materialを次のModelComponent更新へ即時反映する。
+					RegisterMaterialPreset(asset);
 				}
-				ImGui::TextDisabled("共有Material ID: %s", asset.id.c_str());
+				ImGui::TextDisabled("共有マテリアルID: %s", asset.id.c_str());
 			}
 		}
 
@@ -358,7 +373,7 @@ namespace Ken4lowEngine
 
 		ImGui::End();
 #else
-		(void)pOpen; // 未使用警告回避
+		(void)pOpen;
 #endif
 	}
 }
