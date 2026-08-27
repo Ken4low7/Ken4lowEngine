@@ -13,7 +13,7 @@ struct GpuProductionLiquidOceanSample
     bool valid = false;
 };
 
-/// W10.6: Gerstner/FFT等のOcean実装をLocal Liquidへ接続するための非所有Provider契約。
+/// Gerstner波やFFT Oceanなどの水面実装をローカル液体シミュレーションへ接続するためのProvider契約。
 class IGpuProductionLiquidOceanProvider
 {
 public:
