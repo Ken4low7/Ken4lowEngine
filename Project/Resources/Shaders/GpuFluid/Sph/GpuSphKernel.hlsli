@@ -54,7 +54,7 @@ float GpuSphViscosityLaplacian(float distanceValue, float smoothingRadius)
     return (45.0f / (kGpuSphPi * h6)) * (smoothingRadius - distanceValue);
 }
 
-// W7では線形圧力をTait EOSへ置き換え、弱圧縮性液体として密度を保つ。
+// 線形圧力ではなくTait EOSを使い、弱圧縮性液体として密度を保つ。
 float GpuSphTaitPressure(float densityValue, float targetDensity, float stiffness)
 {
     const float safeTargetDensity = max(targetDensity, 1.0e-5f);
@@ -91,7 +91,7 @@ float GpuSphCohesionWeight(float distanceValue, float smoothingRadius)
     return saturate(GpuSphPoly6Kernel(distanceValue, smoothingRadius) / centerKernel);
 }
 
-// W9.5: CFL数をPreset/Editorから調整し、1 Stepでhを跨ぎ過ぎる速度をGPU内で制限する。
+// CFL数から1 Stepで平滑化半径を跨ぎ過ぎない最大速度を求め、粒子速度を制限する。
 float3 GpuSphClampVelocityByCfl(
     float3 velocityValue,
     float smoothingRadius,
@@ -106,7 +106,7 @@ float3 GpuSphClampVelocityByCfl(
     {
         return velocityValue;
     }
-    return velocityValue * (maxVelocity / speed);
+    return velocityValue * (maxVelocity / speed); // 安定性を優先し、過剰な速度だけを上限値へ収める。
 }
 
 #endif // KEN4LOW_GPU_SPH_KERNEL_HLSLI
