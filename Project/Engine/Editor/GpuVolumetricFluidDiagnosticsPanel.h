@@ -5,7 +5,7 @@
 namespace Ken4lowEngine
 {
 
-/// Phase17 3D Volumetric FluidのRuntime制御、描画品質、診断、Stress TestをまとめるEditor Panel。
+/// 3Dボリューム流体の実行制御、描画品質、診断、負荷確認をまとめるEditor Panel。
 class GpuVolumetricFluidDiagnosticsPanel
 {
 public:
@@ -32,7 +32,7 @@ private:
 	uint32_t pendingPressureIterations_ = 32;
 	float pendingCellSize_ = 0.25f;
 	bool gridEditorValuesInitialized_ = false;
-	bool visible_ = false;
+	bool visible_ = false; // 表示状態だけを保持し、シミュレーション設定はManager側へ集約する。
 };
 
 } // namespace Ken4lowEngine
