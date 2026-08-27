@@ -65,8 +65,9 @@ void PlayerHealthPostEffect::Apply(ID3D12GraphicsCommandList* commandList, uint3
 void PlayerHealthPostEffect::DrawImGui()
 {
 #ifdef USE_IMGUI
-	ImGui::Text("PlayerHealthPostEffect は PlayerHealthPostEffectController から制御します");
-	ImGui::Text("Vignette %.2f / Flash %.2f", parameters_.lowHealthVignetteIntensity, parameters_.damageFlashIntensity);
+	// プレイヤー状態に連動する演出であることと現在値を日本語で表示する。
+	ImGui::Text("プレイヤー体力演出は PlayerHealthPostEffectController から制御されます");
+	ImGui::Text("周辺減光 %.2f / 被弾フラッシュ %.2f", parameters_.lowHealthVignetteIntensity, parameters_.damageFlashIntensity);
 #endif // USE_IMGUI
 }
 
