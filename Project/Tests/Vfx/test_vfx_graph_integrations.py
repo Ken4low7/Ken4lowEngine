@@ -68,9 +68,7 @@ def test_runtime_reuses_particle_and_cue_runtimes():
 
 def test_loop_start_rolls_back_particle_handle_when_integration_start_fails():
     runtime = read("Engine/Vfx/Graph/Runtime/VfxGraphRuntime.cpp")
-    marker = "runtime failed to start loop graph integrations"
-    if marker not in runtime:
-        marker = "Phase18 runtime failed to start loop graph integrations"
+    marker = "VFX runtime failed to start loop graph integrations"
     assert marker in runtime
     failure_area = runtime[runtime.index(marker) - 500: runtime.index(marker) + 200]
     assert "StopLoop(particleHandle)" in failure_area
