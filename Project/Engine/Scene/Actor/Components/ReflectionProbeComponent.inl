@@ -78,11 +78,12 @@ namespace Ken4lowEngine
 	{
 		SceneComponent::DrawImGui();
 #ifdef USE_IMGUI
-		ImGui::SeparatorText("Reflection Probe");
+		// 反射プローブの更新方式とキャプチャ状態を日本語で確認できるようにする。
+		ImGui::SeparatorText("反射プローブ");
 		bool changed = false;
 		changed |= ImGui::Checkbox("有効##ReflectionProbeEnabled", &enabled_);
 
-		const char* updateModes[] = { "Static", "On Demand", "Every Frame" };
+		const char* updateModes[] = { "静的", "必要時のみ", "毎フレーム" };
 		int updateModeIndex = std::clamp(static_cast<int>(updateMode_), 0, 2);
 		if (ImGui::Combo("更新モード##ReflectionProbeUpdateMode", &updateModeIndex, updateModes, IM_ARRAYSIZE(updateModes)))
 		{
@@ -91,8 +92,8 @@ namespace Ken4lowEngine
 		}
 
 		changed |= ImGui::DragFloat("影響半径##ReflectionProbeRadius", &influenceRadius_, 0.1f, 0.1f, 1000.0f);
-		changed |= ImGui::DragFloat("Near Clip##ReflectionProbeNear", &nearClip_, 0.01f, 0.01f, 10.0f);
-		changed |= ImGui::DragFloat("Far Clip##ReflectionProbeFar", &farClip_, 1.0f, 1.0f, 10000.0f);
+		changed |= ImGui::DragFloat("近クリップ面##ReflectionProbeNear", &nearClip_, 0.01f, 0.01f, 10.0f);
+		changed |= ImGui::DragFloat("遠クリップ面##ReflectionProbeFar", &farClip_, 1.0f, 1.0f, 10000.0f);
 
 		constexpr uint32_t resolutions[] = { 64, 128, 256, 512 };
 		int resolutionIndex = 0;
@@ -120,13 +121,13 @@ namespace Ken4lowEngine
 		}
 
 		const ReflectionProbeDiagnostics diagnostics = ReflectionProbeManager::GetInstance()->GetDiagnostics(this);
-		ImGui::Text("状態: %s", diagnostics.captured ? (diagnostics.dirty ? "再Capture待ち" : "Captured") : "未Capture");
-		ImGui::Text("Capture Revision: %llu", static_cast<unsigned long long>(diagnostics.captureRevision));
+		ImGui::Text("状態: %s", diagnostics.captured ? (diagnostics.dirty ? "再キャプチャ待ち" : "キャプチャ済み") : "未キャプチャ");
+		ImGui::Text("キャプチャ更新番号: %llu", static_cast<unsigned long long>(diagnostics.captureRevision));
 		if (updateMode_ != ReflectionProbeUpdateMode::EveryFrame)
 		{
-			ImGui::TextDisabled("Scene内の物体を移動・変更した後は「再キャプチャ」を押してください。"); // Static検証で古いCubemapを見続ける混乱を防ぐ。
+			ImGui::TextDisabled("シーン内の物体を移動・変更した後は「再キャプチャ」を押してください。"); // Static検証で古いCubemapを見続ける混乱を防ぐ。
 		}
-		ImGui::TextDisabled("Every Frameは動的確認用ですが、6面描画のため高負荷です。");
+		ImGui::TextDisabled("毎フレーム更新は動的確認用ですが、6面描画のため高負荷です。");
 #endif
 	}
 
