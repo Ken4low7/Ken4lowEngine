@@ -1,0 +1,80 @@
+{
+    "effectName": "MeshDebris",
+    "userParameters": [
+        {
+            "name": "Intensity",
+            "defaultValue": 1.0,
+            "minValue": 0.25,
+            "maxValue": 3.0
+        }
+    ],
+    "emitters": [
+        {
+            "name": "CubeDebris",
+            "renderType": "Mesh",
+            "texturePath": "",
+            "meshPath": "Sample/cube.gltf",
+            "meshSubMeshIndex": 0,
+            "maxParticles": 192,
+            "loop": false,
+            "duration": 0.18,
+            "spawnRate": 35.0,
+            "burstCount": 18,
+            "lifeTime": 1.45,
+            "lifeTimeRandom": 0.35,
+            "position": [0.0, 0.0, 0.0],
+            "positionRandom": [0.08, 0.05, 0.08],
+            "spawnShape": "Sphere",
+            "spawnRadius": 0.12,
+            "spawnBoxSize": [0.0, 0.0, 0.0],
+            "velocity": [0.0, 4.2, 0.0],
+            "velocityRandom": [4.8, 2.8, 4.8],
+            "gravity": [0.0, -9.8, 0.0],
+            "damping": 0.06,
+            "speed": 0.0,
+            "speedRandom": 0.0,
+            "noiseStrength": 0.0,
+            "noiseFrequency": 1.0,
+            "vortexAxis": [0.0, 1.0, 0.0],
+            "vortexStrength": 0.0,
+            "attractorPosition": [0.0, 0.0, 0.0],
+            "attractorStrength": 0.0,
+            "attractorRadius": 0.0,
+            "startSize": [1.0, 1.0],
+            "endSize": [1.0, 1.0],
+            "sizeRandom": 0.25,
+            "useSizeCurve": false,
+            "sizeCurveLut": [1.0, 1.0, 1.0, 1.0],
+            "startColor": [0.85, 0.72, 0.48, 1.0],
+            "endColor": [0.25, 0.18, 0.10, 0.0],
+            "colorRandom": [0.08, 0.06, 0.03, 0.0],
+            "alphaFade": true,
+            "useColorGradient": true,
+            "colorGradientLut": [
+                [1.0, 0.86, 0.56, 1.0],
+                [0.82, 0.62, 0.36, 1.0],
+                [0.48, 0.34, 0.20, 0.85],
+                [0.20, 0.14, 0.08, 0.0]
+            ],
+            "startRotation": 0.0,
+            "rotationSpeed": 0.0,
+            "rotationRandom": 0.0,
+            "billboard": false,
+            "blendMode": "Alpha",
+            "useSpriteSheet": false,
+            "spriteSheetRows": 1,
+            "spriteSheetColumns": 1,
+            "spriteSheetFrameRate": 0.0,
+            "startScale3D": [0.09, 0.09, 0.09],
+            "endScale3D": [0.035, 0.035, 0.035],
+            "startRotation3D": [0.0, 0.0, 0.0],
+            "rotationRandom3D": [3.14159, 3.14159, 3.14159],
+            "angularVelocity": [2.8, 4.0, 2.2],
+            "angularVelocityRandom": [3.0, 3.0, 3.0],
+            "parameterBindings": [
+                { "parameterName": "Intensity", "target": "BurstCount", "scale": 1.0, "bias": 0.0 },
+                { "parameterName": "Intensity", "target": "Speed", "scale": 0.55, "bias": 0.45 }
+            ]
+        }
+    ]
+}
