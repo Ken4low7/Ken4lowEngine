@@ -77,10 +77,11 @@ namespace Ken4lowEngine
 	{
 #ifdef USE_IMGUI
 		if (!grayScaleSetting_) return;
-		ImGui::ColorEdit4("GrayScale Color", &grayScaleSetting_->color.x);
-		ImGui::Text("GrayScale Effect");
+		// グレースケールの見た目を確認しながら直感的に調整できる日本語表示にする。
+		ImGui::ColorEdit4("グレースケール色", &grayScaleSetting_->color.x);
+		ImGui::Text("グレースケール効果");
 		ImGui::Separator();
-		ImGui::Text("Intensity: %f", grayScaleSetting_->color.x);
+		ImGui::Text("強さ: %f", grayScaleSetting_->color.x);
 		ImGui::Separator();
 #endif // USE_IMGUI
 	}
