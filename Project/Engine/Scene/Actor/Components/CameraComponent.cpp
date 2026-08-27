@@ -47,15 +47,16 @@ namespace Ken4lowEngine
 	{
 		SceneComponent::DrawImGui();
 #ifdef USE_IMGUI
-		ImGui::SeparatorText("Camera Component");
+		// カメラの登録状態と親回転の継承設定を日本語で明示する。
+		ImGui::SeparatorText("カメラコンポーネント");
 		bool autoRegister = autoRegisterMainCamera_;
-		if (ImGui::Checkbox("Auto Register Main Camera", &autoRegister))
+		if (ImGui::Checkbox("メインカメラへ自動登録", &autoRegister))
 		{
 			SetAutoRegisterMainCamera(autoRegister);
 		}
-		ImGui::Checkbox("Inherit Parent Rotation", &inheritParentRotation_);
-		ImGui::Text("Main Camera Driver: %s", IsMainCameraDriver() ? "Yes" : "No");
-		ImGui::TextDisabled("Camera scale is always fixed to 1,1,1.");
+		ImGui::Checkbox("親の回転を継承", &inheritParentRotation_);
+		ImGui::Text("メインカメラ制御中: %s", IsMainCameraDriver() ? "はい" : "いいえ");
+		ImGui::TextDisabled("カメラの拡大率は常に 1, 1, 1 に固定されます。");
 #endif // USE_IMGUI
 	}
 
