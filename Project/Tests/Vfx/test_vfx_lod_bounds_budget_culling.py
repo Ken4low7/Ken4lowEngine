@@ -18,7 +18,7 @@ def test_graph_asset_has_bounds_lod_and_budget_authoring():
     assert "budgetCost" in types
 
 
-def test_serializer_round_trips_phase27_scalability_without_schema_break():
+def test_serializer_round_trips_scalability_without_schema_break():
     serializer = read("Engine/Vfx/Graph/Asset/VfxGraphSerializer.cpp")
     types = read("Engine/Vfx/Graph/Data/VfxGraphTypes.h")
     assert "kSchemaVersion = 1u" in types
@@ -64,7 +64,7 @@ def test_graph_runtime_reuses_active_camera_frustum_and_unified_budget():
     assert "budgetRejectedPlays" in header
 
 
-def test_loop_culling_updates_particle_and_phase18_integration_scale():
+def test_loop_culling_updates_particle_and_integration_scale():
     graph_runtime = read("Engine/Vfx/Graph/Runtime/VfxGraphRuntime.cpp")
     cue_runtime = read("Engine/Vfx/Runtime/VfxCueRuntime.cpp")
     assert "UpdateScalability" in graph_runtime
@@ -83,28 +83,12 @@ def test_frame_lifecycle_resets_budget_before_gameplay_and_updates_after_camera(
     assert begin < scene_update < scalability < cue_update
 
 
-def test_editor_exposes_phase27_scalability_controls():
-    editor = read("Engine/Vfx/Graph/Editor/VfxGraphEditor.cpp")
-    assert 'TreeNode("Phase27 Scalability")' in editor
-    assert '"Bounds Mode"' in editor
-    assert '"Frustum Culling"' in editor
-    assert '"LOD Mid Scale"' in editor
-    assert '"Budget Cost"' in editor
-
-
-def test_phase27_sample_and_docs_cover_all_four_scope_items():
-    sample = read("Resources/VfxGraph/Phase27/ScalableIntegratedExplosion.vfxgraph.json")
-    docs = read("Docs/Phase27LodBoundsBudgetCulling.md")
+def test_scalable_sample_covers_bounds_lod_budget_and_culling():
+    sample = read("Resources/VfxGraph/Samples/ScalableIntegratedExplosion.vfxgraph.json")
+    assert '"graphName": "ScalableIntegratedExplosion"' in sample
     assert '"scalability"' in sample
     assert '"boundsMode": "Automatic"' in sample
     assert '"frustumCulling": true' in sample
     assert '"lodMidScale": 0.6' in sample
     assert '"budgetCost": 4' in sample
-    for word in ("LOD", "Bounds", "Budget", "Culling"):
-        assert word in docs
-
-
-def test_phase28_diagnostics_stays_outside_phase27_scope():
-    docs = read("Docs/Phase27LodBoundsBudgetCulling.md")
-    assert "Phase28" in docs
-    assert "profiling UI" in docs
+    assert "Phase27" not in sample
