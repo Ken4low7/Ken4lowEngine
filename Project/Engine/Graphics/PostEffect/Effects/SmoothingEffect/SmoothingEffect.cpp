@@ -65,16 +65,17 @@ namespace Ken4lowEngine
 		if (!smoothingSetting_) return;
 		const char* kernelOptions[] =
 		{
-			"None",
-			"Box 3x3",
-			"Box 5x5",
-			"Gaussian 5x5",
-			"Box 7x7",
-			"Gaussian 7x7",
-			"Box 9x9",
-			"Gaussian 9x9"
+			"なし",
+			"ボックス 3x3",
+			"ボックス 5x5",
+			"ガウシアン 5x5",
+			"ボックス 7x7",
+			"ガウシアン 7x7",
+			"ボックス 9x9",
+			"ガウシアン 9x9"
 		};
-		ImGui::Combo("Kernel Type##SmoothingEffect", &smoothingSetting_->kernelType, kernelOptions, IM_ARRAYSIZE(kernelOptions));
+		// 平滑化方式を日本語で選択できるようにし、カーネルサイズもそのまま確認できるようにする。
+		ImGui::Combo("平滑化方式##SmoothingEffect", &smoothingSetting_->kernelType, kernelOptions, IM_ARRAYSIZE(kernelOptions));
 #endif // USE_IMGUI
 	}
 
