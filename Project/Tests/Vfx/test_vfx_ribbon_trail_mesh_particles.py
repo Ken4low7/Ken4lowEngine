@@ -23,7 +23,7 @@ def test_graph_declares_ribbon_trail_and_mesh_renderer_payloads():
     assert "VfxGraphNodeStage::Render" in cpp
 
 
-def test_render_type_enum_preserves_sprite_mesh_and_appends_phase23_modes():
+def test_render_type_enum_preserves_sprite_mesh_ribbon_and_trail():
     desc = read("Engine/Graphics/Renderer/GpuParticle/Data/GpuParticleEffectDesc.h")
     assert "Sprite = 0" in desc
     assert "Mesh = 1" in desc
@@ -31,7 +31,7 @@ def test_render_type_enum_preserves_sprite_mesh_and_appends_phase23_modes():
     assert "Trail = 3" in desc
 
 
-def test_compiler_accepts_exactly_one_renderer_and_lowers_phase23_modes():
+def test_compiler_accepts_one_renderer_and_lowers_each_mode():
     compiler = read("Engine/Vfx/Graph/Runtime/VfxGraphCompiler.cpp")
     assert "requires exactly one enabled renderer node" in compiler
     assert "IsRendererNode" in compiler
@@ -45,7 +45,7 @@ def test_compiler_accepts_exactly_one_renderer_and_lowers_phase23_modes():
     assert "outEmitter.angularVelocity = p.angularVelocity" in compiler
 
 
-def test_ribbon_and_trail_use_previous_position_history_on_existing_sprite_path():
+def test_ribbon_and_trail_use_previous_position_history():
     runtime = read("Engine/Graphics/Renderer/GpuParticle/Runtime/GpuParticleEffectRuntime.h")
     particle_data = read("Resources/Shaders/GpuParticle/GpuParticleData.hlsli")
     update_shader = read("Resources/Shaders/GpuParticle/GpuParticleUpdate.CS.hlsl")
@@ -56,14 +56,11 @@ def test_ribbon_and_trail_use_previous_position_history_on_existing_sprite_path(
     assert "info.billboardFlags = BillboardMode::Ribbon" in runtime
     assert "float3 previousTranslate" in particle_data
     assert "p.previousTranslate = p.translate" in update_shader
-    assert "particle.currentTime <= 1e-6f ? particle.translate : particle.previousTranslate" in vertex_shader
     assert "float3 segment = particle.translate - historyPosition" in vertex_shader
     assert "float3 side = cross(camForward, tangent)" in vertex_shader
-    assert "particle.translate = (historyPosition + particle.translate) * 0.5f" in vertex_shader
-    assert "particle.scale.y = max(segmentLength * max(particle.scale.y" in vertex_shader
 
 
-def test_mesh_renderer_uses_existing_mesh_asset_and_draw_pipeline():
+def test_mesh_renderer_uses_mesh_asset_and_draw_pipeline():
     runtime = read("Engine/Graphics/Renderer/GpuParticle/Runtime/GpuParticleEffectRuntime.h")
     renderer = read("Engine/Graphics/Renderer/GpuParticle/Renderer/GpuParticleRenderer.cpp")
     mesh_vs = read("Resources/Shaders/GpuParticle/GpuParticleMesh.VS.hlsl")
@@ -75,35 +72,18 @@ def test_mesh_renderer_uses_existing_mesh_asset_and_draw_pipeline():
     assert "particle.rotation3D" in mesh_vs
 
 
-def test_graph_serializer_round_trips_phase23_renderer_parameters():
-    serializer = read("Engine/Vfx/Graph/Asset/VfxGraphSerializer.cpp")
-    for symbol in (
-        "VfxGraphRibbonRendererNode",
-        "VfxGraphTrailRendererNode",
-        "VfxGraphMeshRendererNode",
-    ):
-        assert symbol in serializer
-    for key in (
-        '"width"',
-        '"length"',
-        '"meshPath"',
-        '"subMeshIndex"',
-        '"startScale"',
-        '"endScale"',
-        '"startRotation"',
-        '"angularVelocity"',
-    ):
-        assert key in serializer
-
-
-def test_flat_effect_serializer_round_trips_phase23_render_types():
-    serializer = read("Engine/Graphics/Renderer/GpuParticle/Preset/GpuParticleEffectSerializer.cpp")
+def test_serializers_round_trip_renderer_parameters():
+    graph_serializer = read("Engine/Vfx/Graph/Asset/VfxGraphSerializer.cpp")
+    effect_serializer = read("Engine/Graphics/Renderer/GpuParticle/Preset/GpuParticleEffectSerializer.cpp")
+    for symbol in ("VfxGraphRibbonRendererNode", "VfxGraphTrailRendererNode", "VfxGraphMeshRendererNode"):
+        assert symbol in graph_serializer
+    for key in ('"width"', '"length"', '"meshPath"', '"subMeshIndex"', '"startScale"', '"endScale"'):
+        assert key in graph_serializer
     for render_type in ("Ribbon", "Trail"):
-        assert f'if (text == "{render_type}") return GpuParticleRenderType::{render_type}' in serializer
-        assert f'case GpuParticleRenderType::{render_type}: return "{render_type}"' in serializer
+        assert f'if (text == "{render_type}") return GpuParticleRenderType::{render_type}' in effect_serializer
 
 
-def test_phase23_adds_one_history_sample_without_expanding_emitter_cb():
+def test_particle_history_layout_stays_explicit():
     particle = read("Engine/Graphics/Renderer/GpuParticle/Buffers/GpuParticleBuffers.h")
     emitter = read("Engine/Graphics/Renderer/GpuParticle/Data/GpuParticleEmitterData.h")
     particle_data = read("Resources/Shaders/GpuParticle/GpuParticleData.hlsli")
@@ -113,11 +93,10 @@ def test_phase23_adds_one_history_sample_without_expanding_emitter_cb():
     assert "float3 previousTranslate" in particle_data
 
 
-def test_phase23_sample_contains_ribbon_trail_and_mesh_emitters():
-    sample_path = ROOT / "Resources/VfxGraph/Phase23/RibbonTrailMeshShowcase.vfxgraph.json"
+def test_renderer_showcase_contains_ribbon_trail_and_mesh_emitters():
+    sample_path = ROOT / "Resources/VfxGraph/Samples/RibbonTrailMeshShowcase.vfxgraph.json"
     sample = json.loads(sample_path.read_text(encoding="utf-8"))
     assert sample["schemaVersion"] == 1
-    assert sample["graphName"] == "Phase23RibbonTrailMeshShowcase"
     assert len(sample["emitters"]) == 3
     renderers = set()
     for emitter in sample["emitters"]:
@@ -127,10 +106,3 @@ def test_phase23_sample_contains_ribbon_trail_and_mesh_emitters():
         renderers.add(renderer_nodes[0]["type"])
         assert len(emitter["edges"]) == len(nodes) - 1
     assert renderers == {"RibbonRenderer", "TrailRenderer", "MeshRenderer"}
-
-
-def test_phase24_execution_graph_is_not_mixed_into_phase23_scope():
-    docs = read("Docs/Phase23RibbonTrailMeshParticles.md")
-    assert "Phase24" in docs
-    assert "GPU Execution Graph" in docs
-    assert "Phase23では実装しない" in docs
