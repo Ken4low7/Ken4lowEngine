@@ -69,7 +69,8 @@ namespace Ken4lowEngine
 #ifdef USE_IMGUI
 		if (absorbSetting_)
 		{
-			ImGui::SliderFloat("Absorb Strength", &absorbSetting_->strength, 0.0f, 5.0f);
+			// 吸収演出の適用量を日本語で明確に表示する。
+			ImGui::SliderFloat("吸収の強さ", &absorbSetting_->strength, 0.0f, 5.0f);
 		}
 #endif // USE_IMGUI
 	}
