@@ -83,11 +83,11 @@ namespace Ken4lowEngine
 #ifdef USE_IMGUI
 		if (!bloomSetting_) { return; }
 
-		// RadialBlurEffectなどと同じ表示ラベルを使うため、##BloomEffectで内部IDだけを分ける。
-		ImGui::SliderFloat("Threshold##BloomEffect", &bloomSetting_->threshold, 0.0f, 4.0f);
-		ImGui::SliderFloat("Intensity##BloomEffect", &bloomSetting_->intensity, 0.0f, 2.0f);
-		ImGui::SliderFloat("Blur Strength##BloomEffect", &bloomSetting_->blurStrength, 0.0f, 4.0f);
-		ImGui::TextUnformatted("BrightExtract -> small Blur -> Composite. Multi-pass Bloom is intentionally deferred.");
+		// 表示名は日本語に統一し、##以降の内部IDは既存互換のため維持する。
+		ImGui::SliderFloat("輝度しきい値##BloomEffect", &bloomSetting_->threshold, 0.0f, 4.0f);
+		ImGui::SliderFloat("発光の強さ##BloomEffect", &bloomSetting_->intensity, 0.0f, 2.0f);
+		ImGui::SliderFloat("ぼかしの強さ##BloomEffect", &bloomSetting_->blurStrength, 0.0f, 4.0f);
+		ImGui::TextUnformatted("明るい部分を抽出し、ぼかした結果を元画像へ合成します。複数段階ブルームは未使用です。");
 #endif // USE_IMGUI
 	}
 
