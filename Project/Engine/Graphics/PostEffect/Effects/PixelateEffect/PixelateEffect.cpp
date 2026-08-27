@@ -68,8 +68,9 @@ namespace Ken4lowEngine
 	{
 #ifdef USE_IMGUI
 		if (!pixelateSetting_) return;
-		ImGui::SliderFloat("Block Size##PixelateEffect", &pixelateSetting_->blockSize, 1.0f, 128.0f);
-		ImGui::SliderFloat("Strength##PixelateEffect", &pixelateSetting_->strength, 0.0f, 1.0f);
+		// ピクセル化の粒度と適用量を日本語で直接調整できるようにする。
+		ImGui::SliderFloat("ブロックサイズ##PixelateEffect", &pixelateSetting_->blockSize, 1.0f, 128.0f);
+		ImGui::SliderFloat("適用の強さ##PixelateEffect", &pixelateSetting_->strength, 0.0f, 1.0f);
 #endif
 	}
 
