@@ -64,8 +64,9 @@ namespace Ken4lowEngine
 	{
 #ifdef USE_IMGUI
 		if (!vignetteSetting_) return;
-		ImGui::SliderFloat("Vignette Power##VignetteEffect", &vignetteSetting_->power, 0.0f, 3.0f);
-		ImGui::SliderFloat("Vignette Range##VignetteEffect", &vignetteSetting_->range, 0.0f, 1.0f);
+		// ビネット調整項目は見た目への影響が直感的に分かる日本語名で表示する。
+		ImGui::SliderFloat("周辺減光の強さ##VignetteEffect", &vignetteSetting_->power, 0.0f, 3.0f);
+		ImGui::SliderFloat("周辺減光の範囲##VignetteEffect", &vignetteSetting_->range, 0.0f, 1.0f);
 #endif // USE_IMGUI
 	}
 
