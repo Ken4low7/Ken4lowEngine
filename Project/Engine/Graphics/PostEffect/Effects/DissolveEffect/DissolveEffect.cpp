@@ -80,9 +80,10 @@ namespace Ken4lowEngine
 	{
 #ifdef USE_IMGUI
 		if (!dissolveSetting_) return;
-		ImGui::SliderFloat("Dissolve Threshold##DissolveEffect", &dissolveSetting_->threshold, 0.0f, 1.0f);
-		ImGui::SliderFloat("Edge Thickness##DissolveEffect", &dissolveSetting_->edgeThickness, 0.0f, 1.0f);
-		ImGui::ColorEdit4("Edge Color##DissolveEffect", &dissolveSetting_->edgeColor.x);
+		// ディゾルブの消失境界を日本語で直感的に調整できるようにする。
+		ImGui::SliderFloat("消失しきい値##DissolveEffect", &dissolveSetting_->threshold, 0.0f, 1.0f);
+		ImGui::SliderFloat("境界の太さ##DissolveEffect", &dissolveSetting_->edgeThickness, 0.0f, 1.0f);
+		ImGui::ColorEdit4("境界色##DissolveEffect", &dissolveSetting_->edgeColor.x);
 #endif // USE_IMGUI
 	}
 
