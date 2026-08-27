@@ -83,16 +83,17 @@ namespace Ken4lowEngine
 #ifdef USE_IMGUI
 		if (!toneMappingSetting_) { return; }
 
-		const char* items[] = { "None", "Reinhard" };
+		const char* items[] = { "なし", "Reinhard" };
 		int toneMappingType = static_cast<int>(toneMappingSetting_->toneMappingType);
 		// PostEffect Settingsは複数EffectのUIを同時に並べるため、##で内部IDを分けてDear ImGuiのID衝突を防ぐ。
-		ImGui::SliderFloat("Exposure##ToneMappingEffect", &toneMappingSetting_->exposure, 0.1f, 4.0f);
-		ImGui::SliderFloat("Gamma##ToneMappingEffect", &toneMappingSetting_->gamma, 1.0f, 3.0f);
-		if (ImGui::Combo("Tone Mapping Type##ToneMappingEffect", &toneMappingType, items, 2))
+		ImGui::SliderFloat("露出##ToneMappingEffect", &toneMappingSetting_->exposure, 0.1f, 4.0f);
+		ImGui::SliderFloat("ガンマ##ToneMappingEffect", &toneMappingSetting_->gamma, 1.0f, 3.0f);
+		if (ImGui::Combo("トーンマッピング方式##ToneMappingEffect", &toneMappingType, items, 2))
 		{
 			toneMappingSetting_->toneMappingType = static_cast<uint32_t>(toneMappingType);
 		}
-		ImGui::TextUnformatted("HDR/LDR boundary: keep off by default, then place before Bloom/PBR output checks.");
+		// HDRから表示用の明るさへ変換する設定であることをUI上でも分かるようにする。
+		ImGui::TextUnformatted("HDRから表示用の明るさへ変換します。初期状態では無効のままにし、ブルームやPBRの最終確認時に有効化してください。");
 #endif // USE_IMGUI
 	}
 
