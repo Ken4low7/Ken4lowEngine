@@ -54,7 +54,7 @@ class DataDrivenSceneAuthoringTests(unittest.TestCase):
         self.assertIn("RequestSaveLevelAs()", self.editor_scene)
         self.assertIn("levelPath.stem().string()", self.editor_scene)
         self.assertIn("sceneManager_->ChangeScene(sceneId)", self.editor_scene)
-        self.assertIn('ImGui::Button("Scene"', self.level_overlay)
+        self.assertIn('ImGui::Button("シーン"', self.level_overlay)  # 日本語UIへ変更しても安全なScene作成導線を維持する。
 
 
 if __name__ == "__main__":
