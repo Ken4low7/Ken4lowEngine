@@ -107,6 +107,6 @@ float4 main(PSInput input) : SV_Target0
     const float foam = ComputeFoam(input.uv, depthValue, thicknessValue);
     color = lerp(color, float3(0.86f, 0.94f, 1.0f), saturate(foam * 0.24f));
 
-    color = lerp(sceneBase, color, localLiquidBlend); // W10のBlend BandではSSFRを既描画Oceanへ戻し、境界のハードな切替を消す。
+    color = lerp(sceneBase, color, localLiquidBlend); // Blend BandではSSFRを既描画Oceanへ戻し、境界のハードな切替を消す。
     return float4(color, 1.0f);
 }
