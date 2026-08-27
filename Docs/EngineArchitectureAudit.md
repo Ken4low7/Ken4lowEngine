@@ -20,6 +20,8 @@
 
 `Framework` の分割、全Singletonの置換、World再設計、巨大なEditor bridge導入は今回行わない。Actor / Componentを維持し、責務の移動は実際の参照で必要性を判断する。
 
+実施結果: GameApplicationの移動と逆依存チェックを実装した。追加でReleaseビルドから見つかったBasicParticleActorのImGui条件分岐漏れだけを修正した。RuntimeのActor/Particle処理には手を加えていない。
+
 根拠: [GameApplication](../Project/ApplicationLayer/GameApplication.cpp)、[Framework](../Project/Engine/Core/Application/Framework.cpp)、[モジュール定義](../Project/Build/Modules/EngineModules.json)。GameApplicationへのリンクは移動後の配置を示す。
 
 ## Manager / Singleton
@@ -72,6 +74,8 @@ flowchart TD
 - Runtime→Editor参照例: BaseScene→EditorObjectInfo、DataDrivenScene→ActorWorldEditorBridge、SceneManager→PIE/UI群、ActorWorld→EditorContext/ActorStateRegistry、Input→EditorViewportController。`USE_IMGUI`で囲まれた経路と無条件のヘッダー依存が混在する。
 - `Engine/Vfx/Graph/Editor` は現在 `Engine/Vfx/Graph` ルートに含まれ、モジュール定義上はRuntimeになっている。LightEditorPanel / PostEffectEditorPanel / JsonEditorWindowもRuntime配下。機械的なフォルダ名だけでは責務を判定できない。
 - `MayDependOn` の宣言は現行validatorで実際の全includeに適用されていない。まず「EngineからApplicationへ戻らない」という既存ルールの検出漏れを閉じる。残るCore/Runtime/Editor循環を隠すため許可範囲を広げない。
+
+今回のvalidatorは引用符includeの同一ディレクトリ、Project相対パス、ソース索引の短縮パスを調べる。同名候補にApplicationが含まれる場合も保守的にエラーとするため、曖昧な場合は明示的なパスを使う。MSBuildの全include探索順やC++プリプロセッサを再現するものではなく、外部ヘッダー/マクロinclude/条件付きコンパイルの完全解析や全MayDependOnの適用は対象外。成功メッセージもこの検証範囲に合わせて限定した。
 
 根拠: [SceneManager](../Project/Engine/Scene/Management/SceneManager.h)、[ActorWorld](../Project/Engine/Scene/Actor/Core/ActorWorld.h)、[Actor](../Project/Engine/Scene/Actor/Core/Actor.h)、[Physics登録](../Project/Engine/Scene/Actor/Core/ActorWorld_Pysics.cpp)。
 
@@ -160,6 +164,7 @@ Scene切替はGpuSafeSceneTransitionが次のUpdateで送信済みGPU仕事を�
 | --- | --- | --- | --- |
 | DEP-01 | 高 | Engine/CoreのGameApplication→Application SceneFactoryという逆依存。短いinclude名のためvalidatorが検出しない | 既存GameApplicationをApplicationLayerへ移動し、include解決に基づく逆依存検査と回帰テストを追加 |
 | DEP-02 | 中 | FrameworkをCore所有とする宣言と実依存が不一致。Runtime→Editor循環とEditor実装のRuntime分類が残る | 今回は記録。責務/API単位で切り離すまでMayDependOnを緩めない |
+| DEP-03 | 高 | BasicParticleActor::DrawImGuiがReleaseでもImGuiを直接呼び、C2653/C3861でコンパイルできない | USE_IMGUIでincludeとUI本体を囲む7行の修正。Debug/Releaseのビルドと起動終了を確認 |
 | UPD-01 | 高 | CPU PhysicsありはDebugScene、DataDriven/Sampleには物理Stepがない | Sceneごとの期待を決めてから共通化。Actor/Componentを作り替えない |
 | UPD-02 | 中 | Particle/SPHはScene更新/PIE停止判定前、FluidはDraw中。複数描画時の計算回数とPauseが統一されない | 実行順・停止・single-stepの回帰を用意して独立対応 |
 | UPD-03 | 中 | SampleSceneのEditor World更新がSceneManager経由と重複 | Editor更新契約の整理時に重複だけを修正し、プレビュー速度を検証 |
