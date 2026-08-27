@@ -65,9 +65,10 @@ namespace Ken4lowEngine
 	{
 #ifdef USE_IMGUI
 		if (!radialBlurSetting_) return;
-		ImGui::SliderFloat("Blur Strength##RadialBlurEffect", &radialBlurSetting_->blurStrength, 0.0f, 5.0f);
-		ImGui::SliderFloat("Sample Count##RadialBlurEffect", &radialBlurSetting_->sampleCount, 1.0f, 64.0f);
-		ImGui::SliderFloat2("Center##RadialBlurEffect", &radialBlurSetting_->center.x, 0.0f, 1.0f);
+		// 放射状ぼかしの調整項目を効果の意味が分かる日本語名で表示する。
+		ImGui::SliderFloat("ぼかしの強さ##RadialBlurEffect", &radialBlurSetting_->blurStrength, 0.0f, 5.0f);
+		ImGui::SliderFloat("サンプル数##RadialBlurEffect", &radialBlurSetting_->sampleCount, 1.0f, 64.0f);
+		ImGui::SliderFloat2("ぼかし中心##RadialBlurEffect", &radialBlurSetting_->center.x, 0.0f, 1.0f);
 #endif // USE_IMGUI
 	}
 
