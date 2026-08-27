@@ -23,7 +23,7 @@ public:
 #ifdef USE_IMGUI
         if (ImGui::IsKeyPressed(ImGuiKey_F7, false))
         {
-            visible_ = !visible_; // SPH本体の診断と同時にRigidbodyとの相互作用も確認する。
+            visible_ = !visible_; // SPH本体の診断と同時に剛体との相互作用も確認する。
         }
         if (!visible_)
         {
@@ -34,7 +34,7 @@ public:
         GpuSphRigidbodyInteractionSettings& settings = interaction->GetEditableSettings();
         const GpuSphRigidbodyInteractionStats& stats = interaction->GetStats();
 
-        if (!ImGui::Begin("SPH / Rigidbody 相互作用", &visible_))
+        if (!ImGui::Begin("SPH / 剛体 相互作用", &visible_))
         {
             ImGui::End();
             return;
@@ -68,16 +68,16 @@ public:
         if (ImGui::CollapsingHeader("実行状況", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Text("初期化: %s", stats.initialized ? "完了" : "待機中");
-            ImGui::Text("直前のDispatch: %s", stats.lastDispatchSucceeded ? "成功" : "失敗");
-            ImGui::Text("Collider Proxy: %u / %u", stats.proxyCount, GpuSphRigidbodyInteraction::kMaxProxies);
-            ImGui::Text("動的Rigidbody: %u / %u", stats.dynamicBodyCount, GpuSphRigidbodyInteraction::kMaxDynamicBodies);
+            ImGui::Text("直前のディスパッチ: %s", stats.lastDispatchSucceeded ? "成功" : "失敗");
+            ImGui::Text("コライダープロキシ: %u / %u", stats.proxyCount, GpuSphRigidbodyInteraction::kMaxProxies);
+            ImGui::Text("動的剛体: %u / %u", stats.dynamicBodyCount, GpuSphRigidbodyInteraction::kMaxDynamicBodies);
             ImGui::Text("物理粒子半径: %.4f", stats.particleRadius);
             ImGui::Text("フレームリソース数: %u", stats.frameResourceCount);
             ImGui::Separator();
-            ImGui::Text("衝突Dispatch: %llu", static_cast<unsigned long long>(stats.collisionDispatchCount));
-            ImGui::Text("反作用初期化Dispatch: %llu", static_cast<unsigned long long>(stats.reactionClearDispatchCount));
+            ImGui::Text("衝突ディスパッチ: %llu", static_cast<unsigned long long>(stats.collisionDispatchCount));
+            ImGui::Text("反作用初期化ディスパッチ: %llu", static_cast<unsigned long long>(stats.reactionClearDispatchCount));
             ImGui::Text("非同期読取回数: %llu", static_cast<unsigned long long>(stats.readbackCount));
-            ImGui::Text("反作用を適用したRigidbody数: %llu", static_cast<unsigned long long>(stats.appliedBodyCount));
+            ImGui::Text("反作用を適用した剛体数: %llu", static_cast<unsigned long long>(stats.appliedBodyCount));
             ImGui::Text("直前の直線インパルス: %.4f", stats.lastLinearImpulse);
             ImGui::Text("直前の角インパルス: %.4f", stats.lastAngularImpulse);
         }
@@ -85,9 +85,9 @@ public:
         if (ImGui::CollapsingHeader("負荷確認の目安"))
         {
             ImGui::BulletText("開始: 動的OBB 1個 + SPH粒子1000個");
-            ImGui::BulletText("Rigidbody数: 4 / 16 / 32個へ段階的に増加");
-            ImGui::BulletText("Collider Proxy上限: 64個");
-            ImGui::BulletText("動的Rigidbody反作用上限: 32個");
+            ImGui::BulletText("剛体数: 4 / 16 / 32個へ段階的に増加");
+            ImGui::BulletText("コライダープロキシ上限: 64個");
+            ImGui::BulletText("動的剛体反作用上限: 32個");
             ImGui::BulletText("SPH粒子数: 4096 / 16384個でも確認");
             ImGui::TextDisabled("反作用の読取はGPU待機を行わないため、数フレーム遅れて反映されます。");
         }
