@@ -66,8 +66,7 @@ void ConstrainPredicted(uint3 dispatchThreadId : SV_DispatchThreadID)
 
     float3 predictedPosition = gParticles[index].predictedPosition;
     float3 velocityValue = gParticles[index].velocity;
-    // W9.5では法線反発に加えて接線摩擦も適用し、壁沿いの不自然な高速滑走を抑える。
-    ResolveBoundary(predictedPosition, velocityValue);
+    ResolveBoundary(predictedPosition, velocityValue); // 法線反発と接線摩擦を同時に適用し、壁沿いの不自然な高速滑走を抑える。
     gParticles[index].predictedPosition = predictedPosition;
     gParticles[index].velocity = velocityValue;
 }
