@@ -68,11 +68,12 @@ namespace Ken4lowEngine
 #ifdef USE_IMGUI
 		if (!gaussianFilterSetting_) return;
 		const char* kernelOptions[] = { "3x3", "5x5", "7x7", "9x9" };
-		ImGui::Combo("Kernel Size##GaussianFilterEffect", &gaussianFilterSetting_->kernelType, kernelOptions, IM_ARRAYSIZE(kernelOptions));
-		ImGui::SliderFloat("Intensity##GaussianFilterEffect", &gaussianFilterSetting_->intensity, 0.0f, 5.0f);
-		ImGui::SliderFloat("Sigma##GaussianFilterEffect", &gaussianFilterSetting_->sigma, 0.1f, 5.0f);
-		ImGui::SliderFloat("Threshold##GaussianFilterEffect", &gaussianFilterSetting_->threshold, 0.0f, 1.0f);
-		ImGui::Checkbox("Horizontal##GaussianFilterEffect", &gaussianFilterSetting_->isHorizontal);
+		// ガウシアンフィルターの各設定値を用途が伝わる日本語で表示する。
+		ImGui::Combo("カーネルサイズ##GaussianFilterEffect", &gaussianFilterSetting_->kernelType, kernelOptions, IM_ARRAYSIZE(kernelOptions));
+		ImGui::SliderFloat("適用の強さ##GaussianFilterEffect", &gaussianFilterSetting_->intensity, 0.0f, 5.0f);
+		ImGui::SliderFloat("ぼかし幅（シグマ）##GaussianFilterEffect", &gaussianFilterSetting_->sigma, 0.1f, 5.0f);
+		ImGui::SliderFloat("適用しきい値##GaussianFilterEffect", &gaussianFilterSetting_->threshold, 0.0f, 1.0f);
+		ImGui::Checkbox("横方向に適用##GaussianFilterEffect", &gaussianFilterSetting_->isHorizontal);
 #endif // USE_IMGUI
 	}
 
