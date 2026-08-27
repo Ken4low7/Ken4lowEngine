@@ -57,27 +57,28 @@ namespace Ken4lowEngine
 	void SceneComponent::DrawImGui()
 	{
 #ifdef USE_IMGUI
-		ImGui::SeparatorText("Scene Component");
+		// InspectorのTransform項目を日本語へ統一し、ローカル値とワールド値の違いを分かりやすくする。
+		ImGui::SeparatorText("シーンコンポーネント");
 		bool transformChanged = false;
-		transformChanged |= ImGui::DragFloat3("Local Position", &localPosition_.x, 0.1f);
-		transformChanged |= ImGui::DragFloat3("Local Rotation", &localRotation_.x, 0.1f);
-		transformChanged |= ImGui::DragFloat3("Local Scale", &localScale_.x, 0.1f);
+		transformChanged |= ImGui::DragFloat3("ローカル位置", &localPosition_.x, 0.1f);
+		transformChanged |= ImGui::DragFloat3("ローカル回転", &localRotation_.x, 0.1f);
+		transformChanged |= ImGui::DragFloat3("ローカル拡大率", &localScale_.x, 0.1f);
 		if (transformChanged) MarkTransformDirty();
 
-		ImGui::SeparatorText("World Transform");
-		ImGui::Text("World Position : %.2f, %.2f, %.2f", worldPosition_.x, worldPosition_.y, worldPosition_.z);
-		ImGui::Text("World Rotation : %.2f, %.2f, %.2f", worldRotation_.x, worldRotation_.y, worldRotation_.z);
-		ImGui::Text("World Scale    : %.2f, %.2f, %.2f", worldScale_.x, worldScale_.y, worldScale_.z);
-		ImGui::Text("Transform Dirty: %s", worldTransformDirty_ ? "Yes" : "No");
-		ImGui::Text("Transform Revision: %llu", static_cast<unsigned long long>(worldTransformRevision_));
-		ImGui::Text("Children Count : %zu", children_.size());
+		ImGui::SeparatorText("ワールド変換");
+		ImGui::Text("ワールド位置 : %.2f, %.2f, %.2f", worldPosition_.x, worldPosition_.y, worldPosition_.z);
+		ImGui::Text("ワールド回転 : %.2f, %.2f, %.2f", worldRotation_.x, worldRotation_.y, worldRotation_.z);
+		ImGui::Text("ワールド拡大率 : %.2f, %.2f, %.2f", worldScale_.x, worldScale_.y, worldScale_.z);
+		ImGui::Text("変換更新待ち: %s", worldTransformDirty_ ? "はい" : "いいえ");
+		ImGui::Text("変換更新番号: %llu", static_cast<unsigned long long>(worldTransformRevision_));
+		ImGui::Text("子コンポーネント数 : %zu", children_.size());
 #endif // USE_IMGUI
 	}
 
 	void SceneComponent::DrawComponentHierarchyImGui(Actor*& selectedActor, ActorComponent*& selectedComponent)
 	{
 #ifdef USE_IMGUI
-		const std::string label = GetName().empty() ? "Scene Component" : GetName();
+		const std::string label = GetName().empty() ? "シーンコンポーネント" : GetName();
 		const std::string treeLabel = label + "##SceneComponentTree";
 		ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
 		if (selectedComponent == this)
