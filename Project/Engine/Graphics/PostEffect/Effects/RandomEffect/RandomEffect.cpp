@@ -77,7 +77,8 @@ namespace Ken4lowEngine
 	void RandomEffect::DrawImGui()
 	{
 #ifdef USE_IMGUI
-		if (randomSetting_ && ImGui::Button(randomSetting_->useMultiply ? "No Multiply" : "Apply Multiply"))
+		// 乗算ノイズの状態がボタン名だけで分かる日本語表示にする。
+		if (randomSetting_ && ImGui::Button(randomSetting_->useMultiply ? "乗算を無効にする" : "乗算を有効にする"))
 		{
 			randomSetting_->useMultiply = !randomSetting_->useMultiply;
 		}
