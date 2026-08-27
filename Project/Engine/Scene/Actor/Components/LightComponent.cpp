@@ -64,12 +64,12 @@ namespace Ken4lowEngine
 		std::vector<ComponentPropertyChoice> LightTypeChoices()
 		{
 			return {
-				{ "None", "なし / None" },
-				{ "Directional", "平行光源 / Directional" },
-				{ "Point", "点光源 / Point" },
-				{ "Spot", "スポットライト / Spot" },
-				{ "RectArea", "矩形エリアライト / RectArea" },
-				{ "SphereArea", "球エリアライト / SphereArea" },
+				{ "None", "なし" },
+				{ "Directional", "平行光源" },
+				{ "Point", "点光源" },
+				{ "Spot", "スポットライト" },
+				{ "RectArea", "矩形エリアライト" },
+				{ "SphereArea", "球エリアライト" },
 			};
 		}
 	}
@@ -79,9 +79,10 @@ namespace Ken4lowEngine
 		SceneComponent::DrawImGui(); // ライトの基準位置はSceneComponentで編集し、LightComponentは光源パラメータだけを担当する。
 
 #ifdef USE_IMGUI
+		// 個別ライトの編集場所とLightManagerとの同期関係を日本語で明示する。
 		ImGui::SeparatorText("ライトコンポーネント");
-		ImGui::TextUnformatted("Individual light values are edited here and synced to LightManager before rendering.");
-		ImGui::TextDisabled("LightManager shows Component Lights as read-only debug data.");
+		ImGui::TextUnformatted("このライトの値を編集すると、描画前にLightManagerへ同期されます。");
+		ImGui::TextDisabled("LightManager側のコンポーネントライト表示は確認専用です。");
 
 		bool changed = false;
 
@@ -151,7 +152,7 @@ namespace Ken4lowEngine
 		}
 		else
 		{
-			ImGui::TextDisabled("Range / Decay are used by Point, Spot, and Area lights.");
+			ImGui::TextDisabled("範囲と減衰は、点光源・スポットライト・エリアライトで使用します。");
 		}
 
 		if (lightType_ == LightType::Spot)
@@ -169,7 +170,7 @@ namespace Ken4lowEngine
 		}
 		else
 		{
-			ImGui::TextDisabled("Spot angles are shown only for Spot lights.");
+			ImGui::TextDisabled("内角度と外角度はスポットライト選択時のみ編集できます。");
 		}
 
 		if (UsesAreaSize(lightType_))
@@ -184,7 +185,7 @@ namespace Ken4lowEngine
 		}
 		else
 		{
-			ImGui::TextDisabled("Area Size is shown only for Rect/Sphere area lights.");
+			ImGui::TextDisabled("エリアサイズは矩形・球エリアライト選択時のみ編集できます。");
 		}
 
 		if (UsesDirection(lightType_))
@@ -196,7 +197,7 @@ namespace Ken4lowEngine
 		if (changed)
 		{
 			// ActorWorld::SyncLightComponentsToLightManager がこの値を収集し、LightManagerではread-only debugとして表示する。
-			ImGui::TextColored(ImVec4(0.75f, 1.0f, 0.75f, 1.0f), "LightComponent values updated. They will be synced before the next draw.");
+			ImGui::TextColored(ImVec4(0.75f, 1.0f, 0.75f, 1.0f), "ライトの値を更新しました。次の描画前に同期されます。");
 		}
 #endif // USE_IMGUI
 	}
