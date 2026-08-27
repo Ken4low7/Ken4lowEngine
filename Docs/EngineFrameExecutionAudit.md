@@ -193,3 +193,5 @@ Graph失敗時は同順の固定fallbackがある。[RenderGraph::Execute](../Pr
 検証はDebug/Releaseの通常Build、既存module/asset/reference/CI検査、製品の短時間起動・通常終了smokeを実施し、実際の結果を進捗へ追記する。追加の呼出回数検証は本物のSceneManager/SampleScene/ActorWorld/Actor/Component経路を使い、単に期待する順序を別実装で再現したものを合格根拠にしない。
 
 残す検証: PIE中にGPU Particle/SPH/Fluidを同時に有効にしたPause/Step比較、Water/VFXの目視、GPU debug layer、Frames in Flight ON/OFF、同一frameのMainWorldRender再実行、A/B World交互描画、Scene切替/resize/reconfigure/readback反復。コード上の到達確認だけでこれらの実機検証完了とはしない。
+
+検証完了: SampleSceneのEdit 3 tickで6回だったComponent更新を実装経路で再現し、修正後3回になることを確認した。実物のPIE Pause/Step要求を使うDebug検証28項目と、ReleaseのRuntime更新8項目が一致。Debug/Release Build、既存テスト、製品exeの各3秒smokeも成功した。これはCPU更新回数と通常起動/終了の確認であり、上記GPUの残検証を完了した意味ではない。警告・ログ・コマンドは[進捗の30.3節](ProductionEngineProgress.md)を参照。

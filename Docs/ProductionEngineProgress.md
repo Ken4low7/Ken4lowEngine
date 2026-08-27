@@ -182,3 +182,134 @@ msbuild Generated/ServiceInventory/AudioLifecycle.vcxproj /p:Platform=x64 /p:Con
 - Scene切替反復、PIE/Undo/drag中の破棄、GPU live object、Frames in Flight/resize/capture、例外注入、Water/VFX/Physicsの目視比較、長時間stress、全105サービスの反復I/F・並列競合テストは未実施。
 
 短時間smoke・音声資源統計・ビルド成功から、全機能の動作維持やGPU Leakなしまで確認できたとは扱わない。
+
+## 30.3 Update / FixedUpdate / Render順序整理
+
+実施日: 2026-08-27。
+
+- 基準: 前回の棚卸し・Audio終了修正が取り込まれたmaster `823c3d4`。originをfetch、masterのfast-forward確認（Already up to date）の後、`codex/frame-execution-audit`を作成した。
+- 調査成果: [EngineFrameExecutionAudit.md](EngineFrameExecutionAudit.md)。Framework::RunからUpdate、Scene/Actor/Component、CPU Physics、GPU各Simulation、VFX、Editor/PIE、PostEffect、Render/Presentまでの実際の呼出順を記録。
+- 重点確認: Scene別Physicsの差、共通FixedUpdateの不在、GPU更新がSceneより先であること、Draw中のFluid、PIE停止/step、Editor二重更新、同一frame複数Drawのguardと限界。
+- 状態: 今回の調査、最小修正、下記検証を完了。CPU/GPUの停止契約統一や固定刻み化は未実施。Phase 30全体の完了ではない。
+
+### 調査結果と分類
+
+12項目を`維持 / 明確なバグ / 設計改善候補 / 今回変更しない`に分類した。バグ判定と今回修正するかは分け、影響の大きいものは変更していない。
+
+| 分類 | 件数 | 主な内容 |
+| --- | ---: | --- |
+| 維持 | 2 | 既存Run/Render順、Fluidの同一World・frame slot/fenceによる重複防止と内部pass順 |
+| 明確なバグ | 3 | SampleSceneのEditor二重更新、PIE停止/stepのCPU/GPU不一致、MainWorldRender再呼出時のSPH interaction重複防止不足 |
+| 設計改善候補 | 5 | Scene別Physics、Scene前のGPU更新、Draw依存のFluid、Timer/Streaming入力時刻、Scene差替えと未送信GPU参照 |
+| 今回変更しない | 2 | 共通FixedUpdate API導入、Water/VFX/PostEffectの表示用時計変更 |
+
+特に確認した点:
+
+- DebugSceneはPhysicsWorldを値所有し、Initializeで`SetUseFixedStep(false)`を指定。Actor Update → transform確定 → Physics → PostPhysics → transform確定の既存scheduleを使う。DataDrivenScene/SampleSceneはActorWorld.UpdateだけでPhysics Stepを持たない。
+- GPU Particle / Liquid Pre / SPH / Liquid PostはScene Updateより前。Fluid 2D/3DはActorWorld.Draw内で最新のEmitter/Colliderを収集して進む。
+- PIE PauseはScene Runtimeを止めるが、GPU Particle・SPH・Fluid・VFXを共通には止めない。SPH/Fluidの独自Pause/StepはDiagnosticsPanel由来で、PIE Stepと連動していない。WaterSurfaceもUpdateEditorで時間を進める。
+- 現在のShadow/Probe/Planarは専用描画でありActorWorld.Drawの再帰実行ではない。Fluidには同じWorld/slot/fenceで重複を避ける実装がある。一方、Draw冒頭のSPH–Rigidbody interactionには同じgateがなく、MainWorldRenderを同じframeで複数回呼ぶ将来の経路では、再dispatch・未送信readback消費の危険がある。
+- `GameTimer::EndFrame`のUpdate末尾呼出は内部でEndUpdate相当としてreturnする。Draw末尾の呼出と合わせてフレームを二重確定しているわけではない。
+
+### 実施した最小修正
+
+[SampleScene.h](../Project/ApplicationLayer/Scene/SampleScene/SampleScene.h)の`UpdateEditor`を、DataDrivenSceneと同様にScene固有処理だけのhook（現在はno-op）へ変更した。
+
+基準版ではSceneManagerが`scene_->UpdateEditor`を呼んだ後、`RefreshEditorVisualState`から同じWorldを更新していた。SampleSceneのhook内のWorld更新だけを取り除き、World更新の担当を既存のSceneManagerに揃えた。製品コードは2行追加 / 2行削除（未使用引数表記と処理意図の1行コメントを含む）。
+
+- Actor/Component設計、Runtime Update、Physics Step、Render順、GPU Particle/SPH/Liquid/Fluid/VFX実装は変更なし。共通FixedUpdate API、Manager、Singletonの追加なし。
+- SampleSceneのEdit/PauseではComponent更新が2回から1回になる。Water等のEditor previewも二重加算されなくなるが、Component自身の時間計算・挙動は変更していない。他Sceneの更新回数は維持。
+- Legacy削除: なし。削除したのは重複していたWorld更新呼出のみ。
+- Phase番号はコード・コメント・ImGui・GPU Debug Nameに追加していない。変更した製品ファイルの工程名検査は一致0件。
+
+### コミット
+
+| コミット | 内容 |
+| --- | --- |
+| `1fa1bee` | コード変更前に実行順、PIE/複数Drawの到達条件、分類とリスクを記録 |
+| `2ff3891` | SampleSceneのEditor World二重更新だけを除去 |
+
+検証結果と本進捗の更新は別のdocsコミットにまとめる。masterへのmergeとリモートへのpushは行っていない。
+
+### Debug / Release Build・既存テスト
+
+環境: Visual Studio 18 Community / MSBuild 18.9.1、x64、Python 3.12.13、Windows SDK DXC 10.0.26100.0。ログと一時検証補助は`Generated/FrameExecution`内（Git対象外）。
+
+| 検証 | 結果 / 証跡 |
+| --- | --- |
+| DebugソリューションBuild（リンク含む） | 成功、0警告 / 0エラー、13.45秒。`debug-build.log` |
+| ReleaseソリューションBuild（リンク含む） | 成功、2警告 / 0エラー、72.12秒。既存FrameUploadArena.hのC4189（hr未使用）。`release-build.log` |
+| ValidateEngineModules.py | 成功。`engine-modules.log` |
+| ValidateProjectAssets.py / CheckBrokenReferences.py | ともに成功。`project-assets.log` / `broken-references.log` |
+| unittest discover / CIと同じ直接テスト実行 | 同じ既存7テストが両方式とも成功。`unittest-discover.log` / `ci-test-file.log` |
+| CIのPowerShell構文検査 | BuildAssetCommon / BuildTextures / BuildMeshes / BuildFonts / PackageRelease / RunSoakTest、6本成功。`ci-checks.log` |
+| CIのDerived Data Cache smoke | Store/Restore/Hit/SHA256一致、17 bytes成功。既存cacheを削除せず専用ディレクトリを使用 |
+| CIのGPU Particle HLSL検査 | 既存9 shaderを同じentry point/profileでDXCコンパイル成功。`ci-checks.log` / `Dxil/` |
+| CIのPackageRelease -DryRun | 成功。配布ZIPは作成していない。`package-dry-run.log` |
+| 前回棚卸しの整合性 | 94 Singleton / 11通常Manager、105/105、重複0、分類・項目・リンク整合。`inventory-coverage.log` |
+| 今回の文書・差分 | 調査の12分類行とリンク先存在を確認。Git差分の空白エラーなし。製品変更はSampleScene.hのみ |
+
+Buildは両構成ともincrementalでありclean rebuildや全警告除去ではない。既存7テストはmodule境界等の検証で、Simulationの時間積分や画面を網羅するテストではない。
+
+### 実際のScene更新経路による追加検証
+
+一時console harness `SceneUpdateContract.cpp`から実物のSampleScene/DataDrivenSceneを生成し、製品のSceneManager → ActorWorld → Actor → 計数用Componentを通して検証した。Engine実装は既存Buildのobjectをリンクし、WinMain/GameApplication/製品SceneFactoryを除外。SampleSceneは変更したheaderをharnessで再コンパイルし、期待する更新順を別実装やmockで代用していない。
+
+| 検証 | 結果 |
+| --- | --- |
+| 修正前Debug | **二重更新を再現**。SampleSceneのEdit 3 tickでComponent更新6回、Pause 1 tickで2回。計数assert 5件失敗、exit 1。DataDrivenSceneは期待どおり。`native-baseline.log/json` |
+| 修正後Debug | 成功、28項目一致、exit 0、timeoutなし。Edit 3 tickで3回、Pause 1 tickで1回。Play、Single StepでRuntimeが1回だけ増加、Step後Pause維持、翌tickはEditorのみ、非Active Actorのskip、暗黙PostPhysicsなしを両Sceneで確認。`native-fixed-debug.log/json` |
+| 修正後Release | 成功、8項目一致、exit 0、timeoutなし。両Sceneで3 tickにRuntime 3回、Editor 0回、暗黙PostPhysicsなし、非Active Actorのskip。`native-fixed-release.log/json` |
+
+PIEは空Worldのsnapshotで実際に開始してからRuntime Worldへ計数用Componentを付け、実物のPause/Step要求を消費する。Componentのserialization代替実装は使わない。検証中はGPU資源を持つActorを生成せず、画面やGPU停止はこのharnessの確認対象ではない。終了はSceneManager::Finalize経路であり、Stopボタンによる編集内容復元の試験とは区別する。
+
+harness Buildも成功。Debugは最適化リンクと既存objectのEdit-and-Continue指定の組合せによるLNK4075が1件、Releaseは0警告。製品Buildの警告とは別。今回恒久CIのnative test基盤は追加しておらず、harnessと生成vcxprojはGeneratedに残す。基準版でのassert失敗は不具合再現の記録であり、修正後の検証失敗ではない。
+
+### 短時間Runtime smoke
+
+両構成のBuild完了を確認した後、実行バイナリの更新時刻とSHA256を記録するsmokeを再実行し、以下を最終結果とした。
+
+| 構成 | 製品exeの結果 |
+| --- | --- |
+| Debug | 成功、176フレーム / 3.0091秒、exit 0、timeoutなし |
+| Release | 成功、182フレーム / 3.00789秒、exit 0、timeoutなし |
+
+証跡: `runtime-smoke-confirmed-results.json`、`Debug-smoke-confirmed.csv`、`Release-smoke-confirmed.csv`。開始時刻は両exeの更新時刻より後である。先行smokeのログも別名で保持し、最終結果には混ぜていない。
+
+作業ディレクトリは既存の`Generated/EngineAudit/RuntimeDebug` / `RuntimeRelease`。Resources/Config/Externalsを参照し、Editor layoutはコピーを使用。`KEN4LOW_SOAK_SECONDS=3`で既存の通常終了経路を使い、環境変数は復元した。RunSoakTestの長時間budget判定、GPU debug layer採取、Water/VFX/Physicsの目視比較は実施していない。
+
+### 再実行
+
+リポジトリルートで実行する（MSBuild/PythonをPATHへ設定した場合）。
+
+```powershell
+msbuild Project/Ken4lowEngine.sln /m:2 /t:Build /p:Platform=x64 /p:Configuration=Debug
+msbuild Project/Ken4lowEngine.sln /m:2 /t:Build /p:Platform=x64 /p:Configuration=Release
+python Project/Tools/Scripts/ValidateEngineModules.py
+python Project/Tools/Scripts/ValidateProjectAssets.py
+python Project/Tools/Scripts/CheckBrokenReferences.py
+python -m unittest discover -s Project/Tests -p "test_*.py" -v
+python Project/Tests/test_engine_modules.py -v
+./Project/Tools/Scripts/PackageRelease.ps1 -ProjectRoot (Resolve-Path Project).Path -DryRun
+```
+
+ローカル検証補助（Generated内のため別checkoutには含まれない）:
+
+```powershell
+./Generated/FrameExecution/InvokeCiChecks.ps1
+msbuild Generated/FrameExecution/SceneUpdateContract.vcxproj /p:Platform=x64 /p:Configuration=Debug
+msbuild Generated/FrameExecution/SceneUpdateContract.vcxproj /p:Platform=x64 /p:Configuration=Release
+python Generated/FrameExecution/run_native_check.py Debug fixed-debug
+python Generated/FrameExecution/run_native_check.py Release fixed-release
+./Generated/FrameExecution/InvokeRuntimeSmoke.ps1 -RunLabel rerun
+```
+
+### 残課題
+
+- FRAME-07: PIEのCPU/GPU停止・Single Step契約。Editor previewとRuntimeを区別し、accumulator、Ocean coupling、SPH reaction/readbackまで含めて設計する必要がある。
+- FRAME-08: SPH–Rigidbody interactionの同一GPU frame再入防止とreadbackの送信/完了確認。現行MainWorldRenderは1回だが、複数Drawへの一般的な安全性は保証しない。
+- FRAME-03/05/06: Scene別Physics所有・固定刻み、Scene前のGPU入力、Drawに依存したFluid更新。今回これらの順序は変えていない。
+- FRAME-12と前回の寿命課題: Scene切替時の未送信GPU参照、World pointer再利用、複数World、Finalize/reconfigure/resizeとslot安全性。
+- GPUを有効にしたPIE Pause/Step、Frames in Flight ON/OFF、同一frameの複数MainWorldRender、Water/VFXの目視、GPU live object、長時間stress、native検証の恒久CI化は未実施。
+
+短時間smokeとCPU更新回数の一致だけで、GPU Simulation全体の停止保証や全機能の動作維持を確認できたとは扱わない。
