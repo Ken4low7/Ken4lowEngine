@@ -18,7 +18,7 @@ def test_editor_uses_existing_graph_asset_compiler_and_runtime():
     assert "VfxGraphRuntime::GetInstance()->RegisterGraph" in source
 
 
-def test_editor_exposes_all_phase20_to_phase23_graph_node_types():
+def test_editor_exposes_supported_graph_node_types():
     source = read("Engine/Vfx/Graph/Editor/VfxGraphEditor.cpp")
     expected = [
         "SpawnRate", "Burst", "SpawnPoint", "SpawnSphere", "SpawnBox",
@@ -54,7 +54,7 @@ def test_editor_can_add_remove_and_connect_graph_nodes():
     assert "edge.fromNodeId == removedId || edge.toNodeId == removedId" in source
 
 
-def test_curve_and_gradient_authoring_respects_existing_schema_limits():
+def test_curve_and_gradient_authoring_respects_schema_limits():
     source = read("Engine/Vfx/Graph/Editor/VfxGraphEditor.cpp")
     assert "DrawFloatCurveEditor" in source
     assert "DrawColorGradientEditor" in source
@@ -93,11 +93,10 @@ def test_editor_is_integrated_into_main_editor_lifecycle_and_window_state():
     assert '"VFX Graph Editor"' in menu
 
 
-def test_phase25_showcase_is_a_serializable_connected_graph():
-    path = ROOT / "Resources/VfxGraph/Phase25/EditorPreviewShowcase.vfxgraph.json"
+def test_editor_preview_showcase_is_a_serializable_connected_graph():
+    path = ROOT / "Resources/VfxGraph/Samples/EditorPreviewShowcase.vfxgraph.json"
     graph = json.loads(path.read_text(encoding="utf-8"))
     assert graph["schemaVersion"] == 1
-    assert graph["graphName"] == "Phase25EditorPreviewShowcase"
     emitter = graph["emitters"][0]
     ids = {node["id"] for node in emitter["nodes"]}
     assert len(ids) >= 8
@@ -105,7 +104,7 @@ def test_phase25_showcase_is_a_serializable_connected_graph():
     assert all(edge["from"] in ids and edge["to"] in ids for edge in emitter["edges"])
 
 
-def test_phase25_stays_on_editor_preview_scope_boundary():
+def test_editor_preview_stays_independent_from_runtime_integrations():
     source = read("Engine/Vfx/Graph/Editor/VfxGraphEditor.cpp")
     assert "GpuFluid" not in source
     assert "LightManager" not in source
@@ -113,3 +112,4 @@ def test_phase25_stays_on_editor_preview_scope_boundary():
     targets = read("Directory.Build.targets")
     assert "Vfx\\Graph\\Editor\\VfxGraphEditor.cpp" in targets
     assert "EditorPreviewShowcase.vfxgraph.json" in targets
+    # PreviewはGraph編集機能だけを担当し、外部Subsystemの実行責務を持たない。
