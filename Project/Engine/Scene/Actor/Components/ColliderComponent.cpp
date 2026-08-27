@@ -198,7 +198,8 @@ namespace Ken4lowEngine
 		SceneComponent::DrawImGui(); // ColliderのTransform情報を確認・編集できるようにする。
 
 #ifdef USE_IMGUI
-		ImGui::SeparatorText("Collider Component");
+		// 衝突形状の設定を日本語で確認できるようにする。
+		ImGui::SeparatorText("コライダーコンポーネント");
 		ComponentPropertyUtility::DrawImGui(CreateProperties());
 #endif
 	}
@@ -386,11 +387,11 @@ namespace Ken4lowEngine
 	std::vector<ComponentProperty> ColliderComponent::CreateProperties()
 	{
 		return {
-			{ "ShapeType", "形状", ComponentPropertyType::String, [this]() -> ComponentPropertyValue { return std::string(Tostring(shapeType_)); }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<std::string>(&value)) { SetShapeType(ShapeTypeFromString(*typedValue)); } }, 0.0f, 0.0f, 0.1f, false, { { "None", "None" }, { "Sphere", "Sphere" }, { "AABB", "AABB" }, { "OBB", "OBB" }, { "Capsule", "Capsule" }, { "Segment", "Segment" } } },
+			{ "ShapeType", "形状", ComponentPropertyType::String, [this]() -> ComponentPropertyValue { return std::string(Tostring(shapeType_)); }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<std::string>(&value)) { SetShapeType(ShapeTypeFromString(*typedValue)); } }, 0.0f, 0.0f, 0.1f, false, { { "None", "なし" }, { "Sphere", "球" }, { "AABB", "AABB" }, { "OBB", "OBB" }, { "Capsule", "カプセル" }, { "Segment", "線分" } } },
 			{ "Radius", "半径", ComponentPropertyType::Float, [this]() -> ComponentPropertyValue { return radius_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<float>(&value)) { SetRadius(*typedValue); } }, 0.0f, 100.0f, 0.1f, true },
 			{ "HalfSize", "半サイズ", ComponentPropertyType::Vector3, [this]() -> ComponentPropertyValue { return halfSize_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<Vector3>(&value)) { SetHalfSize(*typedValue); } }, 0.0f, 100.0f, 0.1f, true },
 			{ "IsTrigger", "トリガー", ComponentPropertyType::Bool, [this]() -> ComponentPropertyValue { return isTrigger_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<bool>(&value)) { SetIsTrigger(*typedValue); } } },
-			{ "CollisionLayer", "Collision Layer", ComponentPropertyType::Int, [this]() -> ComponentPropertyValue { return static_cast<int>(collisionLayer_); }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<int>(&value)) { SetCollisionLayer(static_cast<uint32_t>(std::max(*typedValue, 0))); } }, 0.0f, 31.0f, 1.0f, true }
+			{ "CollisionLayer", "衝突レイヤー", ComponentPropertyType::Int, [this]() -> ComponentPropertyValue { return static_cast<int>(collisionLayer_); }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<int>(&value)) { SetCollisionLayer(static_cast<uint32_t>(std::max(*typedValue, 0))); } }, 0.0f, 31.0f, 1.0f, true }
 		};
 	}
 } // namespace Ken4lowEngine
