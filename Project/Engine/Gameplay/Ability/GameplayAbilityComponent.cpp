@@ -85,24 +85,25 @@ void GameplayAbilityComponent::Update(float deltaTime)
 void GameplayAbilityComponent::DrawImGui()
 {
 #ifdef USE_IMGUI
-	ImGui::Text("Registered Abilities: %u", stats_.registeredAbilityCount);
-	ImGui::Text("Active Abilities: %u / Peak %u", stats_.activeAbilityCount, stats_.peakActiveAbilityCount);
-	ImGui::Text("Active Modifiers: %u", stats_.activeModifierCount);
-	ImGui::Text("Activation Success / Reject: %llu / %llu",
+	ImGui::Text("登録アビリティ: %u", stats_.registeredAbilityCount);
+	ImGui::Text("実行中アビリティ: %u / 最大 %u", stats_.activeAbilityCount, stats_.peakActiveAbilityCount);
+	ImGui::Text("有効な補正: %u", stats_.activeModifierCount);
+	ImGui::Text("発動成功 / 拒否: %llu / %llu",
 		static_cast<unsigned long long>(stats_.activationSuccesses),
 		static_cast<unsigned long long>(stats_.activationRejects));
 	if (!stats_.lastStatus.empty()) ImGui::TextWrapped("%s", stats_.lastStatus.c_str());
 
-	if (ImGui::CollapsingHeader("Ability Asset", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("アビリティアセット", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		static char abilityPath[384] = "Resources/Gameplay/Abilities/Phase19Pulse.ability.json";
-		ImGui::InputText("Asset Path", abilityPath, sizeof(abilityPath));
-		if (ImGui::Button("Load / Register Ability")) LoadAbility(abilityPath);
+		// サンプル読み込み欄の既定値は現在のAbility Assetへ合わせる。
+		static char abilityPath[384] = "Resources/Gameplay/Abilities/Pulse.ability.json";
+		ImGui::InputText("アセットパス", abilityPath, sizeof(abilityPath));
+		if (ImGui::Button("読み込み / 登録")) LoadAbility(abilityPath);
 		ImGui::SameLine();
-		if (ImGui::Button("Cancel All")) CancelAllAbilities();
+		if (ImGui::Button("すべてキャンセル")) CancelAllAbilities();
 	}
 
-	if (ImGui::CollapsingHeader("Gameplay Attributes", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("属性", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		for (const GameplayAttributeDefinition& definition : attributes_.GetDefinitions())
 		{
@@ -113,50 +114,50 @@ void GameplayAbilityComponent::DrawImGui()
 				attributes_.SetBaseValue(definition.name, baseValue);
 			}
 			ImGui::SameLine();
-			ImGui::Text("Final %.2f", attributes_.GetValue(definition.name));
+			ImGui::Text("最終値 %.2f", attributes_.GetValue(definition.name));
 			ImGui::PopID();
 		}
 	}
 
-	if (ImGui::CollapsingHeader("Gameplay Tags", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("ゲームプレイタグ", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		for (const std::string& tag : GetCombinedTags()) ImGui::BulletText("%s", tag.c_str());
 	}
 
-	if (ImGui::CollapsingHeader("Abilities", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("アビリティ", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		for (const std::string& name : GetRegisteredAbilityNames())
 		{
 			ImGui::PushID(name.c_str());
-			ImGui::Text("%s  cooldown %.2f", name.c_str(), GetCooldownRemaining(name));
-			if (ImGui::Button("Activate")) TryActivateAbility(name);
+			ImGui::Text("%s  クールダウン %.2f", name.c_str(), GetCooldownRemaining(name));
+			if (ImGui::Button("発動")) TryActivateAbility(name);
 			ImGui::SameLine();
-			if (ImGui::Button("Reload")) ReloadAbility(name);
+			if (ImGui::Button("再読み込み")) ReloadAbility(name);
 			ImGui::SameLine();
-			if (ImGui::Button("Stress x16")) RunStressBurst(name, 16u);
+			if (ImGui::Button("負荷確認 x16")) RunStressBurst(name, 16u);
 			ImGui::PopID();
 		}
 	}
 
-	if (ImGui::CollapsingHeader("Phase19 Diagnostics"))
+	if (ImGui::CollapsingHeader("診断"))
 	{
 		GameplayAbilityDiagnostics* diagnostics = GameplayAbilityDiagnostics::GetInstance();
 		GameplayAbilityBudget& budget = diagnostics->GetEditableBudget();
 		int maxActive = static_cast<int>(budget.maxActiveAbilitiesPerComponent);
 		int maxModifiers = static_cast<int>(budget.maxModifiersPerComponent);
 		int maxActivations = static_cast<int>(budget.maxActivationsPerFramePerComponent);
-		if (ImGui::DragInt("Max Active Abilities", &maxActive, 1.0f, 1, 256)) budget.maxActiveAbilitiesPerComponent = static_cast<uint32_t>(maxActive);
-		if (ImGui::DragInt("Max Modifiers", &maxModifiers, 1.0f, 1, 1024)) budget.maxModifiersPerComponent = static_cast<uint32_t>(maxModifiers);
-		if (ImGui::DragInt("Max Activations / Frame", &maxActivations, 1.0f, 1, 256)) budget.maxActivationsPerFramePerComponent = static_cast<uint32_t>(maxActivations);
+		if (ImGui::DragInt("最大同時アビリティ数", &maxActive, 1.0f, 1, 256)) budget.maxActiveAbilitiesPerComponent = static_cast<uint32_t>(maxActive);
+		if (ImGui::DragInt("最大補正数", &maxModifiers, 1.0f, 1, 1024)) budget.maxModifiersPerComponent = static_cast<uint32_t>(maxModifiers);
+		if (ImGui::DragInt("1フレームの最大発動数", &maxActivations, 1.0f, 1, 256)) budget.maxActivationsPerFramePerComponent = static_cast<uint32_t>(maxActivations);
 		const GameplayAbilityGlobalStats& global = diagnostics->GetStats();
 		const GameplayEventRouterStats& events = GameplayEventRouter::GetInstance()->GetStats();
-		ImGui::Text("Global Activation: %llu / %llu",
+		ImGui::Text("全体の発動成功 / 拒否: %llu / %llu",
 			static_cast<unsigned long long>(global.activationSuccesses),
 			static_cast<unsigned long long>(global.activationRejects));
-		ImGui::Text("Events Published / Delivered: %llu / %llu",
+		ImGui::Text("イベント発行 / 配信: %llu / %llu",
 			static_cast<unsigned long long>(events.publishedCount),
 			static_cast<unsigned long long>(events.deliveredCount));
-		ImGui::Text("VFX Plays: %llu | Budget Rejects: %llu",
+		ImGui::Text("VFX再生: %llu | Budget拒否: %llu",
 			static_cast<unsigned long long>(global.vfxPlays),
 			static_cast<unsigned long long>(global.budgetRejects));
 	}
