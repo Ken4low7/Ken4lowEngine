@@ -7,6 +7,7 @@
 #include <UAVManager.h>
 #include <TextureManager.h>
 #include <AssetSystem.h>
+#include <AudioManager.h>
 #include <SpriteManager.h>
 #include <Object3DCommon.h>
 #include <ModelManager.h>
@@ -272,6 +273,9 @@ namespace Ken4lowEngine
 		StreamingManager::GetInstance()->Finalize();
 		JobSystem::GetInstance()->Finalize();
 		FrameMemory::GetInstance()->Finalize();
+
+		// Sceneと非同期処理の停止後、COM終了前に音声VoiceとMedia Foundationを解放する。
+		AudioManager::GetInstance()->Finalize();
 
 #ifdef USE_IMGUI
 		// TextureManager/SRVManager/DirectXCommonより先にエディタ用プレビューキャッシュを解放する。
