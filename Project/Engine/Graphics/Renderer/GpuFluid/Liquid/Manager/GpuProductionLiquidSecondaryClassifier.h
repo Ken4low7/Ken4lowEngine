@@ -28,7 +28,7 @@ struct GpuProductionLiquidSecondaryClassifierStats
     bool lastDispatchSucceeded = true;
 };
 
-/// W10.4: Primary SPHからSpray/Foam/Bubble候補をGPU分類し、Counterだけを非同期Readbackする。
+/// Primary SPHからSpray/Foam/Bubble候補をGPU分類し、Counterだけを非同期Readbackする。
 class GpuProductionLiquidSecondaryClassifier final
 {
 public:
@@ -60,7 +60,7 @@ public:
             Finalize();
             return false;
         }
-        counterBuffer_->SetName(L"GpuLiquid.W10.SecondaryCounters");
+        counterBuffer_->SetName(L"GpuLiquid.SecondaryCounters");
 
         try
         {
@@ -90,7 +90,7 @@ public:
                 Finalize();
                 return false;
             }
-            const std::wstring name = L"GpuLiquid.W10.SecondaryReadback." + std::to_wstring(index);
+            const std::wstring name = L"GpuLiquid.SecondaryReadback." + std::to_wstring(index);
             slot.buffer->SetName(name.c_str());
         }
 
@@ -293,7 +293,7 @@ private:
     bool CreatePipelineState(const wchar_t* entryPoint, ComPtr<ID3D12PipelineState>& output)
     {
         const ShaderDescriptor descriptor{
-            L"GpuLiquidW10SecondaryCS",
+            L"GpuLiquidSecondaryCS",
             L"Resources/Shaders/GpuFluid/Sph/Production/GpuSphSecondaryClassify.CS.hlsl",
             entryPoint,
             L"cs_6_0",
