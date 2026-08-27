@@ -40,7 +40,7 @@ namespace
 		typeInfo.className = "FluidEmitterComponent";
 		typeInfo.displayName = "Fluidエミッター";
 		typeInfo.category = "演出";
-		typeInfo.description = "Target Domainを明示して2Dまたは3D GPU Fluidへ速度・密度・温度を注入するSource Componentです。";
+		typeInfo.description = "対象領域を指定して、2Dまたは3D GPU流体へ速度・密度・温度を注入する発生源コンポーネントです。";
 		typeInfo.allowMultiple = true;
 		typeInfo.canBeRoot = true;
 		typeInfo.createFunc = [](Actor* owner) -> ActorComponent*
@@ -64,8 +64,9 @@ void FluidEmitterComponent::DrawImGui()
 	SceneComponent::DrawImGui();
 
 #ifdef USE_IMGUI
-	ImGui::SeparatorText("GPU Fluid Emitter");
-	ImGui::TextDisabled("Target Domain decides whether this source feeds 2D Fluid, 3D Volumetric Fluid, or both.");
+	// 流体発生源の対象と注入パラメータを日本語で理解できるようにする。
+	ImGui::SeparatorText("GPU流体エミッター");
+	ImGui::TextDisabled("対象領域によって、2D流体・3Dボリューム流体・または両方へ注入します。");
 	ComponentPropertyUtility::DrawImGui(CreateProperties());
 #endif // USE_IMGUI
 }
@@ -135,7 +136,7 @@ std::vector<ComponentProperty> FluidEmitterComponent::CreateProperties()
 	return {
 		ComponentProperty{
 			"TargetDomain",
-			"Target Domain",
+			"対象領域",
 			ComponentPropertyType::String,
 			[this]() -> ComponentPropertyValue { return std::string(ToTargetDomainKey(targetDomain_)); },
 			[this](const ComponentPropertyValue& value)
@@ -147,14 +148,14 @@ std::vector<ComponentProperty> FluidEmitterComponent::CreateProperties()
 			},
 			0.0f, 0.0f, 0.1f, false,
 			{
-				{ "Fluid2D", "2D Fluid" },
-				{ "Volumetric3D", "3D Volumetric" },
-				{ "Both", "Both (2D + 3D)" },
+				{ "Fluid2D", "2D流体" },
+				{ "Volumetric3D", "3Dボリューム流体" },
+				{ "Both", "両方（2D + 3D）" },
 			}
 		},
 		ComponentProperty{
 			"EmissionEnabled",
-			"Emission Enabled",
+			"放出を有効化",
 			ComponentPropertyType::Bool,
 			[this]() -> ComponentPropertyValue { return emissionEnabled_; },
 			[this](const ComponentPropertyValue& value)
@@ -164,7 +165,7 @@ std::vector<ComponentProperty> FluidEmitterComponent::CreateProperties()
 		},
 		ComponentProperty{
 			"Radius",
-			"Radius",
+			"半径",
 			ComponentPropertyType::Float,
 			[this]() -> ComponentPropertyValue { return radius_; },
 			[this](const ComponentPropertyValue& value)
@@ -179,7 +180,7 @@ std::vector<ComponentProperty> FluidEmitterComponent::CreateProperties()
 		},
 		ComponentProperty{
 			"SourceVelocity",
-			"Source Velocity (World)",
+			"発生源速度（ワールド）",
 			ComponentPropertyType::Vector3,
 			[this]() -> ComponentPropertyValue { return sourceVelocity_; },
 			[this](const ComponentPropertyValue& value)
@@ -193,7 +194,7 @@ std::vector<ComponentProperty> FluidEmitterComponent::CreateProperties()
 		},
 		ComponentProperty{
 			"VelocityStrength",
-			"Velocity Strength",
+			"速度の強さ",
 			ComponentPropertyType::Float,
 			[this]() -> ComponentPropertyValue { return velocityStrength_; },
 			[this](const ComponentPropertyValue& value)
@@ -208,7 +209,7 @@ std::vector<ComponentProperty> FluidEmitterComponent::CreateProperties()
 		},
 		ComponentProperty{
 			"DensityRate",
-			"Density / sec",
+			"密度 / 秒",
 			ComponentPropertyType::Float,
 			[this]() -> ComponentPropertyValue { return densityRate_; },
 			[this](const ComponentPropertyValue& value)
@@ -219,7 +220,7 @@ std::vector<ComponentProperty> FluidEmitterComponent::CreateProperties()
 		},
 		ComponentProperty{
 			"TemperatureRate",
-			"Temperature / sec",
+			"温度 / 秒",
 			ComponentPropertyType::Float,
 			[this]() -> ComponentPropertyValue { return temperatureRate_; },
 			[this](const ComponentPropertyValue& value)
@@ -230,7 +231,7 @@ std::vector<ComponentProperty> FluidEmitterComponent::CreateProperties()
 		},
 		ComponentProperty{
 			"FalloffExponent",
-			"Falloff Exponent",
+			"減衰指数",
 			ComponentPropertyType::Float,
 			[this]() -> ComponentPropertyValue { return falloffExponent_; },
 			[this](const ComponentPropertyValue& value)
