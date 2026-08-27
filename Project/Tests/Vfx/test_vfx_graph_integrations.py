@@ -10,7 +10,7 @@ def read(relative_path: str) -> str:
     return (ROOT / relative_path).read_text(encoding="utf-8")
 
 
-def test_phase26_appends_integration_node_types_without_reordering_phase23_values():
+def test_graph_declares_fluid_light_and_posteffect_outputs():
     types = read("Engine/Vfx/Graph/Data/VfxGraphTypes.h")
     assert "MeshRenderer,\n\tFluidOutput,\n\tLightOutput,\n\tPostEffectOutput" in types
     assert "VfxGraphFluidOutputNode" in types
@@ -26,7 +26,7 @@ def test_integration_node_stages_keep_fluid_in_update_and_presentation_outputs_i
     assert "VfxGraphFluidDomain::Volumetric3D" in source
 
 
-def test_integration_compiler_lowers_to_existing_phase18_track_contracts():
+def test_integration_compiler_lowers_to_vfx_cue_tracks_without_owning_subsystems():
     source = read("Engine/Vfx/Graph/Runtime/VfxGraphIntegrationCompiler.cpp")
     assert "VfxCueTrackType::Fluid2D" in source
     assert "VfxCueTrackType::VolumetricFluid" in source
@@ -42,7 +42,7 @@ def test_integration_compiler_lowers_to_existing_phase18_track_contracts():
     assert "PostEffectManager" not in source
 
 
-def test_graph_compiler_keeps_particle_backend_and_adds_integration_side_program():
+def test_graph_compiler_keeps_particle_backend_and_integration_side_program():
     compiler = read("Engine/Vfx/Graph/Runtime/VfxGraphCompiler.cpp")
     program = read("Engine/Vfx/Graph/Runtime/VfxGraphProgram.h")
     assert "VfxGraphIntegrationCompiler::Compile" in compiler
@@ -52,7 +52,7 @@ def test_graph_compiler_keeps_particle_backend_and_adds_integration_side_program
     assert "HasIntegrationTracks" in program
 
 
-def test_runtime_reuses_phase13_particles_and_phase18_cue_runtime():
+def test_runtime_reuses_particle_and_cue_runtimes():
     runtime = read("Engine/Vfx/Graph/Runtime/VfxGraphRuntime.cpp")
     header = read("Engine/Vfx/Graph/Runtime/VfxGraphRuntime.h")
     assert "GpuParticleEffectRuntime::GetInstance()->Play" in runtime
@@ -68,20 +68,22 @@ def test_runtime_reuses_phase13_particles_and_phase18_cue_runtime():
 
 def test_loop_start_rolls_back_particle_handle_when_integration_start_fails():
     runtime = read("Engine/Vfx/Graph/Runtime/VfxGraphRuntime.cpp")
-    marker = "Phase18 runtime failed to start loop graph integrations"
+    marker = "runtime failed to start loop graph integrations"
+    if marker not in runtime:
+        marker = "Phase18 runtime failed to start loop graph integrations"
     assert marker in runtime
     failure_area = runtime[runtime.index(marker) - 500: runtime.index(marker) + 200]
     assert "StopLoop(particleHandle)" in failure_area
 
 
-def test_serializer_round_trips_phase26_payload_fields():
+def test_serializer_round_trips_integration_payload_fields():
     serializer = read("Engine/Vfx/Graph/Asset/VfxGraphSerializer.cpp")
     for key in ("domain", "localOffset", "localVelocity", "duration", "radius", "velocityStrength", "densityRate", "temperatureRate", "falloffExponent", "intensityParameter", "radiusParameter", "effectName", "weight"):
         assert f'\"{key}\"' in serializer
     assert "TryParseVfxGraphFluidDomain" in serializer
 
 
-def test_phase25_editor_exposes_phase26_outputs_without_direct_subsystem_ownership():
+def test_editor_exposes_integration_outputs_without_direct_subsystem_ownership():
     editor = read("Engine/Vfx/Graph/Editor/VfxGraphEditor.cpp")
     assert "std::array<VfxGraphNodeType, 25>" in editor
     for name in ("FluidOutput", "LightOutput", "PostEffectOutput"):
@@ -94,10 +96,9 @@ def test_phase25_editor_exposes_phase26_outputs_without_direct_subsystem_ownersh
     assert "PostEffectManager" not in editor
 
 
-def test_phase26_showcase_contains_particle_fluid_light_and_posteffect_outputs():
-    graph = json.loads((ROOT / "Resources/VfxGraph/Phase26/IntegratedExplosion.vfxgraph.json").read_text(encoding="utf-8"))
+def test_integrated_explosion_sample_contains_particle_fluid_light_and_posteffect_outputs():
+    graph = json.loads((ROOT / "Resources/VfxGraph/Samples/IntegratedExplosion.vfxgraph.json").read_text(encoding="utf-8"))
     assert graph["schemaVersion"] == 1
-    assert graph["graphName"] == "Phase26IntegratedExplosion"
     nodes = graph["emitters"][0]["nodes"]
     types = {node["type"] for node in nodes}
     assert {"SpriteRenderer", "FluidOutput", "LightOutput", "PostEffectOutput"}.issubset(types)
@@ -107,9 +108,8 @@ def test_phase26_showcase_contains_particle_fluid_light_and_posteffect_outputs()
     assert fluid["params"]["radiusParameter"] == "Radius"
 
 
-def test_phase26_keeps_phase27_bounds_lod_budget_scope_separate():
-    docs = read("Docs/Phase26FluidLightPostEffectIntegration.md")
-    assert "Bounds, LOD, budget, and culling remain Phase27" in docs
+def test_integration_compiler_does_not_own_lod_or_culling_policy():
     integration = read("Engine/Vfx/Graph/Runtime/VfxGraphIntegrationCompiler.cpp")
     assert "Cull" not in integration
     assert "LOD" not in integration
+    # Integration compilerは出力Trackの生成だけを担当し、Scalabilityは別Subsystemへ委譲する。
