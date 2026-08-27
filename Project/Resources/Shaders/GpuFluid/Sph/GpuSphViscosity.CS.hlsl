@@ -59,7 +59,7 @@ void ComputeViscosityDelta(uint3 dispatchThreadId : SV_DispatchThreadID)
                         (velocityJ - velocityI) *
                         (laplacian / densityJ);
 
-                    // W9.5: 自由表面のCohesion強度を水Presetから調整可能にする。
+                    // 自由表面のCohesion強度を調整可能にし、密度不足部分だけ表面張力を強める。
                     const float surfaceDensity = min(densityI, densityJ);
                     const float surfaceFactor = saturate(
                         1.0f - surfaceDensity / max(gSph.targetDensity, 1.0e-5f));
@@ -98,8 +98,7 @@ void ApplyViscosity(uint3 dispatchThreadId : SV_DispatchThreadID)
 
     const float3 velocityValue = gParticles[index].velocity + gScratch[index].xyz;
 
-    // Adaptive CFL時は速度を0.35h/dt等で先に切らず、実測速度から次Frameのdtを縮める。
-    // ただし現在Stepの破綻防止として0.95h/dtだけを緊急安全上限に残す。
+    // Adaptive CFL時は実測速度から次Frameのdtを縮め、現在Stepでは破綻防止用の緊急上限だけを適用する。
     const float emergencyCfl = gSph.adaptiveCflEnabled != 0u ? 0.95f : gSph.cflNumber;
     gParticles[index].velocity = GpuSphClampVelocityByCfl(
         velocityValue,
