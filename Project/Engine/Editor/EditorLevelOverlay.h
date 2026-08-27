@@ -23,16 +23,16 @@
 namespace Ken4lowEngine
 {
 #ifdef USE_IMGUI
-	/// <summary>Level操作と現在のEditor / PIE World状態をMain Viewport右上へ表示します。</summary>
+	/// <summary>レベル操作と現在のエディタ / 実行中ワールドの状態をメインビューポート右上へ表示します。</summary>
 	inline void DrawEditorLevelOverlay()
 	{
 		EditorWindowManager* windowManager = EditorWindowManager::GetInstance();
 		EditorDiagnosticsPanel::GetInstance()->Draw();
 		EditorProfilerPanel::GetInstance()->Draw(windowManager->GetSceneManager(), &windowManager->GetPerformanceMonitor());
-		GpuFluidDiagnosticsPanel::GetInstance()->Draw(); // Fluid/SPH診断はF7の独立Panelとして既存Editor Overlayの1回/Frame入口へ接続する。
-		GpuSphAdvancedDiagnosticsPanel::GetInstance()->Draw(); // W9.5 DFSPH/CFL/Surface tuningもF7へまとめる。
-		GpuSphRigidbodyInteractionDiagnosticsPanel::GetInstance()->Draw(); // W9 SPH↔Rigidbody双方向InteractionをF7で同時診断する。
-		GpuVolumetricFluidDiagnosticsPanel::GetInstance()->Draw(); // Phase17のTexture3D Solver診断はF8で独立表示する。
+		GpuFluidDiagnosticsPanel::GetInstance()->Draw(); // GPU流体とSPHの診断画面をエディタ更新から描画する。
+		GpuSphAdvancedDiagnosticsPanel::GetInstance()->Draw();
+		GpuSphRigidbodyInteractionDiagnosticsPanel::GetInstance()->Draw();
+		GpuVolumetricFluidDiagnosticsPanel::GetInstance()->Draw();
 
 		EditorLevelService* levelService = EditorLevelService::GetInstance();
 		EditorLevelDeferredController* deferredController = EditorLevelDeferredController::GetInstance();
@@ -43,7 +43,7 @@ namespace Ken4lowEngine
 		sceneController->SetSceneManager(windowManager->GetSceneManager());
 		levelService->Update(ImGui::GetIO().DeltaTime);
 		deferredController->UpdateShortcuts();
-		sceneController->Update(); // New SceneはNew Level完了後のSave AsとScene切替をフレーム跨ぎで接続する。
+		sceneController->Update(); // シーン切り替えは描画中に実行せず、更新処理へ遅延させる。
 
 		const EditorViewportRect& viewportRect = windowManager->GetMainViewportRect();
 		if (viewportRect.valid)
@@ -69,7 +69,7 @@ namespace Ken4lowEngine
 			{
 				const bool levelEditable = playController->IsEditing() && !playController->IsTransitionPending();
 				if (!levelEditable) ImGui::BeginDisabled();
-				if (ImGui::Button("Scene", ImVec2(58.0f, 24.0f))) ImGui::OpenPopup("##EditorSceneMenu");
+				if (ImGui::Button("シーン", ImVec2(58.0f, 24.0f))) ImGui::OpenPopup("##EditorSceneMenu");
 				if (!levelEditable) ImGui::EndDisabled();
 				if (ImGui::BeginPopup("##EditorSceneMenu"))
 				{
@@ -79,7 +79,7 @@ namespace Ken4lowEngine
 
 				ImGui::SameLine();
 				if (!levelEditable) ImGui::BeginDisabled();
-				if (ImGui::Button("Level", ImVec2(58.0f, 24.0f))) ImGui::OpenPopup("##EditorLevelMenu");
+				if (ImGui::Button("レベル", ImVec2(58.0f, 24.0f))) ImGui::OpenPopup("##EditorLevelMenu");
 				if (!levelEditable) ImGui::EndDisabled();
 
 				if (ImGui::BeginPopup("##EditorLevelMenu"))
@@ -93,7 +93,7 @@ namespace Ken4lowEngine
 				if (ImGui::Button("保存", ImVec2(48.0f, 24.0f))) levelService->RequestSaveLevel();
 				if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
 				{
-					ImGui::SetTooltip(levelEditable ? "Level保存  Ctrl+S" : "PIE中はEditor Levelを保存できません。");
+					ImGui::SetTooltip(levelEditable ? "レベルを保存  Ctrl+S" : "実行中はエディタ側のレベルを保存できません。");
 				}
 				if (!levelEditable) ImGui::EndDisabled();
 
@@ -105,22 +105,22 @@ namespace Ken4lowEngine
 				if (sessionManager->IsSessionActive())
 				{
 					ImGui::SameLine();
-					if (ImGui::Button("PIE Runtime", ImVec2(92.0f, 24.0f))) ImGui::OpenPopup("##PIERuntimeStatus");
+					if (ImGui::Button("実行状態", ImVec2(92.0f, 24.0f))) ImGui::OpenPopup("##PIERuntimeStatus");
 					if (ImGui::IsItemHovered())
 					{
-						ImGui::SetTooltip("Editor Worldとは別Actorインスタンスで実行中です。StopでPlay前へ戻ります。");
+						ImGui::SetTooltip("エディタとは別のActorインスタンスで実行中です。停止すると実行前の状態へ戻ります。");
 					}
 					if (ImGui::BeginPopup("##PIERuntimeStatus"))
 					{
-						ImGui::TextUnformatted("PIE Runtime World");
+						ImGui::TextUnformatted("実行中ワールド");
 						ImGui::Separator();
-						ImGui::Text("Time: %.2f sec", sessionManager->GetRuntimeElapsedSeconds());
-						ImGui::Text("Frames: %llu", static_cast<unsigned long long>(sessionManager->GetRuntimeFrameCount()));
-						ImGui::Text("Actors: %zu", sessionManager->GetRuntimeActorCount());
-						ImGui::Text("State: %s", playController->GetPlayStateText());
+						ImGui::Text("経過時間: %.2f 秒", sessionManager->GetRuntimeElapsedSeconds());
+						ImGui::Text("フレーム数: %llu", static_cast<unsigned long long>(sessionManager->GetRuntimeFrameCount()));
+						ImGui::Text("Actor数: %zu", sessionManager->GetRuntimeActorCount());
+						ImGui::Text("状態: %s", playController->GetPlayStateText());
 						if (playController->IsPaused() && ImGui::MenuItem("1フレーム実行")) playController->Step();
-						if (ImGui::MenuItem("Runtime変更を反映して停止")) playController->KeepChangesAndStop();
-						ImGui::TextDisabled("通常のStopではRuntime変更を破棄します。");
+						if (ImGui::MenuItem("実行中の変更を反映して停止")) playController->KeepChangesAndStop();
+						ImGui::TextDisabled("通常の停止では実行中の変更を破棄します。");
 						ImGui::EndPopup();
 					}
 				}
@@ -128,7 +128,7 @@ namespace Ken4lowEngine
 			ImGui::End();
 		}
 
-		deferredController->DrawDialogs(); // New/Openは描画中にActorやGPU Resourceを破棄せず次のUpdateへ予約する。
+		deferredController->DrawDialogs(); // 新規作成や読み込みは描画中にリソースを破棄せず、次の更新処理へ予約する。
 
 		std::string statusMessage;
 		bool succeeded = false;
