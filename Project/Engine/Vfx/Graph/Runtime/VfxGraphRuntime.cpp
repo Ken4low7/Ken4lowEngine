@@ -81,10 +81,11 @@ bool VfxGraphRuntime::RegisterGraph(const VfxGraphDesc& graph)
 		return false;
 	}
 
+	// VFX Graphは既存のParticle/VFX Runtimeへ登録し、専用バックエンドを増やさない。
 	StopActiveLoopsForGraph(graph.graphName);
 	if (!GpuParticleEffectRuntime::GetInstance()->RegisterEffect(compiled.program.particleEffect))
 	{
-		SetStatus(false, "Phase13 GPU Particle Runtime rejected graph: " + graph.graphName);
+		SetStatus(false, "GPU Particle Runtime rejected graph: " + graph.graphName);
 		return false;
 	}
 
@@ -95,7 +96,7 @@ bool VfxGraphRuntime::RegisterGraph(const VfxGraphDesc& graph)
 		if (!cueRuntime->RegisterCue(compiled.program.integrationOneShotCue) || !cueRuntime->RegisterCue(compiled.program.integrationLoopCue))
 		{
 			++stats_.integrationFailures;
-			SetStatus(false, "Phase18 VFX Runtime rejected graph integrations: " + graph.graphName);
+			SetStatus(false, "VFX Runtime rejected graph integrations: " + graph.graphName);
 			return false;
 		}
 	}
@@ -159,7 +160,7 @@ bool VfxGraphRuntime::Play(const std::string& graphName, const Vector3& worldPos
 	if (culled)
 	{
 		++stats_.culledOneShots;
-		SetStatus(false, "VFX Graph one-shot culled by Phase27 visibility policy: " + graphName);
+		SetStatus(false, "VFX Graph one-shot culled by visibility policy: " + graphName);
 		return false;
 	}
 	RecordLodSelection(*program, distance, runtimeScale);
@@ -172,7 +173,7 @@ bool VfxGraphRuntime::Play(const std::string& graphName, const Vector3& worldPos
 		{
 			if (integrationHandle.IsValid()) VfxCueRuntime::GetInstance()->Stop(integrationHandle);
 			++stats_.integrationFailures;
-			SetStatus(false, "Phase18 runtime failed to play graph integrations: " + graphName);
+			SetStatus(false, "VFX runtime failed to play graph integrations: " + graphName);
 			return false;
 		}
 		++stats_.integrationStarts;
@@ -185,7 +186,7 @@ bool VfxGraphRuntime::Play(const std::string& graphName, const Vector3& worldPos
 		++stats_.integrationStops;
 	}
 	if (success) ++stats_.playSuccesses;
-	SetStatus(success, success ? "Played VFX Graph: " + graphName : "Phase13 runtime failed to play graph: " + graphName);
+	SetStatus(success, success ? "Played VFX Graph: " + graphName : "GPU Particle runtime failed to play graph: " + graphName);
 	return success;
 }
 
@@ -207,7 +208,7 @@ VfxGraphPlayHandle VfxGraphRuntime::PlayLoop(const std::string& graphName, const
 	const GpuParticleEffectRuntime::PlayHandle particleHandle = GpuParticleEffectRuntime::GetInstance()->PlayLoop(graphName, worldPosition, runtimeScale);
 	if (!particleHandle.IsValid())
 	{
-		SetStatus(false, "Phase13 runtime failed to start loop graph: " + graphName);
+		SetStatus(false, "GPU Particle runtime failed to start loop graph: " + graphName);
 		return {};
 	}
 
@@ -220,7 +221,7 @@ VfxGraphPlayHandle VfxGraphRuntime::PlayLoop(const std::string& graphName, const
 			GpuParticleEffectRuntime::GetInstance()->StopLoop(particleHandle);
 			if (integrationHandle.IsValid()) VfxCueRuntime::GetInstance()->Stop(integrationHandle);
 			++stats_.integrationFailures;
-			SetStatus(false, "Phase18 runtime failed to start loop graph integrations: " + graphName);
+			SetStatus(false, "VFX runtime failed to start loop graph integrations: " + graphName);
 			return {};
 		}
 		++stats_.integrationStarts;
