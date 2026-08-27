@@ -166,7 +166,7 @@ void DebugScene::SetupWorldSystemSchedule()
 			{ kPhysicsRegistry, AccessType::Read },
 			{ kPhysicsState, AccessType::ReadWrite },
 		},
-		Policy::MainThread); // Physics event callbackはActor/Componentへ戻るため、10.3でもMainThread affinityを維持する。
+		Policy::MainThread); // Physics event callbackはActor/Componentへ戻るためMainThread affinityを維持する。
 
 	worldSystemScheduler_.AddSystem(
 		"ActorWorld.PostPhysicsUpdate",
@@ -310,9 +310,8 @@ void DebugScene::DrawImGui()
 #ifdef USE_IMGUI
 	// ActorWorldのEditor UIはEngine/Editor側のBridgeを正規導線とし、Runtime Worldから直接描画しない。
 	DrawActorWorldValidationImGui();
-	levelDataValidation_.DrawImGui(); // Blender JSONからLevelDataへの読み込み結果を画面上で確認する。
-	levelImportValidation_.DrawImGui(); // BlenderSceneDataからActor/Component用Levelへの変換結果を確認する。
-	performancePhaseValidation_.DrawImGui(); // 実フレームとDebugScene各PhaseのCPU時間を比較する。
+	performancePhaseValidation_.DrawImGui(); // 実フレームとDebugScene各処理区間のCPU時間を比較する。
+	// 旧LevelData/Import互換UIは削除し、現在のActorWorldと性能診断だけを表示する。
 
 	actorWorld_.DrawImGui();
 	actorPhysicsDebugDraw_.DrawImGui(actorPhysicsWorld_); // Debug描画はユーザー設定を尊重し、毎フレーム強制ONしない。
@@ -497,7 +496,6 @@ void DebugScene::DrawActorWorldValidationImGui()
 		postPhysicsTransformStats_.rootCount);
 	ImGui::TextColored(validation.lastSucceeded ? ImVec4(0.35f, 1.0f, 0.45f, 1.0f) : ImVec4(1.0f, 0.4f, 0.35f, 1.0f),
 		"%s", validation.lastMessage.c_str());
-
 	if (ImGui::Button("自動検証")) validation.requestValidation = true;
 	ImGui::SameLine();
 	if (ImGui::Button("DebugPlayer生成")) validation.requestSpawn = true;
