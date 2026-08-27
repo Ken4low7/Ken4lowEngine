@@ -91,7 +91,7 @@ struct GpuProductionLiquidRuntimeStats
     bool localSimulationVisible = true;
 };
 
-/// W10: DFSPH品質制御、Secondary、Spatial LOD、Ocean双方向Bridgeを束ねるProduction Liquid Controller。
+/// DFSPH品質制御、Secondary、Spatial LOD、Ocean双方向Bridgeを束ねるProduction Liquid Controller。
 class GpuProductionLiquidManager final
 {
 public:
@@ -178,7 +178,7 @@ public:
                 oceanSettings_.blendBand,
                 oceanSettings_.velocityCoupling,
                 oceanSettings_.surfaceAttraction,
-                oceanSettings_.maxVelocityCorrection); // W10 Ocean→SPHはCamera近傍の実Gerstner SampleをPrimary粒子へ直接渡す。
+                oceanSettings_.maxVelocityCorrection); // Camera近傍のGerstner SampleをPrimary粒子へ直接渡してOceanと流速を連成する。
         }
 
         if (!stats_.adaptiveSolverActive)
