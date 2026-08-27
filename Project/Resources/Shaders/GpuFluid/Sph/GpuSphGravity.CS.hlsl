@@ -30,5 +30,5 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         particle.velocity += oceanNormal * attraction * influence * gSph.deltaTime;
     }
 
-    gParticles[index] = particle; // W10は既存Gravity Pass内でOcean連成し、追加PSOなしでPrimary SPHへ波面運動を渡す。
+    gParticles[index] = particle; // Gravity Pass内でOcean連成し、追加PSOなしでPrimary SPHへ波面運動を渡す。
 }
