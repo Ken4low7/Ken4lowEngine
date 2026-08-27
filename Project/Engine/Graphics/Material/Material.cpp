@@ -121,7 +121,7 @@ namespace Ken4lowEngine
 		materialData_->planarReflectionStrength = 0.0f;
 		materialData_->planarReflectionViewProjection = Matrix4x4::MakeIdentity();
 		materialData_->planarReflectionPlane = { 0.0f, 1.0f, 0.0f, 0.0f };
-		materialData_->planarReflectionSurfaceParams = { 0.025f, 0.0f, 0.0f, 0.0f }; // Planar反射はDraw Scopeだけで有効にし、通常Materialへ状態を持ち越さない。
+		materialData_->planarReflectionSurfaceParams = { 0.025f, 0.0f, 0.0f, 0.0f };
 		materialData_->waterSurfaceEnabled = 0.0f;
 		materialData_->waterTime = 0.0f;
 		materialData_->waterWaveScale = 0.35f;
@@ -130,8 +130,8 @@ namespace Ken4lowEngine
 		materialData_->waterFresnelF0 = 0.02f;
 		materialData_->waterReflectionDistortion = 0.08f;
 		materialData_->waterSecondaryWaveScale = 0.67f;
-		cullMode_ = MaterialCullMode::Back; // 通常Materialは表面だけを描画し、両面は明示Opt-inにする。
-		blendMode_ = MaterialBlendMode::Opaque; // 旧MaterialはForward Opaqueへ安全にフォールバックする。
+		cullMode_ = MaterialCullMode::Back;
+		blendMode_ = MaterialBlendMode::Opaque;
 	}
 
 	void Material::ApplyDesc(const MaterialDesc& desc)
@@ -158,7 +158,7 @@ namespace Ken4lowEngine
 		materialData_->planarReflectionStrength = 0.0f;
 		materialData_->planarReflectionViewProjection = Matrix4x4::MakeIdentity();
 		materialData_->planarReflectionPlane = { 0.0f, 1.0f, 0.0f, 0.0f };
-		materialData_->planarReflectionSurfaceParams = { 0.025f, 0.0f, 0.0f, 0.0f }; // MaterialAsset適用時も前Drawの一時Planar状態を永続値へ混ぜない。
+		materialData_->planarReflectionSurfaceParams = { 0.025f, 0.0f, 0.0f, 0.0f };
 		materialData_->waterSurfaceEnabled = 0.0f;
 		materialData_->waterTime = 0.0f;
 		materialData_->waterWaveScale = 0.35f;
@@ -166,7 +166,7 @@ namespace Ken4lowEngine
 		materialData_->waterNormalStrength = 0.12f;
 		materialData_->waterFresnelF0 = 0.02f;
 		materialData_->waterReflectionDistortion = 0.08f;
-		materialData_->waterSecondaryWaveScale = 0.67f; // MaterialAsset適用時はWaterを明示OFFへ戻し、専用Componentだけが再度Opt-inする。
+		materialData_->waterSecondaryWaveScale = 0.67f;
 		cullMode_ = desc.cullMode;
 		blendMode_ = desc.blendMode;
 	}
@@ -219,11 +219,10 @@ namespace Ken4lowEngine
 		if (!allocation.IsValid()) return;
 
 		ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandManager()->GetCommandList();
-		// Probe/Planar/Main Viewで同じMaterialを複数回描いても、各Drawが反射状態を含む固有スナップショットを保持する。
 		commandList->SetGraphicsRootConstantBufferView(rootParameterIndex, allocation.gpuAddress);
 		if (!planarDrawSet.Empty())
 		{
-			planarManager->BindCurrentDrawState(commandList, 19, 20); // Object3Dのb7/t12～t17へ最大6面の鏡情報をまとめて束縛する。
+			planarManager->BindCurrentDrawState(commandList, 19, 20);
 		}
 	}
 
@@ -236,31 +235,32 @@ namespace Ken4lowEngine
 	void Material::DrawImGui()
 	{
 #ifdef USE_IMGUI
-		if (ImGui::CollapsingHeader("Material Settings"))
+		if (ImGui::CollapsingHeader("マテリアル設定"))
 		{
-			ImGui::ColorEdit4("Color", &materialData_->color.x);
-			ImGui::DragFloat("Shininess", &materialData_->shininess, 1.0f, 1.0f, 256.0f);
-			ImGui::DragFloat("Reflectivity", &materialData_->reflection, 0.01f, 0.0f, 1.0f);
-			ImGui::DragFloat("Roughness", &materialData_->roughness, 0.01f, 0.0f, 1.0f);
+			// マテリアルの見た目と描画方式を日本語項目名でまとめて調整できるようにする。
+			ImGui::ColorEdit4("色", &materialData_->color.x);
+			ImGui::DragFloat("光沢度", &materialData_->shininess, 1.0f, 1.0f, 256.0f);
+			ImGui::DragFloat("反射率", &materialData_->reflection, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat("粗さ", &materialData_->roughness, 0.01f, 0.0f, 1.0f);
 			bool pbrEnabled = materialData_->pbrEnabled > 0.5f;
-			if (ImGui::Checkbox("Use PBR##Material", &pbrEnabled)) materialData_->pbrEnabled = pbrEnabled ? 1.0f : 0.0f;
-			ImGui::DragFloat("Metallic##Material", &materialData_->metallic, 0.01f, 0.0f, 1.0f);
-			ImGui::DragFloat("Normal Scale##Material", &materialData_->normalScale, 0.01f, 0.0f, 2.0f);
-			ImGui::DragFloat("AO Strength##Material", &materialData_->occlusionStrength, 0.01f, 0.0f, 1.0f);
-			ImGui::ColorEdit4("Emissive##Material", &materialData_->emissiveFactor.x);
+			if (ImGui::Checkbox("PBRを使用##Material", &pbrEnabled)) materialData_->pbrEnabled = pbrEnabled ? 1.0f : 0.0f;
+			ImGui::DragFloat("メタリック##Material", &materialData_->metallic, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat("法線の強さ##Material", &materialData_->normalScale, 0.01f, 0.0f, 2.0f);
+			ImGui::DragFloat("AOの強さ##Material", &materialData_->occlusionStrength, 0.01f, 0.0f, 1.0f);
+			ImGui::ColorEdit4("エミッシブカラー##Material", &materialData_->emissiveFactor.x);
 
-			const char* blendModeNames[] = { "Opaque", "Masked", "Transparent", "Additive" };
+			const char* blendModeNames[] = { "不透明", "マスク", "半透明", "加算" };
 			int blendModeIndex = static_cast<int>(blendMode_);
-			if (ImGui::Combo("Blend Mode##Material", &blendModeIndex, blendModeNames, IM_ARRAYSIZE(blendModeNames)))
+			if (ImGui::Combo("ブレンド方式##Material", &blendModeIndex, blendModeNames, IM_ARRAYSIZE(blendModeNames)))
 			{
-				blendMode_ = static_cast<MaterialBlendMode>(blendModeIndex); // Forward Queue分類をMaterial Inspectorから明示できるようにする。
+				blendMode_ = static_cast<MaterialBlendMode>(blendModeIndex);
 			}
 
-			const char* cullModeNames[] = { "Back", "Front", "None (Two Sided)" };
+			const char* cullModeNames[] = { "裏面を除外", "表面を除外", "除外なし（両面）" };
 			int cullModeIndex = static_cast<int>(cullMode_);
-			if (ImGui::Combo("Cull Mode##Material", &cullModeIndex, cullModeNames, IM_ARRAYSIZE(cullModeNames)))
+			if (ImGui::Combo("カリング方式##Material", &cullModeIndex, cullModeNames, IM_ARRAYSIZE(cullModeNames)))
 			{
-				cullMode_ = static_cast<MaterialCullMode>(cullModeIndex); // Material単位の両面描画をEditorから明示選択する。
+				cullMode_ = static_cast<MaterialCullMode>(cullModeIndex);
 			}
 		}
 #endif // USE_IMGUI
