@@ -12,8 +12,8 @@ namespace Ken4lowEngine
 {
 
 /// <summary>
-/// Phase25 authoring window for the Niagara-like VFX Graph asset.
-/// The editor owns only editable authoring state; runtime simulation remains in VfxGraphRuntime/GPU Particle.
+/// VFX GraphアセットのAuthoringとPreviewを行うEditor Windowです。
+/// 編集状態だけを保持し、Runtime SimulationはVfxGraphRuntime/GPU Particleへ委譲します。
 /// </summary>
 class VfxGraphEditor
 {
@@ -65,7 +65,8 @@ private:
 private:
 	VfxGraphDesc editableGraph_{};
 	VfxGraphCompileResult compileResult_{};
-	std::string filePath_ = "Resources/VfxGraph/Phase25/EditorPreviewShowcase.vfxgraph.json";
+	// 起動時は工程番号ではなく機能名で管理されたサンプル資産を開く。
+	std::string filePath_ = "Resources/VfxGraph/Samples/EditorPreviewShowcase.vfxgraph.json";
 	std::string lastMessage_ = "VFX Graph Editor ready.";
 	VfxGraphPlayHandle previewHandle_{};
 	Vector3 previewPosition_{ 0.0f, 1.0f, 0.0f };
