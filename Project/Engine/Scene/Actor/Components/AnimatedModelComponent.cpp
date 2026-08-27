@@ -89,6 +89,7 @@ namespace Ken4lowEngine
 		SceneComponent::DrawImGui();
 
 #ifdef USE_IMGUI
+		// ロード状態を含むアニメーションモデルのInspector表示を日本語へ統一する。
 		ImGui::SeparatorText("アニメーションモデルコンポーネント");
 
 		ImGui::SeparatorText("モデル");
@@ -124,7 +125,7 @@ namespace Ken4lowEngine
 		}
 		else
 		{
-			ImGui::Text("アニメーション名: %s", animationName_.empty() ? "Clipなし" : animationName_.c_str());
+			ImGui::Text("アニメーション名: %s", animationName_.empty() ? "クリップなし" : animationName_.c_str());
 		}
 
 		ImGui::SeparatorText("再生");
@@ -133,13 +134,13 @@ namespace Ken4lowEngine
 
 		const size_t clipCount = animatedModel_ ? animatedModel_->GetAnimationClips().size() : 0;
 		ImGui::Text("現在時刻: %.3f", animatedModel_ ? animatedModel_->GetAnimationTime() : 0.0f);
-		ImGui::Text("再生状態: %s", clipCount == 0 ? "Clipなし" : (IsPlaying() ? "再生中" : "停止中"));
+		ImGui::Text("再生状態: %s", clipCount == 0 ? "クリップなし" : (IsPlaying() ? "再生中" : "停止中"));
 		ImGui::Text("読み込み状態: %s", modelStatus_.c_str());
 		ImGui::Text("モデル状態: %s", animatedModel_ ? "読み込み済み" : "未読み込み");
 		ImGui::Text("メッシュ: %s", hasMesh_ ? "あり" : "なし");
-		ImGui::Text("Clip数: %zu", clipCount);
-		ImGui::Text("選択中Clip: %s", animatedModel_ ? animatedModel_->GetCurrentAnimationName().c_str() : "");
-		ImGui::Text("Draw可能: %s", (visible_ && animatedModel_ && hasMesh_) ? "はい" : "いいえ");
+		ImGui::Text("クリップ数: %zu", clipCount);
+		ImGui::Text("選択中クリップ: %s", animatedModel_ ? animatedModel_->GetCurrentAnimationName().c_str() : "");
+		ImGui::Text("描画可能: %s", (visible_ && animatedModel_ && hasMesh_) ? "はい" : "いいえ");
 
 		if (ImGui::Button("再生"))
 		{
@@ -165,7 +166,7 @@ namespace Ken4lowEngine
 		hasInitialized_ = false;
 		reloadRequested_ = false;
 		resumeAfterReload_ = false;
-		modelStatus_ = modelPath_.empty() ? "Empty" : "Finalized";
+		modelStatus_ = modelPath_.empty() ? "未設定" : "終了済み";
 	}
 
 	void AnimatedModelComponent::ToJson(nlohmann::json& outJson) const
@@ -379,13 +380,13 @@ namespace Ken4lowEngine
 
 		if (modelPath_.empty())
 		{
-			modelStatus_ = "Empty";
+			modelStatus_ = "未設定";
 			return false;
 		}
 
 		if (!hasInitialized_)
 		{
-			modelStatus_ = "Waiting Initialize";
+			modelStatus_ = "初期化待ち";
 			return false;
 		}
 
@@ -397,7 +398,7 @@ namespace Ken4lowEngine
 			hasMesh_ = animatedModel_->HasMesh();
 			if (!hasMesh_)
 			{
-				modelStatus_ = "No Mesh";
+				modelStatus_ = "メッシュなし";
 				animatedModel_.reset();
 				return false;
 			}
@@ -406,18 +407,18 @@ namespace Ken4lowEngine
 			EnsureAnimationSelection(true);
 			ApplyPlaybackSettings();
 			animatedModel_->SetAnimationPlaying(false);
-			modelStatus_ = "Loaded";
+			modelStatus_ = "読み込み済み";
 			return true;
 		}
 		catch (const std::exception& e)
 		{
 			animatedModel_.reset();
-			modelStatus_ = std::string("Failed: ") + e.what();
+			modelStatus_ = std::string("読み込み失敗: ") + e.what();
 		}
 		catch (...)
 		{
 			animatedModel_.reset();
-			modelStatus_ = "Failed";
+			modelStatus_ = "読み込み失敗";
 		}
 
 		return false;
@@ -426,7 +427,7 @@ namespace Ken4lowEngine
 	void AnimatedModelComponent::RequestReload()
 	{
 		reloadRequested_ = true;
-		modelStatus_ = modelPath_.empty() ? "Empty" : "Reload Pending";
+		modelStatus_ = modelPath_.empty() ? "未設定" : "再読み込み待ち";
 	}
 
 	void AnimatedModelComponent::ProcessReloadRequest()
