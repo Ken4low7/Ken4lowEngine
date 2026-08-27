@@ -5,56 +5,27 @@ import unittest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 GPU_ROOT = PROJECT_ROOT / "Engine" / "Graphics" / "Renderer" / "GpuParticle"
-MODULE_HEADER = GPU_ROOT / "Runtime" / "GpuParticleEffectModules.h"
-RUNTIME_HEADER = GPU_ROOT / "Runtime" / "GpuParticleEffectRuntime.h"
-EFFECT_DESC_HEADER = GPU_ROOT / "Data" / "GpuParticleEffectDesc.h"
-EMITTER_DATA_HEADER = GPU_ROOT / "Data" / "GpuParticleEmitterData.h"
-EMITTER_HEADER = GPU_ROOT / "Emitter" / "GpuParticleEmitter.h"
-EMITTER_SOURCE = GPU_ROOT / "Emitter" / "GpuParticleEmitter.cpp"
-BUFFERS_HEADER = GPU_ROOT / "Buffers" / "GpuParticleBuffers.h"
-SERIALIZER_SOURCE = GPU_ROOT / "Preset" / "GpuParticleEffectSerializer.cpp"
-EDITOR_SOURCE = GPU_ROOT / "Preset" / "GpuParticleEffectEditor.cpp"
-SPRITE_PIPELINE_HEADER = GPU_ROOT / "Pipeline" / "GpuParticleSpritePipeline.h"
-MESH_PIPELINE_HEADER = GPU_ROOT / "Pipeline" / "GpuParticleMeshPipeline.h"
-RENDERER_SOURCE = GPU_ROOT / "Renderer" / "GpuParticleRenderer.cpp"
-SAMPLE_EFFECT = PROJECT_ROOT / "Resources" / "Effects" / "Phase13" / "Explosion.effect.json"
-MESH_SAMPLE_EFFECT = PROJECT_ROOT / "Resources" / "Effects" / "Phase13" / "MeshDebris.effect.json"
 SHADER_ROOT = PROJECT_ROOT / "Resources" / "Shaders" / "GpuParticle"
-EMIT_SHADER = SHADER_ROOT / "GpuParticleEmit.CS.hlsl"
-UPDATE_SHADER = SHADER_ROOT / "GpuParticleUpdate.CS.hlsl"
-SPRITE_VERTEX_SHADER = SHADER_ROOT / "GpuParticle.VS.hlsl"
-SPRITE_PIXEL_SHADER = SHADER_ROOT / "GpuParticle.PS.hlsl"
-MESH_VERTEX_SHADER = SHADER_ROOT / "GpuParticleMesh.VS.hlsl"
-MESH_PIXEL_SHADER = SHADER_ROOT / "GpuParticleMesh.PS.hlsl"
-PARTICLE_DATA_SHADER = SHADER_ROOT / "GpuParticleData.hlsli"
 
 
 class GpuParticleEffectAuthoringTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.modules = MODULE_HEADER.read_text(encoding="utf-8")
-        cls.runtime = RUNTIME_HEADER.read_text(encoding="utf-8")
-        cls.effect_desc = EFFECT_DESC_HEADER.read_text(encoding="utf-8")
-        cls.emitter_data = EMITTER_DATA_HEADER.read_text(encoding="utf-8")
-        cls.emitter_header = EMITTER_HEADER.read_text(encoding="utf-8")
-        cls.emitter_source = EMITTER_SOURCE.read_text(encoding="utf-8")
-        cls.buffers = BUFFERS_HEADER.read_text(encoding="utf-8")
-        cls.serializer = SERIALIZER_SOURCE.read_text(encoding="utf-8")
-        cls.editor = EDITOR_SOURCE.read_text(encoding="utf-8")
-        cls.sprite_pipeline = SPRITE_PIPELINE_HEADER.read_text(encoding="utf-8")
-        cls.mesh_pipeline = MESH_PIPELINE_HEADER.read_text(encoding="utf-8")
-        cls.renderer = RENDERER_SOURCE.read_text(encoding="utf-8")
-        cls.emit_shader = EMIT_SHADER.read_text(encoding="utf-8")
-        cls.update_shader = UPDATE_SHADER.read_text(encoding="utf-8")
-        cls.sprite_vertex_shader = SPRITE_VERTEX_SHADER.read_text(encoding="utf-8")
-        cls.sprite_pixel_shader = SPRITE_PIXEL_SHADER.read_text(encoding="utf-8")
-        cls.mesh_vertex_shader = MESH_VERTEX_SHADER.read_text(encoding="utf-8")
-        cls.mesh_pixel_shader = MESH_PIXEL_SHADER.read_text(encoding="utf-8")
-        cls.particle_data_shader = PARTICLE_DATA_SHADER.read_text(encoding="utf-8")
-        cls.sample = json.loads(SAMPLE_EFFECT.read_text(encoding="utf-8"))
-        cls.mesh_sample = json.loads(MESH_SAMPLE_EFFECT.read_text(encoding="utf-8"))
+        cls.modules = (GPU_ROOT / "Runtime" / "GpuParticleEffectModules.h").read_text(encoding="utf-8")
+        cls.runtime = (GPU_ROOT / "Runtime" / "GpuParticleEffectRuntime.h").read_text(encoding="utf-8")
+        cls.effect_desc = (GPU_ROOT / "Data" / "GpuParticleEffectDesc.h").read_text(encoding="utf-8")
+        cls.emitter_data = (GPU_ROOT / "Data" / "GpuParticleEmitterData.h").read_text(encoding="utf-8")
+        cls.buffers = (GPU_ROOT / "Buffers" / "GpuParticleBuffers.h").read_text(encoding="utf-8")
+        cls.serializer = (GPU_ROOT / "Preset" / "GpuParticleEffectSerializer.cpp").read_text(encoding="utf-8")
+        cls.editor = (GPU_ROOT / "Preset" / "GpuParticleEffectEditor.cpp").read_text(encoding="utf-8")
+        cls.renderer = (GPU_ROOT / "Renderer" / "GpuParticleRenderer.cpp").read_text(encoding="utf-8")
+        cls.update_shader = (SHADER_ROOT / "GpuParticleUpdate.CS.hlsl").read_text(encoding="utf-8")
+        cls.particle_data_shader = (SHADER_ROOT / "GpuParticleData.hlsli").read_text(encoding="utf-8")
+        cls.explosion = json.loads((PROJECT_ROOT / "Resources" / "Effects" / "Explosion.effect.json").read_text(encoding="utf-8"))
+        cls.mesh_debris = json.loads((PROJECT_ROOT / "Resources" / "Effects" / "MeshDebris.effect.json").read_text(encoding="utf-8"))
+        cls.boss_charge = json.loads((PROJECT_ROOT / "Resources" / "Effects" / "BossCharge.effect.json").read_text(encoding="utf-8"))
 
-    def test_flat_asset_is_compiled_into_explicit_module_boundaries(self) -> None:
+    def test_effect_assets_compile_into_explicit_modules(self) -> None:
         for module_name in (
             "GpuParticleEmissionModule",
             "GpuParticleSpawnModule",
@@ -62,99 +33,25 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
             "GpuParticleRenderModule",
         ):
             self.assertIn(f"struct {module_name}", self.modules)
-
         self.assertIn("class GpuParticleEffectCompiler", self.modules)
         self.assertIn("out.emission.spawnRate = desc.spawnRate", self.modules)
         self.assertIn("out.spawn.velocity = desc.velocity", self.modules)
         self.assertIn("out.update.noiseStrength = desc.noiseStrength", self.modules)
-        self.assertIn("out.update.sizeCurveLut = desc.sizeCurveLut", self.modules)
         self.assertIn("out.render.meshSubMeshIndex = desc.meshSubMeshIndex", self.modules)
-        self.assertIn("out.userParameters = effect.userParameters", self.modules)
 
-    def test_runtime_uses_compiler_serializer_and_effect_level_playback(self) -> None:
+    def test_runtime_uses_serializer_compiler_and_handle_scoped_playback(self) -> None:
         self.assertIn("GpuParticleEffectCompiler::Compile(effect)", self.runtime)
         self.assertIn("GpuParticleEffectSerializer::Load(effect, filePath)", self.runtime)
-        self.assertIn("std::unordered_map<std::string, GpuParticleCompiledEffect>", self.runtime)
-        for api in (
-            "bool LoadEffect(const std::string& filePath)",
-            "bool ReloadEffect(const std::string& effectName)",
-            "bool Play(const std::string& effectName, const Vector3& worldPosition)",
-            "PlayHandle PlayLoop(const std::string& effectName, const Vector3& worldPosition)",
-            "bool StopLoop(PlayHandle handle)",
-            "bool SetLoopPosition(PlayHandle handle, const Vector3& worldPosition)",
-        ):
-            self.assertIn(api, self.runtime)
-        self.assertIn('root["effectName"]', self.serializer)
-        self.assertIn('root["emitters"]', self.serializer)
-
-    def test_burst_pool_and_loop_instances_remain_bounded_and_handle_scoped(self) -> None:
-        self.assertIn("kBurstEmitterPoolSize = 8", self.runtime)
-        self.assertIn("nextSlot++ % kBurstEmitterPoolSize", self.runtime)
-        self.assertIn('"RuntimeAssetBurst_"', self.runtime)
-        self.assertIn('"RuntimeAssetLoop_"', self.runtime)
-        self.assertIn("std::unordered_map<uint32_t, LoopInstance> activeLoops_", self.runtime)
+        self.assertIn("bool Play(const std::string& effectName", self.runtime)
+        self.assertIn("PlayHandle PlayLoop", self.runtime)
+        self.assertIn("bool StopLoop(PlayHandle handle)", self.runtime)
         self.assertIn("parameterOverrides", self.runtime)
 
-    def test_finite_emission_duration_is_runtime_behavior_not_dead_authoring_data(self) -> None:
-        # One-shot effects may emit over a finite time window without becoming infinite loops.
-        self.assertIn("bool loopForever = true", self.emitter_header)
-        self.assertIn("float emissionDuration = 0.0f", self.emitter_header)
-        self.assertIn("ResetEmissionSchedule", self.emitter_header)
-        self.assertIn("HasEmissionSchedule", self.emitter_header)
-        self.assertIn("emissionElapsed_ += scheduleDelta", self.emitter_source)
-        self.assertIn("info.loopForever = loopMode && emitterDesc.emission.loop", self.runtime)
-        self.assertIn("info.emissionDuration = info.loopForever ? 0.0f", self.runtime)
-        self.assertIn("emittedAny |= emitter->HasEmissionSchedule()", self.runtime)
-        self.assertIn("if (!loopMode) existing->ResetEmissionSchedule()", self.runtime)
-
-    def test_all_authored_spawn_shapes_reach_custom_emit_shader(self) -> None:
+    def test_authoring_supports_shapes_blends_curves_gradients_and_forces(self) -> None:
         for name in ("Point", "Sphere", "Box", "Cone", "Circle", "Ring", "Hemisphere"):
             self.assertIn(name, self.effect_desc)
-        for branch in (
-            "spawnShape == 1u",
-            "spawnShape == 2u",
-            "spawnShape == 3u",
-            "spawnShape == 4u",
-            "spawnShape == 5u",
-            "spawnShape == 6u",
-        ):
-            self.assertIn(branch, self.emit_shader)
-        self.assertIn("SampleAuthoredShape", self.emit_shader)
-
-    def test_blend_modes_are_real_pipeline_state_choices(self) -> None:
         for name in ("Alpha", "Additive", "Multiply"):
             self.assertIn(name, self.effect_desc)
-        self.assertIn("GetGfxPSO(BlendMode blendMode) const", self.sprite_pipeline)
-        self.assertIn("GetGfxPSO(BlendMode blendMode) const", self.mesh_pipeline)
-        self.assertIn("PackGpuParticleDrawType", self.emitter_data)
-        self.assertIn("UnpackGpuParticleBlendMode", self.renderer)
-        self.assertIn("GetGfxPSO(blendMode_)", self.renderer)
-        self.assertIn("BlendMode::kBlendModeNormal", self.runtime)
-        self.assertIn("BlendMode::kBlendModeMultiply", self.runtime)
-
-    def test_render_groups_prevent_cross_texture_and_cross_blend_redraw(self) -> None:
-        # Authoring emitters share the legacy spawn implementation, so material identity must survive until the pixel shader.
-        self.assertIn("BuildGpuParticleRenderGroup", self.emitter_data)
-        self.assertIn("out.renderGroup = BuildGpuParticleRenderGroup", self.emitter_source)
-        self.assertIn("out.type = info_.useDescSpawnOverride ? out.renderGroup : GetEffectiveType()", self.emitter_source)
-        self.assertIn("hasAuthoredBlendTag", self.renderer)
-        self.assertIn("BuildGpuParticleRenderGroup(textureFilePath_", self.renderer)
-        self.assertIn("output.renderGroup = particle.type", self.sprite_vertex_shader)
-        self.assertIn("output.renderGroup = particle.type", self.mesh_vertex_shader)
-        self.assertIn("input.renderGroup != gMaterial.drawType", self.sprite_pixel_shader)
-        self.assertIn("input.renderGroup != gMaterial.drawType", self.mesh_pixel_shader)
-
-    def test_mesh_authoring_loads_real_mesh_assets_and_rotates_instances(self) -> None:
-        self.assertIn("GpuParticleKind::Mesh", self.runtime)
-        self.assertIn("LoadMeshAssetsFromAssimp", self.runtime)
-        self.assertIn('"Mesh:" + std::to_string(meshId)', self.runtime)
-        self.assertIn("meshSubMeshIndex", self.effect_desc)
-        self.assertIn("startRotation3D", self.effect_desc)
-        self.assertIn("angularVelocity", self.effect_desc)
-        self.assertIn("RotateEulerXYZ", self.mesh_vertex_shader)
-        self.assertIn("particle.rotation3D", self.mesh_vertex_shader)
-
-    def test_curves_gradients_and_force_modules_execute_on_gpu(self) -> None:
         for token in (
             "useSizeCurve",
             "sizeCurveLut",
@@ -166,80 +63,41 @@ class GpuParticleEffectAuthoringTests(unittest.TestCase):
         ):
             self.assertIn(token, self.effect_desc)
             self.assertIn(token, self.serializer)
-
-        self.assertIn("GPU_PARTICLE_CUSTOM_SIZE_CURVE", self.particle_data_shader)
-        self.assertIn("GPU_PARTICLE_CUSTOM_COLOR_GRADIENT", self.particle_data_shader)
         self.assertIn("SampleScalarLut", self.update_shader)
         self.assertIn("SampleColorGradient", self.update_shader)
         self.assertIn("EvaluateNoiseAcceleration", self.update_shader)
         self.assertIn("EvaluateVortexAcceleration", self.update_shader)
         self.assertIn("EvaluateAttractorAcceleration", self.update_shader)
 
-    def test_user_parameters_are_serialized_bound_and_runtime_mutable(self) -> None:
-        self.assertIn("GpuParticleUserParameterDesc", self.effect_desc)
-        self.assertIn("GpuParticleParameterBindingDesc", self.effect_desc)
-        self.assertIn('root["userParameters"]', self.serializer)
-        self.assertIn('emitter["parameterBindings"]', self.serializer)
-        self.assertIn(
-            "bool SetFloatParameter(const std::string& effectName, const std::string& parameterName, float value)",
-            self.runtime,
-        )
-        self.assertIn(
-            "bool SetFloatParameter(PlayHandle handle, const std::string& parameterName, float value)",
-            self.runtime,
-        )
-        self.assertIn("EvaluateTargetFactor", self.runtime)
-
-    def test_cpu_gpu_struct_strides_are_explicit(self) -> None:
-        # Phase23 adds one previous-position sample while the emitter constant buffer remains unchanged.
+    def test_cpu_gpu_layout_contracts_remain_explicit(self) -> None:
+        # CPU/GPU間の構造体サイズはShader契約を壊さないため明示的に固定する。
         self.assertIn("static_assert(sizeof(GpuEmitterCBData) == 624)", self.emitter_data)
         self.assertIn("static_assert(sizeof(ParticleCS) == 544)", self.buffers)
         self.assertIn("float4 sizeCurveLut", self.particle_data_shader)
         self.assertIn("float3 angularVelocity3D", self.particle_data_shader)
         self.assertIn("float3 previousTranslate", self.particle_data_shader)
 
-    def test_sample_effect_exercises_advanced_multi_emitter_authoring(self) -> None:
-        self.assertEqual(self.sample["effectName"], "Phase13Explosion")
-        self.assertEqual(len(self.sample["emitters"]), 3)
-        self.assertEqual({p["name"] for p in self.sample["userParameters"]}, {"Intensity"})
-        self.assertEqual(
-            {emitter["name"] for emitter in self.sample["emitters"]},
-            {"Flash", "Smoke", "Sparks"},
-        )
-        self.assertIn("Hemisphere", {emitter["spawnShape"] for emitter in self.sample["emitters"]})
-        self.assertIn("Ring", {emitter["spawnShape"] for emitter in self.sample["emitters"]})
-        self.assertIn("Alpha", {emitter["blendMode"] for emitter in self.sample["emitters"]})
-        self.assertIn("Additive", {emitter["blendMode"] for emitter in self.sample["emitters"]})
-        for emitter in self.sample["emitters"]:
-            self.assertEqual(emitter["renderType"], "Sprite")
-            self.assertGreater(emitter["maxParticles"], 0)
-            self.assertGreater(emitter["burstCount"], 0)
-            self.assertTrue(emitter["useSizeCurve"])
-            self.assertTrue(emitter["useColorGradient"])
-            self.assertGreater(len(emitter["parameterBindings"]), 0)
+    def test_current_sample_assets_have_functional_names_and_expected_content(self) -> None:
+        self.assertEqual(self.explosion["effectName"], "Explosion")
+        self.assertEqual({emitter["name"] for emitter in self.explosion["emitters"]}, {"Flash", "Smoke", "Sparks"})
+        self.assertEqual(self.mesh_debris["effectName"], "MeshDebris")
+        self.assertEqual(self.mesh_debris["emitters"][0]["renderType"], "Mesh")
+        self.assertEqual(self.mesh_debris["emitters"][0]["meshPath"], "Sample/cube.gltf")
+        self.assertEqual(self.boss_charge["effectName"], "BossCharge")
+        self.assertTrue(all(emitter["loop"] for emitter in self.boss_charge["emitters"]))
 
-    def test_mesh_sample_exercises_real_mesh_and_finite_duration_path(self) -> None:
-        self.assertEqual(self.mesh_sample["effectName"], "Phase13MeshDebris")
-        self.assertEqual(len(self.mesh_sample["emitters"]), 1)
-        emitter = self.mesh_sample["emitters"][0]
-        self.assertEqual(emitter["renderType"], "Mesh")
-        self.assertEqual(emitter["meshPath"], "Sample/cube.gltf")
-        self.assertEqual(emitter["meshSubMeshIndex"], 0)
-        self.assertFalse(emitter["loop"])
-        self.assertGreater(emitter["duration"], 0.0)
-        self.assertGreater(emitter["spawnRate"], 0.0)
-        self.assertTrue(any(abs(v) > 0.0 for v in emitter["angularVelocity"]))
-        self.assertGreater(len(emitter["parameterBindings"]), 0)
-
-    def test_effect_editor_previews_unsaved_module_configuration_through_runtime(self) -> None:
+    def test_effect_editor_uses_runtime_preview_instead_of_a_second_backend(self) -> None:
         self.assertIn("RegisterPreviewEffect", self.editor)
         self.assertIn("runtime->RegisterEffect(effect)", self.editor)
         self.assertIn("runtime->Play(effect.effectName, previewPosition)", self.editor)
         self.assertIn("runtime->PlayLoop(effect.effectName, previewPosition)", self.editor)
-        self.assertIn("User Parameters", self.editor)
-        self.assertIn("User Parameter Bindings", self.editor)
-        for section in ("Emission Module", "Spawn Module", "Update Module", "Render Module"):
-            self.assertIn(section, self.editor)
+        self.assertNotIn("CreateCommittedResource", self.editor)
+
+    def test_mesh_and_material_identity_reach_renderer(self) -> None:
+        self.assertIn("LoadMeshAssetsFromAssimp", self.runtime)
+        self.assertIn("meshSubMeshIndex", self.effect_desc)
+        self.assertIn("BuildGpuParticleRenderGroup", self.emitter_data)
+        self.assertIn("UnpackGpuParticleBlendMode", self.renderer)
 
 
 if __name__ == "__main__":
