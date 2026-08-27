@@ -51,6 +51,7 @@ public:
         const GpuSphRuntimeStats& stats = manager->GetRuntimeStats();
         const GpuSphParticleBufferStats bufferStats = manager->GetParticleBufferStats();
 
+        // SPHの詳細診断で表示する操作名と実行統計を日本語へ統一する。
         if (ImGui::Button("水向け安定設定を適用"))
         {
             manager->ApplyWaterProductionPreset();
@@ -101,8 +102,8 @@ public:
         ImGui::TextDisabled("粒子数を変更するとSPHシミュレーションを再初期化します。");
 
         ImGui::SeparatorText("実行状況");
-        ImGui::Text("ソルバー: %s", stats.dfsphActive ? "DFSPH" : "WCSPH / Tait EOS");
-        ImGui::Text("実効dt: %.6f | 設定dt: %.6f", stats.effectiveDeltaTime, settings.fixedDeltaTime);
+        ImGui::Text("ソルバー: %s", stats.dfsphActive ? "DFSPH" : "WCSPH / Tait状態方程式");
+        ImGui::Text("実効デルタタイム: %.6f | 設定デルタタイム: %.6f", stats.effectiveDeltaTime, settings.fixedDeltaTime);
         ImGui::Text("最大粒子速度: %.3f m/s", stats.lastMeasuredMaxSpeed);
         ImGui::Text("最大密度誤差: %.5f | 許容値: %.5f",
             stats.lastMaxDensityError,
@@ -116,16 +117,16 @@ public:
         ImGui::Text("密度補正回数: %u | 発散補正回数: %u",
             stats.lastDensityIterations,
             stats.lastDivergenceIterations);
-        ImGui::Text("係数計算Dispatch: %llu", static_cast<unsigned long long>(stats.dfsphFactorDispatchCount));
-        ImGui::Text("密度補正Dispatch: %llu", static_cast<unsigned long long>(stats.dfsphDensityDispatchCount));
-        ImGui::Text("発散補正Dispatch: %llu", static_cast<unsigned long long>(stats.dfsphDivergenceDispatchCount));
-        ImGui::Text("GPU計測Dispatch: %llu", static_cast<unsigned long long>(stats.cflMetricDispatchCount));
+        ImGui::Text("係数計算ディスパッチ: %llu", static_cast<unsigned long long>(stats.dfsphFactorDispatchCount));
+        ImGui::Text("密度補正ディスパッチ: %llu", static_cast<unsigned long long>(stats.dfsphDensityDispatchCount));
+        ImGui::Text("発散補正ディスパッチ: %llu", static_cast<unsigned long long>(stats.dfsphDivergenceDispatchCount));
+        ImGui::Text("GPU計測ディスパッチ: %llu", static_cast<unsigned long long>(stats.cflMetricDispatchCount));
         ImGui::Text("CFL安定化回数: %llu", static_cast<unsigned long long>(stats.cflStabilizationCount));
-        ImGui::Text("WCSPH圧力Dispatch: %llu", static_cast<unsigned long long>(stats.pressureDispatchCount));
-        ImGui::TextDisabled("DFSPHではSpatial Hashを利用して近傍粒子だけを探索します。");
+        ImGui::Text("WCSPH圧力ディスパッチ: %llu", static_cast<unsigned long long>(stats.pressureDispatchCount));
+        ImGui::TextDisabled("DFSPHでは空間ハッシュを利用して近傍粒子だけを探索します。");
         ImGui::TextDisabled("前フレームのDFSPH係数は最初の補正反復でのみ再利用します。");
         ImGui::TextDisabled("速度・密度・発散の計測はGPU待機を発生させない非同期読取です。");
-        ImGui::TextDisabled("DFSPHを無効にするとWCSPHとの挙動比較ができます。"); // 工程番号ではなく現在の機能差だけを説明する。
+        ImGui::TextDisabled("DFSPHを無効にするとWCSPHとの挙動比較ができます。");
 
         ImGui::End();
 #endif
