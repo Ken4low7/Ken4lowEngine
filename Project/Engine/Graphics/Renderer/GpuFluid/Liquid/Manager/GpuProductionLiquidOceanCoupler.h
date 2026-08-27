@@ -21,7 +21,7 @@ struct GpuProductionLiquidOceanCouplerStats
     bool lastDispatchSucceeded = true;
 };
 
-/// W10.6: Oceanの局所Height/Normal/VelocityをPrimary SPHへGPU上で連成する軽量Coupler。
+/// Oceanの局所Height / Normal / VelocityをPrimary SPHへGPU上で連成する軽量Coupler。
 class GpuProductionLiquidOceanCoupler final
 {
 public:
@@ -111,7 +111,7 @@ public:
         commandList->SetComputeRootDescriptorTable(1, UAVManager::GetInstance()->GetGPUDescriptorHandle(particles.GetUavIndex()));
         const uint32_t groupCount = (particles.GetActiveParticleCount() + 127u) / 128u;
         commandList->Dispatch(groupCount, 1, 1);
-        particles.InsertUavBarrier(commandList); // Ocean連成直後のPrimary Solverから更新済みVelocityを必ず観測できるようにする。
+        particles.InsertUavBarrier(commandList); // Ocean連成後のSolverが更新済みVelocityを確実に参照できるようにする。
 
         ++stats_.dispatchCount;
         stats_.lastDispatchSucceeded = true;
@@ -174,7 +174,7 @@ private:
     bool CreatePipelineState()
     {
         const ShaderDescriptor descriptor{
-            L"GpuLiquidW10OceanCouplingCS",
+            L"GpuLiquidOceanCouplingCS",
             L"Resources/Shaders/GpuFluid/Sph/Production/GpuSphOceanCoupling.CS.hlsl",
             L"main",
             L"cs_6_0",
