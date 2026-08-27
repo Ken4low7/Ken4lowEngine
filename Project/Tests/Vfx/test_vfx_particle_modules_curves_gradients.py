@@ -8,7 +8,7 @@ def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
-def test_phase21_has_bounded_curve_and_gradient_authoring_types():
+def test_curve_and_gradient_authoring_types_are_bounded():
     types = read("Engine/Vfx/Graph/Data/VfxGraphTypes.h")
     assert "enum class VfxCurveInterpolation" in types
     assert "VfxFloatCurveKey" in types
@@ -29,7 +29,7 @@ def test_curve_and_gradient_evaluators_support_three_interpolation_modes():
     assert "LerpColor" in types
 
 
-def test_phase21_particle_modules_have_explicit_graph_payloads_and_stages():
+def test_particle_modules_have_explicit_graph_payloads_and_stages():
     header = read("Engine/Vfx/Graph/Data/VfxGraphTypes.h")
     cpp = read("Engine/Vfx/Graph/Data/VfxGraphTypes.cpp")
     for module in (
@@ -74,7 +74,7 @@ def test_compiler_validates_authoring_keys_before_gpu_bake():
     assert "kMaxGradientKeys" in compiler
 
 
-def test_compiler_bakes_flexible_authoring_to_existing_four_sample_gpu_luts():
+def test_compiler_bakes_authoring_curves_to_gpu_luts():
     compiler = read("Engine/Vfx/Graph/Runtime/VfxGraphCompiler.cpp")
     backend = read("Engine/Graphics/Renderer/GpuParticle/Data/GpuParticleEffectDesc.h")
     shader = read("Resources/Shaders/GpuParticle/GpuParticleUpdate.CS.hlsl")
@@ -90,11 +90,10 @@ def test_compiler_bakes_flexible_authoring_to_existing_four_sample_gpu_luts():
     assert "SampleColorGradient" in shader
 
 
-def test_rotation_modules_lower_to_existing_sprite_rotation_backend():
+def test_rotation_modules_lower_to_sprite_rotation_backend():
     compiler = read("Engine/Vfx/Graph/Runtime/VfxGraphCompiler.cpp")
     backend = read("Engine/Graphics/Renderer/GpuParticle/Data/GpuParticleEffectDesc.h")
     shader = read("Resources/Shaders/GpuParticle/GpuParticleUpdate.CS.hlsl")
-    # Local variable names are intentionally not part of the Phase21 lowering contract.
     assert "outEmitter.startRotation" in compiler
     assert "outEmitter.rotationRandom" in compiler
     assert "outEmitter.rotationSpeed" in compiler
@@ -103,11 +102,10 @@ def test_rotation_modules_lower_to_existing_sprite_rotation_backend():
     assert "p.rotation += p.rotationSpeed * dt" in shader
 
 
-def test_phase21_sample_exercises_curve_gradient_and_rotation_modules():
-    sample_path = ROOT / "Resources/VfxGraph/Phase21/CurveGradientBurst.vfxgraph.json"
+def test_curve_gradient_sample_exercises_rotation_and_lifetime_modules():
+    sample_path = ROOT / "Resources/VfxGraph/Samples/CurveGradientBurst.vfxgraph.json"
     sample = json.loads(sample_path.read_text(encoding="utf-8"))
     assert sample["schemaVersion"] == 1
-    assert sample["graphName"] == "Phase21CurveGradientBurst"
     emitter = sample["emitters"][0]
     nodes = {node["type"]: node for node in emitter["nodes"]}
     for node_type in ("InitialRotation", "RotationRate", "SizeOverLife", "ColorOverLife"):
