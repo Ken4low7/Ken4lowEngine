@@ -110,19 +110,20 @@ namespace Ken4lowEngine
 	void RigidbodyComponent::DrawImGui()
 	{
 #ifdef USE_IMGUI
-		ImGui::SeparatorText("Rigidbody Component");
+		// 物理状態をInspectorだけで確認できるよう、操作名と状態表示を日本語へ統一する。
+		ImGui::SeparatorText("リジッドボディコンポーネント");
 
 		ComponentPropertyUtility::DrawImGui(CreateProperties());
 
-		if (rigidbody_ && ImGui::Button("Wake Up Rigidbody"))
+		if (rigidbody_ && ImGui::Button("リジッドボディを起こす"))
 		{
 			rigidbody_->WakeUp(); // Debug操作でSleepから復帰させる
 		}
 
 		if (rigidbody_)
 		{
-			ImGui::Text("Sleeping: %s", rigidbody_->IsSleeping() ? "Yes" : "No");
-			ImGui::Text("Grounded: %s", rigidbody_->IsGrounded() ? "Yes" : "No");
+			ImGui::Text("スリープ中: %s", rigidbody_->IsSleeping() ? "はい" : "いいえ");
+			ImGui::Text("接地中: %s", rigidbody_->IsGrounded() ? "はい" : "いいえ");
 		}
 
 #endif // USE_IMGUI
@@ -276,15 +277,15 @@ namespace Ken4lowEngine
 	std::vector<ComponentProperty> RigidbodyComponent::CreateProperties()
 	{
 		return {
-			{ "BodyType", "Body Type", ComponentPropertyType::String, [this]() -> ComponentPropertyValue { return std::string(ToString(bodyType_)); }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<std::string>(&value)) { SetBodyType(BodyTypeFromString(*typedValue)); } }, 0.0f, 0.0f, 0.1f, false, { { "Static", "Static" }, { "Dynamic", "Dynamic" }, { "Kinematic", "Kinematic" } } },
-			{ "Mass", "Mass", ComponentPropertyType::Float, [this]() -> ComponentPropertyValue { return mass_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<float>(&value)) { SetMass(*typedValue); } }, 0.0001f, 1000.0f, 0.05f, true },
-			{ "UseGravity", "Use Gravity", ComponentPropertyType::Bool, [this]() -> ComponentPropertyValue { return useGravity_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<bool>(&value)) { SetUseGravity(*typedValue); } } },
-			{ "Velocity", "Velocity", ComponentPropertyType::Vector3, [this]() -> ComponentPropertyValue { return velocity_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<Vector3>(&value)) { SetVelocity(*typedValue); } }, 0.0f, 0.0f, 0.05f },
-			{ "AngularVelocity", "Angular Velocity", ComponentPropertyType::Vector3, [this]() -> ComponentPropertyValue { return angularVelocity_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<Vector3>(&value)) { SetAngularVelocity(*typedValue); } }, 0.0f, 0.0f, 0.05f },
-			{ "SleepEnabled", "Sleep Enabled", ComponentPropertyType::Bool, [this]() -> ComponentPropertyValue { return sleepEnabled_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<bool>(&value)) { SetSleepEnabled(*typedValue); } } },
-			{ "Restitution", "Restitution", ComponentPropertyType::Float, [this]() -> ComponentPropertyValue { return restitution_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<float>(&value)) { SetRestitution(*typedValue); } }, 0.0f, 1.0f, 0.01f, true },
-			{ "StaticFriction", "Static Friction", ComponentPropertyType::Float, [this]() -> ComponentPropertyValue { return staticFriction_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<float>(&value)) { SetStaticFriction(*typedValue); } }, 0.0f, 10.0f, 0.01f, true },
-			{ "DynamicFriction", "Dynamic Friction", ComponentPropertyType::Float, [this]() -> ComponentPropertyValue { return dynamicFriction_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<float>(&value)) { SetDynamicFriction(*typedValue); } }, 0.0f, 10.0f, 0.01f, true }
+			{ "BodyType", "ボディ種類", ComponentPropertyType::String, [this]() -> ComponentPropertyValue { return std::string(ToString(bodyType_)); }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<std::string>(&value)) { SetBodyType(BodyTypeFromString(*typedValue)); } }, 0.0f, 0.0f, 0.1f, false, { { "Static", "静的" }, { "Dynamic", "動的" }, { "Kinematic", "キネマティック" } } },
+			{ "Mass", "質量", ComponentPropertyType::Float, [this]() -> ComponentPropertyValue { return mass_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<float>(&value)) { SetMass(*typedValue); } }, 0.0001f, 1000.0f, 0.05f, true },
+			{ "UseGravity", "重力を使用", ComponentPropertyType::Bool, [this]() -> ComponentPropertyValue { return useGravity_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<bool>(&value)) { SetUseGravity(*typedValue); } } },
+			{ "Velocity", "速度", ComponentPropertyType::Vector3, [this]() -> ComponentPropertyValue { return velocity_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<Vector3>(&value)) { SetVelocity(*typedValue); } }, 0.0f, 0.0f, 0.05f },
+			{ "AngularVelocity", "角速度", ComponentPropertyType::Vector3, [this]() -> ComponentPropertyValue { return angularVelocity_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<Vector3>(&value)) { SetAngularVelocity(*typedValue); } }, 0.0f, 0.0f, 0.05f },
+			{ "SleepEnabled", "スリープを有効化", ComponentPropertyType::Bool, [this]() -> ComponentPropertyValue { return sleepEnabled_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<bool>(&value)) { SetSleepEnabled(*typedValue); } } },
+			{ "Restitution", "反発係数", ComponentPropertyType::Float, [this]() -> ComponentPropertyValue { return restitution_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<float>(&value)) { SetRestitution(*typedValue); } }, 0.0f, 1.0f, 0.01f, true },
+			{ "StaticFriction", "静止摩擦", ComponentPropertyType::Float, [this]() -> ComponentPropertyValue { return staticFriction_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<float>(&value)) { SetStaticFriction(*typedValue); } }, 0.0f, 10.0f, 0.01f, true },
+			{ "DynamicFriction", "動摩擦", ComponentPropertyType::Float, [this]() -> ComponentPropertyValue { return dynamicFriction_; }, [this](const ComponentPropertyValue& value) { if (const auto* typedValue = std::get_if<float>(&value)) { SetDynamicFriction(*typedValue); } }, 0.0f, 10.0f, 0.01f, true }
 		};
 	}
 
