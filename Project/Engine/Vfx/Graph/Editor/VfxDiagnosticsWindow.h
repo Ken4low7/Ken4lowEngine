@@ -14,7 +14,7 @@ namespace Ken4lowEngine
 {
 
 /// <summary>
-/// VFX Graphの実行状況、履歴、負荷確認、Budgetをまとめて表示します。
+/// VFXグラフの実行状況、履歴、負荷確認、実行予算をまとめて表示します。
 /// </summary>
 class VfxDiagnosticsWindow
 {
@@ -84,34 +84,34 @@ private:
 		}
 
 		ImGui::Text("フレーム #%llu", static_cast<unsigned long long>(sample->frameNumber));
-		ImGui::Text("Frame %.3f ms | Update %.3f | Draw %.3f | Present %.3f",
+		ImGui::Text("フレーム %.3f ms | 更新 %.3f | 描画 %.3f | 表示 %.3f",
 			sample->totalFrameMs, sample->updateMs, sample->drawMs, sample->presentMs);
 		ImGui::Separator();
-		ImGui::Text("推定粒子数 %u | Emitter %u 使用中 / %u | Draw Call %u | Emit Dispatch %llu",
+		ImGui::Text("推定粒子数 %u | エミッター %u 使用中 / %u | 描画呼出 %u | 放出ディスパッチ %llu",
 			sample->estimatedActiveParticles,
 			sample->activeEmitterCount,
 			sample->emitterCount,
 			sample->particleDrawCalls,
 			static_cast<unsigned long long>(sample->emitDispatchesThisFrame));
-		ImGui::Text("Graph Loop %u | 使用Cost %u | 開始Cost %u | Culling %llu | Budget拒否 %llu",
+		ImGui::Text("グラフループ %u | 使用コスト %u | 開始コスト %u | カリング %llu | 実行予算拒否 %llu",
 			sample->graphActiveLoops,
 			sample->graphActiveLoopCost,
 			sample->graphStartCostThisFrame,
 			static_cast<unsigned long long>(sample->graphCullsThisFrame),
 			static_cast<unsigned long long>(sample->graphBudgetRejectsThisFrame));
-		ImGui::Text("Cue Instance %u | Track %u | 開始 %llu | 遅延 %llu",
+		ImGui::Text("キュー実体 %u | トラック %u | 開始 %llu | 遅延 %llu",
 			sample->cueActiveInstances,
 			sample->cueActiveTracks,
 			static_cast<unsigned long long>(sample->cueTrackStartsThisFrame),
 			static_cast<unsigned long long>(sample->cueBudgetDelaysThisFrame));
 		ImGui::Separator();
 		ImGui::Text("%uサンプル平均 %.3f ms | 最大 %.3f ms", summary.sampleCount, summary.averageFrameMs, summary.maxFrameMs);
-		ImGui::Text("最大粒子数 %u | Particle Draw %u | Graph Loop %u | Cue Track %u",
+		ImGui::Text("最大粒子数 %u | 粒子描画 %u | グラフループ %u | キュートラック %u",
 			summary.peakEstimatedActiveParticles,
 			summary.peakParticleDrawCalls,
 			summary.peakGraphActiveLoops,
 			summary.peakCueActiveTracks);
-		ImGui::TextDisabled("CPUから取得できる統計だけを記録し、GPU Fence待機やReadbackは行いません。");
+		ImGui::TextDisabled("CPUから取得できる統計だけを記録し、GPUフェンス待機や読戻しは行いません。");
 	}
 
 	void DrawHistory()
@@ -135,9 +135,9 @@ private:
 		ImGui::Text("履歴: %zu / %zu フレーム", count, VfxGraphDiagnostics::kHistoryCapacity);
 		if (count > 0u)
 		{
-			ImGui::PlotLines("Frame ms", frame.data(), static_cast<int>(count), 0, nullptr, 0.0f, FLT_MAX, ImVec2(0.0f, 80.0f));
-			ImGui::PlotLines("Update ms", update.data(), static_cast<int>(count), 0, nullptr, 0.0f, FLT_MAX, ImVec2(0.0f, 70.0f));
-			ImGui::PlotLines("Draw ms", draw.data(), static_cast<int>(count), 0, nullptr, 0.0f, FLT_MAX, ImVec2(0.0f, 70.0f));
+			ImGui::PlotLines("フレーム時間 (ms)", frame.data(), static_cast<int>(count), 0, nullptr, 0.0f, FLT_MAX, ImVec2(0.0f, 80.0f));
+			ImGui::PlotLines("更新時間 (ms)", update.data(), static_cast<int>(count), 0, nullptr, 0.0f, FLT_MAX, ImVec2(0.0f, 70.0f));
+			ImGui::PlotLines("描画時間 (ms)", draw.data(), static_cast<int>(count), 0, nullptr, 0.0f, FLT_MAX, ImVec2(0.0f, 70.0f));
 			ImGui::PlotLines("推定粒子数", particles.data(), static_cast<int>(count), 0, nullptr, 0.0f, FLT_MAX, ImVec2(0.0f, 70.0f));
 		}
 		if (ImGui::Button("履歴をリセット")) diagnostics->ResetHistory();
@@ -146,16 +146,16 @@ private:
 	void DrawStress()
 	{
 		VfxGraphDiagnostics* diagnostics = VfxGraphDiagnostics::GetInstance();
-		ImGui::InputText("Graph名", graphName_.data(), graphName_.size());
+		ImGui::InputText("グラフ名", graphName_.data(), graphName_.size());
 		if (ImGui::Button("負荷確認サンプルを読み込む"))
 		{
 			const bool loaded = VfxGraphRuntime::GetInstance()->LoadGraph("Resources/VfxGraph/Samples/ScalableIntegratedExplosion.vfxgraph.json");
-			lastStressMessage_ = loaded ? "負荷確認用Graphを読み込みました。" : VfxGraphRuntime::GetInstance()->GetLastStatus(); // サンプルの配置場所は開発工程番号ではなく用途で固定する。
+			lastStressMessage_ = loaded ? "負荷確認用グラフを読み込みました。" : VfxGraphRuntime::GetInstance()->GetLastStatus(); // 表示文だけ日本語化し、アセット識別子は変更しない。
 		}
 
 		ImGui::InputInt("単発数", &oneShotCount_);
-		ImGui::InputInt("Loop数", &loopCount_);
-		ImGui::InputInt("Grid列数", &gridColumns_);
+		ImGui::InputInt("ループ数", &loopCount_);
+		ImGui::InputInt("グリッド列数", &gridColumns_);
 		ImGui::DragFloat("間隔", &spacing_, 0.1f, 0.1f, 50.0f);
 		oneShotCount_ = (std::clamp)(oneShotCount_, 0, static_cast<int>(VfxGraphDiagnostics::kMaxStressOneShots));
 		loopCount_ = (std::clamp)(loopCount_, 0, static_cast<int>(VfxGraphDiagnostics::kMaxStressLoops));
@@ -171,23 +171,23 @@ private:
 			config.spacing = spacing_;
 			config.center = stressCenter_;
 			const bool success = diagnostics->RunStress(config);
-			lastStressMessage_ = success ? "負荷確認を開始しました。" : "開始できませんでした。登録状態、Budget、距離、Culling設定を確認してください。";
+			lastStressMessage_ = success ? "負荷確認を開始しました。" : "開始できませんでした。登録状態、実行予算、距離、カリング設定を確認してください。";
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("負荷確認Loopを停止"))
+		if (ImGui::Button("負荷確認ループを停止"))
 		{
 			const uint32_t stopped = diagnostics->StopStressLoops();
-			lastStressMessage_ = "停止したLoop数: " + std::to_string(stopped);
+			lastStressMessage_ = "停止したループ数: " + std::to_string(stopped);
 		}
 
 		const VfxGraphStressResult& result = diagnostics->GetLastStressResult();
-		ImGui::Text("単発 %u / %u | Loop %u / %u | 実行中Loop %zu",
+		ImGui::Text("単発 %u / %u | ループ %u / %u | 実行中ループ %zu",
 			result.successfulOneShots,
 			result.requestedOneShots,
 			result.successfulLoops,
 			result.requestedLoops,
 			diagnostics->GetActiveStressLoopCount());
-		ImGui::Text("Budget拒否 %llu | Culling %llu | 推定粒子数 %u | Active Emitter %u",
+		ImGui::Text("実行予算拒否 %llu | カリング %llu | 推定粒子数 %u | 使用中エミッター %u",
 			static_cast<unsigned long long>(result.graphBudgetRejects),
 			static_cast<unsigned long long>(result.graphCulls),
 			result.estimatedActiveParticlesAfterStart,
@@ -204,23 +204,23 @@ private:
 		int activeTracks = static_cast<int>(budget.maxActiveTracks);
 		int trackStarts = static_cast<int>(budget.maxTrackStartsPerFrame);
 
-		if (ImGui::InputInt("1フレームのGraph開始Cost", &graphStartCost))
+		if (ImGui::InputInt("1フレームのグラフ開始コスト", &graphStartCost))
 			budget.maxVfxGraphStartCostPerFrame = static_cast<uint32_t>((std::max)(graphStartCost, 1));
-		if (ImGui::InputInt("Active Graph Loop Cost", &activeGraphCost))
+		if (ImGui::InputInt("使用中グラフループコスト", &activeGraphCost))
 			budget.maxActiveVfxGraphLoopCost = static_cast<uint32_t>((std::max)(activeGraphCost, 1));
-		if (ImGui::InputInt("Active Cue Instance", &activeInstances))
+		if (ImGui::InputInt("使用中キュー実体数", &activeInstances))
 			budget.maxActiveInstances = static_cast<uint32_t>((std::max)(activeInstances, 1));
-		if (ImGui::InputInt("Active Cue Track", &activeTracks))
+		if (ImGui::InputInt("使用中キュートラック数", &activeTracks))
 			budget.maxActiveTracks = static_cast<uint32_t>((std::max)(activeTracks, 1));
-		if (ImGui::InputInt("1フレームのTrack開始数", &trackStarts))
+		if (ImGui::InputInt("1フレームのトラック開始数", &trackStarts))
 			budget.maxTrackStartsPerFrame = static_cast<uint32_t>((std::max)(trackStarts, 1));
 
 		ImGui::Separator();
 		const VfxGraphRuntimeStats& graph = VfxGraphRuntime::GetInstance()->GetStats();
 		const VfxRuntimeStats& cue = VfxCueRuntime::GetInstance()->GetStats();
-		ImGui::Text("現在のGraph Cost: Active %u / このフレームの開始 %u", graph.activeLoopCost, graph.graphStartCostThisFrame);
-		ImGui::Text("現在のCue: Instance %u / Track %u / このフレームの開始 %u",
-			cue.activeInstanceCount, cue.activeTrackCount, cue.trackStartsThisFrame); // 表示名だけ日本語化し、実行Budgetの内部単位は変更しない。
+		ImGui::Text("現在のグラフコスト: 使用中 %u / このフレームの開始 %u", graph.activeLoopCost, graph.graphStartCostThisFrame);
+		ImGui::Text("現在のキュー: 実体 %u / トラック %u / このフレームの開始 %u",
+			cue.activeInstanceCount, cue.activeTrackCount, cue.trackStartsThisFrame);
 	}
 #endif // USE_IMGUI
 
