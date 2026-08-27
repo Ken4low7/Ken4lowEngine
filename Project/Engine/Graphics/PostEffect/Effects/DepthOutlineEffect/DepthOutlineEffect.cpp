@@ -71,9 +71,10 @@ namespace Ken4lowEngine
 	{
 #ifdef USE_IMGUI
 		if (!depthOutlineSetting_) return;
-		ImGui::SliderFloat("Depth Scale##DepthOutlineEffect", &depthOutlineSetting_->depthScale, 0.0f, 100.0f);
-		ImGui::SliderFloat("Thickness##DepthOutlineEffect", &depthOutlineSetting_->edgeThickness, 1.0f, 10.0f);
-		ImGui::ColorEdit4("Edge Color##DepthOutlineEffect", &depthOutlineSetting_->edgeColor.x);
+		// 深度輪郭の調整項目を用途が分かる日本語表記へ統一する。
+		ImGui::SliderFloat("深度差の強さ##DepthOutlineEffect", &depthOutlineSetting_->depthScale, 0.0f, 100.0f);
+		ImGui::SliderFloat("輪郭の太さ##DepthOutlineEffect", &depthOutlineSetting_->edgeThickness, 1.0f, 10.0f);
+		ImGui::ColorEdit4("輪郭色##DepthOutlineEffect", &depthOutlineSetting_->edgeColor.x);
 #endif // USE_IMGUI
 	}
 
