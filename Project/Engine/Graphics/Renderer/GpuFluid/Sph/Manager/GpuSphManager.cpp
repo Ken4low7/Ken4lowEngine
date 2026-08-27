@@ -94,7 +94,7 @@ bool GpuSphManager::Initialize(uint32_t particleCapacity)
         return false;
     }
 
-    // W6のSpatial HashをW9.5のDFSPH近傍探索にもそのまま再利用する。
+    // Spatial HashはDFSPHの近傍探索にもそのまま再利用する。
     SetActiveParticleCount(settings_.activeParticleCount);
     initialized_ = true;
     resetRequested_ = true;
@@ -327,7 +327,7 @@ bool GpuSphManager::CreateRootSignature()
         return false;
     }
 
-    rootSignature_->SetName(L"GpuSph.W9.5.RootSignature");
+    rootSignature_->SetName(L"GpuSph.RootSignature");
     return true;
 }
 
@@ -390,7 +390,7 @@ bool GpuSphManager::CreateScratchBuffer(uint32_t capacity)
         return false;
     }
 
-    scratchBuffer_->SetName(L"GpuSph.W9.5.SharedSolverScratch");
+    scratchBuffer_->SetName(L"GpuSph.SharedSolverScratch");
     try
     {
         scratchUavIndex_ = UAVManager::GetInstance()->Allocate();
@@ -438,7 +438,7 @@ bool GpuSphManager::CreateDfSphStateBuffer(uint32_t capacity)
         return false;
     }
 
-    dfsphStateBuffer_->SetName(L"GpuSph.W9.5.PersistentDfSphState");
+    dfsphStateBuffer_->SetName(L"GpuSph.PersistentDfSphState");
     try
     {
         dfsphStateUavIndex_ = UAVManager::GetInstance()->Allocate();
@@ -495,8 +495,8 @@ bool GpuSphManager::CreateSpatialHashBuffers(uint32_t particleCapacity)
         return false;
     }
 
-    hashEntriesBuffer_->SetName(L"GpuSph.W6.HashEntries");
-    cellRangesBuffer_->SetName(L"GpuSph.W6.CellRanges");
+    hashEntriesBuffer_->SetName(L"GpuSph.HashEntries");
+    cellRangesBuffer_->SetName(L"GpuSph.CellRanges");
 
     try
     {
@@ -558,7 +558,7 @@ bool GpuSphManager::CreateCflReadbackBuffers()
             ReleaseCflReadbackBuffers();
             return false;
         }
-        const std::wstring name = L"GpuSph.W9.5.MetricReadback." + std::to_wstring(index);
+        const std::wstring name = L"GpuSph.MetricReadback." + std::to_wstring(index);
         slot.buffer->SetName(name.c_str());
     }
 
@@ -897,7 +897,6 @@ bool GpuSphManager::ExecuteSpatialHashBuild(D3D12_GPU_VIRTUAL_ADDRESS constantBu
     GpuSphDispatchConstants dispatchConstants{};
     dispatchConstants.sortCount = sortCount;
     dispatchConstants.cellCount = grid.cellCount;
-
     if (!DispatchStage(
         GpuSphComputeShaderId::SpatialBuildKeys,
         constantBufferAddress,
