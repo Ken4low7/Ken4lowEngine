@@ -49,5 +49,5 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         maxCorrection);
     particle.velocity += normalValue * correction * edgeInfluence * deltaTime;
 
-    particles[index] = particle; // W10 Ocean→SPHは波面近傍だけをBlendし、遠方のLocal Liquid挙動を保持する。
+    particles[index] = particle; // 波面近傍だけを滑らかに連成し、離れた粒子の局所的な挙動は維持する。
 }
