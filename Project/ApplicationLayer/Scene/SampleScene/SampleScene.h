@@ -23,9 +23,9 @@ namespace Ken4lowEngine
 			actorWorld_.Update(GameTimer::GetInstance()->GetDeltaTime());
 		}
 
-		void UpdateEditor(float deltaTime) override
+		void UpdateEditor(float /*deltaTime*/) override
 		{
-			actorWorld_.UpdateEditor(deltaTime);
+			// Editor ActorWorldの更新はSceneManager::RefreshEditorVisualStateへ集約し、二重更新を防ぐ。
 		}
 
 		void PrepareShadowPass() override
