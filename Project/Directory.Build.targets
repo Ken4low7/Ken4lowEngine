@@ -1,11 +1,11 @@
 <Project>
   <ItemGroup>
-    <!-- FadeManagerは廃止済みのため、旧vcxprojに残る明示Itemを評価後に除外する。 -->
+    <!-- 廃止済みのFadeManagerが旧プロジェクト設定から再登録されないよう除外する。 -->
     <ClCompile Remove="ApplicationLayer\SceneManagement\FadeManager\FadeManager.cpp" />
     <ClInclude Remove="ApplicationLayer\SceneManagement\FadeManager\FadeManager.h" />
   </ItemGroup>
 
-  <!-- Phase18 VFX OrchestrationはSubsystem横断層なので、既存GPU Fluid用propsと分離して登録する。 -->
+  <!-- VFX Cueのコンパイル、実行、編集に必要なSubsystemを登録する。 -->
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Ken4lowEngine'">
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Asset\VfxCueSerializer.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueCompiler.cpp" />
@@ -22,17 +22,18 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Runtime\VfxCueRuntime.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Editor\VfxTimelineEditor.h" />
 
-    <None Include="$(MSBuildThisFileDirectory)Resources\Vfx\Phase18\Explosion.vfx.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Effects\Explosion.effect.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Vfx\Cues\Explosion.vfx.json" />
   </ItemGroup>
 
-  <!-- Phase19のSibling module間includeを既存Projectと同じ短いHeader名で解決する。 -->
+  <!-- Gameplayの各Subsystemから短いHeader名で参照できるinclude pathを設定する。 -->
   <ItemDefinitionGroup Condition="'$(MSBuildProjectName)' == 'Ken4lowEngine'">
     <ClCompile>
       <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)Engine\Gameplay\Tags;$(MSBuildThisFileDirectory)Engine\Gameplay\Events;$(MSBuildThisFileDirectory)Engine\Gameplay\Attributes;$(MSBuildThisFileDirectory)Engine\Gameplay\Ability;$(MSBuildThisFileDirectory)Engine\Gameplay\Diagnostics;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
 
-  <!-- Phase19 GameplayはScene/Characterの所有権を奪わず、Actor Componentから使う独立Runtime層として登録する。 -->
+  <!-- Gameplay Runtimeとサンプル資産をプロジェクトへ登録する。 -->
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Ken4lowEngine'">
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Scene\Actor\Core\ActorComponentHandle.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Tags\GameplayTag.cpp" />
@@ -52,11 +53,11 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Ability\GameplayAbilityComponent.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Gameplay\Diagnostics\GameplayAbilityDiagnostics.h" />
 
-    <None Include="$(MSBuildThisFileDirectory)Resources\Gameplay\Abilities\Phase19Pulse.ability.json" />
-    <None Include="$(MSBuildThisFileDirectory)Resources\ActorPrefabs\Phase19AbilityActor.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\Gameplay\Abilities\Pulse.ability.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\ActorPrefabs\AbilitySampleActor.json" />
   </ItemGroup>
 
-  <!-- Phase20-26はNiagara-like GraphをAuthoring/Compile/Editor/Subsystem統合層として追加し、既存backend/runtimeを再利用する。 -->
+  <!-- VFX GraphのAuthoring、Compile、Runtime、Editorを既存Particle Runtime上へ登録する。 -->
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Ken4lowEngine'">
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Data\VfxGraphTypes.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Asset\VfxGraphSerializer.cpp" />
@@ -73,8 +74,9 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Runtime\VfxGraphRuntime.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Engine\Vfx\Graph\Editor\VfxGraphEditor.h" />
 
-    <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Phase20\EnergyBurst.vfxgraph.json" />
-    <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Phase25\EditorPreviewShowcase.vfxgraph.json" />
-    <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Phase26\IntegratedExplosion.vfxgraph.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Samples\EnergyBurst.vfxgraph.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Samples\EditorPreviewShowcase.vfxgraph.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Samples\IntegratedExplosion.vfxgraph.json" />
+    <None Include="$(MSBuildThisFileDirectory)Resources\VfxGraph\Samples\ScalableIntegratedExplosion.vfxgraph.json" />
   </ItemGroup>
 </Project>
