@@ -2,6 +2,10 @@
 #include "SceneComponent.h"
 #include "GpuParticleComponent.h"
 
+#ifdef USE_IMGUI
+#include <imgui.h>
+#endif
+
 void BasicParticleActor::Initialize()
 {
 	// Actor全体の基準となるRootComponentを生成する
@@ -40,6 +44,8 @@ void BasicParticleActor::Initialize()
 
 void BasicParticleActor::DrawImGui()
 {
+#ifdef USE_IMGUI
+	// 編集UIだけを条件付きにし、ReleaseでもActorとParticleの実行処理を維持する。
 	Actor::DrawImGui();
 
 	ImGui::SeparatorText("VFX");
@@ -49,6 +55,7 @@ void BasicParticleActor::DrawImGui()
 	{
 		PlayVFX();
 	}
+#endif
 }
 
 void BasicParticleActor::PlayVFX()
