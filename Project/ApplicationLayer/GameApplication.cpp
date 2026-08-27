@@ -1,6 +1,6 @@
 #define NOMINMAX
 #include "GameApplication.h"
-#include "SceneFactory.h"
+#include "ApplicationLayer/SceneManagement/SceneFactory/SceneFactory.h"
 #include "ParameterManager.h"
 #include <Wireframe.h>
 #include <DirectXCommon.h>
@@ -119,7 +119,7 @@ namespace Ken4lowEngine
 		EditorGpuPickingManager::GetInstance()->Initialize();
 		EditorSelectionOutlineManager::GetInstance()->Initialize();
 		VfxTimelineEditor::GetInstance()->Initialize();
-		VfxGraphEditor::GetInstance()->Initialize(); // Phase25 Graph authoring/preview shares the existing GPU particle runtime.
+		VfxGraphEditor::GetInstance()->Initialize(); // Graph編集とプレビューは既存GPU Particle Runtimeを共有する。
 #endif // USE_IMGUI
 
 		Input::GetInstance()->Initialize(winApp_);
@@ -290,7 +290,7 @@ namespace Ken4lowEngine
 		dxCommon_->EndDraw();
 		GameTimer::GetInstance()->EndPresent();
 		GameTimer::GetInstance()->EndFrame();
-		VfxGraphDiagnostics::GetInstance()->CaptureFrame(); // Phase28 records counters after the same frame's timing is finalized, without a GPU fence wait.
+		VfxGraphDiagnostics::GetInstance()->CaptureFrame(); // 同じフレームの時間確定後に、追加のGPU待機なしで統計を取得する。
 	}
 
 	/// -------------------------------------------------------------

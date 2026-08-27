@@ -1,6 +1,6 @@
 #pragma once
-#include <Framework.h>
-#include "RenderPipelineController.h"
+#include "Engine/Core/Application/Framework.h"
+#include "Engine/Graphics/Pipeline/RenderPipelineController.h"
 
 #include <memory>
 
@@ -12,6 +12,7 @@ namespace Ken4lowEngine
 	/// -------------------------------------------------------------
 	///				　	ゲーム全体を管理するクラス
 	/// -------------------------------------------------------------
+	// ゲーム固有のScene選択とEngine/Editorの接続はApplication層で組み立てる。
 	class GameApplication : public Framework
 	{
 	public: /// ---------- メンバ関数 ---------- ///

@@ -1,4 +1,4 @@
-#include "GameApplication.h"
+#include "ApplicationLayer/GameApplication.h"
 #include "D3DResourceLeakChecker.h"
 #include "Engine/Core/Diagnostics/CrashReporter.h"
 
@@ -9,7 +9,7 @@ using namespace Ken4lowEngine;
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
-	// Phase 12ではEngine初期化より先にCrash Reporterを登録し、起動途中の例外も回収する。
+	// Engine初期化より先にCrash Reporterを登録し、起動途中の例外も回収する。
 	CrashReporter::Install("CrashReports");
 
 #ifdef _DEBUG
@@ -19,7 +19,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	try
 	{
-		// Frameworkの派生クラスであるGameEngineを使用
+		// ゲーム固有の起動設定はApplication層で保持し、Engine側へ逆依存させない。
 		std::unique_ptr<Framework> game = std::make_unique<GameApplication>();
 
 		// 実行処理

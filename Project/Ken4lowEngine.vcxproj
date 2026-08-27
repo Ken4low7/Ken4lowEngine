@@ -184,7 +184,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Engine\DebugTools\Performance\PerformanceMonitor.cpp" />
     <ClCompile Include="Engine\Graphics\Camera\Manager\CameraManager.cpp" />
     <ClCompile Include="Engine\Core\Application\Framework.cpp" />
-    <ClCompile Include="Engine\Core\Application\GameApplication.cpp" />
+    <!-- ゲーム固有の起動処理はEngineではなくApplication層のソースとして登録する。 -->
+    <ClCompile Include="ApplicationLayer\GameApplication.cpp" />
     <ClCompile Include="Engine\Core\Logging\LogString.cpp" />
     <ClCompile Include="Engine\Core\Time\LegacyFPSCounter\FPSCounter.cpp" />
     <ClCompile Include="Engine\Core\Transform\ParticleTransform.cpp" />
@@ -804,7 +805,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Engine\Graphics\Camera\Manager\CameraManager.h" />
     <ClInclude Include="Engine\Platform\Windows\GameViewportConstants.h" />
     <ClInclude Include="Engine\Core\Application\Framework.h" />
-    <ClInclude Include="Engine\Core\Application\GameApplication.h" />
+    <ClInclude Include="ApplicationLayer\GameApplication.h" />
     <ClInclude Include="Engine\Core\Logging\LogString.h" />
     <ClInclude Include="Engine\Core\Time\LegacyFPSCounter\FPSCounter.h" />
     <ClInclude Include="Engine\Core\Transform\ParticleTransform.h" />

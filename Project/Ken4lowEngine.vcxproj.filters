@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <!-- 起動処理の表示先も実際のApplication所有に合わせる。 -->
+    <Filter Include="ApplicationLayer">
+      <UniqueIdentifier>{4f19b394-7d52-48c4-a3de-40e5128272b7}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Engine\Graphics\Resource\Asset">
       <UniqueIdentifier>{2cbb96dc-21fd-48aa-b37e-bc6d78f3822e}</UniqueIdentifier>
     </Filter>
@@ -229,8 +233,8 @@
     <ClCompile Include="Engine\Core\Application\Framework.cpp">
       <Filter>Engine\Core\Application</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\Core\Application\GameApplication.cpp">
-      <Filter>Engine\Core\Application</Filter>
+    <ClCompile Include="ApplicationLayer\GameApplication.cpp">
+      <Filter>ApplicationLayer</Filter>
     </ClCompile>
     <ClCompile Include="Engine\Core\Logging\LogString.cpp">
       <Filter>Engine\Core\Logging</Filter>
@@ -1012,8 +1016,8 @@
     <ClInclude Include="Engine\Core\Application\Framework.h">
       <Filter>Engine\Core\Application</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\Core\Application\GameApplication.h">
-      <Filter>Engine\Core\Application</Filter>
+    <ClInclude Include="ApplicationLayer\GameApplication.h">
+      <Filter>ApplicationLayer</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Core\Logging\LogString.h">
       <Filter>Engine\Core\Logging</Filter>
